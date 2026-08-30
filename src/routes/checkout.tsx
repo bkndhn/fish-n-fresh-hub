@@ -1,0 +1,182 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { toast } from "sonner";
+import { AppShell } from "@/components/layout/AppShell";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/integrations/supabase/client";
+import { useCart } from "@/lib/cart";
+import { inr } from "@/lib/format";
+import { settingsQuery } from "@/lib/queries";
+
+export const Route = createFileRoute("/checkout")({
+  head: () => ({
+    meta: [
+      { title: "Checkout — Fish N Fresh" },
+      { name: "description", content: "Place your seafood order with cash on delivery or UPI." },
+      { property: "og:title", content: "Checkout — Fish N Fresh" },
+      { property: "og:description", content: "Delivery or pickup, COD or UPI — checkout in seconds." },
+    ],
+  }),
+  component: Checkout,
+});
+
+function Checkout() {
+  const { items, subtotal, clear } = useCart();
+  const { data: settings } = useQuery(settingsQuery);
+  const navigate = useNavigate();
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [fulfillment, setFulfillment] = useState<"delivery" | "pickup">("delivery");
+  const [payment, setPayment] = useState<"cod" | "upi">("cod");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const freeOver = Number(settings?.free_delivery_over ?? 500);
+  const deliveryFee =
+    fulfillment === "pickup" || subtotal >= freeOver ? 0 : Number(settings?.delivery_fee ?? 0);
+  const gstPercent = settings?.gst_enabled ? Number(settings.gst_percent ?? 0) : 0;
+  const gstAmount = Math.round((subtotal * gstPercent) / 100);
+  const total = subtotal + deliveryFee + gstAmount;
+
+  async function placeOrder() {
+    if (!name || phone.length < 10 || (fulfillment === "delivery" && !address)) {
+      toast.error("Please fill in your name, phone and address");
+      return;
+    }
+    setSaving(true);
+    const { data, error } = await supabase
+      .from("orders")
+      .insert({
+        customer_name: name,
+        customer_phone: phone,
+        customer_address: fulfillment === "delivery" ? address : null,
+        items: items as unknown as never,
+        subtotal,
+        delivery_fee: deliveryFee,
+        gst_amount: gstAmount,
+        gst_percent: gstPercent,
+        total,
+        status: "pending",
+        payment_method: payment,
+        fulfillment_type: fulfillment,
+        notes,
+      })
+      .select("id")
+      .single();
+    setSaving(false);
+    if (error || !data) {
+      toast.error("Could not place order. Please try again.");
+      return;
+    }
+    localStorage.setItem("fnf_phone", phone);
+    clear();
+    if (payment === "upi" && settings?.upi_id) {
+      window.location.href = `upi://pay?pa=${settings.upi_id}&pn=${encodeURIComponent(settings.upi_name)}&am=${total}&cu=INR`;
+    }
+    toast.success("Order placed!");
+    navigate({ to: "/orders" });
+  }
+
+  if (items.length === 0) {
+    return (
+      <AppShell>
+        <p className="py-20 text-center text-muted-foreground">Your cart is empty.</p>
+      </AppShell>
+    );
+  }
+
+  return (
+    <AppShell>
+      <h1 className="text-2xl font-bold">Checkout</h1>
+
+      <div className="mt-4 flex gap-2">
+        {(["delivery", "pickup"] as const).map((f) => (
+          <Button
+            key={f}
+            variant={fulfillment === f ? "default" : "outline"}
+            className="flex-1 rounded-xl capitalize"
+            onClick={() => setFulfillment(f)}
+          >
+            {f}
+          </Button>
+        ))}
+      </div>
+
+      <div className="mt-4 space-y-3">
+        <div>
+          <Label htmlFor="name">Full name</Label>
+          <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 rounded-xl" />
+        </div>
+        <div>
+          <Label htmlFor="phone">Phone</Label>
+          <Input
+            id="phone"
+            inputMode="numeric"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+            className="mt-1 rounded-xl"
+          />
+        </div>
+        {fulfillment === "delivery" && (
+          <div>
+            <Label htmlFor="address">Delivery address</Label>
+            <Textarea
+              id="address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="mt-1 rounded-xl"
+            />
+          </div>
+        )}
+        <div>
+          <Label htmlFor="notes">Notes (optional)</Label>
+          <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1 rounded-xl" />
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <p className="mb-2 text-sm font-medium">Payment method</p>
+        <div className="flex gap-2">
+          {(["cod", "upi"] as const).map((p) => (
+            <Button
+              key={p}
+              variant={payment === p ? "default" : "outline"}
+              className="flex-1 rounded-xl"
+              onClick={() => setPayment(p)}
+            >
+              {p === "cod" ? "Cash on delivery" : "UPI"}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5 space-y-2 rounded-2xl border border-border bg-card p-4 text-sm">
+        <Row label="Subtotal" value={inr(subtotal)} />
+        <Row label="Delivery" value={deliveryFee === 0 ? "Free" : inr(deliveryFee)} />
+        {gstPercent > 0 && <Row label={`GST (${gstPercent}%)`} value={inr(gstAmount)} />}
+        <div className="flex justify-between border-t border-border pt-2 font-display text-lg font-bold">
+          <span>Total</span>
+          <span>{inr(total)}</span>
+        </div>
+      </div>
+
+      <Button className="mt-4 w-full rounded-xl" disabled={saving} onClick={placeOrder}>
+        {saving ? "Placing order…" : `Place order · ${inr(total)}`}
+      </Button>
+    </AppShell>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span>{value}</span>
+    </div>
+  );
+}
