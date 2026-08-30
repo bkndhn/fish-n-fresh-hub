@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { categoriesQuery, productsQuery } from "@/lib/queries";
 
-type Search = { category?: string };
+type Search = { category?: string | undefined };
 
 export const Route = createFileRoute("/catalog")({
   validateSearch: (search: Record<string, unknown>): Search => ({
