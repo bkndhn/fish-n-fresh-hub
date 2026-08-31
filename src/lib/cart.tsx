@@ -78,8 +78,27 @@ export function CartProvider({ children }: { children: ReactNode }) {
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 
+const FALLBACK: CartContextValue = {
+  items: [],
+  subtotal: 0,
+  count: 0,
+  add: () => {},
+  setQty: () => {},
+  remove: () => {},
+  clear: () => {},
+};
+
 export function useCart() {
   const ctx = useContext(CartContext);
-  if (!ctx) throw new Error("useCart must be used inside CartProvider");
+  if (!ctx) {
+    if (import.meta.env.DEV) {
+      console.error(
+        "useCart: no CartProvider found in the component tree. " +
+          "Ensure <CartProvider> wraps <Outlet /> in src/routes/__root.tsx. " +
+          "Returning an empty inert cart to avoid a blank screen.",
+      );
+    }
+    return FALLBACK;
+  }
   return ctx;
 }
