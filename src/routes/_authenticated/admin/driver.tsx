@@ -43,7 +43,7 @@ function DriverMap() {
   }, [qc]);
 
   const assign = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: Record<string, unknown> }) => {
+    mutationFn: async ({ id, patch }: { id: string; patch: { driver_name?: string; status?: string } }) => {
       const { error } = await supabase.from("orders").update(patch).eq("id", id);
       if (error) throw error;
     },
