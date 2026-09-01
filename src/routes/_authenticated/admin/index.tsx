@@ -61,7 +61,7 @@ function Dashboard() {
             {rows.slice(0, 6).map((o) => (
               <Link
                 key={o.id}
-                to="/admin/orders"
+                to="/admin"
                 className="flex items-center justify-between gap-3 rounded-xl border border-border p-3 hover:bg-muted"
               >
                 <div className="min-w-0">
