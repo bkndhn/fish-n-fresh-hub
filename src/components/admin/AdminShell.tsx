@@ -10,6 +10,7 @@ import {
   ReceiptText,
   Tag,
   Users,
+  UserCog,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { adminRoleQuery } from "@/lib/admin";
@@ -22,6 +23,7 @@ const NAV = [
   { to: "/admin/customers", label: "Customers", icon: Users },
   { to: "/admin/promotions", label: "Promotions", icon: Tag },
   { to: "/admin/driver", label: "Driver map", icon: MapPin },
+  { to: "/admin/staff", label: "Team", icon: UserCog },
 ] as const;
 
 export function AdminShell({ title, children }: { title: string; children: ReactNode }) {

@@ -289,9 +289,11 @@ export type Database = {
           notes: string | null
           order_number: string | null
           payment_method: string
+          payment_status: string
           promotion_id: string | null
           referral_code: string | null
           status: string
+          stripe_session_id: string | null
           subtotal: number
           total: number
           updated_at: string
@@ -329,9 +331,11 @@ export type Database = {
           notes?: string | null
           order_number?: string | null
           payment_method?: string
+          payment_status?: string
           promotion_id?: string | null
           referral_code?: string | null
           status?: string
+          stripe_session_id?: string | null
           subtotal?: number
           total?: number
           updated_at?: string
@@ -369,9 +373,11 @@ export type Database = {
           notes?: string | null
           order_number?: string | null
           payment_method?: string
+          payment_status?: string
           promotion_id?: string | null
           referral_code?: string | null
           status?: string
+          stripe_session_id?: string | null
           subtotal?: number
           total?: number
           updated_at?: string
