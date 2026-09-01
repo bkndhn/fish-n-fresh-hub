@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/admin/driver")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: DriverMap;
+  component: DriverMap,
 });
 
 function DriverMap() {
