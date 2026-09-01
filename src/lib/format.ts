@@ -5,3 +5,5 @@ export function inr(value: number): string {
     maximumFractionDigits: 0,
   }).format(value);
 }
+
+export const formatINR = inr;
