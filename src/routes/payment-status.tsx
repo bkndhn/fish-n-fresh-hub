@@ -15,9 +15,8 @@ export const Route = createFileRoute("/payment-status")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  validateSearch: (search: Record<string, unknown>): { order?: string } => ({
-    order: typeof search.order === "string" ? search.order : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { order?: string } =>
+    typeof search["order"] === "string" ? { order: search["order"] as string } : {},
   component: PaymentStatus,
 });
 
