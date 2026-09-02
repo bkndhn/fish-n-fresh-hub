@@ -11,6 +11,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/lib/cart";
 import { inr } from "@/lib/format";
 import { settingsQuery } from "@/lib/queries";
+import { isPaymentsConfigured } from "@/lib/stripe";
+import { StripeOrderCheckout } from "@/components/StripeOrderCheckout";
+import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -166,14 +169,14 @@ function Checkout() {
       <div className="mt-5">
         <p className="mb-2 text-sm font-medium">Payment method</p>
         <div className="flex gap-2">
-          {(["cod", "upi"] as const).map((p) => (
+          {(["cod", "upi", "card"] as const).map((p) => (
             <Button
               key={p}
               variant={payment === p ? "default" : "outline"}
               className="flex-1 rounded-xl"
               onClick={() => setPayment(p)}
             >
-              {p === "cod" ? "Cash on delivery" : "UPI"}
+              {p === "cod" ? "Cash on delivery" : p === "upi" ? "UPI" : "Card"}
             </Button>
           ))}
         </div>
