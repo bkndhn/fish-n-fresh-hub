@@ -32,9 +32,10 @@ function Checkout() {
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [fulfillment, setFulfillment] = useState<"delivery" | "pickup">("delivery");
-  const [payment, setPayment] = useState<"cod" | "upi">("cod");
+  const [payment, setPayment] = useState<"cod" | "upi" | "card">("cod");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [checkoutOrderId, setCheckoutOrderId] = useState<string | null>(null);
 
   const freeOver = Number(settings?.free_delivery_over ?? 500);
   const deliveryFee =
@@ -46,6 +47,10 @@ function Checkout() {
   async function placeOrder() {
     if (!name || phone.length < 10 || (fulfillment === "delivery" && !address)) {
       toast.error("Please fill in your name, phone and address");
+      return;
+    }
+    if (payment === "card" && !isPaymentsConfigured()) {
+      toast.error("Card payments are not available right now");
       return;
     }
     setSaving(true);
@@ -75,11 +80,30 @@ function Checkout() {
     }
     localStorage.setItem("fnf_phone", phone);
     clear();
+    if (payment === "card") {
+      setCheckoutOrderId(data.id);
+      return;
+    }
     if (payment === "upi" && settings?.upi_id) {
       window.location.href = `upi://pay?pa=${settings.upi_id}&pn=${encodeURIComponent(settings.upi_name)}&am=${total}&cu=INR`;
     }
     toast.success("Order placed!");
     navigate({ to: "/orders" });
+  }
+
+  if (checkoutOrderId) {
+    return (
+      <AppShell>
+        <h1 className="text-2xl font-bold">Pay for your order</h1>
+        <div className="mt-3">
+          <PaymentTestModeBanner />
+        </div>
+        <StripeOrderCheckout
+          orderId={checkoutOrderId}
+          returnUrl={`${window.location.origin}/payment-status?order=${checkoutOrderId}`}
+        />
+      </AppShell>
+    );
   }
 
   if (items.length === 0) {
