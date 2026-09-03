@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ShieldCheck, Truck, Waves } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { BannerCarousel } from "@/components/BannerCarousel";
+import { TrustBadges } from "@/components/TrustBadges";
 import { ProductCard } from "@/components/ProductCard";
-import { Button } from "@/components/ui/button";
-import { bannersQuery, categoriesQuery, productsQuery, settingsQuery } from "@/lib/queries";
+import { bannersQuery, categoriesQuery, productsQuery, trustBadgesQuery } from "@/lib/queries";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -29,7 +30,7 @@ function Home() {
   const { data: banners } = useQuery(bannersQuery);
   const { data: categories } = useQuery(categoriesQuery);
   const { data: products } = useQuery(productsQuery);
-  const { data: settings } = useQuery(settingsQuery);
+  const { data: badges } = useQuery(trustBadgesQuery);
 
   const featured = (products ?? []).filter((p) => p.is_featured).slice(0, 6);
   const bestsellers = [...(products ?? [])]
@@ -38,73 +39,35 @@ function Home() {
 
   return (
     <AppShell>
-      <section className="ocean-gradient relative overflow-hidden rounded-3xl px-6 py-10 text-primary-foreground">
-        <h1 className="max-w-md text-3xl font-bold">
-          {settings?.tagline ?? "Today's catch, at your door"}
-        </h1>
-        <p className="mt-2 max-w-md text-sm opacity-90">
-          Cleaned, cut and packed fresh every morning. Free delivery over ₹
-          {settings?.free_delivery_over ?? 500}.
-        </p>
-        <Button asChild variant="secondary" className="mt-5 rounded-xl">
-          <Link to="/catalog">Shop fresh seafood</Link>
-        </Button>
-      </section>
+      <h1 className="sr-only">Fish N Fresh — fresh seafood delivered</h1>
 
-      <section className="mt-6 grid grid-cols-3 gap-3 text-center text-xs">
-        {[
-          { icon: Waves, label: "Daily catch" },
-          { icon: ShieldCheck, label: "Lab tested" },
-          { icon: Truck, label: "Same-day delivery" },
-        ].map(({ icon: Icon, label }) => (
-          <div key={label} className="rounded-2xl border border-border bg-card p-3">
-            <Icon className="mx-auto mb-1 size-5 text-primary" />
-            {label}
-          </div>
-        ))}
-      </section>
+      <BannerCarousel banners={banners ?? []} />
 
-      {banners && banners.length > 0 && (
-        <section className="mt-8">
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {banners.map((b) => (
-              <div
-                key={b.id}
-                className="relative min-w-[260px] overflow-hidden rounded-2xl border border-border"
-              >
-                <img src={b.image_url} alt={b.title} className="h-32 w-full object-cover" />
-                <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/70 to-transparent p-3 text-white">
-                  <p className="text-sm font-semibold">{b.title}</p>
-                  {b.subtitle && <p className="text-xs opacity-90">{b.subtitle}</p>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      <div className="mt-4">
+        <TrustBadges badges={badges ?? []} />
+      </div>
 
       <section className="mt-8">
         <h2 className="mb-3 text-lg font-bold">Categories</h2>
-        <div className="flex gap-3 overflow-x-auto pb-2">
+        <div className="flex gap-4 overflow-x-auto pb-2">
           {(categories ?? []).map((c) => (
             <Link
               key={c.id}
               to="/catalog"
               search={{ category: c.name }}
-              className="min-w-[110px] rounded-2xl border border-border bg-card p-3 text-center text-sm"
+              className="flex min-w-[72px] flex-col items-center gap-1.5 text-center text-xs"
             >
-              {c.image_url && (
-                <img
-                  src={c.image_url}
-                  alt={c.name}
-                  className="mb-2 h-16 w-full rounded-xl object-cover"
-                />
-              )}
-              {c.name}
+              <span className="size-16 overflow-hidden rounded-full border border-border bg-card">
+                {c.image_url && (
+                  <img src={c.image_url} alt={c.name} className="size-full object-cover" />
+                )}
+              </span>
+              <span className="line-clamp-1">{c.name}</span>
             </Link>
           ))}
         </div>
       </section>
+
 
       <ProductRow title="Best sellers" products={bestsellers} />
       <ProductRow title="Featured" products={featured} />
