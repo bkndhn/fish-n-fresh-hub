@@ -72,3 +72,33 @@ export function ordersByPhoneQuery(phone: string) {
     },
   });
 }
+
+export type TrustBadge = {
+  id: string;
+  label: string;
+  icon: string;
+  sort_order: number;
+  active: boolean;
+};
+
+export const trustBadgesQuery = queryOptions({
+  queryKey: ["trust_badges"],
+  queryFn: async (): Promise<TrustBadge[]> => {
+    const { data, error } = await supabase
+      .from("trust_badges")
+      .select("*")
+      .eq("active", true)
+      .order("sort_order");
+    if (error) throw error;
+    return (data ?? []) as unknown as TrustBadge[];
+  },
+});
+
+export const adminTrustBadgesQuery = queryOptions({
+  queryKey: ["admin", "trust_badges"],
+  queryFn: async (): Promise<TrustBadge[]> => {
+    const { data, error } = await supabase.from("trust_badges").select("*").order("sort_order");
+    if (error) throw error;
+    return (data ?? []) as unknown as TrustBadge[];
+  },
+});
