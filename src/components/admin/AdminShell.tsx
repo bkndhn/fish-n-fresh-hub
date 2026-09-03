@@ -9,8 +9,8 @@ import {
   Package,
   ReceiptText,
   Tag,
+  Truck,
   Users,
-  UserCog,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { adminRoleQuery } from "@/lib/admin";
