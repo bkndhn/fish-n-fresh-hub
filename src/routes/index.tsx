@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ShieldCheck, Truck, Waves } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { BannerCarousel } from "@/components/BannerCarousel";
+import { TrustBadges } from "@/components/TrustBadges";
 import { ProductCard } from "@/components/ProductCard";
-import { Button } from "@/components/ui/button";
-import { bannersQuery, categoriesQuery, productsQuery, settingsQuery } from "@/lib/queries";
+import { bannersQuery, categoriesQuery, productsQuery, trustBadgesQuery } from "@/lib/queries";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
