@@ -9,6 +9,7 @@ import {
   Package,
   ReceiptText,
   Tag,
+  Truck,
   Users,
   UserCog,
 } from "lucide-react";
@@ -22,6 +23,7 @@ const NAV = [
   { to: "/admin/orders", label: "Orders", icon: ReceiptText },
   { to: "/admin/customers", label: "Customers", icon: Users },
   { to: "/admin/promotions", label: "Promotions", icon: Tag },
+  { to: "/admin/delivery", label: "Delivery", icon: Truck },
   { to: "/admin/driver", label: "Driver map", icon: MapPin },
   { to: "/admin/staff", label: "Team", icon: UserCog },
 ] as const;
