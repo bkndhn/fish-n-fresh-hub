@@ -30,8 +30,9 @@ export const Route = createFileRoute("/_authenticated/admin/badges")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: BadgesAdmin;
+  component: BadgesAdmin,
 });
+
 
 function BadgesAdmin() {
   const qc = useQueryClient();
