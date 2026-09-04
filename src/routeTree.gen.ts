@@ -17,6 +17,7 @@ import { Route as CatalogRouteImport } from './routes/catalog'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as PaymentStatusRouteImport } from './routes/payment-status'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ProductIdRouteImport } from './routes/product.$id'
 import { Route as TrackIdRouteImport } from './routes/track.$id'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
@@ -67,6 +68,11 @@ const OrdersRoute = OrdersRouteImport.update({
 const PaymentStatusRoute = PaymentStatusRouteImport.update({
   id: '/payment-status',
   path: '/payment-status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProductIdRoute = ProductIdRouteImport.update({
@@ -146,6 +152,7 @@ export interface FileRoutesByFullPath {
   '/checkout': typeof CheckoutRoute
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
+  '/settings': typeof SettingsRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
   '/admin/badges': typeof AuthenticatedAdminBadgesRoute
@@ -167,6 +174,7 @@ export interface FileRoutesByTo {
   '/checkout': typeof CheckoutRoute
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
+  '/settings': typeof SettingsRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
   '/admin/badges': typeof AuthenticatedAdminBadgesRoute
@@ -190,6 +198,7 @@ export interface FileRoutesById {
   '/checkout': typeof CheckoutRoute
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
+  '/settings': typeof SettingsRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
   '/_authenticated/admin/badges': typeof AuthenticatedAdminBadgesRoute
@@ -213,6 +222,7 @@ export interface FileRouteTypes {
     | '/checkout'
     | '/orders'
     | '/payment-status'
+    | '/settings'
     | '/product/$id'
     | '/track/$id'
     | '/admin/badges'
@@ -234,6 +244,7 @@ export interface FileRouteTypes {
     | '/checkout'
     | '/orders'
     | '/payment-status'
+    | '/settings'
     | '/product/$id'
     | '/track/$id'
     | '/admin/badges'
@@ -256,6 +267,7 @@ export interface FileRouteTypes {
     | '/checkout'
     | '/orders'
     | '/payment-status'
+    | '/settings'
     | '/product/$id'
     | '/track/$id'
     | '/_authenticated/admin/badges'
@@ -279,6 +291,7 @@ export interface RootRouteChildren {
   CheckoutRoute: typeof CheckoutRoute
   OrdersRoute: typeof OrdersRoute
   PaymentStatusRoute: typeof PaymentStatusRoute
+  SettingsRoute: typeof SettingsRoute
   ProductIdRoute: typeof ProductIdRoute
   TrackIdRoute: typeof TrackIdRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
@@ -340,6 +353,13 @@ declare module '@tanstack/react-router' {
       path: '/payment-status'
       fullPath: '/payment-status'
       preLoaderRoute: typeof PaymentStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/product/$id': {
@@ -465,6 +485,7 @@ const rootRouteChildren: RootRouteChildren = {
   CheckoutRoute: CheckoutRoute,
   OrdersRoute: OrdersRoute,
   PaymentStatusRoute: PaymentStatusRoute,
+  SettingsRoute: SettingsRoute,
   ProductIdRoute: ProductIdRoute,
   TrackIdRoute: TrackIdRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
