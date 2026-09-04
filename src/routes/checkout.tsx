@@ -57,6 +57,8 @@ function Checkout() {
       return;
     }
     setSaving(true);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user.id ?? null;
     const { data, error } = await supabase
       .from("orders")
       .insert({
@@ -73,6 +75,8 @@ function Checkout() {
         payment_method: payment,
         fulfillment_type: fulfillment,
         notes,
+        user_id: userId,
+        created_by: userId,
       })
       .select("id")
       .single();

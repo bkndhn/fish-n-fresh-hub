@@ -12,12 +12,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Staff Sign In | Fish N Fresh" },
+      { title: "Sign In | Fish N Fresh" },
       {
         name: "description",
         content: "Sign in to the Fish N Fresh admin console to manage products, orders and deliveries.",
       },
-      { property: "og:title", content: "Staff Sign In | Fish N Fresh" },
+      { property: "og:title", content: "Sign In | Fish N Fresh" },
       {
         property: "og:description",
         content: "Sign in to the Fish N Fresh admin console to manage products, orders and deliveries.",
@@ -36,9 +36,14 @@ function AuthPage() {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
 
+  async function routeAfterLogin() {
+    const { data } = await supabase.rpc("is_staff");
+    navigate({ to: data ? "/admin" : "/orders" });
+  }
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/admin" });
+      if (data.session) void routeAfterLogin();
     });
   }, [navigate]);
 
@@ -52,7 +57,7 @@ function AuthPage() {
       return;
     }
     toast.success("Welcome back");
-    navigate({ to: "/admin" });
+    await routeAfterLogin();
   }
 
   async function signUp(e: React.FormEvent) {
@@ -62,7 +67,7 @@ function AuthPage() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/admin`,
+        emailRedirectTo: `${window.location.origin}/orders`,
         data: { full_name: fullName },
       },
     });
@@ -82,7 +87,7 @@ function AuthPage() {
             <Fish className="size-6" />
           </span>
           <CardTitle className="mt-3 font-display text-2xl">Fish N Fresh Console</CardTitle>
-          <CardDescription>Staff & admin access</CardDescription>
+          <CardDescription>Customers, staff &amp; admin</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin">

@@ -274,10 +274,12 @@ export type Database = {
           delivered_at: string | null
           delivery_date: string | null
           delivery_fee: number
+          delivery_note: string | null
           delivery_slot: string | null
           discount: number
           driver_id: string | null
           driver_name: string | null
+          eta_minutes: number | null
           fulfillment_type: string
           gst_amount: number
           gst_percent: number | null
@@ -293,11 +295,13 @@ export type Database = {
           promotion_id: string | null
           referral_code: string | null
           status: string
+          status_history: Json
           stripe_session_id: string | null
           subtotal: number
           total: number
           updated_at: string
           upi_paid: boolean
+          user_id: string | null
           whatsapp_sent: boolean
         }
         Insert: {
@@ -316,10 +320,12 @@ export type Database = {
           delivered_at?: string | null
           delivery_date?: string | null
           delivery_fee?: number
+          delivery_note?: string | null
           delivery_slot?: string | null
           discount?: number
           driver_id?: string | null
           driver_name?: string | null
+          eta_minutes?: number | null
           fulfillment_type?: string
           gst_amount?: number
           gst_percent?: number | null
@@ -335,11 +341,13 @@ export type Database = {
           promotion_id?: string | null
           referral_code?: string | null
           status?: string
+          status_history?: Json
           stripe_session_id?: string | null
           subtotal?: number
           total?: number
           updated_at?: string
           upi_paid?: boolean
+          user_id?: string | null
           whatsapp_sent?: boolean
         }
         Update: {
@@ -358,10 +366,12 @@ export type Database = {
           delivered_at?: string | null
           delivery_date?: string | null
           delivery_fee?: number
+          delivery_note?: string | null
           delivery_slot?: string | null
           discount?: number
           driver_id?: string | null
           driver_name?: string | null
+          eta_minutes?: number | null
           fulfillment_type?: string
           gst_amount?: number
           gst_percent?: number | null
@@ -377,11 +387,13 @@ export type Database = {
           promotion_id?: string | null
           referral_code?: string | null
           status?: string
+          status_history?: Json
           stripe_session_id?: string | null
           subtotal?: number
           total?: number
           updated_at?: string
           upi_paid?: boolean
+          user_id?: string | null
           whatsapp_sent?: boolean
         }
         Relationships: []

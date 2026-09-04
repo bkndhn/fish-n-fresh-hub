@@ -23,6 +23,9 @@ export type OrderRow = {
   location_lng: number | null;
   upi_paid: boolean;
   notes: string | null;
+  eta_minutes: number | null;
+  delivery_note: string | null;
+  payment_status: string;
   created_at: string;
 };
 

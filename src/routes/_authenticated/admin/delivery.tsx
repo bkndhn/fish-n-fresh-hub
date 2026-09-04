@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/_authenticated/admin/delivery")({
   head: () => ({
@@ -52,6 +53,8 @@ function DeliveryTracking() {
   const orders = useQuery(adminOrdersQuery);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [eta, setEta] = useState("");
+  const [note, setNote] = useState("");
 
   useEffect(() => {
     const channel = supabase
@@ -103,6 +106,8 @@ function DeliveryTracking() {
               onClick={() => {
                 setSelectedId(o.id);
                 setMessage("");
+                setEta("");
+                setNote("");
               }}
               className={`w-full rounded-xl border p-3 text-left transition ${
                 selected?.id === o.id ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-muted"
@@ -177,6 +182,42 @@ function DeliveryTracking() {
                   );
                 })}
               </ol>
+
+              <div className="space-y-2 rounded-xl border border-border p-3">
+                <p className="text-sm font-medium">Delivery details</p>
+                <div className="flex flex-wrap gap-2">
+                  <Input
+                    className="w-32"
+                    inputMode="numeric"
+                    placeholder={selected.eta_minutes ? `ETA ${selected.eta_minutes}m` : "ETA (min)"}
+                    value={eta}
+                    onChange={(e) => setEta(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                  />
+                  <Input
+                    className="min-w-[200px] flex-1"
+                    placeholder={selected.delivery_note ?? "Note shown to the customer"}
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      update.mutate({
+                        id: selected.id,
+                        patch: {
+                          ...(eta ? { eta_minutes: Number(eta) } : {}),
+                          ...(note ? { delivery_note: note } : {}),
+                        } as Partial<OrderRow>,
+                      });
+                      setEta("");
+                      setNote("");
+                    }}
+                  >
+                    Save
+                  </Button>
+                </div>
+              </div>
 
               <div className="space-y-2 rounded-xl border border-border p-3">
                 <p className="flex items-center gap-2 text-sm font-medium">
