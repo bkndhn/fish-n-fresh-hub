@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Fish, Search, ShoppingCart } from "lucide-react";
+import { Fish, Search, ShoppingCart, User } from "lucide-react";
 import { useCart } from "@/lib/cart";
 
 export function SiteHeader() {
@@ -20,6 +20,13 @@ export function SiteHeader() {
             aria-label="Browse catalog"
           >
             <Search className="size-5" />
+          </Link>
+          <Link
+            to="/settings"
+            className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Account"
+          >
+            <User className="size-5" />
           </Link>
           <Link to="/cart" className="relative rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Cart">
             <ShoppingCart className="size-5" />
