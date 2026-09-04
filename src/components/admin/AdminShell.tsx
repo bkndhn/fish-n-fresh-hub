@@ -10,7 +10,6 @@ import {
   ReceiptText,
   Tag,
   Sparkles,
-  BarChart3,
   Truck,
   Users,
   UserCog,

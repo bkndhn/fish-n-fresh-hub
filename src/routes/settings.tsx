@@ -75,7 +75,7 @@ function SettingsPage() {
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
-      .upsert({ id: user.id, full_name: fullName, phone, address, email: user.email });
+      .upsert({ id: user.id, full_name: fullName, phone, address, email: user.email ?? null });
     setSaving(false);
     if (error) {
       toast.error(error.message);
@@ -92,9 +92,8 @@ function SettingsPage() {
     }
     const { error } = await supabase.auth.updateUser({
       password,
-      // @ts-expect-error current_password is required by Lovable Cloud for signed-in changes
       current_password: currentPassword,
-    });
+    } as Parameters<typeof supabase.auth.updateUser>[0]);
     if (error) {
       toast.error(error.message);
       return;

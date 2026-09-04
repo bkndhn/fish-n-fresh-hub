@@ -10,10 +10,10 @@ export type GuestOrder = {
   payment_method: string;
   fulfillment_type: string;
   total: number;
-  items: unknown;
+  items: { name: string; price: number; qty: number }[];
   eta_minutes: number | null;
   delivery_note: string | null;
-  status_history: unknown;
+  status_history: { status: string; at: string; note: string | null }[];
   created_at: string;
   delivered_at: string | null;
 };

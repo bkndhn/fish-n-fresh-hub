@@ -107,7 +107,7 @@ function GuestLookup() {
   async function find() {
     setBusy(true);
     try {
-      const found = await lookup({ data: { reference, phone } });
+      const found = (await lookup({ data: { reference, phone } })) as GuestOrder | null;
       setOrder(found);
       if (!found) toast.error("No order found for those details");
     } catch (e) {
