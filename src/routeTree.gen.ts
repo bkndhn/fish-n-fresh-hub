@@ -18,6 +18,7 @@ import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as PaymentStatusRouteImport } from './routes/payment-status'
 import { Route as ProductIdRouteImport } from './routes/product.$id'
+import { Route as TrackIdRouteImport } from './routes/track.$id'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedAdminBadgesRouteImport } from './routes/_authenticated/admin/badges'
 import { Route as AuthenticatedAdminCustomersRouteImport } from './routes/_authenticated/admin/customers'
@@ -71,6 +72,11 @@ const PaymentStatusRoute = PaymentStatusRouteImport.update({
 const ProductIdRoute = ProductIdRouteImport.update({
   id: '/product/$id',
   path: '/product/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrackIdRoute = TrackIdRouteImport.update({
+  id: '/track/$id',
+  path: '/track/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
   '/product/$id': typeof ProductIdRoute
+  '/track/$id': typeof TrackIdRoute
   '/admin/badges': typeof AuthenticatedAdminBadgesRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/admin/delivery': typeof AuthenticatedAdminDeliveryRoute
@@ -161,6 +168,7 @@ export interface FileRoutesByTo {
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
   '/product/$id': typeof ProductIdRoute
+  '/track/$id': typeof TrackIdRoute
   '/admin/badges': typeof AuthenticatedAdminBadgesRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/admin/delivery': typeof AuthenticatedAdminDeliveryRoute
@@ -183,6 +191,7 @@ export interface FileRoutesById {
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
   '/product/$id': typeof ProductIdRoute
+  '/track/$id': typeof TrackIdRoute
   '/_authenticated/admin/badges': typeof AuthenticatedAdminBadgesRoute
   '/_authenticated/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/_authenticated/admin/delivery': typeof AuthenticatedAdminDeliveryRoute
@@ -205,6 +214,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/payment-status'
     | '/product/$id'
+    | '/track/$id'
     | '/admin/badges'
     | '/admin/customers'
     | '/admin/delivery'
@@ -225,6 +235,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/payment-status'
     | '/product/$id'
+    | '/track/$id'
     | '/admin/badges'
     | '/admin/customers'
     | '/admin/delivery'
@@ -246,6 +257,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/payment-status'
     | '/product/$id'
+    | '/track/$id'
     | '/_authenticated/admin/badges'
     | '/_authenticated/admin/customers'
     | '/_authenticated/admin/delivery'
@@ -268,6 +280,7 @@ export interface RootRouteChildren {
   OrdersRoute: typeof OrdersRoute
   PaymentStatusRoute: typeof PaymentStatusRoute
   ProductIdRoute: typeof ProductIdRoute
+  TrackIdRoute: typeof TrackIdRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
@@ -334,6 +347,13 @@ declare module '@tanstack/react-router' {
       path: '/product/$id'
       fullPath: '/product/$id'
       preLoaderRoute: typeof ProductIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/track/$id': {
+      id: '/track/$id'
+      path: '/track/$id'
+      fullPath: '/track/$id'
+      preLoaderRoute: typeof TrackIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/': {
@@ -446,6 +466,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrdersRoute: OrdersRoute,
   PaymentStatusRoute: PaymentStatusRoute,
   ProductIdRoute: ProductIdRoute,
+  TrackIdRoute: TrackIdRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport
