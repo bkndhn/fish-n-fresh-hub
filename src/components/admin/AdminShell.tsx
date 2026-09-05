@@ -44,7 +44,7 @@ export function AdminShell({
   const { data: roles, isLoading } = useQuery(myRolesQuery);
   const myRoles = roles ?? [];
   const allowed = myRoles.some((r) => allow.includes(r));
-  const nav = NAV.filter((item) => myRoles.some((r) => item.roles.includes(r)));
+  const nav = NAV.filter((item) => (item.roles as readonly AppRole[]).some((r) => myRoles.includes(r)));
 
   if (isLoading) {
     return <div className="p-10 text-center text-sm text-muted-foreground">Loading console...</div>;
