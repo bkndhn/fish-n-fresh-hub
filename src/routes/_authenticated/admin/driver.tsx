@@ -59,7 +59,7 @@ function DriverMap() {
   );
 
   return (
-    <AdminShell title="Driver map">
+    <AdminShell title="Driver map" allow={["admin", "driver"]}>
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="overflow-hidden">
           <CardContent className="p-0">

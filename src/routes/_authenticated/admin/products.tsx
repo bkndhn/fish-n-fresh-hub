@@ -42,7 +42,7 @@ function ProductsAdmin() {
   });
 
   return (
-    <AdminShell title="Products">
+    <AdminShell title="Products" allow={["admin", "staff"]}>
       <div className="space-y-3">
         {(products.data ?? []).map((p) => (
           <Card key={p.id}>
