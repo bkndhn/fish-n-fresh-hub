@@ -15,36 +15,47 @@ import {
   UserCog,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { adminRoleQuery } from "@/lib/admin";
+import { myRolesQuery, type AppRole } from "@/lib/admin";
 import { Button } from "@/components/ui/button";
 
 const NAV = [
-  { to: "/admin", label: "Dashboard", icon: BarChart3, exact: true },
-  { to: "/admin/products", label: "Products", icon: Package },
-  { to: "/admin/orders", label: "Orders", icon: ReceiptText },
-  { to: "/admin/customers", label: "Customers", icon: Users },
-  { to: "/admin/promotions", label: "Promotions", icon: Tag },
-  { to: "/admin/badges", label: "Home cards", icon: Sparkles },
-  { to: "/admin/reports", label: "Reports", icon: BarChart3 },
-  { to: "/admin/delivery", label: "Delivery", icon: Truck },
-  { to: "/admin/driver", label: "Driver map", icon: MapPin },
-  { to: "/admin/staff", label: "Team", icon: UserCog },
-] as const;
+  { to: "/admin", label: "Dashboard", icon: BarChart3, exact: true, roles: ["admin", "staff"] },
+  { to: "/admin/products", label: "Products", icon: Package, roles: ["admin", "staff"] },
+  { to: "/admin/orders", label: "Orders", icon: ReceiptText, roles: ["admin", "staff"] },
+  { to: "/admin/customers", label: "Customers", icon: Users, roles: ["admin"] },
+  { to: "/admin/promotions", label: "Promotions", icon: Tag, roles: ["admin"] },
+  { to: "/admin/badges", label: "Home cards", icon: Sparkles, roles: ["admin"] },
+  { to: "/admin/reports", label: "Reports", icon: BarChart3, roles: ["admin"] },
+  { to: "/admin/delivery", label: "Delivery", icon: Truck, roles: ["admin", "staff", "driver"] },
+  { to: "/admin/driver", label: "Driver map", icon: MapPin, roles: ["admin", "driver"] },
+  { to: "/admin/staff", label: "Team", icon: UserCog, roles: ["admin"] },
+] as const satisfies readonly { to: string; label: string; icon: typeof BarChart3; exact?: boolean; roles: readonly AppRole[] }[];
 
-export function AdminShell({ title, children }: { title: string; children: ReactNode }) {
+export function AdminShell({
+  title,
+  children,
+  allow = ["admin"],
+}: {
+  title: string;
+  children: ReactNode;
+  allow?: readonly AppRole[];
+}) {
   const navigate = useNavigate();
-  const { data: isAdmin, isLoading } = useQuery(adminRoleQuery);
+  const { data: roles, isLoading } = useQuery(myRolesQuery);
+  const myRoles = roles ?? [];
+  const allowed = myRoles.some((r) => allow.includes(r));
+  const nav = NAV.filter((item) => (item.roles as readonly AppRole[]).some((r) => myRoles.includes(r)));
 
   if (isLoading) {
     return <div className="p-10 text-center text-sm text-muted-foreground">Loading console...</div>;
   }
 
-  if (!isAdmin) {
+  if (!allowed) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-6 text-center">
         <h1 className="font-display text-xl font-bold">Admin access required</h1>
         <p className="max-w-sm text-sm text-muted-foreground">
-          This account doesn't have admin rights. Ask the store owner to grant you access.
+          This account doesn't have access to this page. Ask the store owner to grant you access.
         </p>
         <Button variant="outline" onClick={() => supabase.auth.signOut().then(() => navigate({ to: "/auth" }))}>
           Sign out
@@ -78,7 +89,7 @@ export function AdminShell({ title, children }: { title: string; children: React
       <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6">
         <aside className="hidden w-56 shrink-0 md:block">
           <nav className="sticky top-20 space-y-1">
-            {NAV.map((item) => (
+            {nav.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
@@ -100,7 +111,7 @@ export function AdminShell({ title, children }: { title: string; children: React
       </div>
 
       <nav className="glass fixed inset-x-0 bottom-0 z-50 flex border-t border-border md:hidden">
-        {NAV.map((item) => (
+        {nav.map((item) => (
           <Link
             key={item.to}
             to={item.to}

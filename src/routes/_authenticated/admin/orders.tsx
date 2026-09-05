@@ -42,7 +42,7 @@ function OrdersAdmin() {
   const rows = orders.data ?? [];
 
   return (
-    <AdminShell title="Orders">
+    <AdminShell title="Orders" allow={["admin", "staff"]}>
       <div className="space-y-3">
         {rows.map((o) => (
           <Card key={o.id}>

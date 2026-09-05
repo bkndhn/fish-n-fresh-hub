@@ -96,7 +96,7 @@ function DeliveryTracking() {
   }
 
   return (
-    <AdminShell title="Delivery tracking">
+    <AdminShell title="Delivery tracking" allow={["admin", "staff", "driver"]}>
       <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
         <div className="space-y-2">
           {active.map((o) => (
