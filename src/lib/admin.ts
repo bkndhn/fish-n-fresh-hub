@@ -132,3 +132,17 @@ export const adminCustomersQuery = queryOptions({
     return [...map.values()].sort((a, b) => b.spent - a.spent);
   },
 });
+
+export type AppRole = "admin" | "staff" | "driver" | "user";
+
+export const myRolesQuery = queryOptions({
+  queryKey: ["admin", "my-roles"],
+  queryFn: async (): Promise<AppRole[]> => {
+    const { data: session } = await supabase.auth.getUser();
+    const uid = session.user?.id;
+    if (!uid) return [];
+    const { data, error } = await supabase.from("user_roles").select("role").eq("user_id", uid);
+    if (error) throw error;
+    return (data ?? []).map((r) => r.role as AppRole);
+  },
+});
