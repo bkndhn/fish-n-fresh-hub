@@ -130,3 +130,32 @@ export const setStaffRole = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+export type DriverOption = { id: string; name: string; email: string };
+
+export const listDrivers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<DriverOption[]> => {
+    const ctx = context as unknown as { supabase: any; userId: string };
+    const { data: isStaff, error } = await ctx.supabase.rpc("is_staff");
+    if (error) throw new Error(error.message);
+    if (!isStaff) throw new Error("Forbidden");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: roleRows } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id, role")
+      .in("role", ["driver", "staff"]);
+    const ids = new Set((roleRows ?? []).map((r) => r.user_id));
+    if (ids.size === 0) return [];
+
+    const { data: users } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
+    return (users?.users ?? [])
+      .filter((u) => ids.has(u.id))
+      .map((u) => ({
+        id: u.id,
+        email: u.email ?? "",
+        name: ((u.user_metadata?.["full_name"] as string) ?? u.email ?? "").trim(),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  });
