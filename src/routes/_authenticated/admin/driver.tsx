@@ -5,10 +5,18 @@ import { toast } from "sonner";
 import { MapPin } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery } from "@/lib/admin";
+import { listDrivers, type DriverOption } from "@/lib/staff.functions";
 import { formatINR } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -29,6 +37,11 @@ export const Route = createFileRoute("/_authenticated/admin/driver")({
 function DriverMap() {
   const qc = useQueryClient();
   const orders = useQuery(adminOrdersQuery);
+  const driversQuery = useQuery({
+    queryKey: ["admin", "drivers"],
+    queryFn: () => listDrivers() as Promise<DriverOption[]>,
+  });
+  const drivers = driversQuery.data ?? [];
 
   useEffect(() => {
     const channel = supabase
@@ -43,7 +56,7 @@ function DriverMap() {
   }, [qc]);
 
   const assign = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: { driver_name?: string; status?: string } }) => {
+    mutationFn: async ({ id, patch }: { id: string; patch: { driver_name?: string; driver_id?: string; status?: string } }) => {
       const { error } = await supabase.from("orders").update(patch).eq("id", id);
       if (error) throw error;
     },
@@ -86,17 +99,43 @@ function DriverMap() {
                   <Badge variant="secondary">{o.status.replace(/_/g, " ")}</Badge>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Input
-                    placeholder="Driver name"
-                    defaultValue={o.driver_name ?? ""}
-                    onBlur={(e) => {
-                      const driver_name = e.target.value.trim();
-                      if (driver_name && driver_name !== o.driver_name) {
-                        assign.mutate({ id: o.id, patch: { driver_name } });
-                      }
-                    }}
-                  />
+                <div className="flex flex-wrap items-center gap-2">
+                  {drivers.length > 0 ? (
+                    <Select
+                      value={drivers.find((d) => d.name === o.driver_name)?.id ?? ""}
+                      onValueChange={(id) => {
+                        const driver = drivers.find((d) => d.id === id);
+                        if (driver) {
+                          assign.mutate({
+                            id: o.id,
+                            patch: { driver_id: driver.id, driver_name: driver.name },
+                          });
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="min-w-40 flex-1">
+                        <SelectValue placeholder="Assign driver" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {drivers.map((d) => (
+                          <SelectItem key={d.id} value={d.id}>
+                            {d.name || d.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      placeholder="Driver name"
+                      defaultValue={o.driver_name ?? ""}
+                      onBlur={(e) => {
+                        const driver_name = e.target.value.trim();
+                        if (driver_name && driver_name !== o.driver_name) {
+                          assign.mutate({ id: o.id, patch: { driver_name } });
+                        }
+                      }}
+                    />
+                  )}
                   <Button
                     size="sm"
                     onClick={() => assign.mutate({ id: o.id, patch: { status: "out_for_delivery" } })}
