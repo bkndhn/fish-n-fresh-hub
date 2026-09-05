@@ -18,6 +18,7 @@ import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as PaymentStatusRouteImport } from './routes/payment-status'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as AuthenticatedCrewRouteImport } from './routes/_authenticated/crew'
 import { Route as ProductIdRouteImport } from './routes/product.$id'
 import { Route as TrackIdRouteImport } from './routes/track.$id'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
@@ -75,6 +76,11 @@ const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedCrewRoute = AuthenticatedCrewRouteImport.update({
+  id: '/crew',
+  path: '/crew',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const ProductIdRoute = ProductIdRouteImport.update({
   id: '/product/$id',
@@ -160,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
   '/settings': typeof SettingsRoute
+  '/crew': typeof AuthenticatedCrewRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
   '/admin/badges': typeof AuthenticatedAdminBadgesRoute
@@ -183,6 +190,7 @@ export interface FileRoutesByTo {
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
   '/settings': typeof SettingsRoute
+  '/crew': typeof AuthenticatedCrewRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
   '/admin/badges': typeof AuthenticatedAdminBadgesRoute
@@ -208,6 +216,7 @@ export interface FileRoutesById {
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
   '/settings': typeof SettingsRoute
+  '/_authenticated/crew': typeof AuthenticatedCrewRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
   '/_authenticated/admin/badges': typeof AuthenticatedAdminBadgesRoute
@@ -233,6 +242,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/payment-status'
     | '/settings'
+    | '/crew'
     | '/product/$id'
     | '/track/$id'
     | '/admin/badges'
@@ -256,6 +266,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/payment-status'
     | '/settings'
+    | '/crew'
     | '/product/$id'
     | '/track/$id'
     | '/admin/badges'
@@ -280,6 +291,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/payment-status'
     | '/settings'
+    | '/_authenticated/crew'
     | '/product/$id'
     | '/track/$id'
     | '/_authenticated/admin/badges'
@@ -374,6 +386,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/crew': {
+      id: '/_authenticated/crew'
+      path: '/crew'
+      fullPath: '/crew'
+      preLoaderRoute: typeof AuthenticatedCrewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/product/$id': {
       id: '/product/$id'
@@ -470,6 +489,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedCrewRoute: typeof AuthenticatedCrewRoute
   AuthenticatedAdminBadgesRoute: typeof AuthenticatedAdminBadgesRoute
   AuthenticatedAdminCustomersRoute: typeof AuthenticatedAdminCustomersRoute
   AuthenticatedAdminDeliveryRoute: typeof AuthenticatedAdminDeliveryRoute
@@ -483,6 +503,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedCrewRoute: AuthenticatedCrewRoute,
   AuthenticatedAdminBadgesRoute: AuthenticatedAdminBadgesRoute,
   AuthenticatedAdminCustomersRoute: AuthenticatedAdminCustomersRoute,
   AuthenticatedAdminDeliveryRoute: AuthenticatedAdminDeliveryRoute,

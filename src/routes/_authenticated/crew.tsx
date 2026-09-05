@@ -1,0 +1,232 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { LogOut, MapPin, Phone, Truck } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { myRolesQuery, ORDER_STATUSES, type OrderRow } from "@/lib/admin";
+import { formatINR } from "@/lib/format";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+
+export const Route = createFileRoute("/_authenticated/crew")({
+  head: () => ({
+    meta: [
+      { title: "My Deliveries | Fish N Fresh Crew" },
+      {
+        name: "description",
+        content: "Fish N Fresh crew board: see the orders assigned to you and update their delivery status.",
+      },
+      { property: "og:title", content: "My Deliveries | Fish N Fresh Crew" },
+      {
+        property: "og:description",
+        content: "See the orders assigned to you and keep customers updated as you deliver.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: CrewBoard,
+});
+
+const NEXT_STATUS: Record<string, string> = {
+  pending: "confirmed",
+  confirmed: "packed",
+  packed: "out_for_delivery",
+  out_for_delivery: "delivered",
+};
+
+function CrewBoard() {
+  const qc = useQueryClient();
+  const roles = useQuery(myRolesQuery);
+  const isCrew = (roles.data ?? []).some((r) => r === "driver" || r === "staff" || r === "admin");
+
+  const myOrders = useQuery({
+    queryKey: ["crew", "orders"],
+    enabled: isCrew,
+    queryFn: async (): Promise<OrderRow[]> => {
+      const { data: session } = await supabase.auth.getUser();
+      const uid = session.user?.id;
+      if (!uid) return [];
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("driver_id", uid)
+        .not("status", "in", "(delivered,cancelled)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as OrderRow[];
+    },
+  });
+
+  useEffect(() => {
+    if (!isCrew) return;
+    const channel = supabase
+      .channel("crew-orders")
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
+        qc.invalidateQueries({ queryKey: ["crew", "orders"] });
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [qc, isCrew]);
+
+  const update = useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: Record<string, unknown> }) => {
+      const { error } = await supabase.from("orders").update(patch).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Customer updated");
+      qc.invalidateQueries({ queryKey: ["crew", "orders"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (roles.isLoading) {
+    return <div className="p-10 text-center text-sm text-muted-foreground">Loading your board…</div>;
+  }
+
+  if (!isCrew) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-6 text-center">
+        <h1 className="font-display text-xl font-bold">Crew access required</h1>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          This account isn't set up as staff or a driver yet. Ask the store owner to add you.
+        </p>
+        <Button asChild variant="outline">
+          <Link to="/orders">Go to my orders</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  const orders = myOrders.data ?? [];
+
+  return (
+    <div className="min-h-screen bg-muted/30">
+      <header className="glass sticky top-0 z-50 border-b border-border">
+        <div className="mx-auto flex h-14 max-w-3xl items-center gap-2 px-4">
+          <span className="ocean-gradient flex size-8 items-center justify-center rounded-xl text-primary-foreground">
+            <Truck className="size-4" />
+          </span>
+          <span className="font-display font-bold">My deliveries</span>
+          {(roles.data ?? []).includes("admin") && (
+            <Button asChild variant="ghost" size="sm" className="ml-auto">
+              <Link to="/admin">Admin console</Link>
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className={(roles.data ?? []).includes("admin") ? "" : "ml-auto"}
+            onClick={() => supabase.auth.signOut()}
+          >
+            <LogOut className="mr-1.5 size-4" /> Sign out
+          </Button>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-3xl space-y-3 px-4 py-6">
+        {myOrders.isLoading ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : orders.length === 0 ? (
+          <p className="py-16 text-center text-sm text-muted-foreground">
+            Nothing assigned to you right now.
+          </p>
+        ) : (
+          orders.map((o) => {
+            const next = NEXT_STATUS[o.status];
+            return (
+              <Card key={o.id}>
+                <CardContent className="space-y-3 pt-6">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">
+                        #{o.order_number ?? o.id.slice(0, 8)} · {o.customer_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{o.customer_address ?? "No address"}</p>
+                    </div>
+                    <Badge variant="secondary" className="capitalize">
+                      {o.status.replace(/_/g, " ")}
+                    </Badge>
+                  </div>
+
+                  <ul className="space-y-0.5 text-xs text-muted-foreground">
+                    {o.items.map((it, i) => (
+                      <li key={i}>
+                        {it.qty} × {it.name}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {next && (
+                      <Button size="sm" onClick={() => update.mutate({ id: o.id, patch: { status: next } })}>
+                        Mark {next.replace(/_/g, " ")}
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        update.mutate({ id: o.id, patch: { status: "cancelled", cancel_reason: "Unable to deliver" } })
+                      }
+                    >
+                      Can't deliver
+                    </Button>
+                    <Button asChild size="sm" variant="ghost">
+                      <a href={`tel:${o.customer_phone}`}>
+                        <Phone className="mr-1.5 size-4" /> Call
+                      </a>
+                    </Button>
+                    {o.location_lat && o.location_lng && (
+                      <Button asChild size="sm" variant="ghost">
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${o.location_lat},${o.location_lng}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <MapPin className="mr-1.5 size-4" /> Navigate
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="number"
+                      placeholder="ETA min"
+                      defaultValue={o.eta_minutes ?? ""}
+                      className="h-9 w-24 rounded-xl border border-border bg-background px-3 text-sm"
+                      onBlur={(e) => {
+                        const eta = e.target.value ? Number(e.target.value) : null;
+                        if (eta !== o.eta_minutes) update.mutate({ id: o.id, patch: { eta_minutes: eta } });
+                      }}
+                    />
+                    <input
+                      placeholder="Note for the customer"
+                      defaultValue={o.delivery_note ?? ""}
+                      className="h-9 min-w-40 flex-1 rounded-xl border border-border bg-background px-3 text-sm"
+                      onBlur={(e) => {
+                        const note = e.target.value.trim() || null;
+                        if (note !== o.delivery_note) update.mutate({ id: o.id, patch: { delivery_note: note } });
+                      }}
+                    />
+                    <span className="text-sm font-semibold">{formatINR(Number(o.total))}</span>
+                  </div>
+
+                  <p className="text-[11px] text-muted-foreground">
+                    Statuses: {ORDER_STATUSES.join(" → ").replace(/_/g, " ")}
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </main>
+    </div>
+  );
+}
