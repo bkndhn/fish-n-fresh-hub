@@ -74,7 +74,18 @@ function CrewBoard() {
   }, [qc, isCrew]);
 
   const update = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: Record<string, unknown> }) => {
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: {
+        status?: string;
+        cancel_reason?: string;
+        eta_minutes?: number | null;
+        delivery_note?: string | null;
+      };
+    }) => {
       const { error } = await supabase.from("orders").update(patch).eq("id", id);
       if (error) throw error;
     },
