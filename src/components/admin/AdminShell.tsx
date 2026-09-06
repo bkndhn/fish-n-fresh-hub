@@ -27,6 +27,7 @@ const NAV = [
   { to: "/admin/badges", label: "Home cards", icon: Sparkles, roles: ["admin"] },
   { to: "/admin/reports", label: "Reports", icon: BarChart3, roles: ["admin"] },
   { to: "/admin/delivery", label: "Delivery", icon: Truck, roles: ["admin", "staff", "driver"] },
+  { to: "/admin/schedule", label: "Schedule", icon: CalendarClock, roles: ["admin", "staff"] },
   { to: "/admin/driver", label: "Driver map", icon: MapPin, roles: ["admin", "driver"] },
   { to: "/admin/staff", label: "Team", icon: UserCog, roles: ["admin"] },
 ] as const satisfies readonly { to: string; label: string; icon: typeof BarChart3; exact?: boolean; roles: readonly AppRole[] }[];
