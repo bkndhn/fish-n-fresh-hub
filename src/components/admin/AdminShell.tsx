@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3,
+  CalendarClock,
   Fish,
   LogOut,
   MapPin,
