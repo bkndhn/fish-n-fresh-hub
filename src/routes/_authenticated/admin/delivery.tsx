@@ -58,6 +58,32 @@ function DeliveryTracking() {
   const [message, setMessage] = useState("");
   const [eta, setEta] = useState("");
   const [note, setNote] = useState("");
+  const [cancelReason, setCancelReason] = useState("");
+  const roles = useQuery(myRolesQuery);
+  const isAdmin = (roles.data ?? []).includes("admin");
+  const refundFn = useServerFn(cancelAndRefundOrder);
+
+  const refund = useMutation({
+    mutationFn: async (vars: { orderId: string; reason: string; refund: boolean }) => {
+      const res = await refundFn({
+        data: {
+          orderId: vars.orderId,
+          reason: vars.reason,
+          refund: vars.refund,
+          environment: isPaymentsConfigured() ? getStripeEnvironment() : "sandbox",
+        },
+      });
+      if ("error" in res) throw new Error(res.error);
+      return res;
+    },
+    onSuccess: (res) => {
+      setCancelReason("");
+      toast.success(res.note);
+      qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
 
   useEffect(() => {
     const channel = supabase
