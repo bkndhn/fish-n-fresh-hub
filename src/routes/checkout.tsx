@@ -82,6 +82,8 @@ function Checkout() {
         status: "pending",
         payment_method: payment,
         fulfillment_type: fulfillment,
+        delivery_date: fulfillment === "delivery" ? deliveryDate : null,
+        delivery_slot: fulfillment === "delivery" && slot ? slot : null,
         notes,
         user_id: userId,
         created_by: userId,
