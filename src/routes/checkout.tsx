@@ -40,6 +40,13 @@ function Checkout() {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [checkoutOrderId, setCheckoutOrderId] = useState<string | null>(null);
+  const { data: windows } = useQuery(deliveryWindowsQuery);
+  const [slot, setSlot] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const todaysWindows = (windows ?? []).filter((w) =>
+    (w.weekdays ?? []).includes(new Date(`${deliveryDate}T00:00:00`).getDay()),
+  );
+
 
   const freeOver = Number(settings?.free_delivery_over ?? 500);
   const deliveryFee =
