@@ -140,6 +140,48 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_windows: {
+        Row: {
+          active: boolean
+          capacity: number
+          created_at: string
+          cutoff_minutes: number
+          end_time: string
+          id: string
+          label: string
+          sort_order: number
+          start_time: string
+          updated_at: string
+          weekdays: number[]
+        }
+        Insert: {
+          active?: boolean
+          capacity?: number
+          created_at?: string
+          cutoff_minutes?: number
+          end_time: string
+          id?: string
+          label: string
+          sort_order?: number
+          start_time: string
+          updated_at?: string
+          weekdays?: number[]
+        }
+        Update: {
+          active?: boolean
+          capacity?: number
+          created_at?: string
+          cutoff_minutes?: number
+          end_time?: string
+          id?: string
+          label?: string
+          sort_order?: number
+          start_time?: string
+          updated_at?: string
+          weekdays?: number[]
+        }
+        Relationships: []
+      }
       function_bookings: {
         Row: {
           created_at: string
@@ -264,6 +306,7 @@ export type Database = {
           branch_id: string | null
           branch_name: string | null
           cancel_reason: string | null
+          cancelled_by: string | null
           coupon_code: string | null
           created_at: string
           created_by: string | null
@@ -294,8 +337,11 @@ export type Database = {
           payment_status: string
           promotion_id: string | null
           referral_code: string | null
+          refund_amount: number
+          refunded_at: string | null
           status: string
           status_history: Json
+          stripe_refund_id: string | null
           stripe_session_id: string | null
           subtotal: number
           total: number
@@ -310,6 +356,7 @@ export type Database = {
           branch_id?: string | null
           branch_name?: string | null
           cancel_reason?: string | null
+          cancelled_by?: string | null
           coupon_code?: string | null
           created_at?: string
           created_by?: string | null
@@ -340,8 +387,11 @@ export type Database = {
           payment_status?: string
           promotion_id?: string | null
           referral_code?: string | null
+          refund_amount?: number
+          refunded_at?: string | null
           status?: string
           status_history?: Json
+          stripe_refund_id?: string | null
           stripe_session_id?: string | null
           subtotal?: number
           total?: number
@@ -356,6 +406,7 @@ export type Database = {
           branch_id?: string | null
           branch_name?: string | null
           cancel_reason?: string | null
+          cancelled_by?: string | null
           coupon_code?: string | null
           created_at?: string
           created_by?: string | null
@@ -386,8 +437,11 @@ export type Database = {
           payment_status?: string
           promotion_id?: string | null
           referral_code?: string | null
+          refund_amount?: number
+          refunded_at?: string | null
           status?: string
           status_history?: Json
+          stripe_refund_id?: string | null
           stripe_session_id?: string | null
           subtotal?: number
           total?: number

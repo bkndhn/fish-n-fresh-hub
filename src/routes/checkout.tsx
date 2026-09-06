@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/lib/cart";
 import { inr } from "@/lib/format";
 import { settingsQuery } from "@/lib/queries";
+import { deliveryWindowsQuery, windowText } from "@/lib/delivery";
 import { isPaymentsConfigured } from "@/lib/stripe";
 import { StripeOrderCheckout } from "@/components/StripeOrderCheckout";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
@@ -39,6 +40,13 @@ function Checkout() {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [checkoutOrderId, setCheckoutOrderId] = useState<string | null>(null);
+  const { data: windows } = useQuery(deliveryWindowsQuery);
+  const [slot, setSlot] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const todaysWindows = (windows ?? []).filter((w) =>
+    (w.weekdays ?? []).includes(new Date(`${deliveryDate}T00:00:00`).getDay()),
+  );
+
 
   const freeOver = Number(settings?.free_delivery_over ?? 500);
   const deliveryFee =
@@ -74,6 +82,8 @@ function Checkout() {
         status: "pending",
         payment_method: payment,
         fulfillment_type: fulfillment,
+        delivery_date: fulfillment === "delivery" ? deliveryDate : null,
+        delivery_slot: fulfillment === "delivery" && slot ? slot : null,
         notes,
         user_id: userId,
         created_by: userId,
@@ -162,6 +172,45 @@ function Checkout() {
               onChange={(e) => setAddress(e.target.value)}
               className="mt-1 rounded-xl"
             />
+          </div>
+        )}
+        {fulfillment === "delivery" && (
+          <div>
+            <Label htmlFor="delivery-date">Delivery day &amp; time</Label>
+            <Input
+              id="delivery-date"
+              type="date"
+              value={deliveryDate}
+              min={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => {
+                setDeliveryDate(e.target.value);
+                setSlot("");
+              }}
+              className="mt-1 rounded-xl"
+            />
+            <div className="mt-2 flex flex-wrap gap-2">
+              {todaysWindows.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No delivery windows for this day — we will call you to confirm a time.
+                </p>
+              ) : (
+                todaysWindows.map((w) => {
+                  const value = windowText(w);
+                  return (
+                    <Button
+                      key={w.id}
+                      type="button"
+                      size="sm"
+                      variant={slot === value ? "default" : "outline"}
+                      className="rounded-xl"
+                      onClick={() => setSlot(slot === value ? "" : value)}
+                    >
+                      {value}
+                    </Button>
+                  );
+                })
+              )}
+            </div>
           </div>
         )}
         <div>

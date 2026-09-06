@@ -1,10 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Check, MessageCircle, Phone, Truck } from "lucide-react";
+import { CalendarClock, Check, MessageCircle, Phone, Truck, Undo2 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { adminOrdersQuery, ORDER_STATUSES, type OrderRow } from "@/lib/admin";
+import { adminOrdersQuery, ORDER_STATUSES, myRolesQuery, type OrderRow } from "@/lib/admin";
+import { cancelAndRefundOrder } from "@/lib/refunds.functions";
+import { getStripeEnvironment, isPaymentsConfigured } from "@/lib/stripe";
 import { formatINR } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,6 +58,32 @@ function DeliveryTracking() {
   const [message, setMessage] = useState("");
   const [eta, setEta] = useState("");
   const [note, setNote] = useState("");
+  const [cancelReason, setCancelReason] = useState("");
+  const roles = useQuery(myRolesQuery);
+  const isAdmin = (roles.data ?? []).includes("admin");
+  const refundFn = useServerFn(cancelAndRefundOrder);
+
+  const refund = useMutation({
+    mutationFn: async (vars: { orderId: string; reason: string; refund: boolean }) => {
+      const res = await refundFn({
+        data: {
+          orderId: vars.orderId,
+          reason: vars.reason,
+          refund: vars.refund,
+          environment: isPaymentsConfigured() ? getStripeEnvironment() : "sandbox",
+        },
+      });
+      if ("error" in res) throw new Error(res.error);
+      return res;
+    },
+    onSuccess: (res) => {
+      setCancelReason("");
+      toast.success(res.note);
+      qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
 
   useEffect(() => {
     const channel = supabase
