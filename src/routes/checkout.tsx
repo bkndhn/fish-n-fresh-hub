@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/lib/cart";
 import { inr } from "@/lib/format";
 import { settingsQuery } from "@/lib/queries";
+import { deliveryWindowsQuery, windowText } from "@/lib/delivery";
 import { isPaymentsConfigured } from "@/lib/stripe";
 import { StripeOrderCheckout } from "@/components/StripeOrderCheckout";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
