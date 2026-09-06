@@ -174,6 +174,45 @@ function Checkout() {
             />
           </div>
         )}
+        {fulfillment === "delivery" && (
+          <div>
+            <Label htmlFor="delivery-date">Delivery day &amp; time</Label>
+            <Input
+              id="delivery-date"
+              type="date"
+              value={deliveryDate}
+              min={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => {
+                setDeliveryDate(e.target.value);
+                setSlot("");
+              }}
+              className="mt-1 rounded-xl"
+            />
+            <div className="mt-2 flex flex-wrap gap-2">
+              {todaysWindows.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No delivery windows for this day — we will call you to confirm a time.
+                </p>
+              ) : (
+                todaysWindows.map((w) => {
+                  const value = windowText(w);
+                  return (
+                    <Button
+                      key={w.id}
+                      type="button"
+                      size="sm"
+                      variant={slot === value ? "default" : "outline"}
+                      className="rounded-xl"
+                      onClick={() => setSlot(slot === value ? "" : value)}
+                    >
+                      {value}
+                    </Button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
         <div>
           <Label htmlFor="notes">Notes (optional)</Label>
           <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1 rounded-xl" />
