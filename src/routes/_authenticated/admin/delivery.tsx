@@ -172,6 +172,15 @@ function DeliveryTracking() {
                   <p className="text-sm text-muted-foreground">
                     {selected.customer_address ?? "Pickup at store"}
                   </p>
+                  <p className="mt-1 text-xs font-medium text-primary">
+                    {selected.delivery_date
+                      ? `${new Date(`${selected.delivery_date}T00:00:00`).toLocaleDateString("en-IN", {
+                          weekday: "short",
+                          day: "numeric",
+                          month: "short",
+                        })}${selected.delivery_slot ? ` · ${selected.delivery_slot}` : ""}`
+                      : selected.delivery_slot ?? "No delivery window chosen"}
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="font-display text-lg font-bold">{formatINR(Number(selected.total))}</p>
