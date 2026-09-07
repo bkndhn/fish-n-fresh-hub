@@ -48,6 +48,7 @@ export function AdminShell({
 }) {
   const navigate = useNavigate();
   const { data: roles, isLoading } = useQuery(myRolesQuery);
+  const { data: settings } = useQuery(settingsQuery);
   const myRoles = roles ?? [];
   const allowed = myRoles.some((r) => allow.includes(r));
   const nav = NAV.filter((item) => (item.roles as readonly AppRole[]).some((r) => myRoles.includes(r)));
