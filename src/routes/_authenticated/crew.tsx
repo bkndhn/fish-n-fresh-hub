@@ -60,6 +60,25 @@ function CrewBoard() {
     },
   });
 
+  const pastOrders = useQuery({
+    queryKey: ["crew", "orders", "past"],
+    enabled: isCrew,
+    queryFn: async (): Promise<OrderRow[]> => {
+      const { data: session } = await supabase.auth.getUser();
+      const uid = session.user?.id;
+      if (!uid) return [];
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("driver_id", uid)
+        .in("status", ["delivered", "cancelled"])
+        .order("created_at", { ascending: false })
+        .limit(30);
+      if (error) throw error;
+      return (data ?? []) as unknown as OrderRow[];
+    },
+  });
+
   useEffect(() => {
     if (!isCrew) return;
     const channel = supabase
