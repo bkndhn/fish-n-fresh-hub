@@ -84,10 +84,6 @@ export function Footer() {
 
         <div>
           <p className="font-semibold text-foreground">Follow Us</p>
-          <div className="mt-4 flex gap-4">
-            {settings.social_instagram && (
-              <a href={settings.social_instagram} target="_blank" rel="noreferrer" className="hover:text-primary">
-                <Instagram className="size-5" />
           <div className="mt-4 flex flex-col gap-4">
             <div className="flex gap-4">
               {settings.social_instagram && (
