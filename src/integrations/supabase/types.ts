@@ -140,6 +140,24 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_suspensions: {
+        Row: {
+          phone: string
+          reason: string | null
+          suspended_at: string
+        }
+        Insert: {
+          phone: string
+          reason?: string | null
+          suspended_at?: string
+        }
+        Update: {
+          phone?: string
+          reason?: string | null
+          suspended_at?: string
+        }
+        Relationships: []
+      }
       delivery_windows: {
         Row: {
           active: boolean
@@ -805,6 +823,7 @@ export type Database = {
           tagline: string | null
           terms_and_conditions: string | null
           terms_content: string | null
+          theme_color: string | null
           twitter_url: string | null
           updated_at: string
           upi_id: string | null
@@ -880,6 +899,7 @@ export type Database = {
           tagline?: string | null
           terms_and_conditions?: string | null
           terms_content?: string | null
+          theme_color?: string | null
           twitter_url?: string | null
           updated_at?: string
           upi_id?: string | null
@@ -955,6 +975,7 @@ export type Database = {
           tagline?: string | null
           terms_and_conditions?: string | null
           terms_content?: string | null
+          theme_color?: string | null
           twitter_url?: string | null
           updated_at?: string
           upi_id?: string | null
