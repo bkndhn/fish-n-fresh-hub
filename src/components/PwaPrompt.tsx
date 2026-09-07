@@ -7,6 +7,11 @@ export function PwaPrompt() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    // Register Service Worker required for PWA installability
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(console.error);
+    }
+
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
