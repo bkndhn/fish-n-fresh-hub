@@ -178,6 +178,22 @@ function CrewBoard() {
                         #{o.order_number ?? o.id.slice(0, 8)} · {o.customer_name}
                       </p>
                       <p className="text-xs text-muted-foreground">{o.customer_address ?? "No address"}</p>
+                      {(o.delivery_date || o.delivery_slot) && (
+                        <p className="text-xs font-medium text-primary">
+                          {[
+                            o.delivery_date
+                              ? new Date(`${o.delivery_date}T00:00:00`).toLocaleDateString("en-IN", {
+                                  weekday: "short",
+                                  day: "numeric",
+                                  month: "short",
+                                })
+                              : null,
+                            o.delivery_slot,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      )}
                     </div>
                     <Badge variant="secondary" className="capitalize">
                       {o.status.replace(/_/g, " ")}
