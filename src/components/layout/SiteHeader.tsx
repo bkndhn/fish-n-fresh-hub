@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Fish, Search, ShoppingCart, User } from "lucide-react";
 import { useCart } from "@/lib/cart";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 import { useQuery } from "@tanstack/react-query";
 import { settingsQuery } from "@/lib/queries";
@@ -50,6 +51,7 @@ export function SiteHeader() {
           >
             <User className="size-5" />
           </Link>
+          <ThemeToggle />
           <Link to="/cart" className="relative rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Cart">
             <ShoppingCart className="size-5" />
             {count > 0 && (

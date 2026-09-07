@@ -6,6 +6,10 @@ import { adminCustomersQuery } from "@/lib/admin";
 import { formatINR, formatIST } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { adminSuspensionsQuery } from "@/lib/admin";
 
 export const Route = createFileRoute("/_authenticated/admin/customers")({
   head: () => ({
@@ -17,8 +21,27 @@ export const Route = createFileRoute("/_authenticated/admin/customers")({
 });
 
 function CustomersAdmin() {
+  const queryClient = useQueryClient();
   const customers = useQuery(adminCustomersQuery);
+  const suspensions = useQuery(adminSuspensionsQuery);
   const rows = customers.data ?? [];
+  const susMap = suspensions.data ?? {};
+
+  const toggleSuspend = useMutation({
+    mutationFn: async ({ phone, suspend }: { phone: string; suspend: boolean }) => {
+      if (suspend) {
+        const { error } = await supabase.from("customer_suspensions").insert({ phone, reason: "Admin violation" });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("customer_suspensions").delete().eq("phone", phone);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("Customer status updated");
+      queryClient.invalidateQueries({ queryKey: ["admin", "suspensions"] });
+    },
+  });
 
   const exportCSV = () => {
     const headers = ["Name", "Phone", "Orders", "Lifetime Spend", "Last Order"];
@@ -67,9 +90,20 @@ function CustomersAdmin() {
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">Last order: {formatIST(c.last_order)}</p>
               </div>
-              <div className="text-right">
-                <p className="font-semibold">{formatINR(c.spent)}</p>
-                <p className="text-xs text-muted-foreground">{c.orders} orders</p>
+              <div className="flex flex-col items-end gap-2 text-right">
+                <div>
+                  <p className="font-semibold">{formatINR(c.spent)}</p>
+                  <p className="text-xs text-muted-foreground">{c.orders} orders</p>
+                </div>
+                <Button 
+                  size="sm" 
+                  variant={susMap[c.phone] ? "outline" : "destructive"} 
+                  className="h-6 text-[10px] px-2 rounded-lg"
+                  onClick={() => toggleSuspend.mutate({ phone: c.phone, suspend: !susMap[c.phone] })}
+                  disabled={toggleSuspend.isPending}
+                >
+                  {susMap[c.phone] ? "Unsuspend" : "Suspend"}
+                </Button>
               </div>
             </CardContent>
           </Card>

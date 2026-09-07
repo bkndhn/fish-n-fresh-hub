@@ -41,50 +41,52 @@ export function ProductCard({ product }: { product: Product }) {
           {Number(product.rating).toFixed(1)}
           <span>· {product.unit}</span>
         </div>
-        <div className="flex items-center justify-between pt-1">
-          <div>
-            <span className="font-display font-bold">{inr(Number(product.price))}</span>
+        <div className="mt-1 flex items-end justify-between gap-1">
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate font-display font-bold">{inr(Number(product.price))}</span>
             {product.old_price ? (
-              <span className="ml-1 text-xs text-muted-foreground line-through">
+              <span className="truncate text-[10px] text-muted-foreground line-through">
                 {inr(Number(product.old_price))}
               </span>
             ) : null}
           </div>
           
-          {cartItem ? (
-            <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-background/50 p-1">
+          <div className="shrink-0">
+            {cartItem ? (
+              <div className="flex items-center gap-1.5 rounded-xl border border-primary/20 bg-background/50 p-1">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-6 rounded-lg hover:bg-primary hover:text-primary-foreground"
+                  onClick={() => setQty(product.id, cartItem.qty - 0.5)}
+                >
+                  <Minus className="size-3" />
+                </Button>
+                <span className="w-6 text-center text-xs font-medium tabular-nums">
+                  {cartItem.qty}
+                </span>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-6 rounded-lg hover:bg-primary hover:text-primary-foreground"
+                  onClick={() => setQty(product.id, cartItem.qty + 0.5)}
+                >
+                  <Plus className="size-3" />
+                </Button>
+              </div>
+            ) : (
               <Button
-                size="icon"
-                variant="ghost"
-                className="size-6 rounded-lg hover:bg-primary hover:text-primary-foreground"
-                onClick={() => setQty(product.id, cartItem.qty - 0.5)}
+                size="sm"
+                className="h-8 rounded-xl px-3 text-xs"
+                onClick={() => {
+                  add(product, 0.5);
+                  toast.success(`${product.name} added to cart`);
+                }}
               >
-                <Minus className="size-3" />
+                <Plus className="mr-1 size-3" /> Add
               </Button>
-              <span className="w-8 text-center text-xs font-medium tabular-nums">
-                {cartItem.qty}
-              </span>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="size-6 rounded-lg hover:bg-primary hover:text-primary-foreground"
-                onClick={() => setQty(product.id, cartItem.qty + 0.5)}
-              >
-                <Plus className="size-3" />
-              </Button>
-            </div>
-          ) : (
-            <Button
-              size="sm"
-              className="rounded-xl"
-              onClick={() => {
-                add(product, 0.5);
-                toast.success(`${product.name} added to cart`);
-              }}
-            >
-              <Plus className="size-4" /> Add
-            </Button>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -120,7 +120,21 @@ function Checkout() {
       toast.error("Card payments are not available right now");
       return;
     }
+    
     setSaving(true);
+    
+    const { data: suspension } = await supabase
+      .from("customer_suspensions")
+      .select("reason")
+      .eq("phone", phone)
+      .maybeSingle();
+      
+    if (suspension) {
+      toast.error(`Account suspended: ${suspension.reason}`);
+      setSaving(false);
+      return;
+    }
+
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = sessionData.session?.user.id ?? null;
     const { data, error } = await supabase

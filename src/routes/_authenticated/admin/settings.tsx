@@ -140,13 +140,27 @@ function AdminSettings() {
             <CardTitle className="text-lg">App Customization & Socials</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label>Logo</Label>
-              <div className="mt-1">
-                <ImageUpload 
-                  currentImage={form.logo_url} 
-                  onUpload={(url) => setForm({ ...form, logo_url: url })} 
-                />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>App Theme Color (Hex)</Label>
+                <div className="mt-1 flex items-center gap-2">
+                  <Input
+                    type="color"
+                    className="w-16 h-10 p-1 cursor-pointer"
+                    value={form.theme_color ?? "#0ea5e9"}
+                    onChange={(e) => setForm({ ...form, theme_color: e.target.value })}
+                  />
+                  <span className="text-xs text-muted-foreground">{form.theme_color ?? "Default Blue"}</span>
+                </div>
+              </div>
+              <div>
+                <Label>Logo</Label>
+                <div className="mt-1">
+                  <ImageUpload 
+                    currentImage={form.logo_url} 
+                    onUpload={(url) => setForm({ ...form, logo_url: url })} 
+                  />
+                </div>
               </div>
             </div>
             <div>

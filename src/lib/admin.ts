@@ -137,6 +137,19 @@ export const adminCustomersQuery = queryOptions({
   },
 });
 
+export const adminSuspensionsQuery = queryOptions({
+  queryKey: ["admin", "suspensions"],
+  queryFn: async (): Promise<Record<string, string>> => {
+    const { data, error } = await supabase.from("customer_suspensions").select("phone, reason");
+    if (error) throw error;
+    const map: Record<string, string> = {};
+    for (const row of data ?? []) {
+      map[row.phone] = row.reason || "Suspended";
+    }
+    return map;
+  },
+});
+
 export type AppRole = "admin" | "staff" | "driver" | "user";
 
 export const myRolesQuery = queryOptions({

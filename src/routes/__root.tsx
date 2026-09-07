@@ -150,19 +150,23 @@ function RealtimeSubscriber({ queryClient }: { queryClient: any }) {
   return null;
 }
 
+import { ThemeProvider } from "@/components/ThemeProvider";
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <CartProvider>
-          <RealtimeSubscriber queryClient={queryClient} />
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
-          <Toaster position="top-center" />
-        </CartProvider>
-      </LanguageProvider>
+      <ThemeProvider defaultTheme="light" storageKey="fnf-theme">
+        <LanguageProvider>
+          <CartProvider>
+            <RealtimeSubscriber queryClient={queryClient} />
+            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+            <Outlet />
+            <Toaster position="top-center" />
+          </CartProvider>
+        </LanguageProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
