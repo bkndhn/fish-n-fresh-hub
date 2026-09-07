@@ -26,6 +26,9 @@ export type OrderRow = {
   eta_minutes: number | null;
   delivery_note: string | null;
   payment_status: string;
+  refund_amount: number | null;
+  refunded_at: string | null;
+  stripe_refund_id: string | null;
   created_at: string;
 };
 
