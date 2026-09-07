@@ -140,6 +140,19 @@ function RealtimeSubscriber({ queryClient }: { queryClient: any }) {
           queryClient.invalidateQueries({ queryKey: ["store_settings"] });
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "customer_suspensions" },
+        async (payload) => {
+          const phone = localStorage.getItem("fnf_phone");
+          if (payload.new && phone && payload.new.phone === phone) {
+            await supabase.auth.signOut();
+            localStorage.removeItem("fnf_phone");
+            window.location.href = "/";
+            alert("Your account has been suspended. Please contact support.");
+          }
+        }
+      )
       .subscribe();
 
     return () => {
@@ -151,6 +164,7 @@ function RealtimeSubscriber({ queryClient }: { queryClient: any }) {
 }
 
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { OfflineBanner } from "@/components/OfflineBanner";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
@@ -160,6 +174,7 @@ function RootComponent() {
       <ThemeProvider defaultTheme="light" storageKey="fnf-theme">
         <LanguageProvider>
           <CartProvider>
+            <OfflineBanner />
             <RealtimeSubscriber queryClient={queryClient} />
             {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
             <Outlet />

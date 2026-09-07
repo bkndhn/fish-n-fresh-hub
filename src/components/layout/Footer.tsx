@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Facebook, Instagram, Mail, MapPin, Phone, Twitter } from "lucide-react";
+import { Facebook, Instagram, Mail, MapPin, Phone, Twitter, Star } from "lucide-react";
 import { settingsQuery } from "@/lib/queries";
 import { Link } from "@tanstack/react-router";
 
@@ -72,16 +72,28 @@ export function Footer() {
             {settings.social_instagram && (
               <a href={settings.social_instagram} target="_blank" rel="noreferrer" className="hover:text-primary">
                 <Instagram className="size-5" />
-              </a>
-            )}
-            {settings.social_facebook && (
-              <a href={settings.social_facebook} target="_blank" rel="noreferrer" className="hover:text-primary">
-                <Facebook className="size-5" />
-              </a>
-            )}
-            {settings.social_x && (
-              <a href={settings.social_x} target="_blank" rel="noreferrer" className="hover:text-primary">
-                <Twitter className="size-5" />
+          <div className="mt-4 flex flex-col gap-4">
+            <div className="flex gap-4">
+              {settings.social_instagram && (
+                <a href={settings.social_instagram} target="_blank" rel="noreferrer" className="hover:text-primary">
+                  <Instagram className="size-5" />
+                </a>
+              )}
+              {settings.social_facebook && (
+                <a href={settings.social_facebook} target="_blank" rel="noreferrer" className="hover:text-primary">
+                  <Facebook className="size-5" />
+                </a>
+              )}
+              {settings.social_x && (
+                <a href={settings.social_x} target="_blank" rel="noreferrer" className="hover:text-primary">
+                  <Twitter className="size-5" />
+                </a>
+              )}
+            </div>
+            {settings.google_review_link && (
+              <a href={settings.google_review_link} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
+                <Star className="size-4 text-yellow-500 fill-current" />
+                Review us on Google
               </a>
             )}
           </div>

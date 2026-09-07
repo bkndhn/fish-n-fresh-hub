@@ -307,16 +307,28 @@ function Checkout() {
       <div className="mt-5">
         <p className="mb-2 text-sm font-medium">Payment method</p>
         <div className="flex gap-2">
-          {(["cod", "upi", "card"] as const).map((p) => (
-            <Button
-              key={p}
-              variant={payment === p ? "default" : "outline"}
-              className="flex-1 rounded-xl"
-              onClick={() => setPayment(p)}
-            >
-              {p === "cod" ? "Cash on delivery" : p === "upi" ? "UPI" : "Card"}
-            </Button>
-          ))}
+          <Button
+            variant={payment === "cod" ? "default" : "outline"}
+            className="flex-1 rounded-xl"
+            onClick={() => setPayment("cod")}
+            disabled={settings?.require_online_payment}
+          >
+            Cash on delivery {settings?.require_online_payment && "(Disabled)"}
+          </Button>
+          <Button
+            variant={payment === "upi" ? "default" : "outline"}
+            className="flex-1 rounded-xl"
+            onClick={() => setPayment("upi")}
+          >
+            UPI
+          </Button>
+          <Button
+            variant={payment === "card" ? "default" : "outline"}
+            className="flex-1 rounded-xl"
+            onClick={() => setPayment("card")}
+          >
+            Card
+          </Button>
         </div>
       </div>
 

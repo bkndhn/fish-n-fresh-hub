@@ -195,6 +195,14 @@ function AdminSettings() {
                 placeholder="https://x.com/..."
               />
             </div>
+            <div>
+              <Label>Google Review Link</Label>
+              <Input
+                value={form.google_review_link ?? ""}
+                onChange={(e) => setForm({ ...form, google_review_link: e.target.value })}
+                placeholder="https://g.page/r/..."
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -223,6 +231,63 @@ function AdminSettings() {
           </CardContent>
         </Card>
       </div>
+      
+      <Card className="mt-6 border-primary">
+        <CardHeader>
+          <CardTitle className="text-lg">Payments & Checkout</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="require_online"
+              checked={form.require_online_payment ?? false}
+              onChange={(e) => setForm({ ...form, require_online_payment: e.target.checked })}
+              className="h-4 w-4"
+            />
+            <Label htmlFor="require_online" className="cursor-pointer">
+              Require Online Payment (Disable Cash on Delivery)
+            </Label>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Payment Gateway Provider</Label>
+              <select
+                className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                value={form.payment_gateway ?? "none"}
+                onChange={(e) => setForm({ ...form, payment_gateway: e.target.value })}
+              >
+                <option value="none">Manual UPI Only</option>
+                <option value="razorpay">Razorpay</option>
+                <option value="phonepe">PhonePe</option>
+                <option value="cashfree">Cashfree</option>
+              </select>
+            </div>
+            {form.payment_gateway !== "none" && (
+              <>
+                <div>
+                  <Label>API Key</Label>
+                  <Input
+                    type="password"
+                    value={form.gateway_api_key ?? ""}
+                    onChange={(e) => setForm({ ...form, gateway_api_key: e.target.value })}
+                    placeholder="rzp_live_..."
+                  />
+                </div>
+                <div>
+                  <Label>Secret Key</Label>
+                  <Input
+                    type="password"
+                    value={form.gateway_secret_key ?? ""}
+                    onChange={(e) => setForm({ ...form, gateway_secret_key: e.target.value })}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
       
       <Button 
         className="mt-6 rounded-xl" 

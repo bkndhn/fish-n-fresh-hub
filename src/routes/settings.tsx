@@ -104,10 +104,12 @@ function SettingsPage() {
   }
 
   async function signOut() {
-    await qc.cancelQueries();
-    qc.clear();
-    await supabase.auth.signOut();
-    navigate({ to: "/", replace: true });
+    if (window.confirm("Are you sure you want to sign out?")) {
+      await qc.cancelQueries();
+      qc.clear();
+      await supabase.auth.signOut();
+      navigate({ to: "/", replace: true });
+    }
   }
 
   return (

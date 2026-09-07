@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 const NAV = [
   { to: "/admin", label: "Dashboard", icon: BarChart3, exact: true, roles: ["admin", "staff"] },
   { to: "/admin/products", label: "Products", icon: Package, roles: ["admin", "staff"] },
+  { to: "/admin/banners", label: "Banners", icon: Sparkles, roles: ["admin"] },
   { to: "/admin/orders", label: "Orders", icon: ReceiptText, roles: ["admin", "staff"] },
   { to: "/admin/customers", label: "Customers", icon: Users, roles: ["admin"] },
   { to: "/admin/promotions", label: "Promotions", icon: Tag, roles: ["admin"] },
@@ -84,7 +85,11 @@ export function AdminShell({
             variant="ghost"
             size="sm"
             className="ml-auto"
-            onClick={() => supabase.auth.signOut().then(() => navigate({ to: "/auth" }))}
+            onClick={() => {
+              if (window.confirm("Are you sure you want to sign out?")) {
+                supabase.auth.signOut().then(() => navigate({ to: "/auth" }));
+              }
+            }}
           >
             <LogOut className="mr-1.5 size-4" /> Sign out
           </Button>
