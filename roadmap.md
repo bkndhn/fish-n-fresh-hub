@@ -8,6 +8,9 @@
 - [x] Customer accounts: sign up/in, order history, tracking, settings
 - [x] Reports & management suite
 - [x] Role isolation: admin / staff / driver console access
+- [x] Delivery windows in admin schedule + shown on order cards
+- [x] Cancel & refund flow for paid card orders
+- [x] Crew board: assigned orders, status updates, past deliveries
 
 ## Open
 - [ ] Customer email notification on paid order (blocked: needs a sending domain)

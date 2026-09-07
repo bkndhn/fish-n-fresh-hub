@@ -172,6 +172,15 @@ function DeliveryTracking() {
                   <p className="text-sm text-muted-foreground">
                     {selected.customer_address ?? "Pickup at store"}
                   </p>
+                  <p className="mt-1 text-xs font-medium text-primary">
+                    {selected.delivery_date
+                      ? `${new Date(`${selected.delivery_date}T00:00:00`).toLocaleDateString("en-IN", {
+                          weekday: "short",
+                          day: "numeric",
+                          month: "short",
+                        })}${selected.delivery_slot ? ` · ${selected.delivery_slot}` : ""}`
+                      : selected.delivery_slot ?? "No delivery window chosen"}
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="font-display text-lg font-bold">{formatINR(Number(selected.total))}</p>
@@ -281,6 +290,44 @@ function DeliveryTracking() {
                   </p>
                 )}
               </div>
+
+              {isAdmin && (
+                <div className="space-y-2 rounded-xl border border-destructive/40 p-3">
+                  <p className="text-sm font-medium text-destructive">Cancel &amp; refund</p>
+                  <p className="text-xs text-muted-foreground">
+                    {selected.payment_status === "paid"
+                      ? "This order is paid. Refunding sends the money back to the customer's card."
+                      : "This order has not been paid by card, so nothing will be refunded."}
+                  </p>
+                  <Input
+                    placeholder="Reason (shown in the order history)"
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={refund.isPending}
+                      onClick={() =>
+                        refund.mutate({ orderId: selected.id, reason: cancelReason, refund: false })
+                      }
+                    >
+                      Cancel only
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={refund.isPending || selected.payment_status !== "paid"}
+                      onClick={() =>
+                        refund.mutate({ orderId: selected.id, reason: cancelReason, refund: true })
+                      }
+                    >
+                      {refund.isPending ? "Working…" : "Cancel & refund"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

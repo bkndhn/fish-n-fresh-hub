@@ -60,6 +60,25 @@ function CrewBoard() {
     },
   });
 
+  const pastOrders = useQuery({
+    queryKey: ["crew", "orders", "past"],
+    enabled: isCrew,
+    queryFn: async (): Promise<OrderRow[]> => {
+      const { data: session } = await supabase.auth.getUser();
+      const uid = session.user?.id;
+      if (!uid) return [];
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("driver_id", uid)
+        .in("status", ["delivered", "cancelled"])
+        .order("created_at", { ascending: false })
+        .limit(30);
+      if (error) throw error;
+      return (data ?? []) as unknown as OrderRow[];
+    },
+  });
+
   useEffect(() => {
     if (!isCrew) return;
     const channel = supabase
@@ -159,6 +178,22 @@ function CrewBoard() {
                         #{o.order_number ?? o.id.slice(0, 8)} · {o.customer_name}
                       </p>
                       <p className="text-xs text-muted-foreground">{o.customer_address ?? "No address"}</p>
+                      {(o.delivery_date || o.delivery_slot) && (
+                        <p className="text-xs font-medium text-primary">
+                          {[
+                            o.delivery_date
+                              ? new Date(`${o.delivery_date}T00:00:00`).toLocaleDateString("en-IN", {
+                                  weekday: "short",
+                                  day: "numeric",
+                                  month: "short",
+                                })
+                              : null,
+                            o.delivery_slot,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      )}
                     </div>
                     <Badge variant="secondary" className="capitalize">
                       {o.status.replace(/_/g, " ")}
@@ -236,6 +271,33 @@ function CrewBoard() {
               </Card>
             );
           })
+        )}
+
+        {(pastOrders.data ?? []).length > 0 && (
+          <section className="pt-4">
+            <h2 className="mb-2 font-display text-sm font-bold">Past deliveries</h2>
+            <div className="space-y-2">
+              {(pastOrders.data ?? []).map((o) => (
+                <div
+                  key={o.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      #{o.order_number ?? o.id.slice(0, 8)} · {o.customer_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(o.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} ·{" "}
+                      {formatINR(Number(o.total))}
+                    </p>
+                  </div>
+                  <Badge variant={o.status === "delivered" ? "secondary" : "outline"} className="capitalize">
+                    {o.status}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </section>
         )}
       </main>
     </div>
