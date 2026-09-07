@@ -272,6 +272,33 @@ function CrewBoard() {
             );
           })
         )}
+
+        {(pastOrders.data ?? []).length > 0 && (
+          <section className="pt-4">
+            <h2 className="mb-2 font-display text-sm font-bold">Past deliveries</h2>
+            <div className="space-y-2">
+              {(pastOrders.data ?? []).map((o) => (
+                <div
+                  key={o.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      #{o.order_number ?? o.id.slice(0, 8)} · {o.customer_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(o.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} ·{" "}
+                      {formatINR(Number(o.total))}
+                    </p>
+                  </div>
+                  <Badge variant={o.status === "delivered" ? "secondary" : "outline"} className="capitalize">
+                    {o.status}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );
