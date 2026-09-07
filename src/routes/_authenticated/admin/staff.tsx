@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, UserPlus } from "lucide-react";
+import { KeyRound, Loader2, UserPlus } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { listStaff, inviteStaff, setStaffRole, type AppRole } from "@/lib/staff.functions";
+import {
+  listStaff,
+  inviteStaff,
+  setStaffRole,
+  createStaffAccount,
+  type AppRole,
+} from "@/lib/staff.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/staff")({
   head: () => ({
@@ -54,10 +60,16 @@ function StaffPage() {
   const fetchStaff = useServerFn(listStaff);
   const invite = useServerFn(inviteStaff);
   const updateRole = useServerFn(setStaffRole);
+  const createAccount = useServerFn(createStaffAccount);
 
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<AppRole>("driver");
+  const [newEmail, setNewEmail] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newRole, setNewRole] = useState<AppRole>("driver");
 
   const staffQuery = useQuery({
     queryKey: ["admin", "staff"],
@@ -85,6 +97,30 @@ function StaffPage() {
       } else {
         toast.success(`Invite sent to ${res.email} as ${res.role}`);
       }
+      queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (vars: {
+      email: string;
+      password: string;
+      fullName: string;
+      phone: string;
+      role: AppRole;
+    }) => createAccount({ data: vars }),
+    onSuccess: (res) => {
+      toast.success(
+        res.updatedExisting
+          ? `Updated ${res.email} — password reset and role set to ${res.role}`
+          : `${res.email} can now sign in as ${res.role}`,
+        { duration: 12000 },
+      );
+      setNewEmail("");
+      setNewName("");
+      setNewPhone("");
+      setNewPassword("");
       queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
     },
     onError: (err: Error) => toast.error(err.message),
