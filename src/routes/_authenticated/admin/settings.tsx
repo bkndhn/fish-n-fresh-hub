@@ -140,6 +140,23 @@ function AdminSettings() {
             <CardTitle className="text-lg">App Customization & Socials</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Store Address (Footer)</Label>
+              <textarea
+                className="flex min-h-[60px] w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={form.store_address ?? ""}
+                onChange={(e) => setForm({ ...form, store_address: e.target.value })}
+                placeholder="123 Fish Market, Chennai..."
+              />
+            </div>
+            <div>
+              <Label>Google Maps Link (for Address)</Label>
+              <Input
+                value={form.store_map_link ?? ""}
+                onChange={(e) => setForm({ ...form, store_map_link: e.target.value })}
+                placeholder="https://maps.app.goo.gl/..."
+              />
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>App Theme Color (Hex)</Label>

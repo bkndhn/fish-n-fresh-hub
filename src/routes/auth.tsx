@@ -70,7 +70,7 @@ function AuthPage() {
     }
     
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -83,7 +83,15 @@ function AuthPage() {
       toast.error(error.message);
       return;
     }
-    toast.success("Account created. You can sign in now.");
+    
+    // If auto-login happens (email confirmation disabled in Supabase)
+    if (data.session) {
+      toast.success("Account created successfully!");
+      await routeAfterLogin();
+    } else {
+      // If email confirmation is required
+      toast.success("Account created! Please check your email to verify before signing in.");
+    }
   }
 
   return (

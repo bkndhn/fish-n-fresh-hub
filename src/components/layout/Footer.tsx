@@ -24,13 +24,29 @@ export function Footer() {
           <p className="mt-4">Fresh seafood and premium cuts delivered straight to your door.</p>
         </div>
 
-        <div>
-          <p className="font-semibold text-foreground">Support & Contact</p>
-          <ul className="mt-4 space-y-2">
+        <div className="md:col-span-1">
+          <h3 className="mb-4 text-sm font-semibold text-foreground">Contact</h3>
+          <ul className="space-y-3 text-sm">
+            {settings.store_address && (
+              <li>
+                {settings.store_map_link ? (
+                  <a href={settings.store_map_link} target="_blank" rel="noreferrer" className="flex items-start gap-2 hover:text-primary">
+                    <MapPin className="size-4 shrink-0" />
+                    <span className="whitespace-pre-wrap leading-tight">{settings.store_address}</span>
+                  </a>
+                ) : (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="size-4 shrink-0" />
+                    <span className="whitespace-pre-wrap leading-tight">{settings.store_address}</span>
+                  </div>
+                )}
+              </li>
+            )}
             {settings.support_phone && (
               <li>
                 <a href={`tel:${settings.support_phone}`} className="flex items-center gap-2 hover:text-primary">
-                  <Phone className="size-4" /> {settings.support_phone}
+                  <Phone className="size-4" />
+                  {settings.support_phone}
                 </a>
               </li>
             )}
