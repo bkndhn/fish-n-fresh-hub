@@ -133,7 +133,7 @@ function Checkout() {
         subtotal,
         delivery_fee: deliveryFee,
         gst_amount: gstAmount,
-        gst_percent: gstPercent,
+        
         total,
         status: "pending",
         payment_method: payment,
