@@ -159,3 +159,59 @@ export const listDrivers = createServerFn({ method: "GET" })
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
   });
+
+export const createStaffAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { email: string; password: string; fullName?: string; phone?: string; role: AppRole }) => {
+    const email = String(input?.email ?? "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Enter a valid email address");
+    const password = String(input?.password ?? "");
+    if (password.length < 8) throw new Error("Password must be at least 8 characters");
+    if (!ROLES.includes(input.role)) throw new Error("Invalid role");
+    return {
+      email,
+      password,
+      fullName: input.fullName?.trim() || null,
+      phone: input.phone?.replace(/\D/g, "").slice(0, 15) || null,
+      role: input.role,
+    };
+  })
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context as never);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: existing } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
+    const found = existing?.users.find((u) => u.email?.toLowerCase() === data.email) ?? null;
+
+    let userId: string;
+    let updatedExisting = false;
+
+    if (found) {
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(found.id, {
+        password: data.password,
+        email_confirm: true,
+        user_metadata: { full_name: data.fullName, phone: data.phone },
+      });
+      if (error) throw new Error(error.message);
+      userId = found.id;
+      updatedExisting = true;
+    } else {
+      const created = await supabaseAdmin.auth.admin.createUser({
+        email: data.email,
+        password: data.password,
+        email_confirm: true,
+        user_metadata: { full_name: data.fullName, phone: data.phone },
+      });
+      if (created.error || !created.data.user) {
+        throw new Error(created.error?.message ?? "Could not create the account");
+      }
+      userId = created.data.user.id;
+    }
+
+    const { error: roleError } = await supabaseAdmin
+      .from("user_roles")
+      .upsert({ user_id: userId, role: data.role }, { onConflict: "user_id,role" });
+    if (roleError) throw new Error(roleError.message);
+
+    return { userId, email: data.email, role: data.role, updatedExisting };
+  });
