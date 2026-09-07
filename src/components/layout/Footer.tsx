@@ -111,6 +111,10 @@ export function Footer() {
           </div>
         </div>
       </div>
+      
+      <div className="mt-12 border-t border-border pt-6 text-center text-xs text-muted-foreground">
+        <p>&copy; {new Date().getFullYear()} {settings.firm_name || "Fish N Fresh"}. All rights reserved.</p>
+      </div>
     </footer>
   );
 }

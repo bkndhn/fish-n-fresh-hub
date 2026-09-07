@@ -157,6 +157,14 @@ function AdminSettings() {
                 placeholder="https://maps.app.goo.gl/..."
               />
             </div>
+            <div>
+              <Label>Firm Name (for Copyright Footer)</Label>
+              <Input
+                value={form.firm_name ?? ""}
+                onChange={(e) => setForm({ ...form, firm_name: e.target.value })}
+                placeholder="Fish N Fresh LLC"
+              />
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>App Theme Color (Hex)</Label>
