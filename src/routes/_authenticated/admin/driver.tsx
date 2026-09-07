@@ -151,6 +151,25 @@ function DriverMap() {
                   </Button>
                 </div>
 
+                <div className="grid grid-cols-2 gap-2 sm:hidden">
+                  <Button size="sm" variant="outline" asChild>
+                    <a href={`tel:${o.customer_phone}`}>Call</a>
+                  </Button>
+                  <Button size="sm" variant="outline" asChild>
+                    <a
+                      target="_blank"
+                      rel="noreferrer"
+                      href={
+                        o.location_lat && o.location_lng
+                          ? `https://www.google.com/maps/dir/?api=1&destination=${o.location_lat},${o.location_lng}`
+                          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.customer_address ?? "")}`
+                      }
+                    >
+                      Navigate
+                    </a>
+                  </Button>
+                </div>
+
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <MapPin className="size-3" />

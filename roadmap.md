@@ -11,6 +11,8 @@
 - [x] Delivery windows in admin schedule + shown on order cards
 - [x] Cancel & refund flow for paid card orders
 - [x] Crew board: assigned orders, status updates, past deliveries
+- [x] Staff onboarding with password (no email invite needed)
+- [x] Payments & refunds audit page + phone-friendly driver cards
 
 ## Open
 - [ ] Customer email notification on paid order (blocked: needs a sending domain)
