@@ -169,6 +169,111 @@ function StaffPage() {
 
         <Card>
           <CardHeader>
+            <CardTitle className="text-base">Create an account with a password</CardTitle>
+            <CardDescription>
+              No email needed — set the password yourself and hand it to your driver or staff member.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form
+              className="space-y-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                createMutation.mutate({
+                  email: newEmail,
+                  password: newPassword,
+                  fullName: newName,
+                  phone: newPhone,
+                  role: newRole,
+                });
+              }}
+            >
+              <div className="space-y-1.5">
+                <Label htmlFor="create-email">Email</Label>
+                <Input
+                  id="create-email"
+                  type="email"
+                  required
+                  placeholder="driver@example.com"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="create-name">Name</Label>
+                <Input
+                  id="create-name"
+                  placeholder="Ravi Kumar"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="create-phone">Phone (optional)</Label>
+                <Input
+                  id="create-phone"
+                  inputMode="numeric"
+                  placeholder="9876543210"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="create-password">Password</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="create-password"
+                    required
+                    minLength={8}
+                    placeholder="At least 8 characters"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      setNewPassword(`Fnf-${Math.random().toString(36).slice(2, 8)}${Math.floor(Math.random() * 90 + 10)}`)
+                    }
+                  >
+                    Suggest
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Role</Label>
+                <Select value={newRole} onValueChange={(v) => setNewRole(v as AppRole)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ASSIGNABLE.map((r) => (
+                      <SelectItem key={r} value={r} className="capitalize">
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{ROLE_HINT[newRole]}</p>
+              </div>
+              <Button type="submit" className="w-full" disabled={createMutation.isPending}>
+                {createMutation.isPending ? (
+                  <Loader2 className="mr-1.5 size-4 animate-spin" />
+                ) : (
+                  <KeyRound className="mr-1.5 size-4" />
+                )}
+                Create account
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                If the email already has an account, the password and role are updated instead.
+              </p>
+            </form>
+          </CardContent>
+        </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
             <CardTitle className="text-base">Team members</CardTitle>
             <CardDescription>Toggle roles on or off for any account.</CardDescription>
           </CardHeader>
