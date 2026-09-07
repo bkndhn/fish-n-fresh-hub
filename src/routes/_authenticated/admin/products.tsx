@@ -30,7 +30,7 @@ function ProductsAdmin() {
   const products = useQuery(adminProductsQuery);
 
   const update = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: { price?: number; stock?: number; is_available?: boolean; gst_percent?: number; gst_included?: boolean } }) => {
+    mutationFn: async ({ id, patch }: { id: string; patch: { price?: number; stock?: number; is_available?: boolean; gst_percent?: number; gst_included?: boolean; image_url?: string | null } }) => {
       const { error } = await supabase.from("products").update(patch).eq("id", id);
       if (error) throw error;
     },
