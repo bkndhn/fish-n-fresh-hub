@@ -307,6 +307,7 @@ export type Database = {
           branch_name: string | null
           cancel_reason: string | null
           cancelled_by: string | null
+          complaint: string | null
           coupon_code: string | null
           created_at: string
           created_by: string | null
@@ -357,6 +358,7 @@ export type Database = {
           branch_name?: string | null
           cancel_reason?: string | null
           cancelled_by?: string | null
+          complaint?: string | null
           coupon_code?: string | null
           created_at?: string
           created_by?: string | null
@@ -407,6 +409,7 @@ export type Database = {
           branch_name?: string | null
           cancel_reason?: string | null
           cancelled_by?: string | null
+          complaint?: string | null
           coupon_code?: string | null
           created_at?: string
           created_by?: string | null
@@ -452,6 +455,36 @@ export type Database = {
         }
         Relationships: []
       }
+      product_requests: {
+        Row: {
+          created_at: string
+          customer_name: string | null
+          customer_phone: string | null
+          id: string
+          notes: string | null
+          product_name: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          notes?: string | null
+          product_name: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          notes?: string | null
+          product_name?: string
+          status?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           benefits: string[] | null
@@ -462,6 +495,8 @@ export type Database = {
           category: string | null
           created_at: string
           description: string | null
+          gst_included: boolean
+          gst_percent: number
           id: string
           image_url: string | null
           is_available: boolean
@@ -493,6 +528,8 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          gst_included?: boolean
+          gst_percent?: number
           id?: string
           image_url?: string | null
           is_available?: boolean
@@ -524,6 +561,8 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          gst_included?: boolean
+          gst_percent?: number
           id?: string
           image_url?: string | null
           is_available?: boolean
@@ -704,10 +743,12 @@ export type Database = {
           additional_charge_value: number
           address_line: string | null
           announcement: string | null
+          base_delivery_fee: number
           block_during_lunch: boolean
           block_on_holidays: boolean
           close_time: string | null
           cod_enabled: boolean
+          complaint_window_hours: number
           contact_email: string | null
           contact_phone: string | null
           created_at: string
@@ -717,6 +758,7 @@ export type Database = {
           facebook_url: string | null
           footer_about: string | null
           free_delivery_over: number
+          fssai_number: string | null
           gst_enabled: boolean
           gst_percent: number
           gstin: string | null
@@ -732,24 +774,36 @@ export type Database = {
           id: string
           instagram_url: string | null
           is_open: boolean
+          logo_url: string | null
           low_stock_threshold: number
           lunch_end: string | null
           lunch_start: string | null
+          max_delivery_radius_km: number
           min_order_value: number
           online_enabled: boolean
           open_time: string | null
+          per_km_charge: number
           pickup_enabled: boolean
           primary_color: string
           privacy_content: string | null
           refund_content: string | null
           serviceable_pincodes: string[]
+          shop_lat: number | null
+          shop_lng: number | null
           shop_logo: string | null
+          social_facebook: string | null
+          social_instagram: string | null
+          social_whatsapp: string | null
+          social_x: string | null
           store_address: string | null
           store_lat: number | null
           store_lng: number | null
           store_name: string
+          support_email: string | null
+          support_phone: string | null
           support_whatsapp: string | null
           tagline: string | null
+          terms_and_conditions: string | null
           terms_content: string | null
           twitter_url: string | null
           updated_at: string
@@ -764,10 +818,12 @@ export type Database = {
           additional_charge_value?: number
           address_line?: string | null
           announcement?: string | null
+          base_delivery_fee?: number
           block_during_lunch?: boolean
           block_on_holidays?: boolean
           close_time?: string | null
           cod_enabled?: boolean
+          complaint_window_hours?: number
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
@@ -777,6 +833,7 @@ export type Database = {
           facebook_url?: string | null
           footer_about?: string | null
           free_delivery_over?: number
+          fssai_number?: string | null
           gst_enabled?: boolean
           gst_percent?: number
           gstin?: string | null
@@ -792,24 +849,36 @@ export type Database = {
           id?: string
           instagram_url?: string | null
           is_open?: boolean
+          logo_url?: string | null
           low_stock_threshold?: number
           lunch_end?: string | null
           lunch_start?: string | null
+          max_delivery_radius_km?: number
           min_order_value?: number
           online_enabled?: boolean
           open_time?: string | null
+          per_km_charge?: number
           pickup_enabled?: boolean
           primary_color?: string
           privacy_content?: string | null
           refund_content?: string | null
           serviceable_pincodes?: string[]
+          shop_lat?: number | null
+          shop_lng?: number | null
           shop_logo?: string | null
+          social_facebook?: string | null
+          social_instagram?: string | null
+          social_whatsapp?: string | null
+          social_x?: string | null
           store_address?: string | null
           store_lat?: number | null
           store_lng?: number | null
           store_name?: string
+          support_email?: string | null
+          support_phone?: string | null
           support_whatsapp?: string | null
           tagline?: string | null
+          terms_and_conditions?: string | null
           terms_content?: string | null
           twitter_url?: string | null
           updated_at?: string
@@ -824,10 +893,12 @@ export type Database = {
           additional_charge_value?: number
           address_line?: string | null
           announcement?: string | null
+          base_delivery_fee?: number
           block_during_lunch?: boolean
           block_on_holidays?: boolean
           close_time?: string | null
           cod_enabled?: boolean
+          complaint_window_hours?: number
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
@@ -837,6 +908,7 @@ export type Database = {
           facebook_url?: string | null
           footer_about?: string | null
           free_delivery_over?: number
+          fssai_number?: string | null
           gst_enabled?: boolean
           gst_percent?: number
           gstin?: string | null
@@ -852,24 +924,36 @@ export type Database = {
           id?: string
           instagram_url?: string | null
           is_open?: boolean
+          logo_url?: string | null
           low_stock_threshold?: number
           lunch_end?: string | null
           lunch_start?: string | null
+          max_delivery_radius_km?: number
           min_order_value?: number
           online_enabled?: boolean
           open_time?: string | null
+          per_km_charge?: number
           pickup_enabled?: boolean
           primary_color?: string
           privacy_content?: string | null
           refund_content?: string | null
           serviceable_pincodes?: string[]
+          shop_lat?: number | null
+          shop_lng?: number | null
           shop_logo?: string | null
+          social_facebook?: string | null
+          social_instagram?: string | null
+          social_whatsapp?: string | null
+          social_x?: string | null
           store_address?: string | null
           store_lat?: number | null
           store_lng?: number | null
           store_name?: string
+          support_email?: string | null
+          support_phone?: string | null
           support_whatsapp?: string | null
           tagline?: string | null
+          terms_and_conditions?: string | null
           terms_content?: string | null
           twitter_url?: string | null
           updated_at?: string
