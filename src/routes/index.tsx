@@ -5,8 +5,7 @@ import { BannerCarousel } from "@/components/BannerCarousel";
 import { TrustBadges } from "@/components/TrustBadges";
 import { ProductCard } from "@/components/ProductCard";
 import { bannersQuery, categoriesQuery, productsQuery, trustBadgesQuery } from "@/lib/queries";
-
-
+import { useTranslation } from "@/lib/i18n";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -31,6 +30,7 @@ function Home() {
   const { data: categories } = useQuery(categoriesQuery);
   const { data: products } = useQuery(productsQuery);
   const { data: badges } = useQuery(trustBadgesQuery);
+  const { t } = useTranslation();
 
   const featured = (products ?? []).filter((p) => p.is_featured).slice(0, 6);
   const bestsellers = [...(products ?? [])]
@@ -48,7 +48,7 @@ function Home() {
       </div>
 
       <section className="mt-8">
-        <h2 className="mb-3 text-lg font-bold">Categories</h2>
+        <h2 className="mb-3 text-lg font-bold">{t("home.categories")}</h2>
         <div className="flex gap-4 overflow-x-auto pb-2">
           {(categories ?? []).map((c) => (
             <Link
@@ -59,41 +59,42 @@ function Home() {
             >
               <span className="size-16 overflow-hidden rounded-full border border-border bg-card">
                 {c.image_url && (
-                  <img src={c.image_url} alt={c.name} className="size-full object-cover" />
+                  <img src={c.image_url} alt={c.name} loading="lazy" className="size-full object-cover" />
                 )}
               </span>
-              <span className="line-clamp-1">{c.name}</span>
+              <span className="font-medium text-foreground">{c.name}</span>
             </Link>
           ))}
         </div>
       </section>
 
-
-      <ProductRow title="Best sellers" products={bestsellers} />
-      <ProductRow title="Featured" products={featured} />
+      <section className="mt-8">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-bold">{t("home.featured")}</h2>
+          <Link to="/catalog" className="text-sm font-semibold text-primary">
+            {t("home.view_all")} &rarr;
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {featured.map((p) => (
+            <ProductCard key={p.id} product={p} />
+          ))}
+        </div>
+      </section>
 
       <section className="mt-8">
-        <h2 className="mb-3 text-lg font-bold">All products</h2>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {(products ?? []).map((p) => (
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-bold">{t("home.bestsellers")}</h2>
+          <Link to="/catalog" className="text-sm font-semibold text-primary">
+            {t("home.view_all")} &rarr;
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {bestsellers.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
         </div>
       </section>
     </AppShell>
-  );
-}
-
-function ProductRow({ title, products }: { title: string; products: ReturnType<typeof Array.prototype.slice> }) {
-  if (!products?.length) return null;
-  return (
-    <section className="mt-8">
-      <h2 className="mb-3 text-lg font-bold">{title}</h2>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        {products.map((p: any) => (
-          <ProductCard key={p.id} product={p} />
-        ))}
-      </div>
-    </section>
   );
 }

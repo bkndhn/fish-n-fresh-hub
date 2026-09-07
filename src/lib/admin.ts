@@ -30,6 +30,7 @@ export type OrderRow = {
   refunded_at: string | null;
   stripe_refund_id: string | null;
   created_at: string;
+  complaint: string | null;
 };
 
 export type PromotionRow = {

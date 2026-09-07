@@ -18,6 +18,7 @@ import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as PaymentStatusRouteImport } from './routes/payment-status'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AuthenticatedCrewRouteImport } from './routes/_authenticated/crew'
 import { Route as ProductIdRouteImport } from './routes/product.$id'
 import { Route as TrackIdRouteImport } from './routes/track.$id'
@@ -32,6 +33,7 @@ import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminPromotionsRouteImport } from './routes/_authenticated/admin/promotions'
 import { Route as AuthenticatedAdminReportsRouteImport } from './routes/_authenticated/admin/reports'
 import { Route as AuthenticatedAdminScheduleRouteImport } from './routes/_authenticated/admin/schedule'
+import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin/settings'
 import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authenticated/admin/staff'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 
@@ -77,6 +79,11 @@ const PaymentStatusRoute = PaymentStatusRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedCrewRoute = AuthenticatedCrewRouteImport.update({
@@ -159,6 +166,12 @@ const AuthenticatedAdminScheduleRoute =
     path: '/admin/schedule',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminSettingsRoute =
+  AuthenticatedAdminSettingsRouteImport.update({
+    id: '/admin/settings',
+    path: '/admin/settings',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminStaffRoute = AuthenticatedAdminStaffRouteImport.update({
   id: '/admin/staff',
   path: '/admin/staff',
@@ -180,6 +193,7 @@ export interface FileRoutesByFullPath {
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
   '/settings': typeof SettingsRoute
+  '/terms': typeof TermsRoute
   '/crew': typeof AuthenticatedCrewRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
@@ -193,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/admin/promotions': typeof AuthenticatedAdminPromotionsRoute
   '/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/admin/schedule': typeof AuthenticatedAdminScheduleRoute
+  '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/staff': typeof AuthenticatedAdminStaffRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -206,6 +221,7 @@ export interface FileRoutesByTo {
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
   '/settings': typeof SettingsRoute
+  '/terms': typeof TermsRoute
   '/crew': typeof AuthenticatedCrewRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
@@ -219,6 +235,7 @@ export interface FileRoutesByTo {
   '/admin/promotions': typeof AuthenticatedAdminPromotionsRoute
   '/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/admin/schedule': typeof AuthenticatedAdminScheduleRoute
+  '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/staff': typeof AuthenticatedAdminStaffRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -234,6 +251,7 @@ export interface FileRoutesById {
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
   '/settings': typeof SettingsRoute
+  '/terms': typeof TermsRoute
   '/_authenticated/crew': typeof AuthenticatedCrewRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
@@ -247,6 +265,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/promotions': typeof AuthenticatedAdminPromotionsRoute
   '/_authenticated/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/_authenticated/admin/schedule': typeof AuthenticatedAdminScheduleRoute
+  '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/admin/staff': typeof AuthenticatedAdminStaffRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -262,6 +281,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/payment-status'
     | '/settings'
+    | '/terms'
     | '/crew'
     | '/product/$id'
     | '/track/$id'
@@ -275,6 +295,7 @@ export interface FileRouteTypes {
     | '/admin/promotions'
     | '/admin/reports'
     | '/admin/schedule'
+    | '/admin/settings'
     | '/admin/staff'
     | '/admin/'
     | '/api/public/payments/webhook'
@@ -288,6 +309,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/payment-status'
     | '/settings'
+    | '/terms'
     | '/crew'
     | '/product/$id'
     | '/track/$id'
@@ -301,6 +323,7 @@ export interface FileRouteTypes {
     | '/admin/promotions'
     | '/admin/reports'
     | '/admin/schedule'
+    | '/admin/settings'
     | '/admin/staff'
     | '/admin'
     | '/api/public/payments/webhook'
@@ -315,6 +338,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/payment-status'
     | '/settings'
+    | '/terms'
     | '/_authenticated/crew'
     | '/product/$id'
     | '/track/$id'
@@ -328,6 +352,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/promotions'
     | '/_authenticated/admin/reports'
     | '/_authenticated/admin/schedule'
+    | '/_authenticated/admin/settings'
     | '/_authenticated/admin/staff'
     | '/_authenticated/admin/'
     | '/api/public/payments/webhook'
@@ -343,6 +368,7 @@ export interface RootRouteChildren {
   OrdersRoute: typeof OrdersRoute
   PaymentStatusRoute: typeof PaymentStatusRoute
   SettingsRoute: typeof SettingsRoute
+  TermsRoute: typeof TermsRoute
   ProductIdRoute: typeof ProductIdRoute
   TrackIdRoute: typeof TrackIdRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
@@ -411,6 +437,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/crew': {
@@ -511,6 +544,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminScheduleRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/settings': {
+      id: '/_authenticated/admin/settings'
+      path: '/admin/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AuthenticatedAdminSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/staff': {
       id: '/_authenticated/admin/staff'
       path: '/admin/staff'
@@ -540,6 +580,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminPromotionsRoute: typeof AuthenticatedAdminPromotionsRoute
   AuthenticatedAdminReportsRoute: typeof AuthenticatedAdminReportsRoute
   AuthenticatedAdminScheduleRoute: typeof AuthenticatedAdminScheduleRoute
+  AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminStaffRoute: typeof AuthenticatedAdminStaffRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
@@ -556,6 +597,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminPromotionsRoute: AuthenticatedAdminPromotionsRoute,
   AuthenticatedAdminReportsRoute: AuthenticatedAdminReportsRoute,
   AuthenticatedAdminScheduleRoute: AuthenticatedAdminScheduleRoute,
+  AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
   AuthenticatedAdminStaffRoute: AuthenticatedAdminStaffRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
 }
@@ -573,6 +615,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrdersRoute: OrdersRoute,
   PaymentStatusRoute: PaymentStatusRoute,
   SettingsRoute: SettingsRoute,
+  TermsRoute: TermsRoute,
   ProductIdRoute: ProductIdRoute,
   TrackIdRoute: TrackIdRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,

@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Fish } from "lucide-react";
+import { Fish, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,8 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function routeAfterLogin() {
@@ -62,13 +64,18 @@ function AuthPage() {
 
   async function signUp(e: React.FormEvent) {
     e.preventDefault();
+    if (!/^[6-9]\d{9}$/.test(phone)) {
+      toast.error("Please enter a valid 10-digit phone number starting with 6-9.");
+      return;
+    }
+    
     setLoading(true);
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/orders`,
-        data: { full_name: fullName },
+        data: { full_name: fullName, phone },
       },
     });
     setLoading(false);
@@ -100,17 +107,40 @@ function AuthPage() {
               <form onSubmit={signIn} className="space-y-4 pt-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    required 
+                    placeholder="Enter your email"
+                    value={email} 
+                    onChange={(e) => setEmail(e.target.value)} 
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      placeholder="Enter password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="size-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="size-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Signing in..." : "Sign in"}
@@ -122,22 +152,63 @@ function AuthPage() {
               <form onSubmit={signUp} className="space-y-4 pt-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="name">Full name</Label>
-                  <Input id="name" required value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                  <Input 
+                    id="name" 
+                    required 
+                    placeholder="e.g. John Doe"
+                    value={fullName} 
+                    onChange={(e) => setFullName(e.target.value)} 
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="phone">Phone number</Label>
+                  <Input 
+                    id="phone" 
+                    type="tel" 
+                    required 
+                    pattern="[6-9][0-9]{9}"
+                    placeholder="e.g. 9876543210"
+                    value={phone} 
+                    onChange={(e) => setPhone(e.target.value)} 
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="email2">Email</Label>
-                  <Input id="email2" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <Input 
+                    id="email2" 
+                    type="email" 
+                    required 
+                    placeholder="Enter your email"
+                    value={email} 
+                    onChange={(e) => setEmail(e.target.value)} 
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="password2">Password</Label>
-                  <Input
-                    id="password2"
-                    type="password"
-                    required
-                    minLength={6}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="password2"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      minLength={6}
+                      placeholder="Create a password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="size-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="size-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Creating..." : "Create account"}

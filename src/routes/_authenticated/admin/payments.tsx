@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery } from "@/lib/admin";
-import { formatINR } from "@/lib/format";
+import { formatINR, formatIST } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -94,7 +94,7 @@ function PaymentsReport() {
       const refund = Number(o.refund_amount ?? 0);
       return [
         o.order_number ?? o.id.slice(0, 8),
-        new Date(o.created_at).toLocaleDateString("en-IN"),
+        formatIST(o.created_at),
         o.customer_name,
         o.customer_phone,
         o.payment_method,
@@ -185,7 +185,7 @@ function PaymentsReport() {
                     {refund > 0 && (
                       <p className="text-xs text-destructive">
                         Refunded {formatINR(refund)}
-                        {o.refunded_at ? ` · ${new Date(o.refunded_at).toLocaleDateString("en-IN")}` : ""}
+                        {o.refunded_at ? ` · ${formatIST(o.refunded_at)}` : ""}
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground">

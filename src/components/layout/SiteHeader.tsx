@@ -2,18 +2,40 @@ import { Link } from "@tanstack/react-router";
 import { Fish, Search, ShoppingCart, User } from "lucide-react";
 import { useCart } from "@/lib/cart";
 
+import { useQuery } from "@tanstack/react-query";
+import { settingsQuery } from "@/lib/queries";
+import { useTranslation } from "@/lib/i18n";
+
 export function SiteHeader() {
   const { count } = useCart();
+  const { data: settings } = useQuery(settingsQuery);
+  const { lang, setLang } = useTranslation();
+  
   return (
     <header className="glass sticky top-0 z-50 border-b border-border">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
         <Link to="/" className="flex items-center gap-2 font-display text-lg font-bold">
-          <span className="ocean-gradient flex size-8 items-center justify-center rounded-xl text-primary-foreground">
-            <Fish className="size-4" />
-          </span>
-          Fish N Fresh
+          {settings?.logo_url ? (
+            <img src={settings.logo_url} alt="Store Logo" className="h-8 w-auto object-contain" />
+          ) : (
+            <span className="ocean-gradient flex size-8 items-center justify-center rounded-xl text-primary-foreground">
+              <Fish className="size-4" />
+            </span>
+          )}
+          {!settings?.logo_url && "Fish N Fresh"}
         </Link>
-        <nav className="ml-auto flex items-center gap-1">
+        <div className="ml-auto">
+          <select 
+            value={lang} 
+            onChange={(e) => setLang(e.target.value as any)}
+            className="rounded-xl border border-input bg-transparent px-2 py-1 text-xs"
+          >
+            <option value="en">English</option>
+            <option value="ta">தமிழ்</option>
+            <option value="hi">हिंदी</option>
+          </select>
+        </div>
+        <nav className="flex items-center gap-1">
           <Link
             to="/catalog"
             className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground"

@@ -29,7 +29,7 @@ function ProductsAdmin() {
   const products = useQuery(adminProductsQuery);
 
   const update = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: { price?: number; stock?: number; is_available?: boolean } }) => {
+    mutationFn: async ({ id, patch }: { id: string; patch: { price?: number; stock?: number; is_available?: boolean; gst_percent?: number; gst_included?: boolean } }) => {
       const { error } = await supabase.from("products").update(patch).eq("id", id);
       if (error) throw error;
     },
@@ -54,7 +54,7 @@ function ProductsAdmin() {
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-24">
+                <div className="w-20">
                   <Label className="text-[10px] text-muted-foreground">Price</Label>
                   <Input
                     type="number"
@@ -65,7 +65,25 @@ function ProductsAdmin() {
                     }}
                   />
                 </div>
-                <div className="w-20">
+                <div className="w-16">
+                  <Label className="text-[10px] text-muted-foreground">GST %</Label>
+                  <Input
+                    type="number"
+                    defaultValue={p.gst_percent ?? 0}
+                    onBlur={(e) => {
+                      const gst_percent = Number(e.target.value);
+                      if (gst_percent !== p.gst_percent) update.mutate({ id: p.id, patch: { gst_percent } });
+                    }}
+                  />
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <Label className="text-[10px] text-muted-foreground">GST Inc</Label>
+                  <Switch
+                    checked={p.gst_included ?? false}
+                    onCheckedChange={(gst_included) => update.mutate({ id: p.id, patch: { gst_included } })}
+                  />
+                </div>
+                <div className="w-16">
                   <Label className="text-[10px] text-muted-foreground">Stock</Label>
                   <Input
                     type="number"

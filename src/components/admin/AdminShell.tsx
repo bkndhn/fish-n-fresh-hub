@@ -14,9 +14,11 @@ import {
   Truck,
   Users,
   UserCog,
+  Settings
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { myRolesQuery, type AppRole } from "@/lib/admin";
+import { settingsQuery } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 
 const NAV = [
@@ -32,6 +34,7 @@ const NAV = [
   { to: "/admin/schedule", label: "Schedule", icon: CalendarClock, roles: ["admin", "staff"] },
   { to: "/admin/driver", label: "Driver map", icon: MapPin, roles: ["admin", "driver"] },
   { to: "/admin/staff", label: "Team", icon: UserCog, roles: ["admin"] },
+  { to: "/admin/settings", label: "Settings", icon: Settings, roles: ["admin"] },
 ] as const satisfies readonly { to: string; label: string; icon: typeof BarChart3; exact?: boolean; roles: readonly AppRole[] }[];
 
 export function AdminShell({
@@ -55,14 +58,8 @@ export function AdminShell({
 
   if (!allowed) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-6 text-center">
-        <h1 className="font-display text-xl font-bold">Admin access required</h1>
-        <p className="max-w-sm text-sm text-muted-foreground">
-          This account doesn't have access to this page. Ask the store owner to grant you access.
-        </p>
-        <Button variant="outline" onClick={() => supabase.auth.signOut().then(() => navigate({ to: "/auth" }))}>
-          Sign out
-        </Button>
+      <div className="flex h-screen items-center justify-center">
+        <p className="text-muted-foreground">Access denied. You do not have permission to view this page.</p>
       </div>
     );
   }
@@ -72,10 +69,14 @@ export function AdminShell({
       <header className="glass sticky top-0 z-50 border-b border-border">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4">
           <Link to="/" className="flex items-center gap-2 font-display font-bold">
-            <span className="ocean-gradient flex size-8 items-center justify-center rounded-xl text-primary-foreground">
-              <Fish className="size-4" />
-            </span>
-            Fish N Fresh
+            {settings?.logo_url ? (
+              <img src={settings.logo_url} alt="Store Logo" className="h-8 w-auto object-contain" />
+            ) : (
+              <span className="ocean-gradient flex size-8 items-center justify-center rounded-xl text-primary-foreground">
+                <Fish className="size-4" />
+              </span>
+            )}
+            {!settings?.logo_url && "Fish N Fresh"}
           </Link>
           <span className="hidden text-sm text-muted-foreground sm:inline">Admin</span>
           <Button

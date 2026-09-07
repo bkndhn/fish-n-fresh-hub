@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery, ORDER_STATUSES } from "@/lib/admin";
-import { formatINR } from "@/lib/format";
+import { formatINR, formatIST } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -62,7 +62,7 @@ function OrdersAdmin() {
                 <div className="text-right">
                   <p className="font-semibold">{formatINR(Number(o.total))}</p>
                   <Badge variant="secondary" className="text-[10px]">
-                    {new Date(o.created_at).toLocaleDateString()}
+                    {formatIST(o.created_at)}
                   </Badge>
                 </div>
                 <Select value={o.status} onValueChange={(status) => update.mutate({ id: o.id, status })}>
@@ -78,6 +78,12 @@ function OrdersAdmin() {
                   </SelectContent>
                 </Select>
               </div>
+              {o.complaint && (
+                <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm">
+                  <p className="font-semibold text-destructive">Customer Complaint</p>
+                  <p className="text-destructive/80">{o.complaint}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}

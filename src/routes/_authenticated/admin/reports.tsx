@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery } from "@/lib/admin";
-import { formatINR } from "@/lib/format";
+import { formatINR, formatIST } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -91,7 +91,7 @@ function Reports() {
       .map((o) =>
         [
           o.order_number ?? o.id.slice(0, 8),
-          new Date(o.created_at).toISOString(),
+          formatIST(o.created_at),
           o.customer_name.replace(/,/g, " "),
           o.customer_phone,
           o.status,

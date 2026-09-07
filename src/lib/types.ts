@@ -24,6 +24,8 @@ export type Product = {
   traceability: string | null;
   recipe_title: string | null;
   recipe_steps: string | null;
+  gst_percent: number;
+  gst_included: boolean;
 };
 
 export type Category = {

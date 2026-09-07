@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -10,11 +11,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/lib/cart";
 import { inr } from "@/lib/format";
-import { settingsQuery } from "@/lib/queries";
+import { settingsQuery, productsQuery } from "@/lib/queries";
 import { deliveryWindowsQuery, windowText } from "@/lib/delivery";
 import { isPaymentsConfigured } from "@/lib/stripe";
 import { StripeOrderCheckout } from "@/components/StripeOrderCheckout";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
+
+function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // Radius of the earth in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; 
+}
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -31,15 +43,20 @@ export const Route = createFileRoute("/checkout")({
 function Checkout() {
   const { items, subtotal, clear } = useCart();
   const { data: settings } = useQuery(settingsQuery);
+  const { data: products } = useQuery(productsQuery);
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
+  const [fetchingLocation, setFetchingLocation] = useState(false);
+  
   const [fulfillment, setFulfillment] = useState<"delivery" | "pickup">("delivery");
   const [payment, setPayment] = useState<"cod" | "upi" | "card">("cod");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [checkoutOrderId, setCheckoutOrderId] = useState<string | null>(null);
+  
   const { data: windows } = useQuery(deliveryWindowsQuery);
   const [slot, setSlot] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -47,13 +64,52 @@ function Checkout() {
     (w.weekdays ?? []).includes(new Date(`${deliveryDate}T00:00:00`).getDay()),
   );
 
-
   const freeOver = Number(settings?.free_delivery_over ?? 500);
-  const deliveryFee =
-    fulfillment === "pickup" || subtotal >= freeOver ? 0 : Number(settings?.delivery_fee ?? 0);
-  const gstPercent = settings?.gst_enabled ? Number(settings.gst_percent ?? 0) : 0;
-  const gstAmount = Math.round((subtotal * gstPercent) / 100);
+  
+  // Dynamic Delivery Fee
+  let deliveryFee = 0;
+  if (fulfillment === "delivery" && subtotal < freeOver) {
+    const baseFee = Number(settings?.base_delivery_fee ?? settings?.delivery_fee ?? 40);
+    const perKm = Number(settings?.per_km_charge ?? 0);
+    deliveryFee = distanceKm ? baseFee + Math.round(distanceKm * perKm) : baseFee;
+  }
+
+  // Smart GST Calculation
+  let gstAmount = 0;
+  items.forEach(cartItem => {
+    const liveProduct = products?.find(p => p.id === cartItem.product_id);
+    if (liveProduct && liveProduct.gst_percent > 0 && !liveProduct.gst_included) {
+      gstAmount += ((cartItem.price * cartItem.qty) * liveProduct.gst_percent) / 100;
+    }
+  });
+  gstAmount = Math.round(gstAmount);
+
   const total = subtotal + deliveryFee + gstAmount;
+
+  function useMyLocation() {
+    setFetchingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        if (settings?.shop_lat && settings?.shop_lng) {
+          const d = getDistance(settings.shop_lat, settings.shop_lng, latitude, longitude);
+          setDistanceKm(d);
+        }
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
+          const data = await res.json();
+          if (data?.display_name) setAddress(data.display_name);
+        } catch (e) {
+          // Ignore reverse geocode failure
+        }
+        setFetchingLocation(false);
+      },
+      () => {
+        toast.error("Could not get location. Please enable location permissions.");
+        setFetchingLocation(false);
+      }
+    );
+  }
 
   async function placeOrder() {
     if (!name || phone.length < 10 || (fulfillment === "delivery" && !address)) {
@@ -165,54 +221,69 @@ function Checkout() {
         </div>
         {fulfillment === "delivery" && (
           <div>
-            <Label htmlFor="address">Delivery address</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="address">Delivery address</Label>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 text-xs text-primary"
+                onClick={useMyLocation}
+                disabled={fetchingLocation}
+              >
+                <MapPin className="mr-1 size-3" />
+                {fetchingLocation ? "Locating..." : "Use My Location"}
+              </Button>
+            </div>
             <Textarea
               id="address"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               className="mt-1 rounded-xl"
+              placeholder="Full address with landmark"
             />
           </div>
         )}
-        {fulfillment === "delivery" && (
-          <div>
-            <Label htmlFor="delivery-date">Delivery day &amp; time</Label>
-            <Input
-              id="delivery-date"
-              type="date"
-              value={deliveryDate}
-              min={new Date().toISOString().slice(0, 10)}
-              onChange={(e) => {
-                setDeliveryDate(e.target.value);
-                setSlot("");
-              }}
-              className="mt-1 rounded-xl"
-            />
-            <div className="mt-2 flex flex-wrap gap-2">
-              {todaysWindows.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  No delivery windows for this day — we will call you to confirm a time.
-                </p>
-              ) : (
-                todaysWindows.map((w) => {
-                  const value = windowText(w);
-                  return (
-                    <Button
-                      key={w.id}
-                      type="button"
-                      size="sm"
-                      variant={slot === value ? "default" : "outline"}
-                      className="rounded-xl"
-                      onClick={() => setSlot(slot === value ? "" : value)}
-                    >
-                      {value}
-                    </Button>
-                  );
-                })
-              )}
-            </div>
+        
+        <div>
+          <Label htmlFor="delivery-date">
+            {fulfillment === "pickup" ? "Pickup day & time" : "Delivery day & time"}
+          </Label>
+          <Input
+            id="delivery-date"
+            type="date"
+            value={deliveryDate}
+            min={new Date().toISOString().slice(0, 10)}
+            onChange={(e) => {
+              setDeliveryDate(e.target.value);
+              setSlot("");
+            }}
+            className="mt-1 rounded-xl"
+          />
+          <div className="mt-2 flex flex-wrap gap-2">
+            {todaysWindows.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No slots available for this day — we will call you to confirm.
+              </p>
+            ) : (
+              todaysWindows.map((w) => {
+                const value = windowText(w);
+                return (
+                  <Button
+                    key={w.id}
+                    type="button"
+                    size="sm"
+                    variant={slot === value ? "default" : "outline"}
+                    className="rounded-xl"
+                    onClick={() => setSlot(slot === value ? "" : value)}
+                  >
+                    {value}
+                  </Button>
+                );
+              })
+            )}
           </div>
-        )}
+        </div>
         <div>
           <Label htmlFor="notes">Notes (optional)</Label>
           <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1 rounded-xl" />
@@ -238,7 +309,7 @@ function Checkout() {
       <div className="mt-5 space-y-2 rounded-2xl border border-border bg-card p-4 text-sm">
         <Row label="Subtotal" value={inr(subtotal)} />
         <Row label="Delivery" value={deliveryFee === 0 ? "Free" : inr(deliveryFee)} />
-        {gstPercent > 0 && <Row label={`GST (${gstPercent}%)`} value={inr(gstAmount)} />}
+        {gstAmount > 0 && <Row label="GST (Smart Calculation)" value={inr(gstAmount)} />}
         <div className="flex justify-between border-t border-border pt-2 font-display text-lg font-bold">
           <span>Total</span>
           <span>{inr(total)}</span>

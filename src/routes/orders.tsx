@@ -1,15 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { inr } from "@/lib/format";
+import { inr, formatIST } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { useSessionUser } from "@/lib/session";
+import { settingsQuery } from "@/lib/queries";
 import { lookupGuestOrder, type GuestOrder } from "@/lib/orders.functions";
 
 export const Route = createFileRoute("/orders")({
@@ -44,17 +46,34 @@ function OrdersPage() {
 }
 
 function MyOrders() {
+  const { data: settings } = useQuery(settingsQuery);
+  const qc = useQueryClient();
   const { data: orders } = useQuery({
     queryKey: ["my-orders"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
-        .select("id, order_number, status, total, items, created_at, payment_status")
+        .select("id, order_number, status, total, items, created_at, payment_status, complaint")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
   });
+
+  const submitComplaint = useMutation({
+    mutationFn: async ({ id, text }: { id: string; text: string }) => {
+      const { error } = await supabase.from("orders").update({ complaint: text }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Complaint raised successfully");
+      qc.invalidateQueries({ queryKey: ["my-orders"] });
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [complainingId, setComplainingId] = useState<string | null>(null);
+  const [complaintText, setComplaintText] = useState("");
 
   if (!orders?.length) {
     return (
@@ -69,28 +88,70 @@ function MyOrders() {
 
   return (
     <ul className="mt-5 space-y-3">
-      {orders.map((o) => (
-        <li key={o.id} className="rounded-2xl border border-border bg-card p-4">
-          <div className="flex items-center justify-between gap-2">
-            <p className="font-semibold">#{o.order_number ?? o.id.slice(0, 8)}</p>
-            <Badge variant="secondary" className="capitalize">
-              {String(o.status).replace(/_/g, " ")}
-            </Badge>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {new Date(o.created_at).toLocaleString("en-IN")} ·{" "}
-            {Array.isArray(o.items) ? o.items.length : 0} items · {o.payment_status}
-          </p>
-          <div className="mt-2 flex items-center justify-between">
-            <p className="font-display text-lg font-bold">{inr(Number(o.total))}</p>
-            <Button asChild size="sm" variant="outline" className="rounded-xl">
-              <Link to="/track/$id" params={{ id: o.id }}>
-                Track
-              </Link>
-            </Button>
-          </div>
-        </li>
-      ))}
+      {orders.map((o) => {
+        const isDelivered = o.status === "delivered";
+        const windowHours = Number(settings?.complaint_window_hours ?? 24);
+        const orderTime = new Date(o.created_at).getTime();
+        const canComplain = isDelivered && Date.now() < orderTime + windowHours * 3600000;
+
+        return (
+          <li key={o.id} className="rounded-2xl border border-border bg-card p-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-semibold">#{o.order_number ?? o.id.slice(0, 8)}</p>
+              <Badge variant="secondary" className="capitalize">
+                {String(o.status).replace(/_/g, " ")}
+              </Badge>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {formatIST(o.created_at)} ·{" "}
+              {Array.isArray(o.items) ? o.items.length : 0} items · {o.payment_status}
+            </p>
+            <div className="mt-2 flex items-center justify-between">
+              <p className="font-display text-lg font-bold">{inr(Number(o.total))}</p>
+              <div className="flex gap-2">
+                {canComplain && !o.complaint && complainingId !== o.id && (
+                  <Button size="sm" variant="ghost" className="rounded-xl text-destructive" onClick={() => setComplainingId(o.id)}>
+                    Issue with order?
+                  </Button>
+                )}
+                <Button asChild size="sm" variant="outline" className="rounded-xl">
+                  <Link to="/track/$id" params={{ id: o.id }}>
+                    Track
+                  </Link>
+                </Button>
+              </div>
+            </div>
+
+            {o.complaint && (
+              <div className="mt-3 rounded-xl bg-muted p-3 text-sm">
+                <p className="font-semibold text-destructive">Complaint raised</p>
+                <p className="text-muted-foreground">{o.complaint}</p>
+              </div>
+            )}
+
+            {complainingId === o.id && (
+              <div className="mt-3 space-y-2">
+                <Textarea 
+                  placeholder="What went wrong with this order?" 
+                  className="rounded-xl"
+                  value={complaintText}
+                  onChange={e => setComplaintText(e.target.value)}
+                />
+                <div className="flex justify-end gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setComplainingId(null)}>Cancel</Button>
+                  <Button size="sm" variant="destructive" className="rounded-xl" disabled={submitComplaint.isPending || !complaintText.trim()} onClick={() => {
+                    submitComplaint.mutate({ id: o.id, text: complaintText });
+                    setComplainingId(null);
+                    setComplaintText("");
+                  }}>
+                    Submit Complaint
+                  </Button>
+                </div>
+              </div>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
