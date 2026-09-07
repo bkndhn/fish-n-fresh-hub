@@ -290,6 +290,44 @@ function DeliveryTracking() {
                   </p>
                 )}
               </div>
+
+              {isAdmin && (
+                <div className="space-y-2 rounded-xl border border-destructive/40 p-3">
+                  <p className="text-sm font-medium text-destructive">Cancel &amp; refund</p>
+                  <p className="text-xs text-muted-foreground">
+                    {selected.payment_status === "paid"
+                      ? "This order is paid. Refunding sends the money back to the customer's card."
+                      : "This order has not been paid by card, so nothing will be refunded."}
+                  </p>
+                  <Input
+                    placeholder="Reason (shown in the order history)"
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={refund.isPending}
+                      onClick={() =>
+                        refund.mutate({ orderId: selected.id, reason: cancelReason, refund: false })
+                      }
+                    >
+                      Cancel only
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={refund.isPending || selected.payment_status !== "paid"}
+                      onClick={() =>
+                        refund.mutate({ orderId: selected.id, reason: cancelReason, refund: true })
+                      }
+                    >
+                      {refund.isPending ? "Working…" : "Cancel & refund"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
