@@ -105,6 +105,7 @@ function StaffPage() {
   return (
     <AdminShell title="Team & roles">
       <div className="grid gap-4 lg:grid-cols-[380px_1fr]">
+        <div className="space-y-4">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Invite a teammate</CardTitle>
