@@ -118,6 +118,38 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 import { LanguageProvider } from "@/lib/i18n";
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+function RealtimeSubscriber({ queryClient }: { queryClient: any }) {
+  useEffect(() => {
+    const channel = supabase
+      .channel("public-db-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "products" },
+        () => {
+          console.log("Products changed, invalidating cache...");
+          queryClient.invalidateQueries({ queryKey: ["products"] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "store_settings" },
+        () => {
+          console.log("Settings changed, invalidating cache...");
+          queryClient.invalidateQueries({ queryKey: ["store_settings"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  return null;
+}
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
@@ -126,6 +158,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <CartProvider>
+          <RealtimeSubscriber queryClient={queryClient} />
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
           <Toaster position="top-center" />

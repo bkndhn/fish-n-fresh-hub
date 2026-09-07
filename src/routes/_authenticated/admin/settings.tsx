@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { ImageUpload } from "@/components/ImageUpload";
 import { useState, useEffect } from "react";
 
 export const Route = createFileRoute("/_authenticated/admin/settings")({
@@ -140,12 +141,13 @@ function AdminSettings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label>Logo URL</Label>
-              <Input
-                value={form.logo_url ?? ""}
-                onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
-                placeholder="https://..."
-              />
+              <Label>Logo</Label>
+              <div className="mt-1">
+                <ImageUpload 
+                  currentImage={form.logo_url} 
+                  onUpload={(url) => setForm({ ...form, logo_url: url })} 
+                />
+              </div>
             </div>
             <div>
               <Label>WhatsApp Link</Label>

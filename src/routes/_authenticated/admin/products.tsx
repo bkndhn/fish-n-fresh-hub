@@ -7,8 +7,9 @@ import { formatINR } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { ImageUpload } from "@/components/ImageUpload";
 
 export const Route = createFileRoute("/_authenticated/admin/products")({
   head: () => ({
@@ -47,11 +48,17 @@ function ProductsAdmin() {
         {(products.data ?? []).map((p) => (
           <Card key={p.id}>
             <CardContent className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center">
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold">{p.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {p.category ?? "Uncategorised"} · {formatINR(Number(p.price))} / {p.unit}
-                </p>
+              <div className="flex items-center gap-3">
+                <ImageUpload 
+                  currentImage={p.image_url} 
+                  onUpload={(url) => update.mutate({ id: p.id, patch: { image_url: url } })} 
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">{p.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {p.category ?? "Uncategorised"} · {formatINR(Number(p.price))} / {p.unit}
+                  </p>
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-20">
