@@ -16,27 +16,71 @@ export const Route = createFileRoute("/_authenticated/admin/settings")({
   component: AdminSettings,
 });
 
+type GatewayCreds = { id?: string; provider: string; api_key: string; secret_key: string };
+
 function AdminSettings() {
   const qc = useQueryClient();
   const { data: settings } = useQuery(settingsQuery);
   const [form, setForm] = useState<any>({});
+  const [gatewayForm, setGatewayForm] = useState<GatewayCreds>({ provider: "none", api_key: "", secret_key: "" });
+
+  const { data: gateway } = useQuery({
+    queryKey: ["payment_gateway_credentials"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payment_gateway_credentials")
+        .select("id, provider, api_key, secret_key")
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
 
   useEffect(() => {
     if (settings) setForm(settings);
   }, [settings]);
+
+  useEffect(() => {
+    if (gateway)
+      setGatewayForm({
+        id: gateway.id,
+        provider: gateway.provider ?? "none",
+        api_key: gateway.api_key ?? "",
+        secret_key: gateway.secret_key ?? "",
+      });
+  }, [gateway]);
 
   const update = useMutation({
     mutationFn: async (patch: any) => {
       if (!settings?.id) return;
       const { error } = await supabase.from("store_settings").update(patch).eq("id", settings.id);
       if (error) throw error;
+
+      const creds = {
+        provider: gatewayForm.provider,
+        api_key: gatewayForm.api_key || null,
+        secret_key: gatewayForm.secret_key || null,
+      };
+      if (gatewayForm.id) {
+        const { error: gErr } = await supabase
+          .from("payment_gateway_credentials")
+          .update(creds)
+          .eq("id", gatewayForm.id);
+        if (gErr) throw gErr;
+      } else if (gatewayForm.provider !== "none") {
+        const { error: gErr } = await supabase.from("payment_gateway_credentials").insert(creds);
+        if (gErr) throw gErr;
+      }
     },
     onSuccess: () => {
       toast.success("Settings saved");
       qc.invalidateQueries({ queryKey: ["store_settings"] });
+      qc.invalidateQueries({ queryKey: ["payment_gateway_credentials"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   if (!settings) return null;
 
