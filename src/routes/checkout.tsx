@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/lib/cart";
 import { inr } from "@/lib/format";
+import { AddressBook } from "@/components/AddressBook";
 import { settingsQuery, productsQuery } from "@/lib/queries";
 import { deliveryWindowsQuery, windowText } from "@/lib/delivery";
 import { isPaymentsConfigured } from "@/lib/stripe";
@@ -250,27 +251,17 @@ function Checkout() {
           />
         </div>
         {fulfillment === "delivery" && (
-          <div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="address">Delivery address</Label>
-              <Button 
-                type="button" 
-                variant="ghost" 
-                size="sm" 
-                className="h-8 text-xs text-primary"
-                onClick={useMyLocation}
-                disabled={fetchingLocation}
-              >
-                <MapPin className="mr-1 size-3" />
-                {fetchingLocation ? "Locating..." : "Use My Location"}
-              </Button>
-            </div>
-            <Textarea
-              id="address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="mt-1 rounded-xl"
-              placeholder="Full address with landmark"
+          <div className="space-y-1.5 pt-2">
+            <Label>Delivery Address</Label>
+            <AddressBook 
+              selectedAddress={address} 
+              onSelect={(addr, lat, lng) => {
+                setAddress(addr);
+                if (settings?.shop_lat && settings?.shop_lng && lat && lng) {
+                  const d = getDistance(settings.shop_lat, settings.shop_lng, lat, lng);
+                  setDistanceKm(d);
+                }
+              }} 
             />
           </div>
         )}

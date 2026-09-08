@@ -9,6 +9,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useSessionUser } from "@/lib/session";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -103,15 +114,6 @@ function SettingsPage() {
     toast.success("Password updated");
   }
 
-  async function signOut() {
-    if (window.confirm("Are you sure you want to sign out?")) {
-      await qc.cancelQueries();
-      qc.clear();
-      await supabase.auth.signOut();
-      navigate({ to: "/", replace: true });
-    }
-  }
-
   return (
     <AppShell>
       <h1 className="text-2xl font-bold">Account settings</h1>
@@ -161,9 +163,35 @@ function SettingsPage() {
         </Button>
       </section>
 
-      <Button variant="outline" className="mt-4 w-full rounded-xl" onClick={signOut}>
-        Sign out
-      </Button>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="outline" className="mt-4 w-full rounded-xl">
+            Sign out
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sign out</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to sign out? You will need to sign back in to see your orders.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              className="rounded-xl"
+              onClick={async () => {
+                await qc.cancelQueries();
+                qc.clear();
+                await supabase.auth.signOut();
+                navigate({ to: "/auth" });
+              }}
+            >
+              Sign out
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }

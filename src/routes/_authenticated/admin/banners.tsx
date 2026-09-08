@@ -5,6 +5,17 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ImageUpload } from "@/components/ImageUpload";
@@ -48,7 +59,6 @@ function AdminBanners() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      if (!window.confirm("Delete this banner?")) throw new Error("cancelled");
       const { error } = await supabase.from("banners").delete().eq("id", id);
       if (error) throw error;
     },
@@ -123,7 +133,23 @@ function AdminBanners() {
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => { setForm(b); setEditingId(b.id); }}>Edit</Button>
-                  <Button size="icon" variant="destructive" onClick={() => deleteMutation.mutate(b.id)}><Trash2 className="size-4" /></Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="icon" variant="destructive"><Trash2 className="size-4" /></Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="rounded-2xl">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete banner?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete this banner. This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                        <AlertDialogAction className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteMutation.mutate(b.id)}>Delete</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
             </CardContent>

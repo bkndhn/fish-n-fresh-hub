@@ -20,6 +20,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { myRolesQuery, type AppRole } from "@/lib/admin";
 import { settingsQuery } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const NAV = [
   { to: "/admin", label: "Dashboard", icon: BarChart3, exact: true, roles: ["admin", "staff"] },
@@ -81,18 +92,32 @@ export function AdminShell({
             {!settings?.logo_url && "Fish N Fresh"}
           </Link>
           <span className="hidden text-sm text-muted-foreground sm:inline">Admin</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto"
-            onClick={() => {
-              if (window.confirm("Are you sure you want to sign out?")) {
-                supabase.auth.signOut().then(() => navigate({ to: "/auth" }));
-              }
-            }}
-          >
-            <LogOut className="mr-1.5 size-4" /> Sign out
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="ml-auto">
+                <LogOut className="mr-1.5 size-4" /> Sign out
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="rounded-2xl">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Sign out</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to sign out? You will need to log in again to access the admin console.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  className="rounded-xl"
+                  onClick={() => {
+                    supabase.auth.signOut().then(() => navigate({ to: "/auth" }));
+                  }}
+                >
+                  Sign out
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </header>
 
