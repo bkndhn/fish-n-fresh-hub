@@ -26,6 +26,7 @@ import { listDrivers, type DriverOption } from "@/lib/staff.functions";
 import { formatINR, formatIST } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -490,7 +491,7 @@ export function DriverDispatchPage() {
                               title="Notify assigned driver on WhatsApp"
                               onClick={() => sendDriverWhatsApp(o)}
                             >
-                              <MessageCircle className="size-3.5 mr-1 fill-emerald-500/20" /> WhatsApp
+                              <WhatsAppIcon className="size-3.5 mr-1" /> WhatsApp
                             </Button>
                           )}
                         </div>

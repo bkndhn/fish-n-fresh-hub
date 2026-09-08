@@ -8,6 +8,7 @@ import { adminOrdersQuery, ORDER_STATUSES, type OrderRow } from "@/lib/admin";
 import { settingsQuery } from "@/lib/queries";
 import { formatINR, formatIST } from "@/lib/format";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -281,7 +282,7 @@ function OrdersAdmin() {
                     rel="noreferrer"
                     className="inline-flex items-center gap-1 rounded-xl bg-green-500/10 px-2.5 py-1 text-xs font-bold text-green-700 dark:text-green-400 hover:bg-green-500/20 transition"
                   >
-                    <MessageCircle className="size-3" /> WhatsApp
+                    <WhatsAppIcon className="size-3.5" /> WhatsApp
                   </a>
 
                   <span className="text-muted-foreground text-xs">·</span>

@@ -41,7 +41,7 @@ export function TrustBadges({ badges }: { badges: { id: string; label: string; i
     <section
       className={
         scroll
-          ? "-mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
+          ? "-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 no-scrollbar scrollbar-none"
           : "grid gap-2"
       }
       style={scroll ? undefined : { gridTemplateColumns: `repeat(${badges.length}, minmax(0, 1fr))` }}

@@ -1,4 +1,4 @@
-﻿import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Clock } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
@@ -81,21 +81,37 @@ function Home() {
       </div>
 
       <section className="mt-8">
-        <h2 className="mb-3 text-lg font-bold">{t("home.categories")}</h2>
-        <div className="flex gap-4 overflow-x-auto pb-2">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-bold">{t("home.categories")}</h2>
+          <span className="text-xs text-muted-foreground hidden sm:inline">Scroll or swipe to explore &rarr;</span>
+        </div>
+        <div 
+          className="flex gap-4 overflow-x-auto pb-2 no-scrollbar scrollbar-none scroll-smooth -mx-1 px-1"
+          onWheel={(e) => {
+            if (e.deltaY !== 0 && Math.abs(e.deltaX) < 10) {
+              e.currentTarget.scrollLeft += e.deltaY;
+            }
+          }}
+        >
           {(categories ?? []).map((c) => (
             <Link
               key={c.id}
               to="/catalog"
               search={{ category: c.name }}
-              className="flex min-w-[72px] flex-col items-center gap-1.5 text-center text-xs"
+              className="group flex min-w-[76px] flex-col items-center gap-1.5 text-center text-xs transition-transform active:scale-95 shrink-0"
             >
-              <span className="size-16 overflow-hidden rounded-full border border-border bg-card">
-                {c.image_url && (
-                  <img src={c.image_url} alt={c.name} loading="lazy" className="size-full object-cover" />
+              <span className="size-16 overflow-hidden rounded-full border border-border/80 bg-card shadow-xs group-hover:border-primary group-hover:shadow-md transition-all duration-200">
+                {c.image_url ? (
+                  <img src={c.image_url} alt={c.name} loading="lazy" decoding="async" className="size-full object-cover group-hover:scale-110 transition-transform duration-300" />
+                ) : (
+                  <span className="size-full flex items-center justify-center bg-muted text-muted-foreground font-bold">
+                    {c.name.slice(0, 1)}
+                  </span>
                 )}
               </span>
-              <span className="font-medium text-foreground">{c.name}</span>
+              <span className="font-semibold text-foreground group-hover:text-primary transition-colors leading-tight">
+                {c.name}
+              </span>
             </Link>
           ))}
         </div>

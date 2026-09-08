@@ -9,6 +9,9 @@ import { myRolesQuery } from "@/lib/admin";
 import { useTranslation } from "@/lib/i18n";
 import { getStoreStatus } from "@/lib/storeSchedule";
 
+import { getWhatsAppUrl } from "@/lib/whatsapp";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
+
 export function SiteHeader() {
   const { count } = useCart();
   const { data: settings } = useQuery(settingsQuery);
@@ -16,6 +19,14 @@ export function SiteHeader() {
   const { lang, setLang } = useTranslation();
 
   const storeStatus = settings ? getStoreStatus(settings) : null;
+  const waTarget = settings?.whatsapp_number || settings?.support_phone;
+  const waUrl = waTarget
+    ? getWhatsAppUrl(
+        waTarget,
+        `Hi ${settings?.store_name || "Fish N Fresh"}, I'd like to check today's catch!`
+      )
+    : null;
+
   
   return (
     <header className="glass sticky top-0 z-50 border-b border-border">
@@ -87,6 +98,18 @@ export function SiteHeader() {
           </select>
         </div>
         <nav className="flex items-center gap-1">
+          {waUrl && (
+            <a
+              href={waUrl}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Chat on WhatsApp"
+              title="Chat on WhatsApp"
+              className="rounded-xl p-2 text-[#25D366] hover:bg-[#25D366]/15 transition-colors"
+            >
+              <WhatsAppIcon className="size-5" />
+            </a>
+          )}
           <Link
             to="/catalog"
             className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground"

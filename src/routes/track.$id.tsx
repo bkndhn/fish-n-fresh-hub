@@ -25,6 +25,7 @@ import { formatINR, formatIST } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { settingsQuery } from "@/lib/queries";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 
 export const Route = createFileRoute("/track/$id")({
   head: () => ({
@@ -188,7 +189,7 @@ function TrackPage() {
               asChild
             >
               <a href={storeWhatsAppUrl} target="_blank" rel="noreferrer">
-                <MessageCircle className="mr-1.5 size-3.5 fill-white/20" /> Help on WhatsApp
+                <WhatsAppIcon className="mr-1.5 size-4" /> Help on WhatsApp
               </a>
             </Button>
           </div>
@@ -383,7 +384,7 @@ function TrackPage() {
                     rel="noreferrer"
                     className="flex items-center justify-center"
                   >
-                    <MessageCircle className="mr-1.5 size-3.5 fill-white/20" /> WhatsApp
+                    <WhatsAppIcon className="mr-1.5 size-4" /> WhatsApp
                   </a>
                 </Button>
               </div>

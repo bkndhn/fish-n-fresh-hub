@@ -20,6 +20,7 @@ import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { useSessionUser } from "@/lib/session";
 import { checkSuspension } from "@/lib/suspensions.functions";
 import { getStoreStatus, isDateHoliday, getNextWorkingDate } from "@/lib/storeSchedule";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371; // Radius of the earth in km
@@ -355,7 +356,7 @@ function Checkout() {
                 target="_blank"
                 rel="noreferrer"
               >
-                <MessageCircle className="mr-2 size-4" /> Send Confirmation on WhatsApp
+                <WhatsAppIcon className="mr-2 size-4" /> Send Confirmation on WhatsApp
               </a>
             </Button>
 
@@ -480,8 +481,18 @@ function Checkout() {
           />
         </div>
         {fulfillment === "delivery" && (
-          <div className="space-y-1.5 pt-2">
-            <Label>Delivery Address</Label>
+          <div className="space-y-2 pt-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="address" className="font-semibold text-xs sm:text-sm">
+                Delivery Address & Pincode *
+              </Label>
+              {distanceKm && (
+                <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                  📍 {distanceKm.toFixed(1)} km from store
+                </span>
+              )}
+            </div>
+
             <AddressBook 
               selectedAddress={address} 
               onSelect={(addr, lat, lng) => {
@@ -491,6 +502,15 @@ function Checkout() {
                   setDistanceKm(d);
                 }
               }} 
+            />
+
+            <Textarea
+              id="address"
+              rows={2}
+              placeholder="Full address with flat/house no, street, landmark, and 6-digit pincode…"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="mt-1 rounded-xl text-xs sm:text-sm resize-none"
             />
           </div>
         )}

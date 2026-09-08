@@ -15,11 +15,14 @@ export function ProductCard({ product }: { product: Product }) {
     ? Math.round(((Number(product.old_price) - Number(product.price)) / Number(product.old_price)) * 100)
     : 0;
 
+  const isOutOfStock = (product.stock !== null && Number(product.stock) <= 0) || product.is_available === false;
+  const isLowStock = !isOutOfStock && product.stock !== null && Number(product.stock) <= 5;
+
   return (
     <div
       className={cn(
         "group overflow-hidden rounded-2xl border shadow-sm transition-colors",
-        cartItem ? "border-primary/50 bg-primary/5" : "border-border bg-card"
+        isOutOfStock ? "opacity-75 bg-muted/20 border-border" : cartItem ? "border-primary/50 bg-primary/5" : "border-border bg-card"
       )}
     >
       <div className="block relative">
@@ -29,7 +32,12 @@ export function ProductCard({ product }: { product: Product }) {
               src={product.image_url}
               alt={product.name}
               loading="lazy"
-              className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+              decoding="async"
+              className={cn(
+                "size-full object-cover transition-transform duration-300",
+                !isOutOfStock && "group-hover:scale-105",
+                isOutOfStock && "grayscale-30"
+              )}
               onError={(e) => {
                 e.currentTarget.src = "https://images.unsplash.com/photo-1509722747041-616f39b57569?w=800";
               }}
@@ -40,11 +48,24 @@ export function ProductCard({ product }: { product: Product }) {
             </div>
           )}
         </div>
-        {discountPercent > 0 && (
-          <span className="absolute top-2 left-2 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-xs">
-            {discountPercent}% OFF
-          </span>
-        )}
+
+        {/* Status / Discount Badges */}
+        <div className="absolute top-2 left-2 flex flex-col gap-1">
+          {isOutOfStock ? (
+            <span className="rounded-md bg-rose-600/90 backdrop-blur-xs px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
+              Sold Out
+            </span>
+          ) : discountPercent > 0 ? (
+            <span className="rounded-md bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-xs">
+              {discountPercent}% OFF
+            </span>
+          ) : null}
+          {isLowStock && !isOutOfStock && (
+            <span className="rounded-md bg-amber-500/90 backdrop-blur-xs px-1.5 py-0.5 text-[9px] font-bold text-white shadow-xs">
+              Only {product.stock} {product.unit} left
+            </span>
+          )}
+        </div>
       </div>
       <div className="space-y-1 p-3">
         <div className="block">
@@ -74,7 +95,16 @@ export function ProductCard({ product }: { product: Product }) {
           </div>
           
           <div className="shrink-0">
-            {cartItem ? (
+            {isOutOfStock ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled
+                className="h-8 rounded-xl px-2.5 text-xs opacity-60 cursor-not-allowed"
+              >
+                Sold Out
+              </Button>
+            ) : cartItem ? (
               <div className="flex items-center gap-1.5 rounded-xl border border-primary/20 bg-background/50 p-1">
                 <Button
                   size="icon"
@@ -91,7 +121,12 @@ export function ProductCard({ product }: { product: Product }) {
                     onChange={(e) => {
                       const val = Number(e.target.value);
                       if (!isNaN(val) && val >= 0) {
-                        setQty(product.id, val);
+                        if (product.stock !== null && val > Number(product.stock)) {
+                          toast.error(`Only ${product.stock} ${product.unit} available in stock`);
+                          setQty(product.id, Number(product.stock));
+                        } else {
+                          setQty(product.id, val);
+                        }
                       }
                     }}
                     className="w-8 bg-transparent text-center text-xs font-medium tabular-nums outline-none"
@@ -107,7 +142,13 @@ export function ProductCard({ product }: { product: Product }) {
                   size="icon"
                   variant="ghost"
                   className="size-6 rounded-lg hover:bg-primary hover:text-primary-foreground"
-                  onClick={() => setQty(product.id, cartItem.qty + 1)}
+                  onClick={() => {
+                    if (product.stock !== null && cartItem.qty >= Number(product.stock)) {
+                      toast.error(`Only ${product.stock} ${product.unit} available in stock`);
+                      return;
+                    }
+                    setQty(product.id, cartItem.qty + 1);
+                  }}
                 >
                   <Plus className="size-3" />
                 </Button>
@@ -117,6 +158,10 @@ export function ProductCard({ product }: { product: Product }) {
                 size="sm"
                 className="h-8 rounded-xl px-3 text-xs"
                 onClick={() => {
+                  if (product.stock !== null && Number(product.stock) <= 0) {
+                    toast.error("This product is currently out of stock");
+                    return;
+                  }
                   add(product, 1);
                   toast.success(`${product.name} added to cart`);
                 }}

@@ -18,6 +18,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { adminCustomersQuery, adminSuspensionsQuery, type CustomerRow, type OrderRow } from "@/lib/admin";
 import { formatINR, formatIST } from "@/lib/format";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -263,7 +264,7 @@ function CustomersAdmin() {
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 rounded-md bg-green-50 px-2 py-0.5 text-[11px] font-medium text-green-700 hover:bg-green-100 transition"
                       >
-                        <MessageCircle className="size-3" /> WhatsApp
+                        <WhatsAppIcon className="size-3.5" /> WhatsApp
                       </a>
                       <a
                         href={`tel:${c.phone}`}
@@ -352,7 +353,7 @@ function CustomersAdmin() {
                       className="inline-flex items-center gap-1.5 rounded-xl bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 transition"
                       title="Open WhatsApp chat directly"
                     >
-                      <MessageCircle className="size-3.5" /> WhatsApp
+                      <WhatsAppIcon className="size-3.5" /> WhatsApp
                     </a>
                     <a
                       href={`tel:${selectedCustomer.phone}`}

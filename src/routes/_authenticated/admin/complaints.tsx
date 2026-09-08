@@ -21,6 +21,7 @@ import {
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery, type OrderRow } from "@/lib/admin";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { formatINR, formatIST } from "@/lib/format";
 import { cancelAndRefundOrder } from "@/lib/refunds.functions";
 import { getStripeEnvironment, isPaymentsConfigured } from "@/lib/stripe";
@@ -280,7 +281,7 @@ export function ComplaintsAdmin() {
                       asChild
                     >
                       <a href={waUrl} target="_blank" rel="noreferrer" className="flex items-center justify-center">
-                        <MessageCircle className="mr-1 size-3.5 fill-white/20" /> WhatsApp
+                        <WhatsAppIcon className="mr-1 size-3.5" /> WhatsApp
                       </a>
                     </Button>
 
