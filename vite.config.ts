@@ -14,6 +14,8 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    plugins: [mcpPlugin()],
+    plugins: [
+      process.platform !== "win32" ? mcpPlugin() : undefined,
+    ].filter(Boolean) as any,
   },
 });
