@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Calendar, Download } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery } from "@/lib/admin";
 import { formatINR, formatIST } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/_authenticated/admin/reports")({
   head: () => ({
@@ -25,22 +27,41 @@ export const Route = createFileRoute("/_authenticated/admin/reports")({
 });
 
 const RANGES = [
+  { key: "today", label: "Today" },
   { key: "7", label: "7 days" },
   { key: "30", label: "30 days" },
   { key: "90", label: "90 days" },
   { key: "all", label: "All time" },
+  { key: "custom", label: "Custom Range" },
 ] as const;
 
 function Reports() {
   const orders = useQuery(adminOrdersQuery);
   const [range, setRange] = useState<(typeof RANGES)[number]["key"]>("30");
 
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const monthAgoIso = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+
+  const [startDate, setStartDate] = useState(monthAgoIso);
+  const [endDate, setEndDate] = useState(todayIso);
+
   const rows = useMemo(() => {
     const all = orders.data ?? [];
     if (range === "all") return all;
+    if (range === "today") {
+      return all.filter((o) => o.created_at.slice(0, 10) === todayIso);
+    }
+    if (range === "custom") {
+      return all.filter((o) => {
+        const d = o.created_at.slice(0, 10);
+        if (startDate && d < startDate) return false;
+        if (endDate && d > endDate) return false;
+        return true;
+      });
+    }
     const cutoff = Date.now() - Number(range) * 86400000;
     return all.filter((o) => new Date(o.created_at).getTime() >= cutoff);
-  }, [orders.data, range]);
+  }, [orders.data, range, startDate, endDate, todayIso]);
 
   const paid = rows.filter((o) => o.status !== "cancelled");
   const revenue = paid.reduce((s, o) => s + Number(o.total), 0);
@@ -103,28 +124,55 @@ function Reports() {
     const url = URL.createObjectURL(new Blob([header + body], { type: "text/csv" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `fishnfresh-orders-${range}.csv`;
+    a.download = `fishnfresh-orders-${range === "custom" ? `${startDate}_to_${endDate}` : range}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
 
   return (
     <AdminShell title="Reports">
-      <div className="flex flex-wrap items-center gap-2">
-        {RANGES.map((r) => (
-          <Button
-            key={r.key}
-            size="sm"
-            variant={range === r.key ? "default" : "outline"}
-            className="rounded-xl"
-            onClick={() => setRange(r.key)}
-          >
-            {r.label}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {RANGES.map((r) => (
+            <Button
+              key={r.key}
+              size="sm"
+              variant={range === r.key ? "default" : "outline"}
+              className="rounded-xl h-8 text-xs"
+              onClick={() => setRange(r.key)}
+            >
+              {r.label}
+            </Button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {range === "custom" && (
+            <div className="flex items-center gap-2 rounded-xl border border-border/80 bg-muted/40 px-2.5 py-1 text-xs">
+              <Calendar className="size-3.5 text-primary" />
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">From:</span>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="h-7 w-32 rounded-lg text-xs"
+                />
+                <span className="text-muted-foreground">To:</span>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="h-7 w-32 rounded-lg text-xs"
+                />
+              </div>
+            </div>
+          )}
+
+          <Button size="sm" variant="outline" className="rounded-xl h-8 text-xs ml-auto" onClick={exportCsv}>
+            <Download className="mr-1.5 size-3.5" /> Export CSV
           </Button>
-        ))}
-        <Button size="sm" variant="outline" className="ml-auto rounded-xl" onClick={exportCsv}>
-          Export CSV
-        </Button>
+        </div>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

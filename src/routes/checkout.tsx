@@ -134,8 +134,20 @@ function Checkout() {
         return;
       }
 
+      if (data.valid_from && new Date(data.valid_from).getTime() > Date.now()) {
+        toast.error("This coupon offer has not started yet");
+        setValidatingCoupon(false);
+        return;
+      }
+
+      if (data.valid_to && new Date(data.valid_to).getTime() < Date.now()) {
+        toast.error("This coupon offer has expired");
+        setValidatingCoupon(false);
+        return;
+      }
+
       let discountVal = 0;
-      if (data.discount_type === "percentage") {
+      if (data.discount_type === "percentage" || data.discount_type === "percent") {
         discountVal = Math.round((subtotal * Number(data.value)) / 100);
       } else {
         discountVal = Math.min(subtotal, Number(data.value));

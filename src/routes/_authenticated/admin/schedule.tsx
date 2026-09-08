@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Clock, Plus, Trash2 } from "lucide-react";
+import { Clock, Plus, Trash2, Edit2 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -15,6 +15,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/admin/schedule")({
   head: () => ({
@@ -48,6 +56,9 @@ function SchedulePage() {
   const [cutoff, setCutoff] = useState("60");
   const [days, setDays] = useState<number[]>(ALL_DAYS);
 
+  // Edit window modal state
+  const [editingWindow, setEditingWindow] = useState<DeliveryWindow | null>(null);
+
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["admin", "delivery-windows"] });
     qc.invalidateQueries({ queryKey: ["delivery-windows"] });
@@ -80,7 +91,11 @@ function SchedulePage() {
       const { error } = await supabase.from("delivery_windows").update(patch as never).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => invalidate(),
+    onSuccess: () => {
+      toast.success("Window updated successfully");
+      setEditingWindow(null);
+      invalidate();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -186,7 +201,7 @@ function SchedulePage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Your windows</CardTitle>
-            <CardDescription>Switch a window off to hide it from checkout.</CardDescription>
+            <CardDescription>Switch a window off to hide it from checkout, or edit details.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {windows.isLoading ? (
@@ -195,10 +210,10 @@ function SchedulePage() {
               <p className="text-sm text-muted-foreground">No windows yet.</p>
             ) : (
               list.map((w) => (
-                <div key={w.id} className="rounded-xl border border-border p-3">
+                <div key={w.id} className="rounded-xl border border-border p-3 transition hover:border-primary/40">
                   <div className="flex flex-wrap items-center gap-3">
-                    <Clock className="size-4 text-primary" />
-                    <div className="min-w-0">
+                    <Clock className="size-4 text-primary shrink-0" />
+                    <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{w.label}</p>
                       <p className="text-xs text-muted-foreground">
                         {w.start_time}–{w.end_time} · up to {w.capacity} orders · cut-off {w.cutoff_minutes} min
@@ -207,7 +222,7 @@ function SchedulePage() {
                         {(w.weekdays ?? []).map((d) => WEEKDAY_LABELS[d]).join(", ")}
                       </p>
                     </div>
-                    <div className="ml-auto flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <Switch
                         checked={w.active}
                         onCheckedChange={(checked) =>
@@ -216,7 +231,17 @@ function SchedulePage() {
                       />
                       <Button
                         size="icon"
+                        variant="outline"
+                        className="size-8 rounded-lg"
+                        onClick={() => setEditingWindow({ ...w })}
+                        title={`Edit ${w.label}`}
+                      >
+                        <Edit2 className="size-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
                         variant="ghost"
+                        className="size-8 rounded-lg text-destructive hover:bg-destructive/10"
                         onClick={() => remove.mutate(w.id)}
                         aria-label={`Remove ${w.label}`}
                       >
@@ -230,6 +255,151 @@ function SchedulePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Delivery Window Dialog */}
+      <Dialog open={Boolean(editingWindow)} onOpenChange={(open) => !open && setEditingWindow(null)}>
+        <DialogContent className="max-w-md rounded-2xl p-5">
+          <DialogHeader>
+            <DialogTitle>Edit Delivery Window</DialogTitle>
+            <DialogDescription>
+              Update timings, capacity, cut-off time, and active days.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editingWindow && (
+            <form
+              className="space-y-3 py-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!editingWindow.label.trim()) {
+                  toast.error("Window name cannot be empty");
+                  return;
+                }
+                update.mutate({
+                  id: editingWindow.id,
+                  patch: {
+                    label: editingWindow.label.trim(),
+                    start_time: editingWindow.start_time,
+                    end_time: editingWindow.end_time,
+                    capacity: Number(editingWindow.capacity) || 20,
+                    cutoff_minutes: Number(editingWindow.cutoff_minutes) || 60,
+                    weekdays: editingWindow.weekdays?.length ? editingWindow.weekdays : ALL_DAYS,
+                    active: editingWindow.active,
+                  },
+                });
+              }}
+            >
+              <div className="space-y-1.5">
+                <Label>Window Name</Label>
+                <Input
+                  value={editingWindow.label}
+                  onChange={(e) => setEditingWindow({ ...editingWindow, label: e.target.value })}
+                  placeholder="e.g. Morning 7–10 AM"
+                  className="rounded-xl"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Start Time</Label>
+                  <Input
+                    type="time"
+                    value={editingWindow.start_time}
+                    onChange={(e) => setEditingWindow({ ...editingWindow, start_time: e.target.value })}
+                    className="rounded-xl"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>End Time</Label>
+                  <Input
+                    type="time"
+                    value={editingWindow.end_time}
+                    onChange={(e) => setEditingWindow({ ...editingWindow, end_time: e.target.value })}
+                    className="rounded-xl"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Max Orders</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={editingWindow.capacity}
+                    onChange={(e) => setEditingWindow({ ...editingWindow, capacity: Number(e.target.value) })}
+                    className="rounded-xl"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Cut-off (Mins Before)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={editingWindow.cutoff_minutes}
+                    onChange={(e) => setEditingWindow({ ...editingWindow, cutoff_minutes: Number(e.target.value) })}
+                    className="rounded-xl"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Days Active</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {ALL_DAYS.map((d) => {
+                    const activeDays = editingWindow.weekdays ?? ALL_DAYS;
+                    const isSelected = activeDays.includes(d);
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => {
+                          const updated = isSelected
+                            ? activeDays.filter((x) => x !== d)
+                            : [...activeDays, d].sort();
+                          setEditingWindow({ ...editingWindow, weekdays: updated });
+                        }}
+                        className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                          isSelected
+                            ? "border-primary bg-primary text-primary-foreground font-medium"
+                            : "border-border text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {WEEKDAY_LABELS[d]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-border/70 bg-muted/40 p-3 mt-2">
+                <div>
+                  <p className="text-xs font-semibold">Active at checkout</p>
+                  <p className="text-[11px] text-muted-foreground">Turn off to temporarily disable this slot</p>
+                </div>
+                <Switch
+                  checked={editingWindow.active}
+                  onCheckedChange={(active) => setEditingWindow({ ...editingWindow, active })}
+                />
+              </div>
+
+              <DialogFooter className="mt-4 flex gap-2">
+                <Button type="button" variant="outline" className="rounded-xl" onClick={() => setEditingWindow(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="rounded-xl" disabled={update.isPending}>
+                  {update.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </AdminShell>
   );
 }

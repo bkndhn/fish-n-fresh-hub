@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Printer, MessageCircle, Phone, Search, Filter } from "lucide-react";
+import { Printer, MessageCircle, Phone, Search, Calendar, RefreshCw } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery, ORDER_STATUSES, type OrderRow } from "@/lib/admin";
 import { settingsQuery } from "@/lib/queries";
@@ -34,13 +34,25 @@ export const Route = createFileRoute("/_authenticated/admin/orders")({
   component: OrdersAdmin,
 });
 
+function getLocalDateString(isoStr: string) {
+  const d = new Date(isoStr);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function OrdersAdmin() {
   const qc = useQueryClient();
   const orders = useQuery(adminOrdersQuery);
   const { data: settings } = useQuery(settingsQuery);
 
+  const todayStr = getLocalDateString(new Date().toISOString());
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<"today" | "yesterday" | "this_week" | "this_month" | "all" | "custom">("today");
+  const [customDate, setCustomDate] = useState<string>(todayStr);
   const [printOrder, setPrintOrder] = useState<OrderRow | null>(null);
 
   const update = useMutation({
@@ -55,8 +67,39 @@ function OrdersAdmin() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const rows = (orders.data ?? []).filter((o) => {
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterdayStr = getLocalDateString(yesterdayDate.toISOString());
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
+  const allOrders = orders.data ?? [];
+
+  // Filter rows
+  const rows = allOrders.filter((o) => {
+    // 1. Status Filter
     if (statusFilter !== "all" && o.status !== statusFilter) return false;
+
+    // 2. Date Filter
+    if (dateFilter === "today") {
+      if (getLocalDateString(o.created_at) !== todayStr) return false;
+    } else if (dateFilter === "yesterday") {
+      if (getLocalDateString(o.created_at) !== yesterdayStr) return false;
+    } else if (dateFilter === "this_week") {
+      if (new Date(o.created_at) < sevenDaysAgo) return false;
+    } else if (dateFilter === "this_month") {
+      if (new Date(o.created_at) < startOfMonth) return false;
+    } else if (dateFilter === "custom") {
+      if (customDate && getLocalDateString(o.created_at) !== customDate) return false;
+    }
+
+    // 3. Search text
     if (!search.trim()) return true;
     const term = search.toLowerCase();
     return (
@@ -66,8 +109,75 @@ function OrdersAdmin() {
     );
   });
 
+  // Calculate quick stats
+  const todayCount = allOrders.filter((o) => getLocalDateString(o.created_at) === todayStr).length;
+
   return (
     <AdminShell title="Orders" allow={["admin", "staff"]}>
+      {/* Date Filter Bar - Today as default */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-muted/30 p-3">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-semibold text-muted-foreground mr-1 flex items-center gap-1">
+            <Calendar className="size-3.5 text-primary" /> Period:
+          </span>
+          <Button
+            size="sm"
+            variant={dateFilter === "today" ? "default" : "ghost"}
+            className="h-7 rounded-lg text-xs"
+            onClick={() => setDateFilter("today")}
+          >
+            Today ({todayCount})
+          </Button>
+          <Button
+            size="sm"
+            variant={dateFilter === "yesterday" ? "default" : "ghost"}
+            className="h-7 rounded-lg text-xs"
+            onClick={() => setDateFilter("yesterday")}
+          >
+            Yesterday
+          </Button>
+          <Button
+            size="sm"
+            variant={dateFilter === "this_week" ? "default" : "ghost"}
+            className="h-7 rounded-lg text-xs"
+            onClick={() => setDateFilter("this_week")}
+          >
+            This Week
+          </Button>
+          <Button
+            size="sm"
+            variant={dateFilter === "this_month" ? "default" : "ghost"}
+            className="h-7 rounded-lg text-xs"
+            onClick={() => setDateFilter("this_month")}
+          >
+            This Month
+          </Button>
+          <Button
+            size="sm"
+            variant={dateFilter === "all" ? "default" : "ghost"}
+            className="h-7 rounded-lg text-xs"
+            onClick={() => setDateFilter("all")}
+          >
+            All Time ({allOrders.length})
+          </Button>
+        </div>
+
+        {/* Custom date input */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Custom Date:</span>
+          <Input
+            type="date"
+            value={customDate}
+            onChange={(e) => {
+              setCustomDate(e.target.value);
+              setDateFilter("custom");
+            }}
+            className={`h-7 w-36 rounded-lg text-xs ${dateFilter === "custom" ? "border-primary font-semibold ring-1 ring-primary" : ""}`}
+          />
+        </div>
+      </div>
+
+      {/* Search and Status Filters */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -86,10 +196,18 @@ function OrdersAdmin() {
             className="rounded-full text-xs"
             onClick={() => setStatusFilter("all")}
           >
-            All ({orders.data?.length ?? 0})
+            All Statuses ({rows.length})
           </Button>
           {ORDER_STATUSES.map((s) => {
-            const count = (orders.data ?? []).filter((o) => o.status === s).length;
+            const count = allOrders.filter((o) => {
+              if (dateFilter === "today" && getLocalDateString(o.created_at) !== todayStr) return false;
+              if (dateFilter === "yesterday" && getLocalDateString(o.created_at) !== yesterdayStr) return false;
+              if (dateFilter === "this_week" && new Date(o.created_at) < sevenDaysAgo) return false;
+              if (dateFilter === "this_month" && new Date(o.created_at) < startOfMonth) return false;
+              if (dateFilter === "custom" && customDate && getLocalDateString(o.created_at) !== customDate) return false;
+              return o.status === s;
+            }).length;
+
             return (
               <Button
                 key={s}
@@ -222,9 +340,28 @@ function OrdersAdmin() {
           </Card>
         ))}
         {rows.length === 0 && (
-          <p className="py-12 text-center text-sm text-muted-foreground">
-            No orders match the current filter.
-          </p>
+          <div className="rounded-2xl border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">
+              No orders found for {dateFilter === "today" ? "today" : dateFilter === "yesterday" ? "yesterday" : dateFilter === "custom" ? customDate : "the selected period"}.
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {search || statusFilter !== "all" ? "Try clearing the search or status filter." : "New orders placed by customers will show up here in real time."}
+            </p>
+            {dateFilter !== "all" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3 rounded-xl"
+                onClick={() => {
+                  setDateFilter("all");
+                  setStatusFilter("all");
+                  setSearch("");
+                }}
+              >
+                View All Time Orders ({allOrders.length})
+              </Button>
+            )}
+          </div>
         )}
       </div>
 

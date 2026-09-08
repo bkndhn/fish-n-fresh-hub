@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -14,7 +14,8 @@ import {
   Truck,
   Users,
   UserCog,
-  Settings
+  Settings,
+  MoreHorizontal,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { myRolesQuery, type AppRole } from "@/lib/admin";
@@ -31,6 +32,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 const NAV = [
   { to: "/admin", label: "Dashboard", icon: BarChart3, exact: true, roles: ["admin", "staff"] },
@@ -49,6 +57,8 @@ const NAV = [
   { to: "/admin/settings", label: "Settings", icon: Settings, roles: ["admin"] },
 ] as const satisfies readonly { to: string; label: string; icon: typeof BarChart3; exact?: boolean; roles: readonly AppRole[] }[];
 
+const PRIMARY_MOBILE_PATHS = ["/admin", "/admin/orders", "/admin/products", "/admin/customers"];
+
 export function AdminShell({
   title,
   children,
@@ -59,11 +69,15 @@ export function AdminShell({
   allow?: readonly AppRole[];
 }) {
   const navigate = useNavigate();
+  const [moreOpen, setMoreOpen] = useState(false);
   const { data: roles, isLoading } = useQuery(myRolesQuery);
   const { data: settings } = useQuery(settingsQuery);
   const myRoles = roles ?? [];
   const allowed = myRoles.some((r) => allow.includes(r));
   const nav = NAV.filter((item) => (item.roles as readonly AppRole[]).some((r) => myRoles.includes(r)));
+
+  const primaryNav = nav.filter((item) => PRIMARY_MOBILE_PATHS.includes(item.to));
+  const moreNav = nav.filter((item) => !PRIMARY_MOBILE_PATHS.includes(item.to));
 
   if (isLoading) {
     return <div className="p-10 text-center text-sm text-muted-foreground">Loading console...</div>;
@@ -145,19 +159,56 @@ export function AdminShell({
         </main>
       </div>
 
-      <nav className="glass fixed inset-x-0 bottom-0 z-50 flex border-t border-border md:hidden">
-        {nav.map((item) => (
+      {/* Mobile Bottom Navigation: Clean 4 items + "More" drawer */}
+      <nav className="glass fixed inset-x-0 bottom-0 z-50 flex items-center justify-around border-t border-border px-2 py-1 md:hidden">
+        {primaryNav.map((item) => (
           <Link
             key={item.to}
             to={item.to}
             activeOptions={{ exact: Boolean((item as { exact?: boolean }).exact) }}
-            activeProps={{ className: "text-primary" }}
-            className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] text-muted-foreground"
+            activeProps={{ className: "text-primary font-semibold" }}
+            className="flex flex-1 flex-col items-center gap-0.5 py-1.5 text-[10px] text-muted-foreground transition-colors"
           >
-            <item.icon className="size-4" />
-            {item.label.split(" ")[0]}
+            <item.icon className="size-5" />
+            <span className="truncate">{item.label}</span>
           </Link>
         ))}
+
+        {moreNav.length > 0 && (
+          <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+            <SheetTrigger asChild>
+              <button
+                type="button"
+                className="flex flex-1 flex-col items-center gap-0.5 py-1.5 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <MoreHorizontal className="size-5" />
+                <span>More</span>
+              </button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="rounded-t-2xl max-h-[80vh] overflow-y-auto p-5">
+              <SheetHeader className="mb-4 text-left">
+                <SheetTitle>More Admin Pages</SheetTitle>
+              </SheetHeader>
+              <div className="grid grid-cols-3 gap-3 pb-4">
+                {moreNav.map((item) => (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMoreOpen(false)}
+                    activeOptions={{ exact: Boolean((item as { exact?: boolean }).exact) }}
+                    activeProps={{ className: "bg-primary/10 text-primary border-primary/30 font-semibold" }}
+                    className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border/60 bg-muted/40 p-3 text-center text-xs font-medium text-foreground transition hover:bg-muted"
+                  >
+                    <div className="flex size-9 items-center justify-center rounded-lg bg-background shadow-xs">
+                      <item.icon className="size-5 text-primary" />
+                    </div>
+                    <span className="leading-tight">{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+            </SheetContent>
+          </Sheet>
+        )}
       </nav>
     </div>
   );
