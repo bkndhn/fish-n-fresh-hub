@@ -1,15 +1,17 @@
 import { Link } from "@tanstack/react-router";
-import { Fish, Search, ShoppingCart, User } from "lucide-react";
+import { Fish, Search, ShoppingCart, User, Shield } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 import { useQuery } from "@tanstack/react-query";
 import { settingsQuery } from "@/lib/queries";
+import { myRolesQuery } from "@/lib/admin";
 import { useTranslation } from "@/lib/i18n";
 
 export function SiteHeader() {
   const { count } = useCart();
   const { data: settings } = useQuery(settingsQuery);
+  const { data: myRoles } = useQuery(myRolesQuery);
   const { lang, setLang } = useTranslation();
   
   return (
@@ -44,6 +46,15 @@ export function SiteHeader() {
           >
             <Search className="size-5" />
           </Link>
+          {myRoles?.some((r) => ["admin", "staff", "driver"].includes(r)) && (
+            <Link
+              to="/admin"
+              className="rounded-xl p-2 text-primary hover:bg-primary/10"
+              aria-label="Admin Dashboard"
+            >
+              <Shield className="size-5" />
+            </Link>
+          )}
           <Link
             to="/settings"
             className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
