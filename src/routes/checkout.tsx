@@ -18,6 +18,7 @@ import { isPaymentsConfigured } from "@/lib/stripe";
 import { StripeOrderCheckout } from "@/components/StripeOrderCheckout";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { useSessionUser } from "@/lib/session";
+import { checkSuspension } from "@/lib/suspensions.functions";
 
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371; // Radius of the earth in km
@@ -129,7 +130,9 @@ function Checkout() {
   }
 
   async function placeOrder() {
-    if (!name || phone.length < 10 || (fulfillment === "delivery" && !address)) {
+    const cleanName = name.trim();
+    const cleanPhone = phone.replace(/\D/g, "");
+    if (cleanName.length < 2 || cleanPhone.length < 10 || (fulfillment === "delivery" && !address)) {
       toast.error("Please fill in your name, phone and address");
       return;
     }
@@ -139,17 +142,16 @@ function Checkout() {
     }
     
     setSaving(true);
-    
-    const { data: suspension } = await supabase
-      .from("customer_suspensions")
-      .select("reason")
-      .eq("phone", phone)
-      .maybeSingle();
-      
-    if (suspension) {
-      toast.error(`Account suspended: ${suspension.reason}`);
-      setSaving(false);
-      return;
+
+    try {
+      const suspension = await checkSuspension({ data: { phone: cleanPhone } });
+      if (suspension.suspended) {
+        toast.error(`Account suspended: ${suspension.reason ?? "Contact support"}`);
+        setSaving(false);
+        return;
+      }
+    } catch {
+      // suspension check unavailable - continue with the order
     }
 
     const { data: sessionData } = await supabase.auth.getSession();
@@ -157,8 +159,8 @@ function Checkout() {
     const { data, error } = await supabase
       .from("orders")
       .insert({
-        customer_name: name,
-        customer_phone: phone,
+        customer_name: cleanName,
+        customer_phone: cleanPhone,
         customer_address: fulfillment === "delivery" ? address : null,
         items: items as unknown as never,
         subtotal,
