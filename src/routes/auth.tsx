@@ -46,6 +46,10 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
 
   async function routeAfterLogin() {
+    if (next) {
+      window.location.href = next;
+      return;
+    }
     const { data } = await supabase.rpc("is_staff");
     navigate({ to: data ? "/admin" : "/orders" });
   }
@@ -81,7 +85,7 @@ function AuthPage() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/orders`,
+        emailRedirectTo: `${window.location.origin}${next ?? "/orders"}`,
         data: { full_name: fullName, phone },
       },
     });
