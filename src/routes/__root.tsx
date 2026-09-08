@@ -145,7 +145,7 @@ function RealtimeSubscriber({ queryClient }: { queryClient: any }) {
         { event: "INSERT", schema: "public", table: "customer_suspensions" },
         async (payload) => {
           const phone = localStorage.getItem("fnf_phone");
-          if (payload.new && phone && payload.new.phone === phone) {
+          if (payload.new && phone && payload.new['phone'] === phone) {
             await supabase.auth.signOut();
             localStorage.removeItem("fnf_phone");
             window.location.href = "/";
