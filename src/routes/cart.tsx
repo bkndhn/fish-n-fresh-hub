@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Minus, Plus, Trash2 } from "lucide-react";
+import { Minus, Plus, Trash2, AlertTriangle } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useCart } from "@/lib/cart";
 import { inr } from "@/lib/format";
 import { settingsQuery } from "@/lib/queries";
+import { getStoreStatus } from "@/lib/storeSchedule";
 
 export const Route = createFileRoute("/cart")({
   head: () => ({
@@ -32,6 +33,7 @@ const CUT_OPTIONS = [
 function CartPage() {
   const { items, subtotal, setQty, setCutPreference, remove, clear } = useCart();
   const { data: settings } = useQuery(settingsQuery);
+  const storeStatus = settings ? getStoreStatus(settings) : null;
   const freeOver = Number(settings?.free_delivery_over ?? 500);
   const progress = Math.min(100, (subtotal / freeOver) * 100);
 
@@ -113,13 +115,43 @@ function CartPage() {
         <span className="text-muted-foreground">Subtotal</span>
         <span className="font-display text-xl font-bold">{inr(subtotal)}</span>
       </div>
+
+      {storeStatus && !storeStatus.canAcceptOrder && (
+        <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-destructive/40 bg-destructive/10 p-3.5 text-xs text-destructive">
+          <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">{storeStatus.statusTitle}</p>
+            <p className="mt-0.5 opacity-90">{storeStatus.statusDescription}</p>
+            <p className="mt-1 font-semibold">Orders will reopen on {storeStatus.nextWorkingDate} at {storeStatus.openTimeFormatted}.</p>
+          </div>
+        </div>
+      )}
+
+      {storeStatus && !storeStatus.isOpen && storeStatus.canAcceptOrder && (
+        <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3.5 text-xs text-amber-900 dark:text-amber-200">
+          <AlertTriangle className="size-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+          <div>
+            <p className="font-bold">{storeStatus.statusTitle} · Pre-Orders Open</p>
+            <p className="mt-0.5 opacity-90">Pre-orders are accepted for delivery on <span className="font-bold underline">{storeStatus.nextWorkingDate}</span>.</p>
+          </div>
+        </div>
+      )}
+
       <div className="mt-4 flex gap-3">
         <Button variant="outline" className="rounded-xl" onClick={clear}>
           Clear
         </Button>
-        <Button asChild className="flex-1 rounded-xl">
-          <Link to="/checkout">Checkout</Link>
-        </Button>
+        {storeStatus && !storeStatus.canAcceptOrder ? (
+          <Button disabled className="flex-1 rounded-xl opacity-60">
+            Orders Paused · Store Closed
+          </Button>
+        ) : (
+          <Button asChild className="flex-1 rounded-xl">
+            <Link to="/checkout">
+              {storeStatus && !storeStatus.isOpen ? "Proceed to Pre-Order" : "Checkout"}
+            </Link>
+          </Button>
+        )}
       </div>
     </AppShell>
   );

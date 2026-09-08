@@ -19,6 +19,7 @@ import { StripeOrderCheckout } from "@/components/StripeOrderCheckout";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { useSessionUser } from "@/lib/session";
 import { checkSuspension } from "@/lib/suspensions.functions";
+import { getStoreStatus, isDateHoliday, getNextWorkingDate } from "@/lib/storeSchedule";
 
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371; // Radius of the earth in km
@@ -84,6 +85,24 @@ function Checkout() {
   const { data: windows } = useQuery(deliveryWindowsQuery);
   const [slot, setSlot] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(() => new Date().toISOString().slice(0, 10));
+
+  const storeStatus = getStoreStatus(settings);
+  const selectedHoliday = isDateHoliday(
+    deliveryDate,
+    (settings as any)?.working_days,
+    (settings as any)?.custom_holidays
+  );
+
+  // Auto-adjust delivery date to next working date if store is closed or current selection is a holiday
+  useEffect(() => {
+    if (settings) {
+      const status = getStoreStatus(settings);
+      if (!status.isOpen && status.nextWorkingDate) {
+        setDeliveryDate(status.nextWorkingDate);
+      }
+    }
+  }, [settings]);
+
   const todaysWindows = (windows ?? []).filter((w) =>
     (w.weekdays ?? []).includes(new Date(`${deliveryDate}T00:00:00`).getDay()),
   );
@@ -193,6 +212,15 @@ function Checkout() {
   }
 
   async function placeOrder() {
+    if (!storeStatus.canAcceptOrder) {
+      toast.error(storeStatus.statusDescription || "Store is closed and not accepting orders right now.");
+      return;
+    }
+    if (selectedHoliday.isHoliday) {
+      toast.error(`Store is closed on ${deliveryDate} (${selectedHoliday.reason}). Please select an open date.`);
+      return;
+    }
+
     const cleanName = name.trim();
     const cleanPhone = phone.replace(/\D/g, "");
     if (cleanName.length < 2 || cleanPhone.length < 10 || (fulfillment === "delivery" && !address)) {
@@ -375,7 +403,6 @@ function Checkout() {
     );
   }
 
-  const isStoreOpen = settings?.is_open ?? true;
   const upiId = settings?.upi_id || "9843061919@upi";
   const upiName = settings?.upi_name || "Fish N Fresh";
   const upiDeepLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${total}&cu=INR`;
@@ -383,15 +410,42 @@ function Checkout() {
 
   return (
     <AppShell>
-      {!isStoreOpen && (
-        <div className="mb-4 flex items-start gap-2.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-900 dark:text-amber-200">
-          <AlertTriangle className="size-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
-          <div>
-            <p className="font-semibold">Shop is currently closed</p>
-            <p className="mt-0.5 opacity-90">
-              You can still place an order! We will freshly catch, clean and pack your seafood for the earliest delivery window.
+      {!storeStatus.canAcceptOrder ? (
+        <div className="mb-4 flex items-start gap-3 rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-xs text-destructive dark:border-destructive/50">
+          <AlertTriangle className="size-5 shrink-0 mt-0.5 text-destructive" />
+          <div className="space-y-1">
+            <p className="font-bold text-sm text-destructive">{storeStatus.statusTitle}</p>
+            <p className="opacity-90">{storeStatus.statusDescription}</p>
+            <p className="font-semibold pt-1">
+              New orders are paused. Next ordering window opens on <span className="underline">{storeStatus.nextWorkingDate}</span> at {storeStatus.openTimeFormatted}.
             </p>
           </div>
+        </div>
+      ) : !storeStatus.isOpen ? (
+        <div className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-xs text-amber-900 dark:text-amber-200">
+          <AlertTriangle className="size-5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-sm text-amber-800 dark:text-amber-300">
+                {storeStatus.statusTitle}
+              </span>
+              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-200">
+                Pre-Orders Open
+              </span>
+            </div>
+            <p className="opacity-90">{storeStatus.statusDescription}</p>
+            <p className="font-medium pt-1 text-primary">
+              Your order will be freshly cut, packed, and delivered on <span className="underline font-bold">{storeStatus.nextWorkingDate}</span>.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-4 flex items-center justify-between rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-3.5 py-2.5 text-xs text-emerald-800 dark:text-emerald-300">
+          <div className="flex items-center gap-2 font-medium">
+            <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Store Open ({storeStatus.openTimeFormatted} – {storeStatus.closeTimeFormatted})</span>
+          </div>
+          <span className="text-[11px] opacity-75 hidden sm:inline">Fresh catch delivered today</span>
         </div>
       )}
 
@@ -456,6 +510,28 @@ function Checkout() {
             }}
             className="mt-1 rounded-xl"
           />
+          {selectedHoliday.isHoliday && (
+            <div className="mt-2 flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
+              <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Store closed on selected date</p>
+                <p className="mt-0.5">
+                  We are closed for {selectedHoliday.reason}. Please select a working day (Next available:{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeliveryDate(storeStatus.nextWorkingDate);
+                      setSlot("");
+                    }}
+                    className="font-bold underline hover:opacity-80"
+                  >
+                    {storeStatus.nextWorkingDate}
+                  </button>
+                  ).
+                </p>
+              </div>
+            </div>
+          )}
           <div className="mt-2 flex flex-wrap gap-2">
             {todaysWindows.length === 0 ? (
               <p className="text-xs text-muted-foreground">
@@ -643,8 +719,20 @@ function Checkout() {
         </div>
       </div>
 
-      <Button className="mt-4 w-full rounded-xl" disabled={saving} onClick={placeOrder}>
-        {saving ? "Placing order…" : `Place order · ${inr(total)}`}
+      <Button
+        className="mt-4 w-full rounded-xl text-sm font-semibold"
+        disabled={saving || !storeStatus.canAcceptOrder || selectedHoliday.isHoliday}
+        onClick={placeOrder}
+      >
+        {saving
+          ? "Placing order…"
+          : !storeStatus.canAcceptOrder
+            ? `Orders Paused · ${storeStatus.statusTitle}`
+            : selectedHoliday.isHoliday
+              ? "Store Closed on Selected Date"
+              : !storeStatus.isOpen
+                ? `Place Pre-Order · ${inr(total)}`
+                : `Place order · ${inr(total)}`}
       </Button>
     </AppShell>
   );

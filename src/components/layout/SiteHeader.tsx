@@ -7,12 +7,15 @@ import { useQuery } from "@tanstack/react-query";
 import { settingsQuery } from "@/lib/queries";
 import { myRolesQuery } from "@/lib/admin";
 import { useTranslation } from "@/lib/i18n";
+import { getStoreStatus } from "@/lib/storeSchedule";
 
 export function SiteHeader() {
   const { count } = useCart();
   const { data: settings } = useQuery(settingsQuery);
   const { data: myRoles } = useQuery(myRolesQuery);
   const { lang, setLang } = useTranslation();
+
+  const storeStatus = settings ? getStoreStatus(settings) : null;
   
   return (
     <header className="glass sticky top-0 z-50 border-b border-border">
@@ -27,6 +30,51 @@ export function SiteHeader() {
           )}
           {!settings?.logo_url && "Fish N Fresh"}
         </Link>
+
+        {storeStatus && (
+          <>
+            {/* Desktop / Tablet Status Badge */}
+            <div
+              className={`hidden md:flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                storeStatus.isOpen
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                  : storeStatus.allowPreorders
+                  ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                  : "border-destructive/30 bg-destructive/10 text-destructive font-semibold"
+              }`}
+              title={storeStatus.statusDescription}
+            >
+              <span
+                className={`size-1.5 rounded-full ${
+                  storeStatus.isOpen
+                    ? "bg-emerald-500 animate-pulse"
+                    : storeStatus.allowPreorders
+                    ? "bg-amber-500"
+                    : "bg-destructive"
+                }`}
+              />
+              <span>
+                {storeStatus.isOpen
+                  ? `Open (${storeStatus.openTimeFormatted} – ${storeStatus.closeTimeFormatted})`
+                  : storeStatus.allowPreorders
+                  ? "Pre-orders Open"
+                  : "Store Closed"}
+              </span>
+            </div>
+
+            {/* Mobile compact dot */}
+            <span
+              className={`size-2 rounded-full md:hidden shrink-0 ${
+                storeStatus.isOpen
+                  ? "bg-emerald-500"
+                  : storeStatus.allowPreorders
+                  ? "bg-amber-500"
+                  : "bg-destructive"
+              }`}
+              title={storeStatus.statusTitle}
+            />
+          </>
+        )}
         <div className="ml-auto">
           <select 
             value={lang} 
