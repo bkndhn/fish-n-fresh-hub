@@ -1,5 +1,5 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Check,
@@ -16,6 +16,8 @@ import {
   Truck,
   AlertTriangle,
   ExternalLink,
+  Compass,
+  Route as RouteIcon,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -26,6 +28,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { settingsQuery } from "@/lib/queries";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
+import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
+import { getGoogleMapsDirUrl } from "@/lib/maps";
 
 export const Route = createFileRoute("/track/$id")({
   head: () => ({
@@ -144,17 +148,21 @@ function TrackPage() {
   const isOutForDelivery = order.status === "out_for_delivery";
   const progressPct = isCancelled ? 0 : Math.round((currentStepIndex / (TRACK_STEPS.length - 1)) * 100);
 
+  const [routeModalOpen, setRouteModalOpen] = useState(false);
+
   const supportPhone = settings?.support_phone || settings?.whatsapp_number || "919999999999";
   const storeWhatsAppUrl = getWhatsAppUrl(
     settings?.whatsapp_number || settings?.support_phone || "",
     `Hi ${settings?.store_name || "Fish N Fresh"}, I'm tracking order #${order.order_number ?? order.id.slice(0, 8)} and need assistance.`
   );
 
-  const mapNavigationUrl = order.location_lat && order.location_lng
-    ? `https://www.google.com/maps/search/?api=1&query=${order.location_lat},${order.location_lng}`
-    : order.customer_address
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.customer_address)}`
-    : null;
+  const mapNavigationUrl = getGoogleMapsDirUrl(
+    order.location_lat,
+    order.location_lng,
+    order.customer_address,
+    settings?.shop_lat,
+    settings?.shop_lng
+  );
 
   return (
     <AppShell>
@@ -396,21 +404,17 @@ function TrackPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           {/* Destination Address Card */}
           <Card className="border-border/70 shadow-xs">
-            <CardContent className="p-4 space-y-2">
+            <CardContent className="p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                   <MapPin className="size-3.5 text-primary" /> Delivery Destination
                 </p>
-                {mapNavigationUrl && (
-                  <a
-                    href={mapNavigationUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[11px] font-medium text-primary hover:underline flex items-center gap-1"
-                  >
-                    Open Map <ExternalLink className="size-3" />
-                  </a>
-                )}
+                {order.location_lat && order.location_lng ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    <span className="size-1.5 rounded-full bg-emerald-500" />
+                    Exact Doorstep Pin
+                  </span>
+                ) : null}
               </div>
               <p className="text-sm font-medium text-foreground leading-relaxed">
                 {order.customer_address ?? "Store takeaway / self-pickup"}
@@ -423,6 +427,31 @@ function TrackPage() {
                   Note: {order.delivery_note}
                 </p>
               )}
+
+              {/* Map & Live Route Quick Actions */}
+              <div className="flex items-center gap-2 pt-2 border-t border-border/50">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-xl h-8 text-xs font-semibold px-2.5 text-primary border-primary/25 hover:bg-primary/5 flex-1"
+                  onClick={() => setRouteModalOpen(true)}
+                  title="View store-to-doorstep route with live ETA on interactive map"
+                >
+                  <RouteIcon className="size-3.5 mr-1.5 text-primary" /> View Live Route
+                </Button>
+                {mapNavigationUrl && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl h-8 text-xs font-semibold px-2.5 text-blue-600 dark:text-blue-400 border-blue-500/30 hover:bg-blue-500/10 shrink-0"
+                    asChild
+                  >
+                    <a href={mapNavigationUrl} target="_blank" rel="noreferrer" title="Open turn-by-turn navigation in Google Maps">
+                      <Compass className="size-3.5 mr-1 text-blue-500" /> Directions
+                    </a>
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -487,6 +516,22 @@ function TrackPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Interactive Delivery Route Modal */}
+      <DeliveryRouteModal
+        open={routeModalOpen}
+        onOpenChange={setRouteModalOpen}
+        orderId={order.id}
+        orderNumber={order.order_number}
+        customerName={order.customer_name}
+        customerPhone={order.customer_phone}
+        customerAddress={order.customer_address}
+        destinationLat={order.location_lat ?? null}
+        destinationLng={order.location_lng ?? null}
+        storeAddress={settings?.store_address ?? "Fish & Fresh Store"}
+        storeLat={settings?.shop_lat ?? null}
+        storeLng={settings?.shop_lng ?? null}
+      />
     </AppShell>
   );
 }

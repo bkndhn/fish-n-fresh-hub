@@ -18,6 +18,8 @@ import {
   Check,
   Loader2,
   Building,
+  Compass,
+  Route as RouteIcon,
 } from "lucide-react";
 import {
   Dialog,
@@ -27,6 +29,9 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { MapPinPickerModal } from "@/components/MapPinPickerModal";
+import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
+import type { GeocodedAddress } from "@/lib/maps";
 
 export type SavedAddress = {
   id: string;
@@ -82,6 +87,19 @@ export function AddressBook({ selectedAddress, onSelect }: AddressBookProps) {
   const [lng, setLng] = useState<number | null>(null);
   const [isDefault, setIsDefault] = useState(false);
   const [detectingGps, setDetectingGps] = useState(false);
+  const [pinPickerOpen, setPinPickerOpen] = useState(false);
+  const [routeModalAddress, setRouteModalAddress] = useState<SavedAddress | null>(null);
+
+  const handlePinConfirmed = (geocoded: GeocodedAddress) => {
+    setLat(geocoded.lat);
+    setLng(geocoded.lng);
+    if (geocoded.street) setStreet(geocoded.street);
+    if (geocoded.doorNo) setDoorNo(geocoded.doorNo);
+    if (geocoded.landmark) setLandmark(geocoded.landmark);
+    if (geocoded.city) setCity(geocoded.city);
+    if (geocoded.pincode) setPincode(geocoded.pincode);
+    setModalOpen(true);
+  };
 
   const { data: addresses = [] } = useQuery({
     queryKey: ["customer_addresses"],
@@ -393,6 +411,24 @@ export function AddressBook({ selectedAddress, onSelect }: AddressBookProps) {
                   <p className="text-xs text-foreground font-medium line-clamp-2 leading-relaxed">
                     {a.address}
                   </p>
+                  {a.lat && a.lng && (
+                    <div className="mt-1.5 flex items-center justify-between text-[11px] text-emerald-600 dark:text-emerald-400">
+                      <span className="inline-flex items-center gap-1 font-mono font-medium">
+                        <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        📍 Pinned: {a.lat.toFixed(4)}, {a.lng.toFixed(4)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRouteModalAddress(a);
+                        }}
+                        className="underline hover:text-primary font-semibold flex items-center gap-1"
+                      >
+                        <Compass className="size-3" /> View Route
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-2.5 pt-2 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
@@ -431,7 +467,7 @@ export function AddressBook({ selectedAddress, onSelect }: AddressBookProps) {
         </div>
       )}
 
-      {/* Action Buttons: Add Address & Quick GPS Auto-fill */}
+      {/* Action Buttons: Add Address & Move Pin on Map */}
       <div className="flex flex-wrap items-center gap-2">
         <Button
           type="button"
@@ -440,7 +476,20 @@ export function AddressBook({ selectedAddress, onSelect }: AddressBookProps) {
           onClick={openAddModal}
           className="rounded-xl text-xs font-semibold gap-1.5 h-9"
         >
-          <Plus className="size-3.5 text-primary" /> Add New Delivery Address
+          <Plus className="size-3.5 text-primary" /> Add New Address
+        </Button>
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            resetForm();
+            setPinPickerOpen(true);
+          }}
+          className="rounded-xl text-xs font-bold gap-1.5 h-9 border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 shadow-2xs"
+        >
+          <MapPin className="size-3.5 text-primary animate-bounce" /> 📍 Move Pin on Map
         </Button>
 
         <Button
@@ -449,14 +498,14 @@ export function AddressBook({ selectedAddress, onSelect }: AddressBookProps) {
           size="sm"
           disabled={detectingGps}
           onClick={handleGpsAutofill}
-          className="rounded-xl text-xs font-medium gap-1.5 h-9 text-primary hover:bg-primary/10"
+          className="rounded-xl text-xs font-medium gap-1.5 h-9 text-muted-foreground hover:text-foreground"
         >
           {detectingGps ? (
             <Loader2 className="size-3.5 animate-spin" />
           ) : (
             <Navigation className="size-3.5" />
           )}
-          {detectingGps ? "Detecting GPS..." : "📍 Quick GPS Auto-fill"}
+          {detectingGps ? "Detecting GPS..." : "Quick GPS"}
         </Button>
       </div>
 
@@ -471,17 +520,46 @@ export function AddressBook({ selectedAddress, onSelect }: AddressBookProps) {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            {/* GPS Autofill Banner */}
-            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3 flex items-center justify-between gap-2">
+            {/* Interactive Map Pinning Option */}
+            <div className="rounded-2xl border border-primary/30 bg-primary/10 p-3 flex items-center justify-between gap-2 shadow-2xs">
               <div>
-                <p className="text-xs font-bold text-foreground">Fast Auto-fill with GPS</p>
-                <p className="text-[11px] text-muted-foreground">
-                  Instantly fetch your street and 6-digit pincode
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-foreground">Interactive Doorstep Pin</span>
+                  {lat && lng && (
+                    <span className="rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-extrabold">
+                      ✓ Exact Pin Set
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {lat && lng
+                    ? `Coordinates: ${lat.toFixed(5)}, ${lng.toFixed(5)}`
+                    : "Drag the pin directly over your building gate or house"}
                 </p>
               </div>
               <Button
                 type="button"
                 size="sm"
+                onClick={() => setPinPickerOpen(true)}
+                className="rounded-xl text-xs shrink-0 gap-1.5 bg-primary text-primary-foreground font-bold shadow-xs"
+              >
+                <MapPin className="size-3.5" />
+                {lat && lng ? "Adjust Pin" : "Move Pin"}
+              </Button>
+            </div>
+
+            {/* GPS Autofill Banner */}
+            <div className="rounded-2xl border border-border/80 bg-muted/30 p-3 flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-bold text-foreground">Fast Auto-fill with GPS</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Fetch road and 6-digit pincode via device sensor
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
                 disabled={detectingGps}
                 onClick={handleGpsAutofill}
                 className="rounded-xl text-xs shrink-0 gap-1"
@@ -618,6 +696,28 @@ export function AddressBook({ selectedAddress, onSelect }: AddressBookProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Interactive Map Pin Picker Modal */}
+      <MapPinPickerModal
+        open={pinPickerOpen}
+        onOpenChange={setPinPickerOpen}
+        initialLat={lat}
+        initialLng={lng}
+        initialAddress={street}
+        onConfirm={handlePinConfirmed}
+      />
+
+      {/* Delivery Route Modal */}
+      {routeModalAddress && (
+        <DeliveryRouteModal
+          open={!!routeModalAddress}
+          onOpenChange={(open) => !open && setRouteModalAddress(null)}
+          customerName={routeModalAddress.label}
+          customerAddress={routeModalAddress.address}
+          destLat={routeModalAddress.lat}
+          destLng={routeModalAddress.lng}
+        />
+      )}
     </div>
   );
 }

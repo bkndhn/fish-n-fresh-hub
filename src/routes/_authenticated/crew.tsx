@@ -1,14 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { LogOut, MapPin, Phone, Truck } from "lucide-react";
+import { LogOut, MapPin, Phone, Truck, Compass, Route as RouteIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { myRolesQuery, ORDER_STATUSES, type OrderRow } from "@/lib/admin";
 import { formatINR } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
+import { getGoogleMapsDirUrl } from "@/lib/maps";
+import { settingsQuery } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/crew")({
   head: () => ({
@@ -41,6 +44,8 @@ function CrewBoard() {
   const qc = useQueryClient();
   const roles = useQuery(myRolesQuery);
   const isCrew = (roles.data ?? []).some((r) => r === "driver" || r === "staff" || r === "admin");
+  const { data: settings } = useQuery(settingsQuery);
+  const [routeModalOrder, setRouteModalOrder] = useState<OrderRow | null>(null);
 
   const myOrders = useQuery({
     queryKey: ["crew", "orders"],
@@ -177,7 +182,14 @@ function CrewBoard() {
                       <p className="truncate font-semibold">
                         #{o.order_number ?? o.id.slice(0, 8)} · {o.customer_name}
                       </p>
-                      <p className="text-xs text-muted-foreground">{o.customer_address ?? "No address"}</p>
+                      <p className="text-xs text-muted-foreground flex items-center flex-wrap gap-1 mt-0.5">
+                        <span>{o.customer_address ?? "No address"}</span>
+                        {o.location_lat && o.location_lng && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                            📍 Exact Pin
+                          </span>
+                        )}
+                      </p>
                       {(o.delivery_date || o.delivery_slot) && (
                         <p className="text-xs font-medium text-primary">
                           {[
@@ -228,17 +240,35 @@ function CrewBoard() {
                         <Phone className="mr-1.5 size-4" /> Call
                       </a>
                     </Button>
-                    {o.location_lat && o.location_lng && (
-                      <Button asChild size="sm" variant="ghost">
-                        <a
-                          href={`https://www.google.com/maps/search/?api=1&query=${o.location_lat},${o.location_lng}`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <MapPin className="mr-1.5 size-4" /> Navigate
-                        </a>
-                      </Button>
-                    )}
+
+                    {/* Interactive Route Preview */}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-primary/25 text-primary hover:bg-primary/5"
+                      onClick={() => setRouteModalOrder(o)}
+                      title="Preview route on map with live ETA"
+                    >
+                      <RouteIcon className="mr-1.5 size-4 text-primary" /> Route
+                    </Button>
+
+                    {/* Turn-by-Turn GPS Navigation */}
+                    <Button asChild size="sm" variant="outline" className="border-blue-500/30 text-blue-600 hover:bg-blue-500/10">
+                      <a
+                        href={getGoogleMapsDirUrl(
+                          o.location_lat,
+                          o.location_lng,
+                          o.customer_address,
+                          settings?.shop_lat,
+                          settings?.shop_lng
+                        )}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="Open turn-by-turn driving navigation in Google Maps"
+                      >
+                        <Compass className="mr-1.5 size-4 text-blue-500" /> Navigate
+                      </a>
+                    </Button>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
@@ -300,6 +330,24 @@ function CrewBoard() {
           </section>
         )}
       </main>
+
+      {/* Route & Turn-by-turn Navigation Modal */}
+      <DeliveryRouteModal
+        open={!!routeModalOrder}
+        onOpenChange={(open) => {
+          if (!open) setRouteModalOrder(null);
+        }}
+        orderId={routeModalOrder?.id}
+        orderNumber={routeModalOrder?.order_number}
+        customerName={routeModalOrder?.customer_name}
+        customerPhone={routeModalOrder?.customer_phone}
+        customerAddress={routeModalOrder?.customer_address}
+        destinationLat={routeModalOrder?.location_lat ?? null}
+        destinationLng={routeModalOrder?.location_lng ?? null}
+        storeAddress={settings?.store_address ?? "Fish & Fresh Store"}
+        storeLat={settings?.shop_lat ?? null}
+        storeLng={settings?.shop_lng ?? null}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, MapPin, Compass } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { settingsQuery } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ImageUpload } from "@/components/ImageUpload";
 import { useState, useEffect } from "react";
+import { MapPinPickerModal } from "@/components/MapPinPickerModal";
+import { getGoogleMapsDirUrl, type GeocodedAddress } from "@/lib/maps";
 
 export const Route = createFileRoute("/_authenticated/admin/settings")({
   component: AdminSettings,
@@ -23,6 +25,7 @@ function AdminSettings() {
   const { data: settings } = useQuery(settingsQuery);
   const [form, setForm] = useState<any>({});
   const [gatewayForm, setGatewayForm] = useState<GatewayCreds>({ provider: "none", api_key: "", secret_key: "" });
+  const [shopPinModalOpen, setShopPinModalOpen] = useState(false);
 
   const { data: gateway } = useQuery({
     queryKey: ["payment_gateway_credentials"],
@@ -81,6 +84,15 @@ function AdminSettings() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const handleShopPinConfirm = (loc: GeocodedAddress) => {
+    setForm((prev: any) => ({
+      ...prev,
+      shop_lat: Number(loc.lat.toFixed(6)),
+      shop_lng: Number(loc.lng.toFixed(6)),
+      store_address: prev.store_address || loc.displayName || loc.address,
+    }));
+    toast.success("Store GPS coordinates updated! Click 'Save Settings' below to persist.");
+  };
 
   if (!settings) return null;
 
@@ -108,26 +120,79 @@ function AdminSettings() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Shop Location</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <Card className="border-border/70 shadow-xs">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
             <div>
-              <Label>Latitude</Label>
-              <Input
-                type="number"
-                value={form.shop_lat ?? ""}
-                onChange={(e) => setForm({ ...form, shop_lat: Number(e.target.value) })}
-              />
+              <CardTitle className="text-lg">Shop Location & GPS Pin</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Exact store coordinates used for route calculations, distance delivery fees, and driver navigation.
+              </p>
             </div>
-            <div>
-              <Label>Longitude</Label>
-              <Input
-                type="number"
-                value={form.shop_lng ?? ""}
-                onChange={(e) => setForm({ ...form, shop_lng: Number(e.target.value) })}
-              />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-xl text-xs font-semibold text-primary border-primary/30 hover:bg-primary/5 shrink-0"
+              onClick={() => setShopPinModalOpen(true)}
+            >
+              <MapPin className="size-3.5 mr-1.5 text-primary" /> Move Pin on Map
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {form.shop_lat && form.shop_lng ? (
+              <div className="flex items-center justify-between rounded-xl bg-primary/5 border border-primary/20 p-2.5 text-xs text-foreground">
+                <div className="flex items-center gap-2">
+                  <span className="flex size-6 items-center justify-center rounded-full bg-primary/15 text-primary font-bold">
+                    📍
+                  </span>
+                  <div>
+                    <span className="font-semibold">Pinned Store Coordinates:</span>{" "}
+                    <code className="text-primary font-mono">{Number(form.shop_lat).toFixed(6)}, {Number(form.shop_lng).toFixed(6)}</code>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-[11px] text-blue-600 hover:text-blue-700 hover:bg-blue-500/10 px-2"
+                  asChild
+                >
+                  <a
+                    href={getGoogleMapsDirUrl(form.shop_lat, form.shop_lng)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Compass className="size-3 mr-1" /> Test Nav
+                  </a>
+                </Button>
+              </div>
+            ) : (
+              <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-2.5 text-xs text-amber-700 dark:text-amber-300">
+                ⚠️ Store GPS pin not set. Click &quot;Move Pin on Map&quot; to drop a doorstep pin on your physical store.
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div>
+                <Label className="text-xs">Latitude</Label>
+                <Input
+                  type="number"
+                  step="any"
+                  value={form.shop_lat ?? ""}
+                  onChange={(e) => setForm({ ...form, shop_lat: e.target.value ? Number(e.target.value) : null })}
+                  className="rounded-xl text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Longitude</Label>
+                <Input
+                  type="number"
+                  step="any"
+                  value={form.shop_lng ?? ""}
+                  onChange={(e) => setForm({ ...form, shop_lng: e.target.value ? Number(e.target.value) : null })}
+                  className="rounded-xl text-sm"
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -567,6 +632,17 @@ function AdminSettings() {
       >
         {update.isPending ? "Saving..." : "Save Settings"}
       </Button>
+
+      {/* Interactive Shop Map Pin Picker Modal */}
+      <MapPinPickerModal
+        open={shopPinModalOpen}
+        onOpenChange={setShopPinModalOpen}
+        initialLat={form.shop_lat ? Number(form.shop_lat) : undefined}
+        initialLng={form.shop_lng ? Number(form.shop_lng) : undefined}
+        title="Set Physical Shop Location"
+        confirmLabel="Confirm Store Location"
+        onConfirm={handleShopPinConfirm}
+      />
     </AdminShell>
   );
 }

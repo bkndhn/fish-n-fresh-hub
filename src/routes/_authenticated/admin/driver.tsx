@@ -16,9 +16,11 @@ import {
   Clock,
   Search,
   Check,
-  AlertTriangle,
   ExternalLink,
   Users,
+  Compass,
+  Route as RouteIcon,
+  AlertTriangle,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery, type OrderRow } from "@/lib/admin";
@@ -27,6 +29,9 @@ import { formatINR, formatIST } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
+import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
+import { getGoogleMapsDirUrl } from "@/lib/maps";
+import { settingsQuery } from "@/lib/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -65,10 +70,12 @@ export function DriverDispatchPage() {
     queryFn: () => listDrivers() as Promise<DriverOption[]>,
   });
   const drivers = driversQuery.data ?? [];
+  const { data: settings } = useQuery(settingsQuery);
 
   const [activeTab, setActiveTab] = useState<"dispatch" | "analytics">("dispatch");
   const [selectedDriverFilter, setSelectedDriverFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [routeModalOrder, setRouteModalOrder] = useState<OrderRow | null>(null);
 
   useEffect(() => {
     const channel = supabase
@@ -361,9 +368,13 @@ export function DriverDispatchPage() {
             {/* Active Delivery Cards */}
             <div className="space-y-3 order-1 lg:order-2">
               {displayedDeliveries.map((o) => {
-                const navUrl = o.location_lat && o.location_lng
-                  ? `https://www.google.com/maps/dir/?api=1&destination=${o.location_lat},${o.location_lng}`
-                  : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.customer_address ?? "")}`;
+                const navUrl = getGoogleMapsDirUrl(
+                  o.location_lat,
+                  o.location_lng,
+                  o.customer_address,
+                  settings?.shop_lat,
+                  settings?.shop_lng
+                );
 
                 const isCod = o.payment_method === "cod" && o.payment_status !== "paid";
 
@@ -395,6 +406,11 @@ export function DriverDispatchPage() {
                           </p>
                           <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
                             {o.customer_address ?? "No delivery address specified"}
+                            {o.location_lat && o.location_lng && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded-md border border-emerald-500/20 ml-2">
+                                ✓ Exact Pin
+                              </span>
+                            )}
                           </p>
                           {o.delivery_slot && (
                             <p className="text-[11px] text-primary font-medium mt-0.5">Slot: {o.delivery_slot}</p>
@@ -497,7 +513,7 @@ export function DriverDispatchPage() {
                         </div>
 
                         {/* Navigation & Delivery Actions */}
-                        <div className="grid grid-cols-3 sm:flex sm:items-center gap-1.5 w-full sm:w-auto">
+                        <div className="grid grid-cols-2 sm:flex sm:items-center gap-1.5 w-full sm:w-auto">
                           {/* Customer Call */}
                           <Button size="sm" variant="outline" className="rounded-xl h-8.5 text-xs font-semibold px-2" asChild>
                             <a href={`tel:${o.customer_phone}`} className="flex items-center justify-center">
@@ -505,10 +521,21 @@ export function DriverDispatchPage() {
                             </a>
                           </Button>
 
+                          {/* Interactive Route Modal */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-xl h-8.5 text-xs font-semibold px-2 border-primary/25 hover:bg-primary/5 text-primary"
+                            onClick={() => setRouteModalOrder(o)}
+                            title="Preview store-to-doorstep route on interactive map"
+                          >
+                            <RouteIcon className="size-3 mr-1 text-primary" /> Route
+                          </Button>
+
                           {/* Turn-by-Turn GPS Navigation */}
-                          <Button size="sm" variant="outline" className="rounded-xl h-8.5 text-xs font-semibold px-2" asChild>
+                          <Button size="sm" variant="outline" className="rounded-xl h-8.5 text-xs font-semibold px-2 border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10" asChild>
                             <a href={navUrl} target="_blank" rel="noreferrer" className="flex items-center justify-center">
-                              <Navigation className="size-3 mr-1 text-blue-500" /> Map
+                              <Compass className="size-3 mr-1 text-blue-500" /> Nav
                             </a>
                           </Button>
 
@@ -753,6 +780,24 @@ export function DriverDispatchPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Route & Navigation Modal */}
+      <DeliveryRouteModal
+        open={!!routeModalOrder}
+        onOpenChange={(open) => {
+          if (!open) setRouteModalOrder(null);
+        }}
+        orderId={routeModalOrder?.id}
+        orderNumber={routeModalOrder?.order_number}
+        customerName={routeModalOrder?.customer_name}
+        customerPhone={routeModalOrder?.customer_phone}
+        customerAddress={routeModalOrder?.customer_address}
+        destinationLat={routeModalOrder?.location_lat ?? null}
+        destinationLng={routeModalOrder?.location_lng ?? null}
+        storeAddress={settings?.store_address ?? "Fish & Fresh Store"}
+        storeLat={settings?.shop_lat ?? null}
+        storeLng={settings?.shop_lng ?? null}
+      />
     </AdminShell>
   );
 }

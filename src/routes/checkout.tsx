@@ -12,6 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/lib/cart";
 import { inr } from "@/lib/format";
 import { AddressBook } from "@/components/AddressBook";
+import { MapPinPickerModal } from "@/components/MapPinPickerModal";
+import { calculateDistanceKm, getGoogleMapsDirUrl } from "@/lib/maps";
 import { settingsQuery, productsQuery } from "@/lib/queries";
 import { deliveryWindowsQuery, windowText } from "@/lib/delivery";
 import { isPaymentsConfigured } from "@/lib/stripe";
@@ -69,6 +71,9 @@ function Checkout() {
   }, [user]);
 
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
+  const [customerLat, setCustomerLat] = useState<number | null>(null);
+  const [customerLng, setCustomerLng] = useState<number | null>(null);
+  const [pinPickerOpen, setPinPickerOpen] = useState(false);
   const [fetchingLocation, setFetchingLocation] = useState(false);
   
   const [fulfillment, setFulfillment] = useState<"delivery" | "pickup">("delivery");
@@ -192,8 +197,10 @@ function Checkout() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
+        setCustomerLat(latitude);
+        setCustomerLng(longitude);
         if (settings?.shop_lat && settings?.shop_lng) {
-          const d = getDistance(settings.shop_lat, settings.shop_lng, latitude, longitude);
+          const d = calculateDistanceKm(settings.shop_lat, settings.shop_lng, latitude, longitude);
           setDistanceKm(d);
         }
         try {
@@ -256,6 +263,8 @@ function Checkout() {
         customer_name: cleanName,
         customer_phone: cleanPhone,
         customer_address: fulfillment === "delivery" ? address : null,
+        location_lat: fulfillment === "delivery" ? customerLat : null,
+        location_lng: fulfillment === "delivery" ? customerLng : null,
         items: items as unknown as never,
         subtotal,
         delivery_fee: deliveryFee,
@@ -325,6 +334,7 @@ function Checkout() {
 
   if (orderSuccess) {
     const waNumber = (settings?.support_phone || settings?.whatsapp_number || "919843061919").replace(/\D/g, "");
+    const mapsLink = getGoogleMapsDirUrl(customerLat, customerLng, address);
     const waText = encodeURIComponent(
       `*Fish N Fresh — New Order Placed*\n\n` +
       `Order: #${orderSuccess.order_number}\n` +
@@ -332,6 +342,7 @@ function Checkout() {
       `Total: ${inr(orderSuccess.total)}\n` +
       `Payment: ${payment.toUpperCase()}${upiUtr ? ` (UTR: ${upiUtr})` : ""}\n` +
       `Fulfillment: ${fulfillment === "delivery" ? `Delivery to: ${address}` : "Self Pickup"}\n` +
+      (fulfillment === "delivery" && mapsLink ? `📍 Navigation: ${mapsLink}\n` : "") +
       (slot ? `Slot: ${slot}\n` : "") +
       `\nPlease confirm and pack my fresh seafood order!`
     );
@@ -510,23 +521,51 @@ function Checkout() {
               <Label htmlFor="address" className="font-semibold text-xs sm:text-sm">
                 Delivery Address & Pincode *
               </Label>
-              {distanceKm && (
-                <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                  📍 {distanceKm.toFixed(1)} km from store
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {customerLat && customerLng && (
+                  <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    📍 Pinned
+                  </span>
+                )}
+                {distanceKm && (
+                  <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                    📍 {distanceKm.toFixed(1)} km from store
+                  </span>
+                )}
+              </div>
             </div>
 
             <AddressBook 
               selectedAddress={address} 
               onSelect={(addr, lat, lng) => {
                 setAddress(addr);
+                setCustomerLat(lat ?? null);
+                setCustomerLng(lng ?? null);
                 if (settings?.shop_lat && settings?.shop_lng && lat && lng) {
-                  const d = getDistance(settings.shop_lat, settings.shop_lng, lat, lng);
+                  const d = calculateDistanceKm(settings.shop_lat, settings.shop_lng, lat, lng);
                   setDistanceKm(d);
                 }
               }} 
             />
+
+            <div className="flex items-center justify-between gap-2 pt-0.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setPinPickerOpen(true)}
+                className="rounded-xl text-xs font-bold gap-1.5 h-8 border-primary/40 text-primary hover:bg-primary/10 bg-primary/5 shadow-2xs"
+              >
+                <MapPin className="size-3.5 text-primary" />
+                <span>{customerLat && customerLng ? "Adjust Doorstep Pin on Map" : "📍 Move Pin on Map"}</span>
+              </Button>
+
+              {customerLat && customerLng && (
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  {customerLat.toFixed(4)}, {customerLng.toFixed(4)}
+                </span>
+              )}
+            </div>
 
             <Textarea
               id="address"
@@ -778,6 +817,30 @@ function Checkout() {
                 ? `Place Pre-Order · ${inr(total)}`
                 : `Place order · ${inr(total)}`}
       </Button>
+
+      {/* Interactive Map Pin Picker Modal */}
+      <MapPinPickerModal
+        open={pinPickerOpen}
+        onOpenChange={setPinPickerOpen}
+        initialLat={customerLat}
+        initialLng={customerLng}
+        initialAddress={address}
+        title="Pin Your Delivery Doorstep"
+        onConfirm={(geocoded) => {
+          setAddress(geocoded.address);
+          setCustomerLat(geocoded.lat);
+          setCustomerLng(geocoded.lng);
+          if (settings?.shop_lat && settings?.shop_lng) {
+            const d = calculateDistanceKm(
+              settings.shop_lat,
+              settings.shop_lng,
+              geocoded.lat,
+              geocoded.lng
+            );
+            setDistanceKm(d);
+          }
+        }}
+      />
     </AppShell>
   );
 }

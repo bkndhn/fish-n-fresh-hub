@@ -18,9 +18,13 @@ import {
   CheckCircle2,
   PackageCheck,
   Clock,
+  Compass,
+  Route as RouteIcon,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery, ORDER_STATUSES, type OrderRow } from "@/lib/admin";
+import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
+import { getGoogleMapsDirUrl } from "@/lib/maps";
 import { settingsQuery } from "@/lib/queries";
 import { formatINR, formatIST } from "@/lib/format";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
@@ -73,6 +77,7 @@ function OrdersAdmin() {
   const [dateFilter, setDateFilter] = useState<"today" | "yesterday" | "this_week" | "this_month" | "all" | "custom">("today");
   const [customDate, setCustomDate] = useState<string>(todayStr);
   const [printOrder, setPrintOrder] = useState<OrderRow | null>(null);
+  const [routeModalOrder, setRouteModalOrder] = useState<OrderRow | null>(null);
 
   // Bulk Actions State
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -468,20 +473,34 @@ function OrdersAdmin() {
                   <span className="capitalize text-muted-foreground text-xs font-medium">{o.fulfillment_type}</span>
                 </div>
 
-                {/* Address with Google Maps link */}
+                {/* Address with Google Maps turn-by-turn link & View Route */}
                 {o.customer_address && (
-                  <div className="rounded-xl bg-muted/40 p-2 text-xs flex items-start justify-between gap-2 border border-border/50">
-                    <p className="text-foreground line-clamp-2">
+                  <div className="rounded-xl bg-muted/40 p-2 text-xs flex flex-wrap items-center justify-between gap-2 border border-border/50">
+                    <p className="text-foreground line-clamp-2 min-w-0 flex-1">
                       <span className="font-bold">📍 Address:</span> {o.customer_address}
+                      {o.location_lat && o.location_lng && (
+                        <span className="ml-1.5 inline-flex items-center gap-1 text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded-md border border-emerald-500/20">
+                          ✓ Exact Pin
+                        </span>
+                      )}
                     </p>
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.customer_address)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="shrink-0 inline-flex items-center gap-0.5 text-primary text-[11px] font-bold hover:underline"
-                    >
-                      Maps <ExternalLink className="size-3" />
-                    </a>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setRouteModalOrder(o)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-primary/10 text-primary px-2 py-0.5 text-[11px] font-bold hover:bg-primary/20 transition"
+                      >
+                        <RouteIcon className="size-3" /> Route
+                      </button>
+                      <a
+                        href={getGoogleMapsDirUrl(o.location_lat, o.location_lng, o.customer_address, settings?.shop_lat, settings?.shop_lng)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-lg bg-blue-600 text-white px-2 py-0.5 text-[11px] font-bold hover:bg-blue-700 transition shadow-2xs"
+                      >
+                        <Compass className="size-3" /> Nav
+                      </a>
+                    </div>
                   </div>
                 )}
 
@@ -730,6 +749,24 @@ function OrdersAdmin() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delivery Route & Turn-by-Turn Navigation Modal */}
+      {routeModalOrder && (
+        <DeliveryRouteModal
+          open={!!routeModalOrder}
+          onOpenChange={(open) => !open && setRouteModalOrder(null)}
+          orderNumber={routeModalOrder.order_number ?? routeModalOrder.id.slice(0, 8)}
+          customerName={routeModalOrder.customer_name}
+          customerPhone={routeModalOrder.customer_phone}
+          customerAddress={routeModalOrder.customer_address}
+          destLat={routeModalOrder.location_lat}
+          destLng={routeModalOrder.location_lng}
+          storeLat={settings?.shop_lat}
+          storeLng={settings?.shop_lng}
+          storeAddress={settings?.store_address || "Fish N Fresh Seafood Hub"}
+          driverName={routeModalOrder.driver_name}
+        />
+      )}
     </AdminShell>
   );
 }
