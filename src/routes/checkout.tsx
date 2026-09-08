@@ -18,6 +18,7 @@ import { isPaymentsConfigured } from "@/lib/stripe";
 import { StripeOrderCheckout } from "@/components/StripeOrderCheckout";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { useSessionUser } from "@/lib/session";
+import { checkSuspension } from "@/lib/suspensions.functions";
 
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371; // Radius of the earth in km
