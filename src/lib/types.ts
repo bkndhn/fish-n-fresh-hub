@@ -26,6 +26,7 @@ export type Product = {
   recipe_steps: string | null;
   gst_percent: number;
   gst_included: boolean;
+  allow_custom_qty: boolean;
 };
 
 export type Category = {

@@ -30,7 +30,7 @@ function ProductsAdmin() {
   const products = useQuery(adminProductsQuery);
 
   const update = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: { price?: number; stock?: number; is_available?: boolean; gst_percent?: number; gst_included?: boolean; image_url?: string | null } }) => {
+    mutationFn: async ({ id, patch }: { id: string; patch: { price?: number; stock?: number; is_available?: boolean; gst_percent?: number; gst_included?: boolean; image_url?: string | null; allow_custom_qty?: boolean } }) => {
       const { error } = await supabase.from("products").update(patch).eq("id", id);
       if (error) throw error;
     },
@@ -106,6 +106,13 @@ function ProductsAdmin() {
                   <Switch
                     checked={p.is_available}
                     onCheckedChange={(is_available) => update.mutate({ id: p.id, patch: { is_available } })}
+                  />
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <Label className="text-[10px] text-muted-foreground text-center">Custom<br/>Qty</Label>
+                  <Switch
+                    checked={p.allow_custom_qty ?? true}
+                    onCheckedChange={(allow_custom_qty) => update.mutate({ id: p.id, patch: { allow_custom_qty } })}
                   />
                 </div>
               </div>

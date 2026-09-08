@@ -64,7 +64,23 @@ function ProductPage() {
               <button onClick={() => setQty((v) => Math.max(1, v - 1))} aria-label="Decrease">
                 <Minus className="size-4" />
               </button>
-              <span className="w-6 text-center font-semibold">{qty}</span>
+              {product.allow_custom_qty ? (
+                <input
+                  type="number"
+                  value={qty}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    if (!isNaN(val) && val >= 1) {
+                      setQty(val);
+                    }
+                  }}
+                  className="w-12 bg-transparent text-center font-semibold outline-none tabular-nums"
+                  min="1"
+                  step="0.5"
+                />
+              ) : (
+                <span className="w-6 text-center font-semibold">{qty}</span>
+              )}
               <button onClick={() => setQty((v) => v + 1)} aria-label="Increase">
                 <Plus className="size-4" />
               </button>

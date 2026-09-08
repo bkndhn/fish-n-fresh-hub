@@ -58,18 +58,34 @@ export function ProductCard({ product }: { product: Product }) {
                   size="icon"
                   variant="ghost"
                   className="size-6 rounded-lg hover:bg-primary hover:text-primary-foreground"
-                  onClick={() => setQty(product.id, cartItem.qty - 0.5)}
+                  onClick={() => setQty(product.id, Math.max(0, cartItem.qty - 1))}
                 >
                   <Minus className="size-3" />
                 </Button>
-                <span className="w-6 text-center text-xs font-medium tabular-nums">
-                  {cartItem.qty}
-                </span>
+                {product.allow_custom_qty ? (
+                  <input
+                    type="number"
+                    value={cartItem.qty}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      if (!isNaN(val) && val >= 0) {
+                        setQty(product.id, val);
+                      }
+                    }}
+                    className="w-8 bg-transparent text-center text-xs font-medium tabular-nums outline-none"
+                    min="1"
+                    step="0.5"
+                  />
+                ) : (
+                  <span className="w-6 text-center text-xs font-medium tabular-nums">
+                    {cartItem.qty}
+                  </span>
+                )}
                 <Button
                   size="icon"
                   variant="ghost"
                   className="size-6 rounded-lg hover:bg-primary hover:text-primary-foreground"
-                  onClick={() => setQty(product.id, cartItem.qty + 0.5)}
+                  onClick={() => setQty(product.id, cartItem.qty + 1)}
                 >
                   <Plus className="size-3" />
                 </Button>
@@ -79,7 +95,7 @@ export function ProductCard({ product }: { product: Product }) {
                 size="sm"
                 className="h-8 rounded-xl px-3 text-xs"
                 onClick={() => {
-                  add(product, 0.5);
+                  add(product, 1);
                   toast.success(`${product.name} added to cart`);
                 }}
               >

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -25,6 +25,12 @@ export const Route = createFileRoute("/orders")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
+  beforeLoad: async () => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) {
+      throw redirect({ to: "/auth" });
+    }
+  },
   component: OrdersPage,
 });
 
@@ -38,9 +44,7 @@ function OrdersPage() {
         <p className="mt-6 text-sm text-muted-foreground">Loading…</p>
       ) : user ? (
         <MyOrders />
-      ) : (
-        <GuestLookup />
-      )}
+      ) : null}
     </AppShell>
   );
 }

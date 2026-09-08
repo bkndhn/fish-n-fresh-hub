@@ -1,6 +1,6 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
@@ -16,6 +16,7 @@ import { deliveryWindowsQuery, windowText } from "@/lib/delivery";
 import { isPaymentsConfigured } from "@/lib/stripe";
 import { StripeOrderCheckout } from "@/components/StripeOrderCheckout";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
+import { useSessionUser } from "@/lib/session";
 
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371; // Radius of the earth in km
@@ -37,6 +38,12 @@ export const Route = createFileRoute("/checkout")({
       { property: "og:description", content: "Delivery or pickup, COD or UPI — checkout in seconds." },
     ],
   }),
+  beforeLoad: async () => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) {
+      throw redirect({ to: "/auth" });
+    }
+  },
   component: Checkout,
 });
 
@@ -45,9 +52,18 @@ function Checkout() {
   const { data: settings } = useQuery(settingsQuery);
   const { data: products } = useQuery(productsQuery);
   const navigate = useNavigate();
+  const { user } = useSessionUser();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  
+  useEffect(() => {
+    if (user) {
+      if (!name) setName(user.user_metadata?.full_name || "");
+      if (!phone) setPhone(user.user_metadata?.phone || "");
+    }
+  }, [user]);
+
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [fetchingLocation, setFetchingLocation] = useState(false);
   
