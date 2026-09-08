@@ -418,8 +418,8 @@ function AdminSettings() {
               <Label>Payment Gateway Provider</Label>
               <select
                 className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-                value={form.payment_gateway ?? "none"}
-                onChange={(e) => setForm({ ...form, payment_gateway: e.target.value })}
+                value={gatewayForm.provider ?? "none"}
+                onChange={(e) => setGatewayForm({ ...gatewayForm, provider: e.target.value })}
               >
                 <option value="none">Manual UPI Only</option>
                 <option value="razorpay">Razorpay</option>
@@ -427,14 +427,14 @@ function AdminSettings() {
                 <option value="cashfree">Cashfree</option>
               </select>
             </div>
-            {form.payment_gateway !== "none" && (
+            {gatewayForm.provider !== "none" && (
               <>
                 <div>
                   <Label>API Key</Label>
                   <Input
                     type="password"
-                    value={form.gateway_api_key ?? ""}
-                    onChange={(e) => setForm({ ...form, gateway_api_key: e.target.value })}
+                    value={gatewayForm.api_key ?? ""}
+                    onChange={(e) => setGatewayForm({ ...gatewayForm, api_key: e.target.value })}
                     placeholder="rzp_live_..."
                   />
                 </div>
@@ -442,13 +442,17 @@ function AdminSettings() {
                   <Label>Secret Key</Label>
                   <Input
                     type="password"
-                    value={form.gateway_secret_key ?? ""}
-                    onChange={(e) => setForm({ ...form, gateway_secret_key: e.target.value })}
+                    value={gatewayForm.secret_key ?? ""}
+                    onChange={(e) => setGatewayForm({ ...gatewayForm, secret_key: e.target.value })}
                   />
                 </div>
               </>
             )}
+            <p className="col-span-2 text-[10px] text-muted-foreground">
+              Gateway keys are stored separately and can only be read by admins.
+            </p>
           </div>
+
         </CardContent>
       </Card>
       
