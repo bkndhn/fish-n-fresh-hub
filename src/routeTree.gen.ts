@@ -24,6 +24,7 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } fr
 import { Route as AuthenticatedCrewRouteImport } from './routes/_authenticated/crew'
 import { Route as ProductIdRouteImport } from './routes/product.$id'
 import { Route as TrackIdRouteImport } from './routes/track.$id'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedAdminBadgesRouteImport } from './routes/_authenticated/admin/badges'
 import { Route as AuthenticatedAdminBannersRouteImport } from './routes/_authenticated/admin/banners'
@@ -113,6 +114,11 @@ const ProductIdRoute = ProductIdRouteImport.update({
 const TrackIdRoute = TrackIdRouteImport.update({
   id: '/track/$id',
   path: '/track/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
@@ -219,6 +225,7 @@ export interface FileRoutesByFullPath {
   '/crew': typeof AuthenticatedCrewRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/admin/badges': typeof AuthenticatedAdminBadgesRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
@@ -250,6 +257,7 @@ export interface FileRoutesByTo {
   '/crew': typeof AuthenticatedCrewRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/admin/badges': typeof AuthenticatedAdminBadgesRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
@@ -283,6 +291,7 @@ export interface FileRoutesById {
   '/_authenticated/crew': typeof AuthenticatedCrewRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/_authenticated/admin/badges': typeof AuthenticatedAdminBadgesRoute
   '/_authenticated/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/_authenticated/admin/customers': typeof AuthenticatedAdminCustomersRoute
@@ -316,6 +325,7 @@ export interface FileRouteTypes {
     | '/crew'
     | '/product/$id'
     | '/track/$id'
+    | '/.lovable/oauth/consent'
     | '/admin/badges'
     | '/admin/banners'
     | '/admin/customers'
@@ -347,6 +357,7 @@ export interface FileRouteTypes {
     | '/crew'
     | '/product/$id'
     | '/track/$id'
+    | '/.lovable/oauth/consent'
     | '/admin/badges'
     | '/admin/banners'
     | '/admin/customers'
@@ -379,6 +390,7 @@ export interface FileRouteTypes {
     | '/_authenticated/crew'
     | '/product/$id'
     | '/track/$id'
+    | '/.lovable/oauth/consent'
     | '/_authenticated/admin/badges'
     | '/_authenticated/admin/banners'
     | '/_authenticated/admin/customers'
@@ -411,6 +423,7 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ProductIdRoute: typeof ProductIdRoute
   TrackIdRoute: typeof TrackIdRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
@@ -519,6 +532,13 @@ declare module '@tanstack/react-router' {
       path: '/track/$id'
       fullPath: '/track/$id'
       preLoaderRoute: typeof TrackIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/': {
@@ -684,6 +704,7 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ProductIdRoute: ProductIdRoute,
   TrackIdRoute: TrackIdRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport
