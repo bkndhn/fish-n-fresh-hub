@@ -140,6 +140,39 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_addresses: {
+        Row: {
+          address: string
+          created_at: string
+          id: string
+          is_default: boolean
+          label: string
+          lat: number | null
+          lng: number | null
+          user_id: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          label?: string
+          lat?: number | null
+          lng?: number | null
+          user_id: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          label?: string
+          lat?: number | null
+          lng?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       customer_suspensions: {
         Row: {
           phone: string
@@ -505,6 +538,7 @@ export type Database = {
       }
       products: {
         Row: {
+          allow_custom_qty: boolean
           benefits: string[] | null
           best_for: string | null
           branch_id: string | null
@@ -538,6 +572,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allow_custom_qty?: boolean
           benefits?: string[] | null
           best_for?: string | null
           branch_id?: string | null
@@ -571,6 +606,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allow_custom_qty?: boolean
           benefits?: string[] | null
           best_for?: string | null
           branch_id?: string | null
@@ -777,6 +813,9 @@ export type Database = {
           footer_about: string | null
           free_delivery_over: number
           fssai_number: string | null
+          gateway_api_key: string | null
+          gateway_secret_key: string | null
+          google_review_link: string | null
           gst_enabled: boolean
           gst_percent: number
           gstin: string | null
@@ -800,11 +839,13 @@ export type Database = {
           min_order_value: number
           online_enabled: boolean
           open_time: string | null
+          payment_gateway: string | null
           per_km_charge: number
           pickup_enabled: boolean
           primary_color: string
           privacy_content: string | null
           refund_content: string | null
+          require_online_payment: boolean | null
           serviceable_pincodes: string[]
           shop_lat: number | null
           shop_lng: number | null
@@ -816,6 +857,7 @@ export type Database = {
           store_address: string | null
           store_lat: number | null
           store_lng: number | null
+          store_map_link: string | null
           store_name: string
           support_email: string | null
           support_phone: string | null
@@ -853,6 +895,9 @@ export type Database = {
           footer_about?: string | null
           free_delivery_over?: number
           fssai_number?: string | null
+          gateway_api_key?: string | null
+          gateway_secret_key?: string | null
+          google_review_link?: string | null
           gst_enabled?: boolean
           gst_percent?: number
           gstin?: string | null
@@ -876,11 +921,13 @@ export type Database = {
           min_order_value?: number
           online_enabled?: boolean
           open_time?: string | null
+          payment_gateway?: string | null
           per_km_charge?: number
           pickup_enabled?: boolean
           primary_color?: string
           privacy_content?: string | null
           refund_content?: string | null
+          require_online_payment?: boolean | null
           serviceable_pincodes?: string[]
           shop_lat?: number | null
           shop_lng?: number | null
@@ -892,6 +939,7 @@ export type Database = {
           store_address?: string | null
           store_lat?: number | null
           store_lng?: number | null
+          store_map_link?: string | null
           store_name?: string
           support_email?: string | null
           support_phone?: string | null
@@ -929,6 +977,9 @@ export type Database = {
           footer_about?: string | null
           free_delivery_over?: number
           fssai_number?: string | null
+          gateway_api_key?: string | null
+          gateway_secret_key?: string | null
+          google_review_link?: string | null
           gst_enabled?: boolean
           gst_percent?: number
           gstin?: string | null
@@ -952,11 +1003,13 @@ export type Database = {
           min_order_value?: number
           online_enabled?: boolean
           open_time?: string | null
+          payment_gateway?: string | null
           per_km_charge?: number
           pickup_enabled?: boolean
           primary_color?: string
           privacy_content?: string | null
           refund_content?: string | null
+          require_online_payment?: boolean | null
           serviceable_pincodes?: string[]
           shop_lat?: number | null
           shop_lng?: number | null
@@ -968,6 +1021,7 @@ export type Database = {
           store_address?: string | null
           store_lat?: number | null
           store_lng?: number | null
+          store_map_link?: string | null
           store_name?: string
           support_email?: string | null
           support_phone?: string | null

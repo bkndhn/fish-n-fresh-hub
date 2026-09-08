@@ -9,7 +9,16 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+function safeNext(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  return value.startsWith("/") && !value.startsWith("//") ? value : undefined;
+}
+
 export const Route = createFileRoute("/auth")({
+  validateSearch: (s: Record<string, unknown>): { next?: string } => {
+    const next = safeNext(s['next']);
+    return next ? { next } : {};
+  },
   head: () => ({
     meta: [
       { title: "Sign In | Fish N Fresh" },
@@ -31,6 +40,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const { next } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -39,6 +49,10 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
 
   async function routeAfterLogin() {
+    if (next) {
+      window.location.href = next;
+      return;
+    }
     const { data } = await supabase.rpc("is_staff");
     navigate({ to: data ? "/admin" : "/orders" });
   }
@@ -74,7 +88,7 @@ function AuthPage() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/orders`,
+        emailRedirectTo: `${window.location.origin}${next ?? "/orders"}`,
         data: { full_name: fullName, phone },
       },
     });

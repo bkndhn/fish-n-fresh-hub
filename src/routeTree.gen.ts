@@ -15,13 +15,16 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CartRouteImport } from './routes/cart'
 import { Route as CatalogRouteImport } from './routes/catalog'
 import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as PaymentStatusRouteImport } from './routes/payment-status'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedCrewRouteImport } from './routes/_authenticated/crew'
 import { Route as ProductIdRouteImport } from './routes/product.$id'
 import { Route as TrackIdRouteImport } from './routes/track.$id'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedAdminBadgesRouteImport } from './routes/_authenticated/admin/badges'
 import { Route as AuthenticatedAdminBannersRouteImport } from './routes/_authenticated/admin/banners'
@@ -67,6 +70,11 @@ const CheckoutRoute = CheckoutRouteImport.update({
   path: '/checkout',
   getParentRoute: () => rootRouteImport,
 } as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrdersRoute = OrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
@@ -87,6 +95,12 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedCrewRoute = AuthenticatedCrewRouteImport.update({
   id: '/crew',
   path: '/crew',
@@ -100,6 +114,11 @@ const ProductIdRoute = ProductIdRouteImport.update({
 const TrackIdRoute = TrackIdRouteImport.update({
   id: '/track/$id',
   path: '/track/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
@@ -197,13 +216,16 @@ export interface FileRoutesByFullPath {
   '/cart': typeof CartRoute
   '/catalog': typeof CatalogRoute
   '/checkout': typeof CheckoutRoute
+  '/mcp': typeof McpRoute
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/crew': typeof AuthenticatedCrewRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/admin/badges': typeof AuthenticatedAdminBadgesRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
@@ -226,13 +248,16 @@ export interface FileRoutesByTo {
   '/cart': typeof CartRoute
   '/catalog': typeof CatalogRoute
   '/checkout': typeof CheckoutRoute
+  '/mcp': typeof McpRoute
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/crew': typeof AuthenticatedCrewRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/admin/badges': typeof AuthenticatedAdminBadgesRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
@@ -257,13 +282,16 @@ export interface FileRoutesById {
   '/cart': typeof CartRoute
   '/catalog': typeof CatalogRoute
   '/checkout': typeof CheckoutRoute
+  '/mcp': typeof McpRoute
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/crew': typeof AuthenticatedCrewRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/_authenticated/admin/badges': typeof AuthenticatedAdminBadgesRoute
   '/_authenticated/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/_authenticated/admin/customers': typeof AuthenticatedAdminCustomersRoute
@@ -288,13 +316,16 @@ export interface FileRouteTypes {
     | '/cart'
     | '/catalog'
     | '/checkout'
+    | '/mcp'
     | '/orders'
     | '/payment-status'
     | '/settings'
     | '/terms'
+    | '/.well-known/oauth-protected-resource'
     | '/crew'
     | '/product/$id'
     | '/track/$id'
+    | '/.lovable/oauth/consent'
     | '/admin/badges'
     | '/admin/banners'
     | '/admin/customers'
@@ -317,13 +348,16 @@ export interface FileRouteTypes {
     | '/cart'
     | '/catalog'
     | '/checkout'
+    | '/mcp'
     | '/orders'
     | '/payment-status'
     | '/settings'
     | '/terms'
+    | '/.well-known/oauth-protected-resource'
     | '/crew'
     | '/product/$id'
     | '/track/$id'
+    | '/.lovable/oauth/consent'
     | '/admin/badges'
     | '/admin/banners'
     | '/admin/customers'
@@ -347,13 +381,16 @@ export interface FileRouteTypes {
     | '/cart'
     | '/catalog'
     | '/checkout'
+    | '/mcp'
     | '/orders'
     | '/payment-status'
     | '/settings'
     | '/terms'
+    | '/.well-known/oauth-protected-resource'
     | '/_authenticated/crew'
     | '/product/$id'
     | '/track/$id'
+    | '/.lovable/oauth/consent'
     | '/_authenticated/admin/badges'
     | '/_authenticated/admin/banners'
     | '/_authenticated/admin/customers'
@@ -378,12 +415,15 @@ export interface RootRouteChildren {
   CartRoute: typeof CartRoute
   CatalogRoute: typeof CatalogRoute
   CheckoutRoute: typeof CheckoutRoute
+  McpRoute: typeof McpRoute
   OrdersRoute: typeof OrdersRoute
   PaymentStatusRoute: typeof PaymentStatusRoute
   SettingsRoute: typeof SettingsRoute
   TermsRoute: typeof TermsRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ProductIdRoute: typeof ProductIdRoute
   TrackIdRoute: typeof TrackIdRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
@@ -431,6 +471,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/orders': {
       id: '/orders'
       path: '/orders'
@@ -459,6 +506,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/crew': {
       id: '/_authenticated/crew'
       path: '/crew'
@@ -478,6 +532,13 @@ declare module '@tanstack/react-router' {
       path: '/track/$id'
       fullPath: '/track/$id'
       preLoaderRoute: typeof TrackIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/': {
@@ -634,12 +695,16 @@ const rootRouteChildren: RootRouteChildren = {
   CartRoute: CartRoute,
   CatalogRoute: CatalogRoute,
   CheckoutRoute: CheckoutRoute,
+  McpRoute: McpRoute,
   OrdersRoute: OrdersRoute,
   PaymentStatusRoute: PaymentStatusRoute,
   SettingsRoute: SettingsRoute,
   TermsRoute: TermsRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ProductIdRoute: ProductIdRoute,
   TrackIdRoute: TrackIdRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport

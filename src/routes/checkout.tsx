@@ -59,8 +59,8 @@ function Checkout() {
   
   useEffect(() => {
     if (user) {
-      if (!name) setName(user.user_metadata?.full_name || "");
-      if (!phone) setPhone(user.user_metadata?.phone || "");
+      if (!name) setName((user.user_metadata?.['full_name'] as string) || "");
+      if (!phone) setPhone((user.user_metadata?.['phone'] as string) || "");
     }
   }, [user]);
 
@@ -327,7 +327,7 @@ function Checkout() {
             variant={payment === "cod" ? "default" : "outline"}
             className="flex-1 rounded-xl"
             onClick={() => setPayment("cod")}
-            disabled={settings?.require_online_payment}
+            disabled={settings?.require_online_payment ?? false}
           >
             Cash on delivery {settings?.require_online_payment && "(Disabled)"}
           </Button>
