@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "sdk_version": "2.0.3",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://avajyfqrmoputglbrmhm.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "fish-n-fresh",
+      "version": "0.1.0",
+      "title": "Fish N Fresh"
+    },
+    "tools": [
+      {
+        "name": "list_products",
+        "title": "List seafood products",
+        "description": "List seafood products in the Fish N Fresh catalogue, optionally filtered by search text or category.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "search": {
+              "description": "Text to match against the product name.",
+              "type": "string"
+            },
+            "category": {
+              "description": "Category name to filter by.",
+              "type": "string"
+            },
+            "only_available": {
+              "description": "Only return products currently in stock.",
+              "type": "boolean"
+            },
+            "limit": {
+              "description": "Maximum number of products to return (default 20).",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_my_orders",
+        "title": "List my orders",
+        "description": "List the signed-in customer's Fish N Fresh orders, most recent first.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "status": {
+              "description": "Filter by order status, e.g. pending, out_for_delivery, delivered.",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Maximum number of orders to return (default 10).",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_order_status",
+        "title": "Get order status",
+        "description": "Get the delivery status, timeline and payment details of one of the signed-in customer's orders by order number.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "order_number": {
+              "type": "string",
+              "description": "The order number shown on the order, e.g. FNF-1042."
+            }
+          },
+          "required": [
+            "order_number"
+          ]
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
