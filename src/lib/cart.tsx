@@ -7,8 +7,9 @@ type CartContextValue = {
   items: CartItem[];
   subtotal: number;
   count: number;
-  add: (product: Product, qty?: number) => void;
+  add: (product: Product, qty?: number, cut_preference?: string) => void;
   setQty: (productId: string, qty: number) => void;
+  setCutPreference: (productId: string, cut_preference: string) => void;
   remove: (productId: string) => void;
   clear: () => void;
 };
@@ -35,7 +36,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [items]);
 
-  const add = useCallback((product: Product, qty = 1) => {
+  const add = useCallback((product: Product, qty = 1, cut_preference?: string) => {
     setItems((prev) => {
       const existing = prev.find((i) => i.product_id === product.id);
       if (existing) {
@@ -50,6 +51,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           unit: product.unit,
           image_url: product.image_url,
           qty,
+          cut_preference: cut_preference || "Curry Cut",
         },
       ];
     });
@@ -63,6 +65,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  const setCutPreference = useCallback((productId: string, cut_preference: string) => {
+    setItems((prev) =>
+      prev.map((i) => (i.product_id === productId ? { ...i, cut_preference } : i)),
+    );
+  }, []);
+
   const remove = useCallback((productId: string) => {
     setItems((prev) => prev.filter((i) => i.product_id !== productId));
   }, []);
@@ -72,8 +80,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const value = useMemo<CartContextValue>(() => {
     const subtotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
     const count = items.reduce((sum, i) => sum + i.qty, 0);
-    return { items, subtotal, count, add, setQty, remove, clear };
-  }, [items, add, setQty, remove, clear]);
+    return { items, subtotal, count, add, setQty, setCutPreference, remove, clear };
+  }, [items, add, setQty, setCutPreference, remove, clear]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
@@ -84,6 +92,7 @@ const FALLBACK: CartContextValue = {
   count: 0,
   add: () => {},
   setQty: () => {},
+  setCutPreference: () => {},
   remove: () => {},
   clear: () => {},
 };

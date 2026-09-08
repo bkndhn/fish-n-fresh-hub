@@ -41,6 +41,27 @@ function AdminSettings() {
 
   return (
     <AdminShell title="Store Settings" allow={["admin"]}>
+      <div className="mb-6 flex items-center justify-between rounded-2xl border p-4 bg-card">
+        <div>
+          <h3 className="font-semibold text-base">Store Status</h3>
+          <p className="text-xs text-muted-foreground">
+            {form.is_open ?? true ? "Store is currently OPEN and accepting orders." : "Store is CLOSED. Customers will see pre-order notification."}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-semibold ${form.is_open ?? true ? "text-green-600" : "text-destructive"}`}>
+            {form.is_open ?? true ? "OPEN" : "CLOSED"}
+          </span>
+          <input
+            type="checkbox"
+            id="store_is_open"
+            checked={form.is_open ?? true}
+            onChange={(e) => setForm({ ...form, is_open: e.target.checked })}
+            className="h-5 w-5 cursor-pointer"
+          />
+        </div>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -273,6 +294,35 @@ function AdminSettings() {
             <Label htmlFor="require_online" className="cursor-pointer">
               Require Online Payment (Disable Cash on Delivery)
             </Label>
+          </div>
+
+          <div className="rounded-xl border p-4 bg-muted/40 space-y-3">
+            <h4 className="font-semibold text-sm">Direct UPI & QR Code Settings (Zero Gateway Fees)</h4>
+            <p className="text-xs text-muted-foreground">
+              Payments go directly to your bank account via UPI with 0% commission. Customers can scan a QR code or tap to pay using GPay, PhonePe, or Paytm.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="upi_id">Store UPI ID (VPA) *</Label>
+                <Input
+                  id="upi_id"
+                  value={form.upi_id ?? ""}
+                  onChange={(e) => setForm({ ...form, upi_id: e.target.value })}
+                  placeholder="e.g. 9843061919@upi or store@okhdfcbank"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="upi_name">UPI Business Display Name *</Label>
+                <Input
+                  id="upi_name"
+                  value={form.upi_name ?? ""}
+                  onChange={(e) => setForm({ ...form, upi_name: e.target.value })}
+                  placeholder="e.g. Fish N Fresh Hub"
+                  className="mt-1"
+                />
+              </div>
+            </div>
           </div>
           
           <div className="grid grid-cols-2 gap-4">

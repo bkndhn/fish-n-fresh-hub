@@ -1,13 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Minus, Plus, ShieldCheck, Star } from "lucide-react";
+import { Minus, Plus, ShieldCheck, Star, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/lib/cart";
-import { inr } from "@/lib/format";
+import { inr, formatIST } from "@/lib/format";
 import { productQuery, productsQuery } from "@/lib/queries";
 import { ProductCard } from "@/components/ProductCard";
 
@@ -114,6 +125,9 @@ function ProductPage() {
         </section>
       )}
 
+      {/* Customer Reviews Section */}
+      <ProductReviewsSection productId={product.id} productName={product.name} />
+
       {related.length > 0 && (
         <section className="mt-8">
           <h2 className="mb-3 text-lg font-bold">You may also like</h2>
@@ -125,6 +139,185 @@ function ProductPage() {
         </section>
       )}
     </AppShell>
+  );
+}
+
+function ProductReviewsSection({ productId, productName }: { productId: string; productName: string }) {
+  const qc = useQueryClient();
+  const [openReview, setOpenReview] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [comment, setComment] = useState("");
+
+  const { data: reviews = [] } = useQuery({
+    queryKey: ["product-reviews", productId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("reviews")
+        .select("*")
+        .eq("product_id", productId)
+        .eq("active", true)
+        .order("created_at", { ascending: false });
+      if (error) return [];
+      return data ?? [];
+    },
+  });
+
+  const submitReview = useMutation({
+    mutationFn: async () => {
+      if (!name.trim()) throw new Error("Please enter your name");
+      if (!comment.trim()) throw new Error("Please enter a short review");
+
+      const { error } = await supabase.from("reviews").insert({
+        product_id: productId,
+        product_name: productName,
+        rating,
+        customer_name: name.trim(),
+        customer_phone: phone.replace(/\D/g, "") || null,
+        comment: comment.trim(),
+        active: true,
+        verified: true,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Review submitted! Thank you for your feedback.");
+      setOpenReview(false);
+      setComment("");
+      qc.invalidateQueries({ queryKey: ["product-reviews", productId] });
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to submit review"),
+  });
+
+  const avgRating = reviews.length > 0
+    ? (reviews.reduce((acc, r) => acc + Number(r.rating), 0) / reviews.length).toFixed(1)
+    : null;
+
+  return (
+    <section className="mt-8 rounded-2xl border border-border bg-card p-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3">
+        <div>
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            Customer Reviews {avgRating && <span className="text-sm font-normal text-muted-foreground">({avgRating} ★ / {reviews.length} reviews)</span>}
+          </h2>
+          <p className="text-xs text-muted-foreground">Real feedback from verified seafood lovers.</p>
+        </div>
+
+        <Dialog open={openReview} onOpenChange={setOpenReview}>
+          <DialogTrigger asChild>
+            <Button size="sm" variant="outline" className="rounded-xl shrink-0">
+              <MessageSquare className="mr-1.5 size-3.5" /> Rate & Review
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="rounded-2xl sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Write a Review for {productName}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 pt-2">
+              <div className="space-y-1">
+                <Label>Your Rating</Label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setRating(s)}
+                      className="p-1 text-accent hover:scale-110 transition-transform"
+                    >
+                      <Star
+                        className={`size-6 ${
+                          s <= rating ? "fill-accent text-accent" : "text-muted-foreground"
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="rev-name">Name *</Label>
+                  <Input
+                    id="rev-name"
+                    placeholder="Deepak"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="rev-phone">Phone (Optional)</Label>
+                  <Input
+                    id="rev-phone"
+                    placeholder="9876543210"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="rev-comment">Review Comments *</Label>
+                <Textarea
+                  id="rev-comment"
+                  placeholder="How was the freshness, taste, and cutting?"
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  className="rounded-xl"
+                />
+              </div>
+
+              <Button
+                className="w-full rounded-xl"
+                disabled={submitReview.isPending || !name.trim() || !comment.trim()}
+                onClick={() => submitReview.mutate()}
+              >
+                {submitReview.isPending ? "Submitting..." : "Submit Review"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        {reviews.map((r) => (
+          <div key={r.id} className="rounded-xl border p-3 bg-muted/20 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-xs">{r.customer_name || "Seafood Customer"}</span>
+                {r.verified && (
+                  <Badge variant="outline" className="text-[10px] text-green-600 border-green-300">
+                    Verified Buyer
+                  </Badge>
+                )}
+              </div>
+              <span className="text-[10px] text-muted-foreground">{formatIST(r.created_at)}</span>
+            </div>
+
+            <div className="flex items-center gap-1 text-accent">
+              {[...Array(Number(r.rating || 5))].map((_, i) => (
+                <Star key={i} className="size-3 fill-current" />
+              ))}
+            </div>
+
+            <p className="text-xs text-foreground/90 leading-relaxed">{r.comment}</p>
+
+            {r.admin_reply && (
+              <div className="mt-2 rounded-lg bg-primary/5 border border-primary/20 p-2 text-xs text-primary">
+                <p className="font-semibold text-[11px]">Shop Owner Reply:</p>
+                <p className="text-[11px] text-muted-foreground">{r.admin_reply}</p>
+              </div>
+            )}
+          </div>
+        ))}
+
+        {reviews.length === 0 && (
+          <p className="py-4 text-center text-xs text-muted-foreground">
+            No reviews yet. Be the first to try this fresh catch and leave a review!
+          </p>
+        )}
+      </div>
+    </section>
   );
 }
 

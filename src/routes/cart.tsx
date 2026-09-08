@@ -20,8 +20,17 @@ export const Route = createFileRoute("/cart")({
   component: CartPage,
 });
 
+const CUT_OPTIONS = [
+  "Curry Cut",
+  "Biryani Cut",
+  "Fillet / Boneless",
+  "Whole Cleaned (Head On)",
+  "Whole Cleaned (Head Off)",
+  "Steaks / Slices",
+];
+
 function CartPage() {
-  const { items, subtotal, setQty, remove, clear } = useCart();
+  const { items, subtotal, setQty, setCutPreference, remove, clear } = useCart();
   const { data: settings } = useQuery(settingsQuery);
   const freeOver = Number(settings?.free_delivery_over ?? 500);
   const progress = Math.min(100, (subtotal / freeOver) * 100);
@@ -50,35 +59,53 @@ function CartPage() {
       )}
       <ul className="mt-4 space-y-3">
         {items.map((item) => (
-          <li key={item.product_id} className="flex gap-3 rounded-2xl border border-border bg-card p-3">
-            {item.image_url && (
-              <img src={item.image_url} alt={item.name} className="size-20 rounded-xl object-cover" />
-            )}
-            <div className="flex-1">
-              <p className="font-semibold">{item.name}</p>
-              <p className="text-sm text-muted-foreground">
-                {inr(item.price)} / {item.unit}
-              </p>
-              <div className="mt-2 flex items-center gap-3">
-                <div className="flex items-center gap-3 rounded-lg border border-border px-2 py-1">
-                  <button onClick={() => setQty(item.product_id, item.qty - 1)} aria-label="Decrease">
-                    <Minus className="size-4" />
-                  </button>
-                  <span className="w-5 text-center text-sm font-semibold">{item.qty}</span>
-                  <button onClick={() => setQty(item.product_id, item.qty + 1)} aria-label="Increase">
-                    <Plus className="size-4" />
-                  </button>
+          <li key={item.product_id} className="flex flex-col sm:flex-row gap-3 rounded-2xl border border-border bg-card p-3">
+            <div className="flex gap-3 items-center flex-1 min-w-0">
+              {item.image_url && (
+                <img src={item.image_url} alt={item.name} className="size-20 rounded-xl object-cover shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold truncate">{item.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {inr(item.price)} / {item.unit}
+                </p>
+                
+                <div className="mt-1 flex items-center gap-1.5">
+                  <span className="text-[11px] text-muted-foreground">Cut:</span>
+                  <select
+                    value={item.cut_preference || "Curry Cut"}
+                    onChange={(e) => setCutPreference(item.product_id, e.target.value)}
+                    className="h-6 rounded-lg border border-input bg-transparent px-1.5 text-[11px] text-foreground focus:outline-none"
+                  >
+                    {CUT_OPTIONS.map((c) => (
+                      <option key={c} value={c} className="bg-background text-foreground">
+                        {c}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <button
-                  onClick={() => remove(item.product_id)}
-                  className="text-muted-foreground hover:text-destructive"
-                  aria-label="Remove item"
-                >
-                  <Trash2 className="size-4" />
-                </button>
               </div>
             </div>
-            <p className="font-display font-bold">{inr(item.price * item.qty)}</p>
+
+            <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-0 border-border">
+              <div className="flex items-center gap-3 rounded-lg border border-border px-2 py-1">
+                <button onClick={() => setQty(item.product_id, item.qty - 1)} aria-label="Decrease">
+                  <Minus className="size-4" />
+                </button>
+                <span className="w-5 text-center text-sm font-semibold">{item.qty}</span>
+                <button onClick={() => setQty(item.product_id, item.qty + 1)} aria-label="Increase">
+                  <Plus className="size-4" />
+                </button>
+              </div>
+              <p className="font-display font-bold">{inr(item.price * item.qty)}</p>
+              <button
+                onClick={() => remove(item.product_id)}
+                className="text-muted-foreground hover:text-destructive p-1"
+                aria-label="Remove item"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </div>
           </li>
         ))}
       </ul>

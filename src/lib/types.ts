@@ -56,4 +56,5 @@ export type CartItem = {
   unit: string;
   image_url: string | null;
   qty: number;
+  cut_preference?: string | null;
 };

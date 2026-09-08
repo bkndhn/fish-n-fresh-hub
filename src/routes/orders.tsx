@@ -1,8 +1,9 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { RotateCcw } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { inr, formatIST } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { useSessionUser } from "@/lib/session";
+import { useCart } from "@/lib/cart";
 import { settingsQuery } from "@/lib/queries";
 import { lookupGuestOrder, type GuestOrder } from "@/lib/orders.functions";
 
@@ -52,6 +54,29 @@ function OrdersPage() {
 function MyOrders() {
   const { data: settings } = useQuery(settingsQuery);
   const qc = useQueryClient();
+  const { add } = useCart();
+  const navigate = useNavigate();
+
+  function handleReorder(items: any[]) {
+    if (Array.isArray(items)) {
+      items.forEach((it) => {
+        add(
+          {
+            id: it.product_id || it.id,
+            name: it.name,
+            price: Number(it.price),
+            unit: it.unit || "kg",
+            image_url: it.image_url || null,
+          } as any,
+          Number(it.qty) || 1,
+          it.cut_preference || "Curry Cut",
+        );
+      });
+      toast.success("Items added to your cart!");
+      navigate({ to: "/cart" });
+    }
+  }
+
   const { data: orders } = useQuery({
     queryKey: ["my-orders"],
     queryFn: async () => {
@@ -118,6 +143,14 @@ function MyOrders() {
                     Issue with order?
                   </Button>
                 )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-xl"
+                  onClick={() => handleReorder(o.items as any[])}
+                >
+                  <RotateCcw className="mr-1 size-3.5" /> Reorder
+                </Button>
                 <Button asChild size="sm" variant="outline" className="rounded-xl">
                   <Link to="/track/$id" params={{ id: o.id }}>
                     Track
