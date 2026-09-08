@@ -18,6 +18,7 @@ export type OrderRow = {
   fulfillment_type: string;
   delivery_date: string | null;
   delivery_slot: string | null;
+  driver_id: string | null;
   driver_name: string | null;
   location_lat: number | null;
   location_lng: number | null;
@@ -29,6 +30,9 @@ export type OrderRow = {
   refund_amount: number | null;
   refunded_at: string | null;
   stripe_refund_id: string | null;
+  stripe_session_id: string | null;
+  delivered_at: string | null;
+  cancel_reason: string | null;
   created_at: string;
   complaint: string | null;
 };

@@ -16,6 +16,7 @@ import {
   UserCog,
   Settings,
   MoreHorizontal,
+  MessageSquareWarning,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { myRolesQuery, type AppRole } from "@/lib/admin";
@@ -51,6 +52,7 @@ const NAV = [
   { to: "/admin/reports", label: "Reports", icon: BarChart3, roles: ["admin"] },
   { to: "/admin/payments", label: "Payments", icon: ReceiptText, roles: ["admin"] },
   { to: "/admin/delivery", label: "Delivery", icon: Truck, roles: ["admin", "staff", "driver"] },
+  { to: "/admin/complaints", label: "Complaints", icon: MessageSquareWarning, roles: ["admin", "staff"] },
   { to: "/admin/schedule", label: "Schedule", icon: CalendarClock, roles: ["admin", "staff"] },
   { to: "/admin/driver", label: "Driver map", icon: MapPin, roles: ["admin", "driver"] },
   { to: "/admin/staff", label: "Team", icon: UserCog, roles: ["admin"] },

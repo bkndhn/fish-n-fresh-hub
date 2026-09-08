@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Search, Edit } from "lucide-react";
+import { Plus, Trash2, Search, Edit, AlertTriangle, Zap, PackagePlus, CheckCircle2 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminProductsQuery } from "@/lib/admin";
 import { categoriesQuery } from "@/lib/queries";
@@ -59,6 +59,10 @@ function ProductsAdmin() {
   const [search, setSearch] = useState("");
   const [openAdd, setOpenAdd] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  const [refillProduct, setRefillProduct] = useState<Product | null>(null);
+  const [refillQty, setRefillQty] = useState<string>("10");
+  const [makeLiveOnRefill, setMakeLiveOnRefill] = useState<boolean>(true);
+  const [stockFilter, setStockFilter] = useState<"all" | "low">("all");
 
   const [newProduct, setNewProduct] = useState({
     name: "",
@@ -85,6 +89,30 @@ function ProductsAdmin() {
     },
     onSuccess: () => {
       toast.success("Saved");
+      qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const quickRefill = useMutation({
+    mutationFn: async () => {
+      if (!refillProduct) return;
+      const addQty = Number(refillQty);
+      if (isNaN(addQty) || addQty <= 0) throw new Error("Please enter a valid refill quantity");
+      const newStock = Number(refillProduct.stock || 0) + addQty;
+      const patch: any = { stock: newStock };
+      if (makeLiveOnRefill) {
+        patch.is_available = true;
+      }
+      const { error } = await supabase.from("products").update(patch).eq("id", refillProduct.id);
+      if (error) throw error;
+      return newStock;
+    },
+    onSuccess: (newStock) => {
+      toast.success(`Refilled ${refillProduct?.name}! New stock: ${newStock} ${refillProduct?.unit}`);
+      setRefillProduct(null);
+      setRefillQty("10");
       qc.invalidateQueries({ queryKey: ["admin", "products"] });
       qc.invalidateQueries({ queryKey: ["products"] });
     },
@@ -202,7 +230,11 @@ function ProductsAdmin() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const list = (products.data ?? []).filter((p) => {
+  const allProducts = products.data ?? [];
+  const lowStockProducts = allProducts.filter((p) => (p.stock ?? 0) <= 5 || !p.is_available);
+
+  const list = allProducts.filter((p) => {
+    if (stockFilter === "low" && !((p.stock ?? 0) <= 5 || !p.is_available)) return false;
     if (!search.trim()) return true;
     const term = search.toLowerCase();
     return (
@@ -213,21 +245,107 @@ function ProductsAdmin() {
   });
 
   return (
-    <AdminShell title="Products" allow={["admin", "staff"]}>
+    <AdminShell title="Products & Inventory" allow={["admin", "staff"]}>
+      {/* Low Stock Warning Banner */}
+      {lowStockProducts.length > 0 && (
+        <div className="mb-4 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-card to-card p-4 shadow-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="size-4.5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  Inventory Alert: {lowStockProducts.length} items low or out of stock
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Replenish these items to prevent checkout cart errors and maintain customer fulfillment
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant={stockFilter === "low" ? "default" : "outline"}
+              className="rounded-xl h-8 text-xs font-semibold border-amber-500/30 text-amber-700 dark:text-amber-300"
+              onClick={() => setStockFilter(stockFilter === "low" ? "all" : "low")}
+            >
+              {stockFilter === "low" ? "Show All Products" : "Filter Depleted Items"}
+            </Button>
+          </div>
+
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 pt-1">
+            {lowStockProducts.slice(0, 8).map((p) => (
+              <div
+                key={p.id}
+                className="flex shrink-0 items-center gap-2 rounded-xl border border-border/80 bg-card p-2 text-xs shadow-2xs hover:border-amber-500/40"
+              >
+                {p.image_url ? (
+                  <img src={p.image_url} alt={p.name} className="size-8 rounded-lg object-cover" />
+                ) : (
+                  <div className="size-8 rounded-lg bg-muted flex items-center justify-center text-[10px]">🐟</div>
+                )}
+                <div className="min-w-24 max-w-36">
+                  <p className="font-medium truncate">{p.name}</p>
+                  <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                    {(p.stock ?? 0) <= 0 ? "Out of Stock" : `${p.stock} ${p.unit} left`}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  className="h-7 rounded-lg text-xs bg-amber-600 hover:bg-amber-500 text-white shrink-0 px-2.5"
+                  onClick={() => {
+                    setRefillProduct(p);
+                    setRefillQty("10");
+                  }}
+                >
+                  <Zap className="mr-1 size-3" /> Refill
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Search, Filter Pills, and Add Product */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            placeholder="Search products by name or category..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 rounded-xl"
-          />
+        <div className="flex flex-wrap items-center gap-2 flex-1 max-w-xl">
+          <div className="relative flex-1 min-w-48">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              placeholder="Search products by name or category..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 rounded-xl h-9"
+            />
+          </div>
+
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant={stockFilter === "all" ? "default" : "outline"}
+              className="rounded-xl h-9 text-xs"
+              onClick={() => setStockFilter("all")}
+            >
+              All ({allProducts.length})
+            </Button>
+            <Button
+              size="sm"
+              variant={stockFilter === "low" ? "default" : "outline"}
+              className={`rounded-xl h-9 text-xs ${
+                lowStockProducts.length > 0 && stockFilter !== "low"
+                  ? "border-amber-500/40 text-amber-600 dark:text-amber-400"
+                  : ""
+              }`}
+              onClick={() => setStockFilter("low")}
+            >
+              Low Stock ({lowStockProducts.length})
+            </Button>
+          </div>
         </div>
 
         <Dialog open={openAdd} onOpenChange={setOpenAdd}>
           <DialogTrigger asChild>
-            <Button className="rounded-xl shrink-0">
+            <Button className="rounded-xl shrink-0 h-9">
               <Plus className="mr-2 size-4" /> Add Product
             </Button>
           </DialogTrigger>
@@ -443,7 +561,32 @@ function ProductsAdmin() {
                       </span>
                     )}
                     <span>·</span>
-                    <span>Stock: {p.stock} {p.unit}</span>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
+                        (p.stock ?? 0) <= 0 || !p.is_available
+                          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+                          : (p.stock ?? 0) <= 5
+                          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                          : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                      }`}
+                    >
+                      <span
+                        className={`size-1.5 rounded-full ${
+                          (p.stock ?? 0) <= 0 || !p.is_available
+                            ? "bg-rose-500"
+                            : (p.stock ?? 0) <= 5
+                            ? "bg-amber-500 animate-pulse"
+                            : "bg-emerald-500"
+                        }`}
+                      />
+                      {(p.stock ?? 0) <= 0
+                        ? "Out of Stock"
+                        : !p.is_available
+                        ? `Paused (${p.stock} ${p.unit})`
+                        : (p.stock ?? 0) <= 5
+                        ? `Low Stock: ${p.stock} ${p.unit}`
+                        : `Stock: ${p.stock} ${p.unit}`}
+                    </span>
                   </p>
                 </div>
               </div>
@@ -487,6 +630,19 @@ function ProductsAdmin() {
                 </div>
 
                 <div className="flex items-center gap-1">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="size-8 rounded-lg text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border-amber-500/30"
+                    title="Quick Refill Stock"
+                    onClick={() => {
+                      setRefillProduct(p);
+                      setRefillQty("10");
+                    }}
+                  >
+                    <Zap className="size-4" />
+                  </Button>
+
                   <Button
                     size="icon"
                     variant="outline"
@@ -728,6 +884,117 @@ function ProductsAdmin() {
                 </Button>
               </div>
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Refill Modal */}
+      <Dialog open={Boolean(refillProduct)} onOpenChange={(open) => !open && setRefillProduct(null)}>
+        <DialogContent className="rounded-2xl sm:max-w-md">
+          {refillProduct && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <PackagePlus className="size-5 text-amber-500" /> Quick Stock Refill
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/40 p-3">
+                  {refillProduct.image_url ? (
+                    <img
+                      src={refillProduct.image_url}
+                      alt={refillProduct.name}
+                      className="size-12 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="size-12 rounded-lg bg-muted flex items-center justify-center text-xl">🐟</div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold truncate">{refillProduct.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Current Stock:{" "}
+                      <span className="font-bold text-foreground">
+                        {refillProduct.stock} {refillProduct.unit}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Select Refill Preset (+{refillProduct.unit})</Label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {["5", "10", "25", "50"].map((preset) => (
+                      <Button
+                        key={preset}
+                        type="button"
+                        variant={refillQty === preset ? "default" : "outline"}
+                        className="h-9 rounded-xl text-xs font-semibold"
+                        onClick={() => setRefillQty(preset)}
+                      >
+                        +{preset} {refillProduct.unit}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="custom-refill-qty" className="text-xs">
+                    Or Enter Custom Quantity (+{refillProduct.unit})
+                  </Label>
+                  <Input
+                    id="custom-refill-qty"
+                    type="number"
+                    min="1"
+                    placeholder="e.g. 15"
+                    value={refillQty}
+                    onChange={(e) => setRefillQty(e.target.value)}
+                    className="rounded-xl"
+                  />
+                </div>
+
+                {/* Calculation Preview */}
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs flex items-center justify-between">
+                  <span className="text-muted-foreground">Updated Stock Total:</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                    {Number(refillProduct.stock || 0)} + {Number(refillQty) || 0} ={" "}
+                    {Number(refillProduct.stock || 0) + (Number(refillQty) || 0)} {refillProduct.unit}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between rounded-xl border p-3">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-medium">Mark product available (Live)</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Ensure customers can immediately purchase this item
+                    </p>
+                  </div>
+                  <Switch
+                    checked={makeLiveOnRefill}
+                    onCheckedChange={setMakeLiveOnRefill}
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-1/3 rounded-xl"
+                    onClick={() => setRefillProduct(null)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    className="flex-1 rounded-xl bg-amber-600 hover:bg-amber-500 text-white"
+                    disabled={quickRefill.isPending || !refillQty || Number(refillQty) <= 0}
+                    onClick={() => quickRefill.mutate()}
+                  >
+                    <Zap className="mr-1.5 size-4" />
+                    {quickRefill.isPending ? "Refilling..." : `Confirm Refill (+${refillQty} ${refillProduct.unit})`}
+                  </Button>
+                </div>
+              </div>
+            </>
           )}
         </DialogContent>
       </Dialog>

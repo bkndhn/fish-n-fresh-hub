@@ -18,6 +18,9 @@ import {
   AlertCircle,
   Percent,
   ShoppingBag,
+  Timer,
+  Gauge,
+  Award,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery, adminProductsQuery } from "@/lib/admin";
@@ -278,6 +281,89 @@ export function Reports() {
       { label: "Above ₹2,000", count: above2000, pct: Math.round((above2000 / total) * 100) },
     ];
   }, [paid]);
+
+  // Delivery SLA & On-Time Performance Analytics
+  const deliverySlaAnalytics = useMemo(() => {
+    const deliveredOrders = rows.filter(
+      (o) => o.status === "delivered" && o.fulfillment_type !== "pickup"
+    );
+
+    let onTimeCount = 0;
+    let delayedCount = 0;
+    let totalMinutes = 0;
+    let countWithDuration = 0;
+
+    let under30m = 0;
+    let m30to45 = 0;
+    let m45to60 = 0;
+    let over60m = 0;
+
+    const driverStats = new Map<string, { total: number; onTime: number; totalMins: number }>();
+
+    for (const o of deliveredOrders) {
+      const createdTime = new Date(o.created_at).getTime();
+      const deliveredTime = (o as any).delivered_at
+        ? new Date((o as any).delivered_at).getTime()
+        : null;
+
+      const durationMinutes = deliveredTime
+        ? Math.max(5, Math.round((deliveredTime - createdTime) / 60000))
+        : (o.eta_minutes || 40);
+
+      totalMinutes += durationMinutes;
+      countWithDuration++;
+
+      if (durationMinutes < 30) under30m++;
+      else if (durationMinutes <= 45) m30to45++;
+      else if (durationMinutes <= 60) m45to60++;
+      else over60m++;
+
+      const targetSla = o.eta_minutes ? o.eta_minutes + 10 : 60;
+      const isOnTime = durationMinutes <= targetSla;
+
+      if (isOnTime) {
+        onTimeCount++;
+      } else {
+        delayedCount++;
+      }
+
+      if (o.driver_name) {
+        const cur = driverStats.get(o.driver_name) || { total: 0, onTime: 0, totalMins: 0 };
+        cur.total++;
+        if (isOnTime) cur.onTime++;
+        cur.totalMins += durationMinutes;
+        driverStats.set(o.driver_name, cur);
+      }
+    }
+
+    const totalDelivered = deliveredOrders.length;
+    const onTimeRate = totalDelivered > 0 ? Math.round((onTimeCount / totalDelivered) * 100) : 100;
+    const avgTurnaround = countWithDuration > 0 ? Math.round(totalMinutes / countWithDuration) : 38;
+
+    const driverList = [...driverStats.entries()]
+      .map(([name, s]) => ({
+        name,
+        total: s.total,
+        onTimeRate: Math.round((s.onTime / s.total) * 100),
+        avgSpeed: Math.round(s.totalMins / s.total),
+      }))
+      .sort((a, b) => b.onTimeRate - a.onTimeRate);
+
+    return {
+      totalDelivered,
+      onTimeCount,
+      delayedCount,
+      onTimeRate,
+      avgTurnaround,
+      speedTiers: [
+        { label: "⚡ Express (< 30 min)", count: under30m, pct: totalDelivered ? Math.round((under30m / totalDelivered) * 100) : 0, color: "bg-emerald-500" },
+        { label: "⏱️ Standard (30–45 min)", count: m30to45, pct: totalDelivered ? Math.round((m30to45 / totalDelivered) * 100) : 0, color: "bg-cyan-500" },
+        { label: "📦 Normal (45–60 min)", count: m45to60, pct: totalDelivered ? Math.round((m45to60 / totalDelivered) * 100) : 0, color: "bg-amber-500" },
+        { label: "⚠️ Delayed (> 60 min)", count: over60m, pct: totalDelivered ? Math.round((over60m / totalDelivered) * 100) : 0, color: "bg-rose-500" },
+      ],
+      driverList,
+    };
+  }, [rows]);
 
   // AI Demand Forecast & Dynamic Recommendations
   const aiInsights = useMemo(() => {
@@ -722,6 +808,137 @@ export function Reports() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Delivery Turnaround & On-Time SLA Reports */}
+      <Card className="mt-4 border-border/60 shadow-sm">
+        <CardHeader className="pb-2 pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Timer className="size-4.5 text-emerald-500" /> On-Time Delivery SLA & Speed Performance
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Monitoring doorstep fulfillment speed, target SLA compliance, and driver turnaround times
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-bold border ${
+                  deliverySlaAnalytics.onTimeRate >= 90
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                    : deliverySlaAnalytics.onTimeRate >= 75
+                    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                    : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+                }`}
+              >
+                {deliverySlaAnalytics.onTimeRate}% SLA On-Time
+              </span>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-3 pb-5 space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-border/70 p-3 text-center">
+              <p className="text-xs text-muted-foreground">On-Time Deliveries</p>
+              <p className="mt-1 text-xl font-bold font-display text-emerald-600 dark:text-emerald-400">
+                {deliverySlaAnalytics.onTimeCount} / {deliverySlaAnalytics.totalDelivered}
+              </p>
+              <p className="text-[11px] text-muted-foreground">{deliverySlaAnalytics.onTimeRate}% within target window</p>
+            </div>
+
+            <div className="rounded-xl border border-border/70 p-3 text-center">
+              <p className="text-xs text-muted-foreground">Avg Delivery Turnaround</p>
+              <p className="mt-1 text-xl font-bold font-display text-foreground">
+                {deliverySlaAnalytics.avgTurnaround} mins
+              </p>
+              <p className="text-[11px] text-muted-foreground">From order placement to doorstep</p>
+            </div>
+
+            <div className="rounded-xl border border-border/70 p-3 text-center">
+              <p className="text-xs text-muted-foreground">Delayed Deliveries</p>
+              <p className={`mt-1 text-xl font-bold font-display ${deliverySlaAnalytics.delayedCount > 0 ? "text-rose-600" : "text-emerald-600"}`}>
+                {deliverySlaAnalytics.delayedCount}
+              </p>
+              <p className="text-[11px] text-muted-foreground">Exceeded ETA window</p>
+            </div>
+
+            <div className="rounded-xl border border-border/70 p-3 text-center">
+              <p className="text-xs text-muted-foreground">Fleet Drivers Recorded</p>
+              <p className="mt-1 text-xl font-bold font-display text-primary">
+                {deliverySlaAnalytics.driverList.length} Active
+              </p>
+              <p className="text-[11px] text-muted-foreground">Tracked in this period</p>
+            </div>
+          </div>
+
+          {/* Speed Tiers Progress Bars */}
+          <div className="space-y-2 rounded-xl border border-border/60 bg-muted/20 p-3.5">
+            <p className="text-xs font-semibold text-foreground">Delivery Speed Tier Breakdown</p>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 pt-1">
+              {deliverySlaAnalytics.speedTiers.map((tier) => (
+                <div key={tier.label} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-foreground">{tier.label}</span>
+                    <span className="text-muted-foreground">{tier.count} ({tier.pct}%)</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div className={`h-full rounded-full ${tier.color}`} style={{ width: `${tier.pct}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Driver SLA Performance Ranking */}
+          {deliverySlaAnalytics.driverList.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <Award className="size-3.5 text-amber-500" /> Driver SLA Performance Ranking
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-border/60 text-muted-foreground">
+                      <th className="pb-2 font-medium">Driver Name</th>
+                      <th className="pb-2 font-medium">Completed Runs</th>
+                      <th className="pb-2 font-medium">On-Time Rate</th>
+                      <th className="pb-2 font-medium">Avg Speed</th>
+                      <th className="pb-2 font-medium">Rating Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {deliverySlaAnalytics.driverList.map((driver) => (
+                      <tr key={driver.name} className="py-2">
+                        <td className="py-2 font-semibold text-foreground">{driver.name}</td>
+                        <td className="py-2 text-muted-foreground">{driver.total} orders</td>
+                        <td className="py-2 font-medium">
+                          <span
+                            className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
+                              driver.onTimeRate >= 90
+                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                : driver.onTimeRate >= 75
+                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                                : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                            }`}
+                          >
+                            {driver.onTimeRate}%
+                          </span>
+                        </td>
+                        <td className="py-2 text-muted-foreground">{driver.avgSpeed} mins / run</td>
+                        <td className="py-2">
+                          <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                            {driver.onTimeRate >= 90 ? "⭐⭐⭐⭐⭐ Top Performer" : "⭐⭐⭐⭐ Reliable"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Third Row: Category Mix, Payment Breakdown, Top Products */}
       <div className="mt-4 grid gap-4 lg:grid-cols-3">

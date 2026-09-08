@@ -197,7 +197,7 @@ export const setStaffRole = createServerFn({ method: "POST" })
     }
   });
 
-export type DriverOption = { id: string; name: string; email: string };
+export type DriverOption = { id: string; name: string; email: string; phone?: string | null };
 
 export const listDrivers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -223,6 +223,7 @@ export const listDrivers = createServerFn({ method: "GET" })
           id: u.id,
           email: u.email ?? "",
           name: ((u.user_metadata?.["full_name"] as string) ?? u.email ?? "").trim(),
+          phone: ((u.user_metadata?.["phone"] as string) ?? null),
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
     } catch {
@@ -235,6 +236,7 @@ export const listDrivers = createServerFn({ method: "GET" })
         id: r.user_id,
         email: `driver_${r.user_id.slice(0, 6)}@fishnfresh.internal`,
         name: `Driver (${r.user_id.slice(0, 6)})`,
+        phone: null,
       }));
     }
   });
