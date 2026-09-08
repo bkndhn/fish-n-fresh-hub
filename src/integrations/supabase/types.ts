@@ -506,6 +506,33 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_gateway_credentials: {
+        Row: {
+          api_key: string | null
+          created_at: string
+          id: string
+          provider: string
+          secret_key: string | null
+          updated_at: string
+        }
+        Insert: {
+          api_key?: string | null
+          created_at?: string
+          id?: string
+          provider?: string
+          secret_key?: string | null
+          updated_at?: string
+        }
+        Update: {
+          api_key?: string | null
+          created_at?: string
+          id?: string
+          provider?: string
+          secret_key?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_requests: {
         Row: {
           created_at: string
@@ -813,8 +840,6 @@ export type Database = {
           footer_about: string | null
           free_delivery_over: number
           fssai_number: string | null
-          gateway_api_key: string | null
-          gateway_secret_key: string | null
           google_review_link: string | null
           gst_enabled: boolean
           gst_percent: number
@@ -895,8 +920,6 @@ export type Database = {
           footer_about?: string | null
           free_delivery_over?: number
           fssai_number?: string | null
-          gateway_api_key?: string | null
-          gateway_secret_key?: string | null
           google_review_link?: string | null
           gst_enabled?: boolean
           gst_percent?: number
@@ -977,8 +1000,6 @@ export type Database = {
           footer_about?: string | null
           free_delivery_over?: number
           fssai_number?: string | null
-          gateway_api_key?: string | null
-          gateway_secret_key?: string | null
           google_review_link?: string | null
           gst_enabled?: boolean
           gst_percent?: number
