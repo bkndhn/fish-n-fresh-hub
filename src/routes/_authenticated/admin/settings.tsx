@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { RotateCcw } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { settingsQuery } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
@@ -186,27 +187,114 @@ function AdminSettings() {
                 placeholder="Fish N Fresh LLC"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>App Theme Color (Hex)</Label>
-                <div className="mt-1 flex items-center gap-2">
+
+            {/* App Theme Color with Revert to Default and Preset Swatches */}
+            <div className="space-y-3 rounded-xl border border-border/70 bg-muted/20 p-3.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <Label className="text-sm font-semibold">App Brand & Theme Color</Label>
+                  <p className="text-[11px] text-muted-foreground">Sets the primary accent color across buttons, badges, and headers.</p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs rounded-lg hover:bg-muted"
+                  onClick={() => {
+                    setForm({ ...form, theme_color: "#0ea5e9" });
+                    toast.success("Reverted to Default Ocean Blue theme (#0ea5e9)");
+                  }}
+                >
+                  <RotateCcw className="mr-1 size-3" /> Revert to Default
+                </Button>
+              </div>
+
+              {/* Color picker and presets */}
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                <div className="flex items-center gap-2">
                   <Input
                     type="color"
-                    className="w-16 h-10 p-1 cursor-pointer"
-                    value={form.theme_color ?? "#0ea5e9"}
+                    className="size-9 p-0.5 rounded-lg cursor-pointer border-border"
+                    value={form.theme_color || "#0ea5e9"}
                     onChange={(e) => setForm({ ...form, theme_color: e.target.value })}
                   />
-                  <span className="text-xs text-muted-foreground">{form.theme_color ?? "Default Blue"}</span>
-                </div>
-              </div>
-              <div>
-                <Label>Logo</Label>
-                <div className="mt-1">
-                  <ImageUpload 
-                    currentImage={form.logo_url} 
-                    onUpload={(url) => setForm({ ...form, logo_url: url })} 
+                  <Input
+                    type="text"
+                    value={form.theme_color || "#0ea5e9"}
+                    onChange={(e) => setForm({ ...form, theme_color: e.target.value })}
+                    className="h-8 w-24 rounded-lg font-mono text-xs uppercase"
+                    placeholder="#0ea5e9"
                   />
                 </div>
+
+                {/* Quick Swatch Presets */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {[
+                    { name: "Default Ocean", color: "#0ea5e9" },
+                    { name: "Deep Navy", color: "#0369a1" },
+                    { name: "Fresh Emerald", color: "#059669" },
+                    { name: "Coastal Teal", color: "#0d9488" },
+                    { name: "Royal Indigo", color: "#4f46e5" },
+                    { name: "Sunset Coral", color: "#f97316" },
+                  ].map((preset) => {
+                    const isSelected = (form.theme_color || "#0ea5e9").toLowerCase() === preset.color.toLowerCase();
+                    return (
+                      <button
+                        key={preset.color}
+                        type="button"
+                        onClick={() => {
+                          setForm({ ...form, theme_color: preset.color });
+                          toast.info(`Selected ${preset.name}`);
+                        }}
+                        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
+                          isSelected
+                            ? "border-foreground font-semibold bg-background shadow-xs ring-1 ring-foreground"
+                            : "border-border bg-background/60 text-muted-foreground hover:border-foreground/40"
+                        }`}
+                      >
+                        <span
+                          className="size-3 rounded-full shrink-0 border border-black/10"
+                          style={{ backgroundColor: preset.color }}
+                        />
+                        <span>{preset.name}</span>
+                        {preset.color === "#0ea5e9" && (
+                          <span className="text-[10px] text-muted-foreground font-normal">(Default)</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Theme Live Preview */}
+              <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground">
+                <span>Preview:</span>
+                <span
+                  className="rounded-md px-2.5 py-0.5 text-xs font-semibold text-white shadow-xs"
+                  style={{ backgroundColor: form.theme_color || "#0ea5e9" }}
+                >
+                  Primary Button
+                </span>
+                <span
+                  className="rounded-md px-2 py-0.5 text-[11px] font-medium border"
+                  style={{
+                    color: form.theme_color || "#0ea5e9",
+                    borderColor: `${form.theme_color || "#0ea5e9"}60`,
+                    backgroundColor: `${form.theme_color || "#0ea5e9"}15`,
+                  }}
+                >
+                  Active Badge
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <Label>Logo</Label>
+              <div className="mt-1">
+                <ImageUpload 
+                  currentImage={form.logo_url} 
+                  onUpload={(url) => setForm({ ...form, logo_url: url })} 
+                />
               </div>
             </div>
             <div>
