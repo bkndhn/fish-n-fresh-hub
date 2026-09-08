@@ -9,7 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+function safeNext(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  return value.startsWith("/") && !value.startsWith("//") ? value : undefined;
+}
+
 export const Route = createFileRoute("/auth")({
+  validateSearch: (s: Record<string, unknown>) => ({ next: safeNext(s['next']) }),
   head: () => ({
     meta: [
       { title: "Sign In | Fish N Fresh" },
