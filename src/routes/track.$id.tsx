@@ -289,33 +289,54 @@ function TrackPage() {
                   </div>
                 </div>
 
-                {/* Vertical Stepper for Mobile */}
-                <ol className="space-y-4 sm:hidden">
+                {/* Vertical Stepper for Mobile with Connected Lines */}
+                <div className="sm:hidden space-y-0 relative pl-1">
                   {TRACK_STEPS.map((s, idx) => {
                     const isDone = idx <= currentStepIndex;
                     const isCurrent = idx === currentStepIndex;
+                    const isLast = idx === TRACK_STEPS.length - 1;
                     const StepIcon = s.icon;
                     return (
-                      <li key={s.key} className="flex items-start gap-3 relative">
+                      <div key={s.key} className="flex items-start gap-3 relative pb-5 last:pb-1">
+                        {/* Connecting vertical line */}
+                        {!isLast && (
+                          <div
+                            className={`absolute left-4 top-8 bottom-0 w-0.5 -translate-x-1/2 transition-colors duration-500 ${
+                              idx < currentStepIndex ? "bg-primary" : "bg-muted"
+                            }`}
+                          />
+                        )}
+
+                        {/* Step Icon Badge */}
                         <div
-                          className={`flex size-8 shrink-0 items-center justify-center rounded-full border-2 ${
+                          className={`relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300 ${
                             isDone
-                              ? "border-primary bg-primary text-primary-foreground"
+                              ? "border-primary bg-primary text-primary-foreground shadow-xs"
                               : "border-border bg-card text-muted-foreground"
-                          } ${isCurrent ? "ring-4 ring-primary/20" : ""}`}
+                          } ${isCurrent ? "ring-4 ring-primary/25 scale-110" : ""}`}
                         >
                           <StepIcon className="size-4" />
                         </div>
+
+                        {/* Step Label & Subtext */}
                         <div className="min-w-0 flex-1 pt-0.5">
-                          <p className={`text-xs font-bold ${isDone ? "text-foreground" : "text-muted-foreground"}`}>
-                            {s.label}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground">{s.desc}</p>
+                          <div className="flex items-center gap-2">
+                            <p className={`text-xs font-bold ${isDone ? "text-foreground" : "text-muted-foreground"}`}>
+                              {s.label}
+                            </p>
+                            {isCurrent && !isDelivered && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.2 text-[10px] font-extrabold text-primary">
+                                <span className="size-1.5 rounded-full bg-primary animate-ping" />
+                                In Progress
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{s.desc}</p>
                         </div>
-                      </li>
+                      </div>
                     );
                   })}
-                </ol>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -323,34 +344,34 @@ function TrackPage() {
 
         {/* Assigned Driver / Delivery Partner Card */}
         {order.driver_name && (
-          <Card className="border-border/70 shadow-xs">
-            <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
+          <Card className="border-border/70 shadow-xs overflow-hidden">
+            <CardContent className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-base">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary font-bold text-base">
                   {order.driver_name.slice(0, 2).toUpperCase()}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="font-semibold text-sm text-foreground">{order.driver_name}</p>
-                    <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                      Delivery Specialist
+                    <p className="font-bold text-sm text-foreground">{order.driver_name}</p>
+                    <span className="rounded-full bg-emerald-500/10 px-2 py-0.2 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                      Rider Partner
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Assigned delivery driver for your seafood package
+                  <p className="text-[11px] text-muted-foreground">
+                    Delivering in temperature-controlled bag
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" className="rounded-xl h-8 text-xs" asChild>
-                  <a href={`tel:${supportPhone}`}>
-                    <Phone className="mr-1.5 size-3.5 text-primary" /> Call Driver
+              <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
+                <Button size="sm" variant="outline" className="rounded-xl h-8.5 text-xs font-semibold" asChild>
+                  <a href={`tel:${supportPhone}`} className="flex items-center justify-center">
+                    <Phone className="mr-1.5 size-3.5 text-primary" /> Call Rider
                   </a>
                 </Button>
                 <Button
                   size="sm"
-                  className="rounded-xl h-8 text-xs bg-emerald-600 hover:bg-emerald-500 text-white"
+                  className="rounded-xl h-8.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs"
                   asChild
                 >
                   <a
@@ -360,6 +381,7 @@ function TrackPage() {
                     )}
                     target="_blank"
                     rel="noreferrer"
+                    className="flex items-center justify-center"
                   >
                     <MessageCircle className="mr-1.5 size-3.5 fill-white/20" /> WhatsApp
                   </a>

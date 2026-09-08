@@ -271,50 +271,50 @@ export function ComplaintsAdmin() {
                 </div>
 
                 {/* Multi-Channel Response & Resolution Action Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-3">
-                  <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-t border-border/50 pt-3">
+                  <div className="grid grid-cols-3 gap-2 w-full sm:w-auto">
                     {/* WhatsApp Deep Link Button */}
                     <Button
                       size="sm"
-                      className="rounded-xl h-8 text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs"
+                      className="rounded-xl h-8.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs px-2"
                       asChild
                     >
-                      <a href={waUrl} target="_blank" rel="noreferrer">
-                        <MessageCircle className="mr-1.5 size-3.5 fill-white/20" /> Reply on WhatsApp
+                      <a href={waUrl} target="_blank" rel="noreferrer" className="flex items-center justify-center">
+                        <MessageCircle className="mr-1 size-3.5 fill-white/20" /> WhatsApp
                       </a>
                     </Button>
 
                     {/* Direct Call Button */}
-                    <Button size="sm" variant="outline" className="rounded-xl h-8 text-xs" asChild>
-                      <a href={`tel:${o.customer_phone}`}>
-                        <Phone className="mr-1.5 size-3.5 text-primary" /> Call Customer
+                    <Button size="sm" variant="outline" className="rounded-xl h-8.5 text-xs font-semibold px-2" asChild>
+                      <a href={`tel:${o.customer_phone}`} className="flex items-center justify-center">
+                        <Phone className="mr-1 size-3.5 text-primary" /> Call
                       </a>
                     </Button>
 
                     {/* Email Response */}
-                    <Button size="sm" variant="outline" className="rounded-xl h-8 text-xs" asChild>
-                      <a href={mailUrl}>
-                        <Mail className="mr-1.5 size-3.5 text-blue-500" /> Email
+                    <Button size="sm" variant="outline" className="rounded-xl h-8.5 text-xs font-semibold px-2" asChild>
+                      <a href={mailUrl} className="flex items-center justify-center">
+                        <Mail className="mr-1 size-3.5 text-blue-500" /> Email
                       </a>
                     </Button>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 ml-auto">
+                  <div className="flex items-center gap-2 justify-end pt-1 sm:pt-0">
                     {/* 1-Click Status Update */}
                     {!isResolved ? (
                       <Button
                         size="sm"
                         variant="outline"
-                        className="rounded-xl h-8 text-xs font-medium border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
+                        className="flex-1 sm:flex-initial rounded-xl h-8.5 text-xs font-bold border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
                         onClick={() => {
                           setResolutionActionOrder(o);
                           setResolutionNote("Resolved after customer consultation. Feedback acknowledged.");
                         }}
                       >
-                        <CheckCircle2 className="mr-1.5 size-3.5" /> Mark Resolved
+                        <CheckCircle2 className="mr-1.5 size-3.5" /> Resolve
                       </Button>
                     ) : (
-                      <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+                      <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
                         <CheckCircle2 className="size-3.5" /> Resolved
                       </span>
                     )}
@@ -324,7 +324,7 @@ export function ComplaintsAdmin() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="rounded-xl h-8 text-xs text-destructive hover:bg-destructive/10"
+                        className="flex-1 sm:flex-initial rounded-xl h-8.5 text-xs font-bold text-destructive hover:bg-destructive/10"
                         onClick={() => {
                           if (confirm(`Issue full refund of ${formatINR(Number(o.total))} for order #${o.order_number ?? o.id.slice(0, 8)}?`)) {
                             if (o.stripe_session_id) {
@@ -343,7 +343,7 @@ export function ComplaintsAdmin() {
                           }
                         }}
                       >
-                        <RotateCcw className="mr-1.5 size-3.5" /> Refund Order
+                        <RotateCcw className="mr-1.5 size-3.5" /> Refund
                       </Button>
                     )}
                   </div>

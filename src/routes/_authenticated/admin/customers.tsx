@@ -167,14 +167,15 @@ function CustomersAdmin() {
       </div>
 
       {/* Search and Filters */}
-      <div className="mb-6 grid gap-3 sm:grid-cols-12">
+      {/* Search and Filters */}
+      <div className="mb-4 space-y-2.5 sm:space-y-0 sm:grid sm:gap-3 sm:grid-cols-12">
         <div className="relative sm:col-span-6">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by customer name or phone..."
-            className="pl-9 pr-8 rounded-xl"
+            className="pl-9 pr-8 rounded-xl h-10 text-sm"
           />
           {search && (
             <button
@@ -187,32 +188,34 @@ function CustomersAdmin() {
           )}
         </div>
 
-        <div className="sm:col-span-3">
-          <Select value={filterType} onValueChange={(v) => setFilterType(v as typeof filterType)}>
-            <SelectTrigger className="rounded-xl">
-              <SelectValue placeholder="Filter customers" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All ({rows.length})</SelectItem>
-              <SelectItem value="repeat">Repeat Customers ({rows.filter((r) => r.orders > 1).length})</SelectItem>
-              <SelectItem value="new">New Customers ({rows.filter((r) => r.orders === 1).length})</SelectItem>
-              <SelectItem value="suspended">Suspended ({Object.keys(susMap).length})</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <div className="grid grid-cols-2 gap-2 sm:col-span-6">
+          <div>
+            <Select value={filterType} onValueChange={(v) => setFilterType(v as typeof filterType)}>
+              <SelectTrigger className="rounded-xl h-10 text-xs">
+                <SelectValue placeholder="Filter customers" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All ({rows.length})</SelectItem>
+                <SelectItem value="repeat">Repeat ({rows.filter((r) => r.orders > 1).length})</SelectItem>
+                <SelectItem value="new">New ({rows.filter((r) => r.orders === 1).length})</SelectItem>
+                <SelectItem value="suspended">Suspended ({Object.keys(susMap).length})</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-        <div className="sm:col-span-3">
-          <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-            <SelectTrigger className="rounded-xl">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="spent">Highest Spend</SelectItem>
-              <SelectItem value="orders">Most Orders</SelectItem>
-              <SelectItem value="recent">Recently Active</SelectItem>
-              <SelectItem value="name">Name (A-Z)</SelectItem>
-            </SelectContent>
-          </Select>
+          <div>
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+              <SelectTrigger className="rounded-xl h-10 text-xs">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="spent">Highest Spend</SelectItem>
+                <SelectItem value="orders">Most Orders</SelectItem>
+                <SelectItem value="recent">Recently Active</SelectItem>
+                <SelectItem value="name">Name (A-Z)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -225,7 +228,7 @@ function CustomersAdmin() {
               key={c.phone}
               className={`transition-all hover:border-primary/40 hover:shadow-xs ${isSuspended ? "border-destructive/40 bg-destructive/5" : ""}`}
             >
-              <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <CardContent className="flex flex-col gap-3 p-3.5 sm:p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <button

@@ -437,10 +437,11 @@ export function DriverDispatchPage() {
                       )}
 
                       {/* Driver Assignment & Actions */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-3">
-                        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-56">
+                      {/* Driver Assignment & Action Bar */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-t border-border/50 pt-3">
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
                           {/* Driver Selector */}
-                          <div className="min-w-44 flex-1">
+                          <div className="flex-1 min-w-40 sm:w-48">
                             {drivers.length > 0 ? (
                               <Select
                                 value={drivers.find((d) => d.name === o.driver_name)?.id ?? ""}
@@ -454,8 +455,8 @@ export function DriverDispatchPage() {
                                   }
                                 }}
                               >
-                                <SelectTrigger className="h-8 rounded-xl text-xs">
-                                  <SelectValue placeholder="Select Fleet Driver" />
+                                <SelectTrigger className="h-8.5 rounded-xl text-xs font-semibold">
+                                  <SelectValue placeholder="Assign Driver" />
                                 </SelectTrigger>
                                 <SelectContent>
                                   {drivers.map((d) => (
@@ -469,7 +470,7 @@ export function DriverDispatchPage() {
                               <Input
                                 placeholder="Assign driver name..."
                                 defaultValue={o.driver_name ?? ""}
-                                className="h-8 rounded-xl text-xs"
+                                className="h-8.5 rounded-xl text-xs"
                                 onBlur={(e) => {
                                   const driver_name = e.target.value.trim();
                                   if (driver_name && driver_name !== o.driver_name) {
@@ -485,68 +486,67 @@ export function DriverDispatchPage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="rounded-xl h-8 text-xs text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10"
+                              className="rounded-xl h-8.5 text-xs font-bold text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10 shrink-0"
                               title="Notify assigned driver on WhatsApp"
                               onClick={() => sendDriverWhatsApp(o)}
                             >
-                              <MessageCircle className="size-3.5 mr-1 fill-emerald-500/20" /> Notify Driver
+                              <MessageCircle className="size-3.5 mr-1 fill-emerald-500/20" /> WhatsApp
                             </Button>
                           )}
                         </div>
 
                         {/* Navigation & Delivery Actions */}
-                        <div className="flex flex-wrap items-center gap-1.5 ml-auto">
+                        <div className="grid grid-cols-3 sm:flex sm:items-center gap-1.5 w-full sm:w-auto">
                           {/* Customer Call */}
-                          <Button size="sm" variant="outline" className="rounded-xl h-8 text-xs" asChild>
-                            <a href={`tel:${o.customer_phone}`}>
-                              <Phone className="size-3.5 mr-1 text-primary" /> Call
+                          <Button size="sm" variant="outline" className="rounded-xl h-8.5 text-xs font-semibold px-2" asChild>
+                            <a href={`tel:${o.customer_phone}`} className="flex items-center justify-center">
+                              <Phone className="size-3 mr-1 text-primary" /> Call
                             </a>
                           </Button>
 
                           {/* Turn-by-Turn GPS Navigation */}
-                          <Button size="sm" variant="outline" className="rounded-xl h-8 text-xs" asChild>
-                            <a href={navUrl} target="_blank" rel="noreferrer">
-                              <Navigation className="size-3.5 mr-1 text-blue-500" /> Navigate
+                          <Button size="sm" variant="outline" className="rounded-xl h-8.5 text-xs font-semibold px-2" asChild>
+                            <a href={navUrl} target="_blank" rel="noreferrer" className="flex items-center justify-center">
+                              <Navigation className="size-3 mr-1 text-blue-500" /> Map
                             </a>
                           </Button>
 
-                          {/* Dispatch Trigger */}
-                          {o.status !== "out_for_delivery" && (
+                          {/* Dispatch Trigger or Deliver Button */}
+                          {o.status !== "out_for_delivery" ? (
                             <Button
                               size="sm"
                               variant="outline"
-                              className="rounded-xl h-8 text-xs font-semibold"
+                              className="rounded-xl h-8.5 text-xs font-bold text-blue-600 border-blue-500/30 hover:bg-blue-500/10 px-2"
                               onClick={() => updateOrder.mutate({ id: o.id, patch: { status: "out_for_delivery" } })}
                             >
-                              <Truck className="size-3.5 mr-1" /> Start Run
+                              <Truck className="size-3 mr-1" /> Start
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              className={`rounded-xl h-8.5 text-xs font-bold px-2 ${
+                                isCod ? "bg-amber-600 hover:bg-amber-500 text-white shadow-xs" : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs"
+                              }`}
+                              onClick={() => {
+                                const promptText = isCod
+                                  ? `Confirm cash collected of ${formatINR(Number(o.total))} and mark delivered?`
+                                  : "Mark order as successfully delivered?";
+                                if (confirm(promptText)) {
+                                  updateOrder.mutate({
+                                    id: o.id,
+                                    patch: {
+                                      status: "delivered",
+                                      delivered_at: new Date().toISOString(),
+                                      payment_status: "paid",
+                                    },
+                                  });
+                                }
+                              }}
+                            >
+                              <CheckCircle2 className="size-3 mr-1" />
+                              {isCod ? "Collect" : "Delivered"}
                             </Button>
                           )}
-
-                          {/* Mark Delivered & Collect Cash */}
-                          <Button
-                            size="sm"
-                            className={`rounded-xl h-8 text-xs font-semibold ${
-                              isCod ? "bg-amber-600 hover:bg-amber-500 text-white" : "bg-emerald-600 hover:bg-emerald-500 text-white"
-                            }`}
-                            onClick={() => {
-                              const promptText = isCod
-                                ? `Confirm cash collected of ${formatINR(Number(o.total))} and mark delivered?`
-                                : "Mark order as successfully delivered?";
-                              if (confirm(promptText)) {
-                                updateOrder.mutate({
-                                  id: o.id,
-                                  patch: {
-                                    status: "delivered",
-                                    delivered_at: new Date().toISOString(),
-                                    payment_status: "paid",
-                                  },
-                                });
-                              }
-                            }}
-                          >
-                            <CheckCircle2 className="size-3.5 mr-1" />
-                            {isCod ? "Collect Cash & Deliver" : "Mark Delivered"}
-                          </Button>
                         </div>
                       </div>
                     </CardContent>
@@ -632,7 +632,58 @@ export function DriverDispatchPage() {
               </p>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
+              {/* Mobile Driver Performance Cards */}
+              <div className="divide-y divide-border/50 sm:hidden">
+                {driverAnalytics.map((d) => (
+                  <div key={d.name} className="p-3.5 space-y-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-bold text-sm text-foreground">{d.name}</p>
+                        {d.phone && <p className="text-xs text-muted-foreground">{d.phone}</p>}
+                      </div>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        <span className="size-1.5 rounded-full bg-emerald-500" />
+                        {d.activeRuns > 0 ? "On Run" : "Ready"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 rounded-2xl bg-muted/40 p-2.5 text-xs border border-border/50">
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">COD In Hand</p>
+                        <p className="font-extrabold text-amber-600 dark:text-amber-400 text-sm">
+                          {formatINR(d.codCollected)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Completed</p>
+                        <p className="font-bold text-foreground text-sm">
+                          {d.completedRuns} orders
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Active Runs</p>
+                        <p className="font-bold text-primary">
+                          {d.activeRuns} in flight
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">On-Time SLA</p>
+                        <p className="font-bold text-emerald-600 dark:text-emerald-400">
+                          {d.onTimeRate}% ({d.avgSpeed}m)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {driverAnalytics.length === 0 && (
+                  <p className="p-6 text-center text-xs text-muted-foreground">
+                    No fleet drivers registered. Add drivers under Team & Roles.
+                  </p>
+                )}
+              </div>
+
+              {/* Desktop Table */}
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-muted/40 text-muted-foreground">
                     <tr>

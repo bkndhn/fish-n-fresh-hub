@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Search, Edit, AlertTriangle, Zap, PackagePlus, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Search, Edit, AlertTriangle, Zap, PackagePlus, CheckCircle2, X } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminProductsQuery } from "@/lib/admin";
 import { categoriesQuery } from "@/lib/queries";
@@ -248,57 +248,60 @@ function ProductsAdmin() {
     <AdminShell title="Products & Inventory" allow={["admin", "staff"]}>
       {/* Low Stock Warning Banner */}
       {lowStockProducts.length > 0 && (
-        <div className="mb-4 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-card to-card p-4 shadow-xs">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="mb-4 rounded-3xl border border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-card to-card p-3.5 sm:p-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div className="flex items-center gap-2.5">
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400">
-                <AlertTriangle className="size-4.5" />
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-amber-500/25 text-amber-600 dark:text-amber-400 shadow-2xs">
+                <AlertTriangle className="size-5" />
               </div>
-              <div>
-                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                  Inventory Alert: {lowStockProducts.length} items low or out of stock
+              <div className="min-w-0 flex-1">
+                <h3 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5">
+                  <span>Inventory Alert</span>
+                  <span className="rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 px-2 py-0.2 text-[11px]">
+                    {lowStockProducts.length} depleted
+                  </span>
                 </h3>
-                <p className="text-xs text-muted-foreground">
-                  Replenish these items to prevent checkout cart errors and maintain customer fulfillment
+                <p className="text-[11px] text-muted-foreground line-clamp-1">
+                  Items below 5 units or paused from sale
                 </p>
               </div>
             </div>
             <Button
               size="sm"
               variant={stockFilter === "low" ? "default" : "outline"}
-              className="rounded-xl h-8 text-xs font-semibold border-amber-500/30 text-amber-700 dark:text-amber-300"
+              className="rounded-xl h-7.5 text-xs font-bold self-start sm:self-auto border-amber-500/40 text-amber-700 dark:text-amber-300"
               onClick={() => setStockFilter(stockFilter === "low" ? "all" : "low")}
             >
-              {stockFilter === "low" ? "Show All Products" : "Filter Depleted Items"}
+              {stockFilter === "low" ? "Show All Items" : "View Depleted Only"}
             </Button>
           </div>
 
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 pt-1">
-            {lowStockProducts.slice(0, 8).map((p) => (
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1.5 pt-0.5 scrollbar-none">
+            {lowStockProducts.map((p) => (
               <div
                 key={p.id}
-                className="flex shrink-0 items-center gap-2 rounded-xl border border-border/80 bg-card p-2 text-xs shadow-2xs hover:border-amber-500/40"
+                className="flex shrink-0 items-center gap-2 rounded-2xl border border-border/80 bg-background/90 p-2 text-xs shadow-2xs hover:border-amber-500/50"
               >
                 {p.image_url ? (
-                  <img src={p.image_url} alt={p.name} className="size-8 rounded-lg object-cover" />
+                  <img src={p.image_url} alt={p.name} className="size-9 rounded-xl object-cover" />
                 ) : (
-                  <div className="size-8 rounded-lg bg-muted flex items-center justify-center text-[10px]">🐟</div>
+                  <div className="size-9 rounded-xl bg-muted flex items-center justify-center text-xs">🐟</div>
                 )}
-                <div className="min-w-24 max-w-36">
-                  <p className="font-medium truncate">{p.name}</p>
-                  <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
-                    {(p.stock ?? 0) <= 0 ? "Out of Stock" : `${p.stock} ${p.unit} left`}
+                <div className="min-w-20 max-w-32">
+                  <p className="font-bold truncate text-[11px] leading-tight">{p.name}</p>
+                  <p className="text-[10px] font-extrabold text-rose-600 dark:text-rose-400">
+                    {(p.stock ?? 0) <= 0 ? "0 left" : `${p.stock} ${p.unit} left`}
                   </p>
                 </div>
                 <Button
                   size="sm"
-                  className="h-7 rounded-lg text-xs bg-amber-600 hover:bg-amber-500 text-white shrink-0 px-2.5"
+                  className="h-7 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shrink-0 px-2.5 shadow-2xs"
                   onClick={() => {
                     setRefillProduct(p);
                     setRefillQty("10");
                   }}
                 >
-                  <Zap className="mr-1 size-3" /> Refill
+                  <Zap className="mr-1 size-3 fill-current" /> Refill
                 </Button>
               </div>
             ))}
@@ -307,23 +310,32 @@ function ProductsAdmin() {
       )}
 
       {/* Search, Filter Pills, and Add Product */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-2 flex-1 max-w-xl">
-          <div className="relative flex-1 min-w-48">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              placeholder="Search products by name or category..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 rounded-xl h-9"
-            />
-          </div>
+      <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Search products by name or category..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 pr-8 rounded-xl h-10 bg-card text-sm"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="size-4" />
+            </button>
+          )}
+        </div>
 
-          <div className="flex items-center gap-1">
+        <div className="flex items-center justify-between sm:justify-end gap-2">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
             <Button
               size="sm"
               variant={stockFilter === "all" ? "default" : "outline"}
-              className="rounded-xl h-9 text-xs"
+              className="rounded-xl h-9 text-xs font-semibold shrink-0"
               onClick={() => setStockFilter("all")}
             >
               All ({allProducts.length})
@@ -331,28 +343,27 @@ function ProductsAdmin() {
             <Button
               size="sm"
               variant={stockFilter === "low" ? "default" : "outline"}
-              className={`rounded-xl h-9 text-xs ${
+              className={`rounded-xl h-9 text-xs font-semibold shrink-0 ${
                 lowStockProducts.length > 0 && stockFilter !== "low"
-                  ? "border-amber-500/40 text-amber-600 dark:text-amber-400"
+                  ? "border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/5"
                   : ""
               }`}
               onClick={() => setStockFilter("low")}
             >
-              Low Stock ({lowStockProducts.length})
+              ⚠️ Low Stock ({lowStockProducts.length})
             </Button>
           </div>
-        </div>
 
-        <Dialog open={openAdd} onOpenChange={setOpenAdd}>
-          <DialogTrigger asChild>
-            <Button className="rounded-xl shrink-0 h-9">
-              <Plus className="mr-2 size-4" /> Add Product
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Add New Seafood Product</DialogTitle>
-            </DialogHeader>
+          <Dialog open={openAdd} onOpenChange={setOpenAdd}>
+            <DialogTrigger asChild>
+              <Button className="rounded-xl shrink-0 h-9 font-bold shadow-xs">
+                <Plus className="mr-1.5 size-4" /> Add Product
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Add New Seafood Product</DialogTitle>
+              </DialogHeader>
             <div className="space-y-4 pt-2">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
@@ -537,117 +548,158 @@ function ProductsAdmin() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="space-y-3">
-        {list.map((p) => (
-          <Card key={p.id}>
-            <CardContent className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <ImageUpload 
-                  currentImage={p.image_url} 
-                  onUpload={(url) => update.mutate({ id: p.id, patch: { image_url: url } })} 
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{p.name}</p>
-                  {p.name_tamil && <p className="text-xs text-muted-foreground">{p.name_tamil}</p>}
-                  <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-1.5">
-                    <span>{p.category ?? "Uncategorised"}</span>
-                    <span>·</span>
-                    <span className="font-semibold text-foreground">{formatINR(Number(p.price))} / {p.unit}</span>
-                    {p.old_price && Number(p.old_price) > Number(p.price) && (
-                      <span className="rounded bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold border border-emerald-200 dark:border-emerald-800">
-                        MRP: <span className="line-through">{formatINR(Number(p.old_price))}</span> ({Math.round(((Number(p.old_price) - Number(p.price)) / Number(p.old_price)) * 100)}% off)
-                      </span>
-                    )}
-                    <span>·</span>
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
-                        (p.stock ?? 0) <= 0 || !p.is_available
-                          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
-                          : (p.stock ?? 0) <= 5
-                          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
-                          : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                      }`}
-                    >
+        {list.map((p) => {
+          const isLow = (p.stock ?? 0) <= 5;
+          const isOut = (p.stock ?? 0) <= 0;
+          const discountPercent =
+            p.old_price && Number(p.old_price) > Number(p.price)
+              ? Math.round(((Number(p.old_price) - Number(p.price)) / Number(p.old_price)) * 100)
+              : 0;
+
+          return (
+            <Card key={p.id} className="overflow-hidden border-border/80 shadow-xs transition hover:shadow-md">
+              <CardContent className="p-3.5 sm:p-5 flex flex-col gap-3.5">
+                {/* Upper Tier: Product Thumbnail + Full Name + Badges */}
+                <div className="flex items-start gap-3 sm:gap-4">
+                  <ImageUpload
+                    currentImage={p.image_url}
+                    compact={true}
+                    onUpload={(url) => update.mutate({ id: p.id, patch: { image_url: url } })}
+                  />
+
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex flex-wrap items-start justify-between gap-1.5">
+                      <div className="min-w-0 pr-1">
+                        <h4 className="font-bold text-sm sm:text-base text-foreground leading-snug break-words">
+                          {p.name}
+                        </h4>
+                        {p.name_tamil && (
+                          <p className="text-xs text-muted-foreground font-medium">{p.name_tamil}</p>
+                        )}
+                      </div>
+
+                      {/* Stock Status Badge */}
                       <span
-                        className={`size-1.5 rounded-full ${
-                          (p.stock ?? 0) <= 0 || !p.is_available
-                            ? "bg-rose-500"
-                            : (p.stock ?? 0) <= 5
-                            ? "bg-amber-500 animate-pulse"
-                            : "bg-emerald-500"
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold border shrink-0 ${
+                          isOut || !p.is_available
+                            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
+                            : isLow
+                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                            : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                         }`}
-                      />
-                      {(p.stock ?? 0) <= 0
-                        ? "Out of Stock"
-                        : !p.is_available
-                        ? `Paused (${p.stock} ${p.unit})`
-                        : (p.stock ?? 0) <= 5
-                        ? `Low Stock: ${p.stock} ${p.unit}`
-                        : `Stock: ${p.stock} ${p.unit}`}
-                    </span>
-                  </p>
-                </div>
-              </div>
+                      >
+                        <span
+                          className={`size-1.5 rounded-full ${
+                            isOut || !p.is_available
+                              ? "bg-rose-500"
+                              : isLow
+                              ? "bg-amber-500 animate-pulse"
+                              : "bg-emerald-500"
+                          }`}
+                        />
+                        {isOut
+                          ? "Out of Stock"
+                          : !p.is_available
+                          ? `Paused (${p.stock} ${p.unit})`
+                          : isLow
+                          ? `Low: ${p.stock} ${p.unit}`
+                          : `${p.stock} ${p.unit}`}
+                      </span>
+                    </div>
 
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <div className="w-20">
-                  <Label className="text-[10px] text-muted-foreground">Price (₹)</Label>
-                  <Input
-                    type="number"
-                    defaultValue={p.price}
-                    onBlur={(e) => {
-                      const price = Number(e.target.value);
-                      if (price !== p.price) update.mutate({ id: p.id, patch: { price } });
-                    }}
-                  />
-                </div>
-                <div className="w-20">
-                  <Label className="text-[10px] text-muted-foreground">Stock ({p.unit})</Label>
-                  <Input
-                    type="number"
-                    defaultValue={p.stock}
-                    onBlur={(e) => {
-                      const stock = Number(e.target.value);
-                      if (stock !== p.stock) update.mutate({ id: p.id, patch: { stock } });
-                    }}
-                  />
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <Label className="text-[10px] text-muted-foreground">Live</Label>
-                  <Switch
-                    checked={p.is_available}
-                    onCheckedChange={(is_available) => update.mutate({ id: p.id, patch: { is_available } })}
-                  />
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <Label className="text-[10px] text-muted-foreground text-center">Custom<br/>Qty</Label>
-                  <Switch
-                    checked={p.allow_custom_qty ?? true}
-                    onCheckedChange={(allow_custom_qty) => update.mutate({ id: p.id, patch: { allow_custom_qty } })}
-                  />
+                    {/* Category & Pricing */}
+                    <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                      <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                        {p.category ?? "Seafood"}
+                      </span>
+
+                      <span className="font-extrabold text-foreground text-sm sm:text-base">
+                        {formatINR(Number(p.price))} <span className="text-xs font-normal text-muted-foreground">/ {p.unit}</span>
+                      </span>
+
+                      {discountPercent > 0 && (
+                        <span className="rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                          MRP: <span className="line-through">{formatINR(Number(p.old_price))}</span> ({discountPercent}% OFF)
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-1">
+                {/* Middle Tier: Thumb-friendly Quick Values & Toggles */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 rounded-2xl bg-muted/40 p-2.5 border border-border/60">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Selling Price (₹)</Label>
+                    <Input
+                      type="number"
+                      defaultValue={p.price}
+                      className="h-8 rounded-xl text-xs font-bold bg-background"
+                      onBlur={(e) => {
+                        const price = Number(e.target.value);
+                        if (price !== p.price) update.mutate({ id: p.id, patch: { price } });
+                      }}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Stock ({p.unit})</Label>
+                    <Input
+                      type="number"
+                      defaultValue={p.stock}
+                      className="h-8 rounded-xl text-xs font-bold bg-background"
+                      onBlur={(e) => {
+                        const stock = Number(e.target.value);
+                        if (stock !== p.stock) update.mutate({ id: p.id, patch: { stock } });
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between px-2 sm:justify-center sm:gap-2">
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Store Live</p>
+                      <p className="text-[10px] text-muted-foreground">{p.is_available ? "Active" : "Hidden"}</p>
+                    </div>
+                    <Switch
+                      checked={p.is_available}
+                      onCheckedChange={(is_available) => update.mutate({ id: p.id, patch: { is_available } })}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between px-2 sm:justify-center sm:gap-2">
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Custom Qty</p>
+                      <p className="text-[10px] text-muted-foreground">{p.allow_custom_qty ?? true ? "Allowed" : "Fixed"}</p>
+                    </div>
+                    <Switch
+                      checked={p.allow_custom_qty ?? true}
+                      onCheckedChange={(allow_custom_qty) => update.mutate({ id: p.id, patch: { allow_custom_qty } })}
+                    />
+                  </div>
+                </div>
+
+                {/* Bottom Tier: Native Action Bar */}
+                <div className="flex items-center gap-2 pt-0.5">
+                  {/* Quick Refill Button */}
                   <Button
-                    size="icon"
-                    variant="outline"
-                    className="size-8 rounded-lg text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border-amber-500/30"
-                    title="Quick Refill Stock"
+                    size="sm"
+                    className="flex-1 rounded-xl h-8 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-xs"
                     onClick={() => {
                       setRefillProduct(p);
                       setRefillQty("10");
                     }}
                   >
-                    <Zap className="size-4" />
+                    <Zap className="mr-1.5 size-3.5 fill-current" /> Quick Refill
                   </Button>
 
+                  {/* Edit Details */}
                   <Button
-                    size="icon"
+                    size="sm"
                     variant="outline"
-                    className="size-8 rounded-lg text-primary hover:bg-primary/10"
-                    title="Edit full product details"
+                    className="flex-1 rounded-xl h-8 text-xs font-semibold"
                     onClick={() => {
                       const isStandardUnit = UNIT_OPTIONS.includes(p.unit);
                       setEditingProduct({
@@ -658,20 +710,21 @@ function ProductsAdmin() {
                       });
                     }}
                   >
-                    <Edit className="size-4" />
+                    <Edit className="mr-1.5 size-3.5" /> Edit
                   </Button>
 
+                  {/* Delete Button */}
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button size="icon" variant="ghost" className="size-8 text-muted-foreground hover:text-destructive">
+                      <Button size="sm" variant="ghost" className="rounded-xl h-8 px-2.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
                         <Trash2 className="size-4" />
                       </Button>
                     </AlertDialogTrigger>
-                    <AlertDialogContent className="rounded-2xl">
+                    <AlertDialogContent className="rounded-3xl max-w-sm">
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete {p.name}?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          This will permanently remove this seafood item from your catalogue. This action cannot be undone.
+                          Permanently remove this product from the catalogue. This cannot be undone.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -686,10 +739,10 @@ function ProductsAdmin() {
                     </AlertDialogContent>
                   </AlertDialog>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
         {list.length === 0 && (
           <p className="py-8 text-center text-sm text-muted-foreground">
             {search ? "No products match your search." : "No products yet. Click 'Add Product' above to create one."}

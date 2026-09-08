@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Printer, MessageCircle, Phone, Search, Calendar, RefreshCw } from "lucide-react";
+import { Printer, MessageCircle, Phone, Search, Calendar, RefreshCw, ExternalLink, MapPin } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery, ORDER_STATUSES, type OrderRow } from "@/lib/admin";
 import { settingsQuery } from "@/lib/queries";
@@ -225,104 +225,151 @@ function OrdersAdmin() {
       </div>
 
       <div className="space-y-3">
-        {rows.map((o) => (
-          <Card key={o.id}>
-            <CardContent className="flex flex-col gap-3 pt-6">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold text-base">
-                      #{o.order_number ?? o.id.slice(0, 8)} · {o.customer_name}
-                    </p>
-                    <Badge variant="secondary" className="capitalize text-[11px]">
-                      {o.status.replace(/_/g, " ")}
-                    </Badge>
+        {rows.map((o) => {
+          const isCOD = o.payment_method === "cod";
+          const isDelivered = o.status === "delivered";
+          const isCancelled = o.status === "cancelled";
+
+          return (
+            <Card key={o.id} className="overflow-hidden border-border/80 shadow-xs transition hover:shadow-md">
+              <CardContent className="p-3.5 sm:p-5 flex flex-col gap-3">
+                {/* Header: Order Number & Customer Name + Status Pill */}
+                <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border/50 pb-2.5">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-extrabold text-sm sm:text-base text-foreground">
+                        #{o.order_number ?? o.id.slice(0, 8)}
+                      </span>
+                      <span className="text-xs font-semibold text-foreground">
+                        · {o.customer_name}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">{formatIST(o.created_at)}</p>
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <span>{o.customer_phone}</span>
+
+                  <Badge
+                    variant={isDelivered ? "default" : isCancelled ? "destructive" : "secondary"}
+                    className={`capitalize text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                      o.status === "out_for_delivery"
+                        ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30"
+                        : o.status === "preparing"
+                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
+                        : ""
+                    }`}
+                  >
+                    {o.status.replace(/_/g, " ")}
+                  </Badge>
+                </div>
+
+                {/* Customer Contact & Channel Bar */}
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="font-mono font-semibold text-foreground">{o.customer_phone}</span>
+
+                  <a
+                    href={`tel:${o.customer_phone}`}
+                    className="inline-flex items-center gap-1 rounded-xl bg-blue-500/10 px-2.5 py-1 text-xs font-bold text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 transition"
+                  >
+                    <Phone className="size-3" /> Call
+                  </a>
+
+                  <a
+                    href={getWhatsAppUrl(
+                      o.customer_phone,
+                      `Hi ${o.customer_name}, regarding your Fish N Fresh seafood order #${o.order_number ?? o.id.slice(0, 8)}...`
+                    )}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-xl bg-green-500/10 px-2.5 py-1 text-xs font-bold text-green-700 dark:text-green-400 hover:bg-green-500/20 transition"
+                  >
+                    <MessageCircle className="size-3" /> WhatsApp
+                  </a>
+
+                  <span className="text-muted-foreground text-xs">·</span>
+                  <span className="capitalize text-muted-foreground text-xs font-medium">{o.fulfillment_type}</span>
+                </div>
+
+                {/* Address with Google Maps link */}
+                {o.customer_address && (
+                  <div className="rounded-xl bg-muted/40 p-2 text-xs flex items-start justify-between gap-2 border border-border/50">
+                    <p className="text-foreground line-clamp-2">
+                      <span className="font-bold">📍 Address:</span> {o.customer_address}
+                    </p>
                     <a
-                      href={`tel:${o.customer_phone}`}
-                      className="text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-0.5"
-                    >
-                      <Phone className="size-3" /> Call
-                    </a>
-                    <a
-                      href={getWhatsAppUrl(
-                        o.customer_phone,
-                        `Hi ${o.customer_name}, regarding your Fish N Fresh seafood order #${o.order_number ?? o.id.slice(0, 8)}...`
-                      )}
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.customer_address)}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-green-600 hover:text-green-700 font-medium inline-flex items-center gap-0.5"
+                      className="shrink-0 inline-flex items-center gap-0.5 text-primary text-[11px] font-bold hover:underline"
                     >
-                      <MessageCircle className="size-3" /> WhatsApp
+                      Maps <ExternalLink className="size-3" />
                     </a>
-                    <span>·</span>
-                    <span className="capitalize">{o.fulfillment_type}</span>
-                    <span>·</span>
-                    <span className="font-semibold">{o.payment_method.toUpperCase()}</span>
                   </div>
+                )}
 
-                  {o.customer_address && (
-                    <p className="mt-1 text-xs text-muted-foreground line-clamp-1">
-                      📍 {o.customer_address}
-                    </p>
-                  )}
+                {/* Delivery Slot */}
+                {o.delivery_slot && (
+                  <p className="text-xs text-primary font-semibold flex items-center gap-1">
+                    ⏰ Slot: {o.delivery_date ? `${o.delivery_date} · ` : ""}{o.delivery_slot}
+                  </p>
+                )}
 
-                  {o.delivery_slot && (
-                    <p className="mt-0.5 text-xs text-primary font-medium">
-                      ⏰ Slot: {o.delivery_date ? `${o.delivery_date} · ` : ""}{o.delivery_slot}
-                    </p>
-                  )}
-
-                  <div className="mt-2 rounded-xl bg-muted/50 p-2.5 text-xs space-y-1">
-                    <p className="font-medium text-foreground">Items:</p>
-                    <ul className="list-disc list-inside space-y-0.5 text-muted-foreground">
-                      {o.items.map((i, idx) => (
-                        <li key={idx}>
-                          <span className="font-medium text-foreground">{i.name}</span> × {i.qty} {i.unit || "kg"}
+                {/* Ordered Items List */}
+                <div className="rounded-xl bg-muted/30 p-2.5 text-xs space-y-1 border border-border/40">
+                  <p className="font-bold text-foreground">Items Ordered:</p>
+                  <ul className="space-y-1 text-muted-foreground">
+                    {o.items.map((i, idx) => (
+                      <li key={idx} className="flex items-center justify-between">
+                        <span className="text-foreground font-medium">{i.name}</span>
+                        <div className="flex items-center gap-1">
+                          <span className="font-semibold text-foreground">× {i.qty} {i.unit || "kg"}</span>
                           {(i as any).cut_preference && (
-                            <span className="ml-1.5 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary font-medium">
+                            <span className="rounded-md bg-primary/10 px-1.5 py-0.2 text-[10px] text-primary font-bold">
                               {(i as any).cut_preference}
                             </span>
                           )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {o.notes && (
-                    <p className="mt-2 rounded-lg bg-amber-500/10 p-2 text-xs text-amber-900 dark:text-amber-200">
-                      <strong>Note:</strong> {o.notes}
-                    </p>
-                  )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
 
-                <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-0">
-                  <div className="text-left sm:text-right">
-                    <p className="font-bold font-display text-lg">{formatINR(Number(o.total))}</p>
-                    <Badge variant="outline" className="text-[10px]">
-                      {formatIST(o.created_at)}
-                    </Badge>
+                {/* Payment & COD Alert Banner */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <div className="flex items-center gap-2">
+                    {isCOD ? (
+                      <span className="rounded-xl bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-300">
+                        ⚠️ Collect Cash: {formatINR(Number(o.total))}
+                      </span>
+                    ) : (
+                      <span className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                        ✅ Paid Online ({o.payment_method.toUpperCase()})
+                      </span>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="rounded-xl h-8 text-xs"
-                      onClick={() => setPrintOrder(o)}
-                    >
-                      <Printer className="mr-1 size-3.5" /> Print Bill
-                    </Button>
+                  <div className="text-right">
+                    <p className="font-extrabold font-display text-lg text-foreground">{formatINR(Number(o.total))}</p>
+                  </div>
+                </div>
 
+                {/* Bottom Action Row: Print Bill + Status Selector */}
+                <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl h-8.5 text-xs font-semibold shrink-0"
+                    onClick={() => setPrintOrder(o)}
+                  >
+                    <Printer className="mr-1.5 size-3.5" /> Bill
+                  </Button>
+
+                  <div className="flex-1">
                     <Select value={o.status} onValueChange={(status) => update.mutate({ id: o.id, status })}>
-                      <SelectTrigger className="w-36 h-8 text-xs rounded-xl">
+                      <SelectTrigger className="w-full h-8.5 text-xs rounded-xl font-semibold">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         {ORDER_STATUSES.map((s) => (
-                          <SelectItem key={s} value={s} className="text-xs">
+                          <SelectItem key={s} value={s} className="text-xs capitalize">
                             {s.replace(/_/g, " ")}
                           </SelectItem>
                         ))}
@@ -330,17 +377,23 @@ function OrdersAdmin() {
                     </Select>
                   </div>
                 </div>
-              </div>
 
-              {o.complaint && (
-                <div className="rounded-xl bg-destructive/10 p-3 text-sm">
-                  <p className="font-semibold text-destructive">Customer Complaint</p>
-                  <p className="text-destructive/80 text-xs mt-0.5">{o.complaint}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+                {o.notes && (
+                  <p className="rounded-xl bg-amber-500/10 p-2 text-xs text-amber-900 dark:text-amber-200">
+                    <strong>Note:</strong> {o.notes}
+                  </p>
+                )}
+
+                {o.complaint && (
+                  <div className="rounded-xl bg-destructive/10 p-2.5 text-xs border border-destructive/20">
+                    <p className="font-bold text-destructive">Customer Complaint:</p>
+                    <p className="text-destructive/90 mt-0.5">{o.complaint}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
         {rows.length === 0 && (
           <div className="rounded-2xl border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
             <p className="font-medium text-foreground">

@@ -3,15 +3,16 @@ import imageCompression from "browser-image-compression";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { UploadCloud, Loader2 } from "lucide-react";
+import { UploadCloud, Loader2, Camera } from "lucide-react";
 import { toast } from "sonner";
 
 interface ImageUploadProps {
   onUpload: (url: string) => void;
   currentImage?: string | null;
+  compact?: boolean;
 }
 
-export function ImageUpload({ onUpload, currentImage }: ImageUploadProps) {
+export function ImageUpload({ onUpload, currentImage, compact = false }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,13 +43,55 @@ export function ImageUpload({ onUpload, currentImage }: ImageUploadProps) {
       const { data } = supabase.storage.from('images').getPublicUrl(filePath);
       
       onUpload(data.publicUrl);
-      toast.success("Image uploaded successfully");
+      toast.success("Image updated successfully");
     } catch (error: any) {
       toast.error(error.message || "Failed to upload image");
     } finally {
       setUploading(false);
     }
   };
+
+  if (compact) {
+    return (
+      <div className="relative size-16 sm:size-20 shrink-0 overflow-hidden rounded-2xl border border-border/80 bg-muted/40 group shadow-2xs">
+        {currentImage ? (
+          <img
+            src={currentImage}
+            alt="Product"
+            className="size-full object-cover transition duration-200 group-hover:scale-105"
+            onError={(e) => {
+              e.currentTarget.src = "https://images.unsplash.com/photo-1509722747041-616f39b57569?w=800";
+            }}
+          />
+        ) : (
+          <div className="flex size-full items-center justify-center text-xl bg-muted text-muted-foreground">
+            🐟
+          </div>
+        )}
+
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+          <Camera className="size-5" />
+        </div>
+
+        <div className="absolute bottom-1 right-1 rounded-full bg-black/70 p-1 text-white shadow-xs backdrop-blur-xs">
+          {uploading ? (
+            <Loader2 className="size-3 animate-spin text-amber-400" />
+          ) : (
+            <Camera className="size-3" />
+          )}
+        </div>
+
+        <Input
+          type="file"
+          accept="image/*"
+          className="absolute inset-0 cursor-pointer opacity-0"
+          onChange={handleFileChange}
+          disabled={uploading}
+          title="Click to update photo"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-4">

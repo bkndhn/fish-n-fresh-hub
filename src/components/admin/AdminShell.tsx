@@ -137,7 +137,7 @@ export function AdminShell({
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6">
+      <div className="mx-auto flex max-w-7xl gap-6 px-3 py-3 sm:px-6 sm:py-6">
         <aside className="hidden w-56 shrink-0 md:block">
           <nav className="sticky top-20 space-y-1">
             {nav.map((item) => (
@@ -145,8 +145,8 @@ export function AdminShell({
                 key={item.to}
                 to={item.to}
                 activeOptions={{ exact: Boolean((item as { exact?: boolean }).exact) }}
-                activeProps={{ className: "bg-primary text-primary-foreground hover:bg-primary" }}
-                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                activeProps={{ className: "bg-primary text-primary-foreground hover:bg-primary shadow-xs" }}
+                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
               >
                 <item.icon className="size-4" />
                 {item.label}
@@ -156,23 +156,23 @@ export function AdminShell({
         </aside>
 
         <main className="min-w-0 flex-1 pb-24 md:pb-6">
-          <h1 className="mb-4 font-display text-2xl font-bold">{title}</h1>
+          <h1 className="mb-3 font-display text-xl font-bold text-foreground sm:text-2xl sm:mb-4">{title}</h1>
           {children}
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation: Clean 4 items + "More" drawer */}
-      <nav className="glass fixed inset-x-0 bottom-0 z-50 flex items-center justify-around border-t border-border px-2 py-1 md:hidden">
+      {/* Native Mobile Bottom Navigation Bar */}
+      <nav className="glass fixed inset-x-0 bottom-0 z-50 flex items-center justify-around border-t border-border/80 bg-background/95 backdrop-blur-lg px-2 py-1 pb-[env(safe-area-inset-bottom,4px)] md:hidden shadow-lg">
         {primaryNav.map((item) => (
           <Link
             key={item.to}
             to={item.to}
             activeOptions={{ exact: Boolean((item as { exact?: boolean }).exact) }}
-            activeProps={{ className: "text-primary font-semibold" }}
-            className="flex flex-1 flex-col items-center gap-0.5 py-1.5 text-[10px] text-muted-foreground transition-colors"
+            activeProps={{ className: "text-primary font-bold scale-105" }}
+            className="flex flex-1 flex-col items-center justify-center gap-0.5 py-1 text-[10px] font-medium text-muted-foreground transition-all active:scale-95"
           >
             <item.icon className="size-5" />
-            <span className="truncate">{item.label}</span>
+            <span className="truncate max-w-[64px]">{item.label}</span>
           </Link>
         ))}
 
@@ -181,30 +181,30 @@ export function AdminShell({
             <SheetTrigger asChild>
               <button
                 type="button"
-                className="flex flex-1 flex-col items-center gap-0.5 py-1.5 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+                className="flex flex-1 flex-col items-center justify-center gap-0.5 py-1 text-[10px] font-medium text-muted-foreground transition-all active:scale-95 hover:text-foreground"
               >
                 <MoreHorizontal className="size-5" />
                 <span>More</span>
               </button>
             </SheetTrigger>
-            <SheetContent side="bottom" className="rounded-t-2xl max-h-[80vh] overflow-y-auto p-5">
+            <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto p-5 border-t border-border/80 bg-background shadow-2xl">
               <SheetHeader className="mb-4 text-left">
-                <SheetTitle>More Admin Pages</SheetTitle>
+                <SheetTitle className="text-base font-bold">Admin Console Menu</SheetTitle>
               </SheetHeader>
-              <div className="grid grid-cols-3 gap-3 pb-4">
+              <div className="grid grid-cols-3 gap-2.5 pb-6">
                 {moreNav.map((item) => (
                   <Link
                     key={item.to}
                     to={item.to}
                     onClick={() => setMoreOpen(false)}
                     activeOptions={{ exact: Boolean((item as { exact?: boolean }).exact) }}
-                    activeProps={{ className: "bg-primary/10 text-primary border-primary/30 font-semibold" }}
-                    className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border/60 bg-muted/40 p-3 text-center text-xs font-medium text-foreground transition hover:bg-muted"
+                    activeProps={{ className: "bg-primary/10 text-primary border-primary/40 font-bold shadow-xs" }}
+                    className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-border/70 bg-card p-3 text-center text-xs font-medium text-foreground transition active:scale-95 hover:bg-muted"
                   >
-                    <div className="flex size-9 items-center justify-center rounded-lg bg-background shadow-xs">
-                      <item.icon className="size-5 text-primary" />
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-2xs">
+                      <item.icon className="size-5" />
                     </div>
-                    <span className="leading-tight">{item.label}</span>
+                    <span className="leading-tight line-clamp-1">{item.label}</span>
                   </Link>
                 ))}
               </div>

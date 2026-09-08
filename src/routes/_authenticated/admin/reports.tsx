@@ -837,53 +837,54 @@ export function Reports() {
           </div>
         </CardHeader>
         <CardContent className="pt-3 pb-5 space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-xl border border-border/70 p-3 text-center">
-              <p className="text-xs text-muted-foreground">On-Time Deliveries</p>
-              <p className="mt-1 text-xl font-bold font-display text-emerald-600 dark:text-emerald-400">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+            <div className="rounded-2xl border border-border/70 p-3 text-center bg-card shadow-2xs">
+              <p className="text-[11px] font-medium text-muted-foreground">On-Time Deliveries</p>
+              <p className="mt-1 text-lg sm:text-xl font-extrabold font-display text-emerald-600 dark:text-emerald-400">
                 {deliverySlaAnalytics.onTimeCount} / {deliverySlaAnalytics.totalDelivered}
               </p>
-              <p className="text-[11px] text-muted-foreground">{deliverySlaAnalytics.onTimeRate}% within target window</p>
+              <p className="text-[10px] text-muted-foreground">{deliverySlaAnalytics.onTimeRate}% on-time</p>
             </div>
 
-            <div className="rounded-xl border border-border/70 p-3 text-center">
-              <p className="text-xs text-muted-foreground">Avg Delivery Turnaround</p>
-              <p className="mt-1 text-xl font-bold font-display text-foreground">
+            <div className="rounded-2xl border border-border/70 p-3 text-center bg-card shadow-2xs">
+              <p className="text-[11px] font-medium text-muted-foreground">Avg Turnaround</p>
+              <p className="mt-1 text-lg sm:text-xl font-extrabold font-display text-foreground">
                 {deliverySlaAnalytics.avgTurnaround} mins
               </p>
-              <p className="text-[11px] text-muted-foreground">From order placement to doorstep</p>
+              <p className="text-[10px] text-muted-foreground">Order to doorstep</p>
             </div>
 
-            <div className="rounded-xl border border-border/70 p-3 text-center">
-              <p className="text-xs text-muted-foreground">Delayed Deliveries</p>
-              <p className={`mt-1 text-xl font-bold font-display ${deliverySlaAnalytics.delayedCount > 0 ? "text-rose-600" : "text-emerald-600"}`}>
+            <div className="rounded-2xl border border-border/70 p-3 text-center bg-card shadow-2xs">
+              <p className="text-[11px] font-medium text-muted-foreground">Delayed Runs</p>
+              <p className={`mt-1 text-lg sm:text-xl font-extrabold font-display ${deliverySlaAnalytics.delayedCount > 0 ? "text-rose-600" : "text-emerald-600"}`}>
                 {deliverySlaAnalytics.delayedCount}
               </p>
-              <p className="text-[11px] text-muted-foreground">Exceeded ETA window</p>
+              <p className="text-[10px] text-muted-foreground">Exceeded ETA</p>
             </div>
 
-            <div className="rounded-xl border border-border/70 p-3 text-center">
-              <p className="text-xs text-muted-foreground">Fleet Drivers Recorded</p>
-              <p className="mt-1 text-xl font-bold font-display text-primary">
-                {deliverySlaAnalytics.driverList.length} Active
+            <div className="rounded-2xl border border-border/70 p-3 text-center bg-card shadow-2xs">
+              <p className="text-[11px] font-medium text-muted-foreground">Active Drivers</p>
+              <p className="mt-1 text-lg sm:text-xl font-extrabold font-display text-primary">
+                {deliverySlaAnalytics.driverList.length} Drivers
               </p>
-              <p className="text-[11px] text-muted-foreground">Tracked in this period</p>
+              <p className="text-[10px] text-muted-foreground">Recorded in period</p>
             </div>
           </div>
 
           {/* Speed Tiers Progress Bars */}
-          <div className="space-y-2 rounded-xl border border-border/60 bg-muted/20 p-3.5">
-            <p className="text-xs font-semibold text-foreground">Delivery Speed Tier Breakdown</p>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 pt-1">
+          <div className="space-y-2 rounded-2xl border border-border/60 bg-muted/20 p-3 sm:p-3.5">
+            <p className="text-xs font-bold text-foreground">Delivery Speed Tier Breakdown</p>
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-1">
               {deliverySlaAnalytics.speedTiers.map((tier) => (
-                <div key={tier.label} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-foreground">{tier.label}</span>
-                    <span className="text-muted-foreground">{tier.count} ({tier.pct}%)</span>
+                <div key={tier.label} className="space-y-1 rounded-xl bg-background/80 p-2 border border-border/40">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-semibold text-foreground truncate">{tier.label}</span>
+                    <span className="font-bold text-muted-foreground ml-1">{tier.pct}%</span>
                   </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                     <div className={`h-full rounded-full ${tier.color}`} style={{ width: `${tier.pct}%` }} />
                   </div>
+                  <p className="text-[10px] text-muted-foreground">{tier.count} orders</p>
                 </div>
               ))}
             </div>
@@ -891,11 +892,40 @@ export function Reports() {
 
           {/* Driver SLA Performance Ranking */}
           {deliverySlaAnalytics.driverList.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <Award className="size-3.5 text-amber-500" /> Driver SLA Performance Ranking
+            <div className="space-y-2 pt-1">
+              <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Award className="size-4 text-amber-500" /> Driver SLA Performance Ranking
               </p>
-              <div className="overflow-x-auto">
+
+              {/* Mobile Card View for Driver SLA (sm:hidden) */}
+              <div className="space-y-2 sm:hidden">
+                {deliverySlaAnalytics.driverList.map((driver) => (
+                  <div key={driver.name} className="rounded-2xl border border-border/70 bg-card p-3 shadow-2xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="font-bold text-sm text-foreground">{driver.name}</p>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
+                          driver.onTimeRate >= 90
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                            : driver.onTimeRate >= 75
+                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                            : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                        }`}
+                      >
+                        {driver.onTimeRate}% SLA
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/40">
+                      <span>{driver.total} runs delivered</span>
+                      <span className="font-medium text-foreground">Avg {driver.avgSpeed} mins / run</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View (hidden sm:block) */}
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className="border-b border-border/60 text-muted-foreground">
