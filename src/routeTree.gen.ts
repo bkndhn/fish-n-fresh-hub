@@ -36,10 +36,12 @@ import { Route as AuthenticatedAdminOrdersRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAdminPaymentsRouteImport } from './routes/_authenticated/admin/payments'
 import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authenticated/admin/products'
 import { Route as AuthenticatedAdminPromotionsRouteImport } from './routes/_authenticated/admin/promotions'
+import { Route as AuthenticatedAdminPurchasesRouteImport } from './routes/_authenticated/admin/purchases'
 import { Route as AuthenticatedAdminReportsRouteImport } from './routes/_authenticated/admin/reports'
 import { Route as AuthenticatedAdminScheduleRouteImport } from './routes/_authenticated/admin/schedule'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin/settings'
 import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authenticated/admin/staff'
+import { Route as AuthenticatedAdminWasteRouteImport } from './routes/_authenticated/admin/waste'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 
 const IndexRoute = IndexRouteImport.update({
@@ -187,6 +189,12 @@ const AuthenticatedAdminPromotionsRoute =
     path: '/admin/promotions',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminPurchasesRoute =
+  AuthenticatedAdminPurchasesRouteImport.update({
+    id: '/admin/purchases',
+    path: '/admin/purchases',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminReportsRoute =
   AuthenticatedAdminReportsRouteImport.update({
     id: '/admin/reports',
@@ -208,6 +216,11 @@ const AuthenticatedAdminSettingsRoute =
 const AuthenticatedAdminStaffRoute = AuthenticatedAdminStaffRouteImport.update({
   id: '/admin/staff',
   path: '/admin/staff',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminWasteRoute = AuthenticatedAdminWasteRouteImport.update({
+  id: '/admin/waste',
+  path: '/admin/waste',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const ApiPublicPaymentsWebhookRoute =
@@ -243,10 +256,12 @@ export interface FileRoutesByFullPath {
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/promotions': typeof AuthenticatedAdminPromotionsRoute
+  '/admin/purchases': typeof AuthenticatedAdminPurchasesRoute
   '/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/admin/schedule': typeof AuthenticatedAdminScheduleRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/staff': typeof AuthenticatedAdminStaffRoute
+  '/admin/waste': typeof AuthenticatedAdminWasteRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
@@ -276,10 +291,12 @@ export interface FileRoutesByTo {
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/promotions': typeof AuthenticatedAdminPromotionsRoute
+  '/admin/purchases': typeof AuthenticatedAdminPurchasesRoute
   '/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/admin/schedule': typeof AuthenticatedAdminScheduleRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/staff': typeof AuthenticatedAdminStaffRoute
+  '/admin/waste': typeof AuthenticatedAdminWasteRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
@@ -311,10 +328,12 @@ export interface FileRoutesById {
   '/_authenticated/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/_authenticated/admin/products': typeof AuthenticatedAdminProductsRoute
   '/_authenticated/admin/promotions': typeof AuthenticatedAdminPromotionsRoute
+  '/_authenticated/admin/purchases': typeof AuthenticatedAdminPurchasesRoute
   '/_authenticated/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/_authenticated/admin/schedule': typeof AuthenticatedAdminScheduleRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/admin/staff': typeof AuthenticatedAdminStaffRoute
+  '/_authenticated/admin/waste': typeof AuthenticatedAdminWasteRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
@@ -346,10 +365,12 @@ export interface FileRouteTypes {
     | '/admin/payments'
     | '/admin/products'
     | '/admin/promotions'
+    | '/admin/purchases'
     | '/admin/reports'
     | '/admin/schedule'
     | '/admin/settings'
     | '/admin/staff'
+    | '/admin/waste'
     | '/admin/'
     | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
@@ -379,10 +400,12 @@ export interface FileRouteTypes {
     | '/admin/payments'
     | '/admin/products'
     | '/admin/promotions'
+    | '/admin/purchases'
     | '/admin/reports'
     | '/admin/schedule'
     | '/admin/settings'
     | '/admin/staff'
+    | '/admin/waste'
     | '/admin'
     | '/api/public/payments/webhook'
   id:
@@ -413,10 +436,12 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/payments'
     | '/_authenticated/admin/products'
     | '/_authenticated/admin/promotions'
+    | '/_authenticated/admin/purchases'
     | '/_authenticated/admin/reports'
     | '/_authenticated/admin/schedule'
     | '/_authenticated/admin/settings'
     | '/_authenticated/admin/staff'
+    | '/_authenticated/admin/waste'
     | '/_authenticated/admin/'
     | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
@@ -631,6 +656,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPromotionsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/purchases': {
+      id: '/_authenticated/admin/purchases'
+      path: '/admin/purchases'
+      fullPath: '/admin/purchases'
+      preLoaderRoute: typeof AuthenticatedAdminPurchasesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/reports': {
       id: '/_authenticated/admin/reports'
       path: '/admin/reports'
@@ -659,6 +691,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminStaffRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/waste': {
+      id: '/_authenticated/admin/waste'
+      path: '/admin/waste'
+      fullPath: '/admin/waste'
+      preLoaderRoute: typeof AuthenticatedAdminWasteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/payments/webhook': {
       id: '/api/public/payments/webhook'
       path: '/api/public/payments/webhook'
@@ -681,10 +720,12 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminPaymentsRoute: typeof AuthenticatedAdminPaymentsRoute
   AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
   AuthenticatedAdminPromotionsRoute: typeof AuthenticatedAdminPromotionsRoute
+  AuthenticatedAdminPurchasesRoute: typeof AuthenticatedAdminPurchasesRoute
   AuthenticatedAdminReportsRoute: typeof AuthenticatedAdminReportsRoute
   AuthenticatedAdminScheduleRoute: typeof AuthenticatedAdminScheduleRoute
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminStaffRoute: typeof AuthenticatedAdminStaffRoute
+  AuthenticatedAdminWasteRoute: typeof AuthenticatedAdminWasteRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
@@ -700,10 +741,12 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminPaymentsRoute: AuthenticatedAdminPaymentsRoute,
   AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
   AuthenticatedAdminPromotionsRoute: AuthenticatedAdminPromotionsRoute,
+  AuthenticatedAdminPurchasesRoute: AuthenticatedAdminPurchasesRoute,
   AuthenticatedAdminReportsRoute: AuthenticatedAdminReportsRoute,
   AuthenticatedAdminScheduleRoute: AuthenticatedAdminScheduleRoute,
   AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
   AuthenticatedAdminStaffRoute: AuthenticatedAdminStaffRoute,
+  AuthenticatedAdminWasteRoute: AuthenticatedAdminWasteRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
 }
 

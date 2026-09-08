@@ -2,7 +2,23 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Printer, MessageCircle, Phone, Search, Calendar, RefreshCw, ExternalLink, MapPin } from "lucide-react";
+import {
+  Printer,
+  MessageCircle,
+  Phone,
+  Search,
+  Calendar,
+  RefreshCw,
+  ExternalLink,
+  MapPin,
+  CheckSquare,
+  Square,
+  Truck,
+  UserCheck,
+  CheckCircle2,
+  PackageCheck,
+  Clock,
+} from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery, ORDER_STATUSES, type OrderRow } from "@/lib/admin";
 import { settingsQuery } from "@/lib/queries";
@@ -21,6 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/_authenticated/admin/orders")({
   head: () => ({
@@ -56,6 +73,12 @@ function OrdersAdmin() {
   const [dateFilter, setDateFilter] = useState<"today" | "yesterday" | "this_week" | "this_month" | "all" | "custom">("today");
   const [customDate, setCustomDate] = useState<string>(todayStr);
   const [printOrder, setPrintOrder] = useState<OrderRow | null>(null);
+
+  // Bulk Actions State
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [openBulkDriver, setOpenBulkDriver] = useState(false);
+  const [bulkDriverName, setBulkDriverName] = useState("Murugan (Express Delivery)");
+  const [bulkProcessing, setBulkProcessing] = useState(false);
 
   const update = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -113,6 +136,63 @@ function OrdersAdmin() {
 
   // Calculate quick stats
   const todayCount = allOrders.filter((o) => getLocalDateString(o.created_at) === todayStr).length;
+
+  const toggleSelectAll = () => {
+    if (selectedOrderIds.length === rows.length && rows.length > 0) {
+      setSelectedOrderIds([]);
+    } else {
+      setSelectedOrderIds(rows.map((r) => r.id));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedOrderIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkStatus = async (status: string) => {
+    if (selectedOrderIds.length === 0) return;
+    setBulkProcessing(true);
+    try {
+      const patch: any = { status };
+      if (status === "delivered") {
+        patch.delivered_at = new Date().toISOString();
+      }
+      const { error } = await supabase
+        .from("orders")
+        .update(patch)
+        .in("id", selectedOrderIds);
+      if (error) throw error;
+      toast.success(`${selectedOrderIds.length} orders updated to ${status.replace(/_/g, " ")}`);
+      setSelectedOrderIds([]);
+      qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const handleBulkAssignDriver = async () => {
+    if (selectedOrderIds.length === 0 || !bulkDriverName) return;
+    setBulkProcessing(true);
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .update({ driver_name: bulkDriverName, status: "out_for_delivery" })
+        .in("id", selectedOrderIds);
+      if (error) throw error;
+      toast.success(`${selectedOrderIds.length} orders assigned to ${bulkDriverName}`);
+      setSelectedOrderIds([]);
+      setOpenBulkDriver(false);
+      qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
 
   return (
     <AdminShell title="Orders" allow={["admin", "staff"]}>
@@ -225,27 +305,126 @@ function OrdersAdmin() {
         </div>
       </div>
 
+      {/* Sticky Bulk Action Toolbar for Orders */}
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 bg-card p-2.5 shadow-2xs">
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={toggleSelectAll}
+            className="h-8 rounded-xl text-xs font-bold gap-1.5 hover:bg-muted"
+          >
+            {selectedOrderIds.length === rows.length && rows.length > 0 ? (
+              <CheckSquare className="size-4 text-primary" />
+            ) : (
+              <Square className="size-4 text-muted-foreground" />
+            )}
+            <span>
+              {selectedOrderIds.length > 0
+                ? `${selectedOrderIds.length} of ${rows.length} selected`
+                : "Select All"}
+            </span>
+          </Button>
+
+          {selectedOrderIds.length > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedOrderIds([])}
+              className="h-8 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+
+        {selectedOrderIds.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={bulkProcessing}
+              className="h-8 rounded-xl text-xs font-semibold gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+              onClick={() => handleBulkStatus("confirmed")}
+            >
+              <CheckCircle2 className="size-3.5" /> Confirm ({selectedOrderIds.length})
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={bulkProcessing}
+              className="h-8 rounded-xl text-xs font-semibold gap-1 text-blue-600 dark:text-blue-400 border-blue-500/30 hover:bg-blue-500/10"
+              onClick={() => handleBulkStatus("packed")}
+            >
+              <PackageCheck className="size-3.5" /> Pack
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={bulkProcessing}
+              className="h-8 rounded-xl text-xs font-semibold gap-1 text-purple-600 dark:text-purple-400 border-purple-500/30 hover:bg-purple-500/10"
+              onClick={() => setOpenBulkDriver(true)}
+            >
+              <Truck className="size-3.5" /> Assign Driver
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={bulkProcessing}
+              className="h-8 rounded-xl text-xs font-semibold gap-1 text-green-700 dark:text-green-300 border-green-500/30 hover:bg-green-500/10"
+              onClick={() => handleBulkStatus("delivered")}
+            >
+              <CheckCircle2 className="size-3.5" /> Mark Delivered
+            </Button>
+          </div>
+        )}
+      </div>
+
       <div className="space-y-3">
         {rows.map((o) => {
           const isCOD = o.payment_method === "cod";
           const isDelivered = o.status === "delivered";
           const isCancelled = o.status === "cancelled";
+          const isSelected = selectedOrderIds.includes(o.id);
 
           return (
-            <Card key={o.id} className="overflow-hidden border-border/80 shadow-xs transition hover:shadow-md">
+            <Card
+              key={o.id}
+              className={`overflow-hidden transition ${
+                isSelected
+                  ? "border-primary ring-2 ring-primary/30 bg-primary/[0.02] shadow-sm"
+                  : "border-border/80 shadow-xs hover:shadow-md"
+              }`}
+            >
               <CardContent className="p-3.5 sm:p-5 flex flex-col gap-3">
                 {/* Header: Order Number & Customer Name + Status Pill */}
                 <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border/50 pb-2.5">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-extrabold text-sm sm:text-base text-foreground">
-                        #{o.order_number ?? o.id.slice(0, 8)}
-                      </span>
-                      <span className="text-xs font-semibold text-foreground">
-                        · {o.customer_name}
-                      </span>
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => toggleSelectOne(o.id)}
+                      className="text-muted-foreground hover:text-primary transition shrink-0 p-0.5"
+                      title={isSelected ? "Deselect order" : "Select order for bulk action"}
+                    >
+                      {isSelected ? (
+                        <CheckSquare className="size-5 text-primary" />
+                      ) : (
+                        <Square className="size-5 text-muted-foreground/60" />
+                      )}
+                    </button>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-extrabold text-sm sm:text-base text-foreground">
+                          #{o.order_number ?? o.id.slice(0, 8)}
+                        </span>
+                        <span className="text-xs font-semibold text-foreground">
+                          · {o.customer_name}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">{formatIST(o.created_at)}</p>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">{formatIST(o.created_at)}</p>
                   </div>
 
                   <Badge
@@ -505,6 +684,50 @@ function OrdersAdmin() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Assign Driver Dialog */}
+      <Dialog open={openBulkDriver} onOpenChange={setOpenBulkDriver}>
+        <DialogContent className="max-w-md rounded-3xl p-5">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Truck className="size-5 text-primary" /> Assign Driver to {selectedOrderIds.length} Orders
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">Select Active Delivery Partner</Label>
+              <select
+                value={bulkDriverName}
+                onChange={(e) => setBulkDriverName(e.target.value)}
+                className="flex h-9 w-full rounded-xl border border-input bg-background px-3 py-1 text-xs shadow-xs"
+              >
+                <option value="Murugan (Express Delivery)">Murugan (Express Delivery)</option>
+                <option value="Rajesh K (South Route)">Rajesh K (South Route)</option>
+                <option value="Venkatesh S (Central)">Venkatesh S (Central)</option>
+                <option value="Auto Smart Workload Balancing">Auto Smart Workload Balancing</option>
+              </select>
+            </div>
+
+            <div className="rounded-xl border p-3 bg-muted/30 text-xs text-muted-foreground">
+              Selected orders will be advanced to <strong>Out for Delivery</strong> and linked directly under this driver's route manifest.
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" className="w-1/3 rounded-xl" onClick={() => setOpenBulkDriver(false)}>
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 rounded-xl font-bold"
+                disabled={bulkProcessing}
+                onClick={handleBulkAssignDriver}
+              >
+                {bulkProcessing ? "Assigning..." : `Assign to ${selectedOrderIds.length} Orders`}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </AdminShell>

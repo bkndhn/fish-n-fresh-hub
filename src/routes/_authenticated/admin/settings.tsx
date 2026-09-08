@@ -409,8 +409,68 @@ function AdminSettings() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle className="text-lg">Inventory, Taxes & Customer Urgency</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <Label>Default GST Percentage (%)</Label>
+              <Input
+                type="number"
+                value={form.default_gst_percent ?? 0}
+                onChange={(e) => setForm({ ...form, default_gst_percent: Number(e.target.value) })}
+                placeholder="0"
+                className="mt-1"
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Default GST rate pre-filled when creating new seafood items.
+              </p>
+            </div>
+
+            <div>
+              <Label>Stock Urgency Alert Limit</Label>
+              <Input
+                type="number"
+                value={form.stock_urgency_threshold ?? 5}
+                onChange={(e) => setForm({ ...form, stock_urgency_threshold: Number(e.target.value) })}
+                placeholder="5"
+                className="mt-1"
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Displays "🔥 Only X left!" to customers when stock is below or equal to this limit.
+              </p>
+            </div>
+
+            <div className="flex flex-col justify-between rounded-xl border p-3 bg-muted/20">
+              <div className="space-y-0.5">
+                <Label htmlFor="show_stock_customer" className="font-semibold cursor-pointer">
+                  Show Live Stock Urgency
+                </Label>
+                <p className="text-[11px] text-muted-foreground">
+                  Displays remaining quantity badge to customers in catalog & product page to drive conversions.
+                </p>
+              </div>
+              <div className="pt-2 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="show_stock_customer"
+                  checked={form.show_stock_to_customers ?? true}
+                  onChange={(e) => setForm({ ...form, show_stock_to_customers: e.target.checked })}
+                  className="size-4 cursor-pointer"
+                />
+                <span className="text-xs font-semibold">
+                  {form.show_stock_to_customers ?? true ? "Enabled" : "Disabled"}
+                </span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
       
-      <Card className="mt-6 border-primary">
+      <Card className="mt-4 border-primary">
         <CardHeader>
           <CardTitle className="text-lg">Payments & Checkout</CardTitle>
         </CardHeader>

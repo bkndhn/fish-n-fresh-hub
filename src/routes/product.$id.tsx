@@ -18,8 +18,8 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/lib/cart";
-import { inr, formatIST } from "@/lib/format";
-import { productQuery, productsQuery } from "@/lib/queries";
+import { inr, formatIST, formatStockDisplay } from "@/lib/format";
+import { productQuery, productsQuery, settingsQuery } from "@/lib/queries";
 import { ProductCard } from "@/components/ProductCard";
 
 export const Route = createFileRoute("/product/$id")({
@@ -38,6 +38,7 @@ function ProductPage() {
   const { id } = Route.useParams();
   const { data: product, isLoading } = useQuery(productQuery(id));
   const { data: all } = useQuery(productsQuery);
+  const { data: settings } = useQuery(settingsQuery);
   const { add } = useCart();
   const [qty, setQty] = useState(1);
 
@@ -45,6 +46,15 @@ function ProductPage() {
   if (!product) return <AppShell><p className="py-20 text-center">Product not found.</p></AppShell>;
 
   const related = (all ?? []).filter((p) => p.category === product.category && p.id !== product.id).slice(0, 3);
+
+  const isOutOfStock = (product.stock !== null && Number(product.stock) <= 0) || product.is_available === false;
+  const showStockToCustomer = (settings as any)?.show_stock_to_customers ?? true;
+  const urgencyThreshold = Number((settings as any)?.stock_urgency_threshold ?? 5);
+  const isLowStock =
+    showStockToCustomer &&
+    !isOutOfStock &&
+    product.stock !== null &&
+    Number(product.stock) <= urgencyThreshold;
 
   return (
     <AppShell>
@@ -94,42 +104,57 @@ function ProductPage() {
             )}
           </div>
           <p className="text-sm text-muted-foreground">per {product.unit}</p>
+
+          {/* Real-time Urgency / Out of Stock Banner */}
+          {isOutOfStock ? (
+            <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400">
+              <span className="size-2 rounded-full bg-rose-500" />
+              Sold out for today — daily fresh catch arrives tomorrow morning
+            </div>
+          ) : isLowStock ? (
+            <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-700 dark:text-amber-300 animate-pulse">
+              <span>🔥 High demand! Only <strong>{formatStockDisplay(product.stock, product.unit)}</strong> remaining in today's harvest</span>
+            </div>
+          ) : null}
+
           {product.description && <p className="mt-4 text-sm">{product.description}</p>}
 
           <div className="mt-5 flex items-center gap-3">
             <div className="flex items-center gap-3 rounded-xl border border-border px-3 py-2">
-              <button onClick={() => setQty((v) => Math.max(1, v - 1))} aria-label="Decrease">
+              <button onClick={() => setQty((v) => Math.max(1, v - 1))} aria-label="Decrease" disabled={isOutOfStock}>
                 <Minus className="size-4" />
               </button>
               {product.allow_custom_qty ? (
                 <input
                   type="number"
                   value={qty}
+                  disabled={isOutOfStock}
                   onChange={(e) => {
                     const val = Number(e.target.value);
                     if (!isNaN(val) && val >= 1) {
                       setQty(val);
                     }
                   }}
-                  className="w-12 bg-transparent text-center font-semibold outline-none tabular-nums"
+                  className="w-12 bg-transparent text-center font-semibold outline-none tabular-nums disabled:opacity-50"
                   min="1"
                   step="0.5"
                 />
               ) : (
                 <span className="w-6 text-center font-semibold">{qty}</span>
               )}
-              <button onClick={() => setQty((v) => v + 1)} aria-label="Increase">
+              <button onClick={() => setQty((v) => v + 1)} aria-label="Increase" disabled={isOutOfStock}>
                 <Plus className="size-4" />
               </button>
             </div>
             <Button
               className="flex-1 rounded-xl"
+              disabled={isOutOfStock}
               onClick={() => {
                 add(product, qty);
                 toast.success("Added to cart");
               }}
             >
-              Add to cart · {inr(Number(product.price) * qty)}
+              {isOutOfStock ? "Out of Stock" : `Add to cart · ${inr(Number(product.price) * qty)}`}
             </Button>
           </div>
 

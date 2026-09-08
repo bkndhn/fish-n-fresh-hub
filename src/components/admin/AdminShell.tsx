@@ -17,6 +17,8 @@ import {
   Settings,
   MoreHorizontal,
   MessageSquareWarning,
+  Anchor,
+  Trash2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { myRolesQuery, type AppRole } from "@/lib/admin";
@@ -44,6 +46,8 @@ import {
 const NAV = [
   { to: "/admin", label: "Dashboard", icon: BarChart3, exact: true, roles: ["admin", "staff"] },
   { to: "/admin/products", label: "Products", icon: Package, roles: ["admin", "staff"] },
+  { to: "/admin/purchases", label: "Purchases", icon: Anchor, roles: ["admin", "staff"] },
+  { to: "/admin/waste", label: "Waste mgmt", icon: Trash2, roles: ["admin", "staff"] },
   { to: "/admin/banners", label: "Banners", icon: Sparkles, roles: ["admin"] },
   { to: "/admin/orders", label: "Orders", icon: ReceiptText, roles: ["admin", "staff"] },
   { to: "/admin/customers", label: "Customers", icon: Users, roles: ["admin"] },

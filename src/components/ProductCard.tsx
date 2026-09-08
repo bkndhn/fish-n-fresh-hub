@@ -1,14 +1,17 @@
 import { Minus, Plus, Star, Fish } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/lib/cart";
-import { inr } from "@/lib/format";
+import { inr, formatStockDisplay } from "@/lib/format";
+import { settingsQuery } from "@/lib/queries";
 import type { Product } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export function ProductCard({ product }: { product: Product }) {
   const { items, add, setQty } = useCart();
   const cartItem = items.find((i) => i.product_id === product.id);
+  const { data: settings } = useQuery(settingsQuery);
 
   const hasDiscount = product.old_price && Number(product.old_price) > Number(product.price);
   const discountPercent = hasDiscount
@@ -16,7 +19,13 @@ export function ProductCard({ product }: { product: Product }) {
     : 0;
 
   const isOutOfStock = (product.stock !== null && Number(product.stock) <= 0) || product.is_available === false;
-  const isLowStock = !isOutOfStock && product.stock !== null && Number(product.stock) <= 5;
+  const showStockToCustomer = (settings as any)?.show_stock_to_customers ?? true;
+  const urgencyThreshold = Number((settings as any)?.stock_urgency_threshold ?? 5);
+  const isLowStock =
+    showStockToCustomer &&
+    !isOutOfStock &&
+    product.stock !== null &&
+    Number(product.stock) <= urgencyThreshold;
 
   return (
     <div
@@ -61,8 +70,8 @@ export function ProductCard({ product }: { product: Product }) {
             </span>
           ) : null}
           {isLowStock && !isOutOfStock && (
-            <span className="rounded-md bg-amber-500/90 backdrop-blur-xs px-1.5 py-0.5 text-[9px] font-bold text-white shadow-xs">
-              Only {product.stock} {product.unit} left
+            <span className="rounded-md bg-amber-500/95 backdrop-blur-xs px-1.5 py-0.5 text-[9px] font-bold text-white shadow-xs">
+              🔥 Only {formatStockDisplay(product.stock, product.unit)} left
             </span>
           )}
         </div>

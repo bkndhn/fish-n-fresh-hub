@@ -280,6 +280,31 @@ function Checkout() {
       toast.error("Could not place order. Please try again.");
       return;
     }
+
+    // Automatically reduce product stock based on sale
+    const snapshotItems = [...items];
+    try {
+      for (const item of snapshotItems) {
+        if (item.product_id) {
+          const { data: prodData } = await supabase
+            .from("products")
+            .select("stock")
+            .eq("id", item.product_id)
+            .maybeSingle();
+
+          if (prodData && typeof prodData.stock === "number") {
+            const newStock = Math.max(0, prodData.stock - Number(item.qty || 1));
+            await supabase
+              .from("products")
+              .update({ stock: newStock } as any)
+              .eq("id", item.product_id);
+          }
+        }
+      }
+    } catch (stockErr) {
+      console.error("Auto stock decrement warning:", stockErr);
+    }
+
     localStorage.setItem("fnf_phone", phone);
     clear();
 
@@ -300,7 +325,6 @@ function Checkout() {
 
   if (orderSuccess) {
     const waNumber = (settings?.support_phone || settings?.whatsapp_number || "919843061919").replace(/\D/g, "");
-    const itemsSummary = items.map((i) => `${i.name} x${i.qty}`).join(", ");
     const waText = encodeURIComponent(
       `*Fish N Fresh — New Order Placed*\n\n` +
       `Order: #${orderSuccess.order_number}\n` +

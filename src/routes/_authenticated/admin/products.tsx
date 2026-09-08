@@ -2,12 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Search, Edit, AlertTriangle, Zap, PackagePlus, CheckCircle2, X } from "lucide-react";
+import { Plus, Trash2, Search, Edit, AlertTriangle, Zap, PackagePlus, CheckCircle2, X, CheckSquare, Square, Layers, ArrowUpCircle, Eye, EyeOff } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminProductsQuery } from "@/lib/admin";
 import { categoriesQuery } from "@/lib/queries";
 import type { Product } from "@/lib/types";
-import { formatINR } from "@/lib/format";
+import { formatINR, formatStockDisplay, formatStockUnitLabel } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -51,6 +51,14 @@ export const Route = createFileRoute("/_authenticated/admin/products")({
 
 const UNIT_OPTIONS = ["kg", "g", "500g", "250g", "100g", "pc", "pack", "dozen", "tray", "custom"];
 
+const getRefillPresets = (unit: string) => {
+  const u = (unit || "").toLowerCase();
+  if (u === "kg") return ["5", "10", "25", "50"];
+  if (u === "g" || u === "gram" || u === "grams") return ["100", "250", "500", "1000"];
+  if (u === "pc" || u === "piece" || u === "pcs" || u === "pieces") return ["10", "25", "50", "100"];
+  return ["5", "10", "20", "50"];
+};
+
 function ProductsAdmin() {
   const qc = useQueryClient();
   const products = useQuery(adminProductsQuery);
@@ -63,6 +71,8 @@ function ProductsAdmin() {
   const [refillQty, setRefillQty] = useState<string>("10");
   const [makeLiveOnRefill, setMakeLiveOnRefill] = useState<boolean>(true);
   const [stockFilter, setStockFilter] = useState<"all" | "low">("all");
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
 
   const [newProduct, setNewProduct] = useState({
     name: "",
@@ -74,6 +84,7 @@ function ProductsAdmin() {
     unit: "kg",
     customUnit: "",
     stock: "25",
+    low_stock_threshold: "5",
     gst_percent: "0",
     gst_included: false,
     is_available: true,
@@ -110,7 +121,7 @@ function ProductsAdmin() {
       return newStock;
     },
     onSuccess: (newStock) => {
-      toast.success(`Refilled ${refillProduct?.name}! New stock: ${newStock} ${refillProduct?.unit}`);
+      toast.success(`Refilled ${refillProduct?.name}! New stock: ${formatStockDisplay(newStock, refillProduct?.unit)}`);
       setRefillProduct(null);
       setRefillQty("10");
       qc.invalidateQueries({ queryKey: ["admin", "products"] });
@@ -141,13 +152,14 @@ function ProductsAdmin() {
         old_price: newProduct.old_price ? Number(newProduct.old_price) : null,
         unit: resolvedUnit,
         stock: Number(newProduct.stock) || 0,
+        low_stock_threshold: Number(newProduct.low_stock_threshold) || 5,
         gst_percent: Number(newProduct.gst_percent) || 0,
         gst_included: newProduct.gst_included,
         is_available: newProduct.is_available,
         allow_custom_qty: newProduct.allow_custom_qty,
         image_url: newProduct.image_url || null,
         description: newProduct.description.trim() || null,
-      });
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -163,6 +175,7 @@ function ProductsAdmin() {
         unit: "kg",
         customUnit: "",
         stock: "25",
+        low_stock_threshold: "5",
         gst_percent: "0",
         gst_included: false,
         is_available: true,
@@ -199,13 +212,14 @@ function ProductsAdmin() {
         old_price: editingProduct.old_price ? Number(editingProduct.old_price) : null,
         unit: resolvedUnit,
         stock: Number(editingProduct.stock) || 0,
+        low_stock_threshold: Number(editingProduct.low_stock_threshold) || 5,
         gst_percent: Number(editingProduct.gst_percent) || 0,
         gst_included: editingProduct.gst_included ?? false,
         is_available: editingProduct.is_available ?? true,
         allow_custom_qty: editingProduct.allow_custom_qty ?? true,
         image_url: editingProduct.image_url || null,
         description: editingProduct.description?.trim() || null,
-      }).eq("id", editingProduct.id);
+      } as any).eq("id", editingProduct.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -231,10 +245,20 @@ function ProductsAdmin() {
   });
 
   const allProducts = products.data ?? [];
-  const lowStockProducts = allProducts.filter((p) => (p.stock ?? 0) <= 5 || !p.is_available);
+
+  const getThreshold = (p: Product) => {
+    if (typeof p.low_stock_threshold === "number" && !isNaN(p.low_stock_threshold)) {
+      return p.low_stock_threshold;
+    }
+    const u = (p.unit || "").toLowerCase();
+    if (u.endsWith("g") && u !== "g") return 10;
+    return 5;
+  };
+
+  const lowStockProducts = allProducts.filter((p) => (p.stock ?? 0) <= getThreshold(p) || !p.is_available);
 
   const list = allProducts.filter((p) => {
-    if (stockFilter === "low" && !((p.stock ?? 0) <= 5 || !p.is_available)) return false;
+    if (stockFilter === "low" && !((p.stock ?? 0) <= getThreshold(p) || !p.is_available)) return false;
     if (!search.trim()) return true;
     const term = search.toLowerCase();
     return (
@@ -243,6 +267,81 @@ function ProductsAdmin() {
       (p.category && p.category.toLowerCase().includes(term))
     );
   });
+
+  // Bulk Actions
+  const toggleSelectAll = () => {
+    if (selectedProductIds.length === list.length && list.length > 0) {
+      setSelectedProductIds([]);
+    } else {
+      setSelectedProductIds(list.map((p) => p.id));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedProductIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkLive = async (is_available: boolean) => {
+    if (selectedProductIds.length === 0) return;
+    setBulkProcessing(true);
+    try {
+      const { error } = await supabase
+        .from("products")
+        .update({ is_available })
+        .in("id", selectedProductIds);
+      if (error) throw error;
+      toast.success(`${selectedProductIds.length} products marked ${is_available ? "Live" : "Paused"}`);
+      setSelectedProductIds([]);
+      qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const handleBulkRefill = async (amount = 10) => {
+    if (selectedProductIds.length === 0) return;
+    setBulkProcessing(true);
+    try {
+      for (const id of selectedProductIds) {
+        const prod = allProducts.find((p) => p.id === id);
+        const curr = Number(prod?.stock || 0);
+        await supabase.from("products").update({ stock: curr + amount, is_available: true }).eq("id", id);
+      }
+      toast.success(`Refilled +${amount} to ${selectedProductIds.length} products`);
+      setSelectedProductIds([]);
+      qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedProductIds.length === 0) return;
+    setBulkProcessing(true);
+    try {
+      const { error } = await supabase
+        .from("products")
+        .delete()
+        .in("id", selectedProductIds);
+      if (error) throw error;
+      toast.success(`Deleted ${selectedProductIds.length} products`);
+      setSelectedProductIds([]);
+      qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
 
   return (
     <AdminShell title="Products & Inventory" allow={["admin", "staff"]}>
@@ -442,7 +541,7 @@ function ProductsAdmin() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="prod-price">Selling Price (₹) *</Label>
                   <Input
@@ -464,13 +563,23 @@ function ProductsAdmin() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="prod-stock">Stock ({newProduct.unit === "custom" ? newProduct.customUnit || "units" : newProduct.unit})</Label>
+                  <Label htmlFor="prod-stock">Stock ({formatStockUnitLabel(newProduct.unit === "custom" ? newProduct.customUnit || "units" : newProduct.unit)})</Label>
                   <Input
                     id="prod-stock"
                     type="number"
                     placeholder="25"
                     value={newProduct.stock}
                     onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="prod-threshold">Alert At Qty</Label>
+                  <Input
+                    id="prod-threshold"
+                    type="number"
+                    placeholder="5"
+                    value={newProduct.low_stock_threshold}
+                    onChange={(e) => setNewProduct({ ...newProduct, low_stock_threshold: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -551,20 +660,139 @@ function ProductsAdmin() {
         </div>
       </div>
 
+      {/* Bulk Action Toolbar & Multi-Select Bar */}
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 bg-card p-2.5 shadow-2xs">
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={toggleSelectAll}
+            className="h-8 rounded-xl text-xs font-bold gap-1.5 hover:bg-muted"
+          >
+            {selectedProductIds.length === list.length && list.length > 0 ? (
+              <CheckSquare className="size-4 text-primary" />
+            ) : (
+              <Square className="size-4 text-muted-foreground" />
+            )}
+            <span>
+              {selectedProductIds.length > 0
+                ? `${selectedProductIds.length} of ${list.length} selected`
+                : "Select All"}
+            </span>
+          </Button>
+
+          {selectedProductIds.length > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedProductIds([])}
+              className="h-8 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+
+        {selectedProductIds.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={bulkProcessing}
+              className="h-8 rounded-xl text-xs font-semibold gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+              onClick={() => handleBulkLive(true)}
+            >
+              <Eye className="size-3.5" /> Mark Live
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={bulkProcessing}
+              className="h-8 rounded-xl text-xs font-semibold gap-1 text-muted-foreground hover:bg-muted"
+              onClick={() => handleBulkLive(false)}
+            >
+              <EyeOff className="size-3.5" /> Pause
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={bulkProcessing}
+              className="h-8 rounded-xl text-xs font-semibold gap-1 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
+              onClick={() => handleBulkRefill(10)}
+            >
+              <Zap className="size-3.5 fill-current" /> +10 Stock All
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  disabled={bulkProcessing}
+                  className="h-8 rounded-xl text-xs font-semibold gap-1"
+                >
+                  <Trash2 className="size-3.5" /> Delete ({selectedProductIds.length})
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="rounded-3xl max-w-sm">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete {selectedProductIds.length} Products?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete {selectedProductIds.length} selected items from your seafood catalog. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={handleBulkDelete}
+                  >
+                    Confirm Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
+      </div>
+
       <div className="space-y-3">
         {list.map((p) => {
-          const isLow = (p.stock ?? 0) <= 5;
+          const threshold = getThreshold(p);
+          const isLow = (p.stock ?? 0) <= threshold;
           const isOut = (p.stock ?? 0) <= 0;
+          const isSelected = selectedProductIds.includes(p.id);
           const discountPercent =
             p.old_price && Number(p.old_price) > Number(p.price)
               ? Math.round(((Number(p.old_price) - Number(p.price)) / Number(p.old_price)) * 100)
               : 0;
 
           return (
-            <Card key={p.id} className="overflow-hidden border-border/80 shadow-xs transition hover:shadow-md">
+            <Card
+              key={p.id}
+              className={`overflow-hidden transition shadow-xs hover:shadow-md ${
+                isSelected
+                  ? "border-primary ring-2 ring-primary/30 bg-primary/[0.02]"
+                  : "border-border/80"
+              }`}
+            >
               <CardContent className="p-3.5 sm:p-5 flex flex-col gap-3.5">
-                {/* Upper Tier: Product Thumbnail + Full Name + Badges */}
-                <div className="flex items-start gap-3 sm:gap-4">
+                {/* Upper Tier: Select Checkbox + Product Thumbnail + Full Name + Badges */}
+                <div className="flex items-start gap-2.5 sm:gap-4">
+                  <button
+                    type="button"
+                    onClick={() => toggleSelectOne(p.id)}
+                    className="mt-1 p-1 text-muted-foreground hover:text-primary transition shrink-0"
+                    title={isSelected ? "Deselect product" : "Select product for bulk action"}
+                  >
+                    {isSelected ? (
+                      <CheckSquare className="size-5 text-primary" />
+                    ) : (
+                      <Square className="size-5 text-muted-foreground/60" />
+                    )}
+                  </button>
+
                   <ImageUpload
                     currentImage={p.image_url}
                     compact={true}
@@ -582,7 +810,7 @@ function ProductsAdmin() {
                         )}
                       </div>
 
-                      {/* Stock Status Badge */}
+                      {/* Stock Status Badge with proper unit formatting */}
                       <span
                         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold border shrink-0 ${
                           isOut || !p.is_available
@@ -604,10 +832,10 @@ function ProductsAdmin() {
                         {isOut
                           ? "Out of Stock"
                           : !p.is_available
-                          ? `Paused (${p.stock} ${p.unit})`
+                          ? `Paused (${formatStockDisplay(p.stock, p.unit)})`
                           : isLow
-                          ? `Low: ${p.stock} ${p.unit}`
-                          : `${p.stock} ${p.unit}`}
+                          ? `Low: ${formatStockDisplay(p.stock, p.unit)}`
+                          : formatStockDisplay(p.stock, p.unit)}
                       </span>
                     </div>
 
@@ -646,7 +874,9 @@ function ProductsAdmin() {
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Stock ({p.unit})</Label>
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Stock ({formatStockUnitLabel(p.unit)})
+                    </Label>
                     <Input
                       type="number"
                       defaultValue={p.stock}
@@ -832,7 +1062,7 @@ function ProductsAdmin() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="edit-price">Selling Price (₹) *</Label>
                   <Input
@@ -853,12 +1083,21 @@ function ProductsAdmin() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="edit-stock">Stock</Label>
+                  <Label htmlFor="edit-stock">Stock ({formatStockUnitLabel(editingProduct.unit === "custom" ? editingProduct.customUnit || "units" : editingProduct.unit)})</Label>
                   <Input
                     id="edit-stock"
                     type="number"
                     value={editingProduct.stock}
                     onChange={(e) => setEditingProduct({ ...editingProduct, stock: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-threshold">Alert At Qty</Label>
+                  <Input
+                    id="edit-threshold"
+                    type="number"
+                    value={editingProduct.low_stock_threshold ?? 5}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, low_stock_threshold: Number(e.target.value) })}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -967,16 +1206,18 @@ function ProductsAdmin() {
                     <p className="text-xs text-muted-foreground">
                       Current Stock:{" "}
                       <span className="font-bold text-foreground">
-                        {refillProduct.stock} {refillProduct.unit}
+                        {formatStockDisplay(refillProduct.stock, refillProduct.unit)}
                       </span>
                     </p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-xs">Select Refill Preset (+{refillProduct.unit})</Label>
+                  <Label className="text-xs">
+                    Select Refill Preset (+{formatStockUnitLabel(refillProduct.unit)})
+                  </Label>
                   <div className="grid grid-cols-4 gap-2">
-                    {["5", "10", "25", "50"].map((preset) => (
+                    {getRefillPresets(refillProduct.unit).map((preset) => (
                       <Button
                         key={preset}
                         type="button"
@@ -984,7 +1225,7 @@ function ProductsAdmin() {
                         className="h-9 rounded-xl text-xs font-semibold"
                         onClick={() => setRefillQty(preset)}
                       >
-                        +{preset} {refillProduct.unit}
+                        +{preset} {formatStockUnitLabel(refillProduct.unit)}
                       </Button>
                     ))}
                   </div>
@@ -992,7 +1233,7 @@ function ProductsAdmin() {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="custom-refill-qty" className="text-xs">
-                    Or Enter Custom Quantity (+{refillProduct.unit})
+                    Or Enter Custom Quantity (+{formatStockUnitLabel(refillProduct.unit)})
                   </Label>
                   <Input
                     id="custom-refill-qty"
@@ -1009,8 +1250,11 @@ function ProductsAdmin() {
                 <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs flex items-center justify-between">
                   <span className="text-muted-foreground">Updated Stock Total:</span>
                   <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
-                    {Number(refillProduct.stock || 0)} + {Number(refillQty) || 0} ={" "}
-                    {Number(refillProduct.stock || 0) + (Number(refillQty) || 0)} {refillProduct.unit}
+                    {formatStockDisplay(refillProduct.stock, refillProduct.unit)} + {refillQty || 0} ={" "}
+                    {formatStockDisplay(
+                      Number(refillProduct.stock || 0) + (Number(refillQty) || 0),
+                      refillProduct.unit
+                    )}
                   </span>
                 </div>
 
@@ -1043,7 +1287,9 @@ function ProductsAdmin() {
                     onClick={() => quickRefill.mutate()}
                   >
                     <Zap className="mr-1.5 size-4" />
-                    {quickRefill.isPending ? "Refilling..." : `Confirm Refill (+${refillQty} ${refillProduct.unit})`}
+                    {quickRefill.isPending
+                      ? "Refilling..."
+                      : `Confirm Refill (+${refillQty} ${formatStockUnitLabel(refillProduct.unit)})`}
                   </Button>
                 </div>
               </div>

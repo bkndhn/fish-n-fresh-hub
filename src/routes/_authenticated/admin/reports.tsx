@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -21,10 +21,17 @@ import {
   Timer,
   Gauge,
   Award,
+  Flame,
+  Snowflake,
+  Scale,
+  Search,
+  Package,
+  ArrowRight,
+  ExternalLink,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery, adminProductsQuery } from "@/lib/admin";
-import { formatINR, formatIST } from "@/lib/format";
+import { formatINR, formatIST, formatStockDisplay } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,6 +148,138 @@ export function Reports() {
     }
     return [...m.entries()].sort((a, b) => b[1].value - a[1].value).slice(0, 8);
   }, [paid]);
+
+  const [velocityTierFilter, setVelocityTierFilter] = useState<"all" | "top" | "medium" | "slow">("all");
+  const [velocitySearch, setVelocitySearch] = useState("");
+
+  // Product Sales Velocity (Top 🔥, Medium ⚖️, Slow ❄️)
+  const productVelocity = useMemo(() => {
+    const catalog = products.data ?? [];
+    const salesMap = new Map<string, { qty: number; value: number; count: number }>();
+
+    for (const o of paid) {
+      for (const it of o.items ?? []) {
+        const prodKey = (it.product_id || it.name || "").toLowerCase().trim();
+        const cur = salesMap.get(prodKey) ?? { qty: 0, value: 0, count: 0 };
+        salesMap.set(prodKey, {
+          qty: cur.qty + Number(it.qty || 0),
+          value: cur.value + Number(it.qty || 0) * Number(it.price || 0),
+          count: cur.count + 1,
+        });
+      }
+    }
+
+    const items = catalog.map((p) => {
+      const byId = p.id ? salesMap.get(p.id.toLowerCase().trim()) : undefined;
+      const byName = p.name ? salesMap.get(p.name.toLowerCase().trim()) : undefined;
+      const match = byId || byName || { qty: 0, value: 0, count: 0 };
+
+      return {
+        id: p.id,
+        name: p.name,
+        category: p.category || "Seafood",
+        imageUrl: p.image_url,
+        price: Number(p.price || 0),
+        stock: Number(p.stock || 0),
+        unit: p.unit || "kg",
+        lowStockThreshold: (p as any).low_stock_threshold ?? 5,
+        isActive: p.is_available ?? true,
+        qtySold: match.qty,
+        revenue: match.value,
+        ordersCount: match.count,
+      };
+    });
+
+    // Sort descending by revenue, then quantity sold
+    items.sort((a, b) => b.revenue - a.revenue || b.qtySold - a.qtySold);
+
+    const totalSoldRevenue = items.reduce((sum, i) => sum + i.revenue, 0);
+    const activeSellingItems = items.filter((i) => i.qtySold > 0);
+
+    const enriched = items.map((p, idx) => {
+      let tier: "top" | "medium" | "slow" = "slow";
+      let recommendation = "";
+
+      if (p.qtySold === 0) {
+        tier = "slow";
+        recommendation =
+          p.stock > 0
+            ? "Zero sales in period: Offer 10-15% flash deal or spotlight on home page"
+            : "No movement & zero stock: Review whether to restock or retire SKU";
+      } else if (activeSellingItems.length <= 3) {
+        if (idx === 0) {
+          tier = "top";
+          recommendation =
+            p.stock <= p.lowStockThreshold
+              ? "Critical: Top revenue earner near depletion! Procure harbour catch ASAP"
+              : "Star SKU: Maintain +25% buffer for weekend rush";
+        } else if (p.qtySold >= 2) {
+          tier = "medium";
+          recommendation = "Steady mover: Maintain regular weekly catch inward schedule";
+        } else {
+          tier = "slow";
+          recommendation = "Low turnover: Bundle with top seller to accelerate clearance";
+        }
+      } else {
+        const rankRatio = idx / activeSellingItems.length;
+        if (rankRatio <= 0.3 || (totalSoldRevenue > 0 && p.revenue / totalSoldRevenue >= 0.12)) {
+          tier = "top";
+          recommendation =
+            p.stock <= p.lowStockThreshold
+              ? "Urgent: High-velocity seller is low on stock! Restock via harbour catch inward"
+              : "High Demand Star: High customer repeat rate. Keep minimum 20kg+ safety stock";
+        } else if (rankRatio <= 0.7 || p.qtySold >= 3) {
+          tier = "medium";
+          recommendation = "Healthy movement: Demand is stable and predictable";
+        } else {
+          tier = "slow";
+          recommendation = "Low velocity: Launch WhatsApp promotional broadcast or combo offer";
+        }
+      }
+
+      return {
+        ...p,
+        tier,
+        recommendation,
+      };
+    });
+
+    const topList = enriched.filter((p) => p.tier === "top");
+    const mediumList = enriched.filter((p) => p.tier === "medium");
+    const slowList = enriched.filter((p) => p.tier === "slow");
+
+    const topRevenue = topList.reduce((s, p) => s + p.revenue, 0);
+    const mediumRevenue = mediumList.reduce((s, p) => s + p.revenue, 0);
+    const slowRevenue = slowList.reduce((s, p) => s + p.revenue, 0);
+
+    return {
+      all: enriched,
+      topList,
+      mediumList,
+      slowList,
+      topCount: topList.length,
+      mediumCount: mediumList.length,
+      slowCount: slowList.length,
+      topRevenue,
+      mediumRevenue,
+      slowRevenue,
+      totalCatalog: enriched.length,
+    };
+  }, [products.data, paid]);
+
+  const filteredVelocityProducts = useMemo(() => {
+    let list = productVelocity.all;
+    if (velocityTierFilter !== "all") {
+      list = list.filter((p) => p.tier === velocityTierFilter);
+    }
+    if (velocitySearch.trim()) {
+      const q = velocitySearch.toLowerCase().trim();
+      list = list.filter(
+        (p) => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [productVelocity.all, velocityTierFilter, velocitySearch]);
 
   // Daily revenue for trend
   const daily = useMemo(() => {
@@ -1058,6 +1197,355 @@ export function Reports() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Product Sales Velocity & Movement Analysis */}
+      <Card className="mt-4 border-border/60 shadow-sm">
+        <CardHeader className="pb-3 pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Flame className="size-5 text-orange-500 animate-pulse" />
+                Product Sales Velocity & Movement Analysis
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Catalog categorized into Top Selling 🔥, Steady / Medium ⚖️, and Slow Selling ❄️ for the selected time window
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Link to="/admin/purchases">
+                <Button size="sm" variant="outline" className="rounded-xl h-8 text-xs">
+                  <Package className="mr-1.5 size-3.5 text-primary" /> Catch Inward Refill
+                </Button>
+              </Link>
+              <Link to="/admin/products">
+                <Button size="sm" variant="outline" className="rounded-xl h-8 text-xs">
+                  <ExternalLink className="mr-1.5 size-3.5" /> Edit Products
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-2 pb-5 space-y-4">
+          {/* Velocity KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Top Selling */}
+            <div
+              onClick={() => setVelocityTierFilter(velocityTierFilter === "top" ? "all" : "top")}
+              className={`cursor-pointer rounded-2xl border p-3.5 transition-all shadow-2xs ${
+                velocityTierFilter === "top"
+                  ? "border-orange-500/60 bg-orange-500/10 ring-2 ring-orange-500/20"
+                  : "border-border/70 bg-card hover:border-orange-500/40"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-orange-600 dark:text-orange-400">
+                  <Flame className="size-4" /> Top Selling SKUs
+                </span>
+                <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-extrabold text-orange-600 dark:text-orange-400">
+                  {productVelocity.topCount} SKUs
+                </span>
+              </div>
+              <p className="mt-2 text-xl font-extrabold font-display text-foreground">
+                {formatINR(productVelocity.topRevenue)}
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                High turnover • Fast revenue drivers
+              </p>
+            </div>
+
+            {/* Medium / Steady */}
+            <div
+              onClick={() => setVelocityTierFilter(velocityTierFilter === "medium" ? "all" : "medium")}
+              className={`cursor-pointer rounded-2xl border p-3.5 transition-all shadow-2xs ${
+                velocityTierFilter === "medium"
+                  ? "border-blue-500/60 bg-blue-500/10 ring-2 ring-blue-500/20"
+                  : "border-border/70 bg-card hover:border-blue-500/40"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400">
+                  <Scale className="size-4" /> Medium / Steady SKUs
+                </span>
+                <span className="rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-extrabold text-blue-600 dark:text-blue-400">
+                  {productVelocity.mediumCount} SKUs
+                </span>
+              </div>
+              <p className="mt-2 text-xl font-extrabold font-display text-foreground">
+                {formatINR(productVelocity.mediumRevenue)}
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                Steady volume • Predictable demand
+              </p>
+            </div>
+
+            {/* Slow Selling */}
+            <div
+              onClick={() => setVelocityTierFilter(velocityTierFilter === "slow" ? "all" : "slow")}
+              className={`cursor-pointer rounded-2xl border p-3.5 transition-all shadow-2xs ${
+                velocityTierFilter === "slow"
+                  ? "border-slate-500/60 bg-slate-500/10 ring-2 ring-slate-500/20"
+                  : "border-border/70 bg-card hover:border-slate-500/40"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-400">
+                  <Snowflake className="size-4" /> Slow / Low Velocity
+                </span>
+                <span className="rounded-full bg-slate-500/15 px-2 py-0.5 text-[10px] font-extrabold text-slate-600 dark:text-slate-400">
+                  {productVelocity.slowCount} SKUs
+                </span>
+              </div>
+              <p className="mt-2 text-xl font-extrabold font-display text-foreground">
+                {formatINR(productVelocity.slowRevenue)}
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                Low turnover • Spoilage / overstock risk
+              </p>
+            </div>
+          </div>
+
+          {/* Filter Toolbar & Search */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Button
+                size="sm"
+                variant={velocityTierFilter === "all" ? "default" : "outline"}
+                className="rounded-xl h-8 text-xs font-semibold"
+                onClick={() => setVelocityTierFilter("all")}
+              >
+                All SKUs ({productVelocity.totalCatalog})
+              </Button>
+              <Button
+                size="sm"
+                variant={velocityTierFilter === "top" ? "default" : "outline"}
+                className={`rounded-xl h-8 text-xs font-semibold ${
+                  velocityTierFilter === "top" ? "bg-orange-600 hover:bg-orange-700 text-white" : ""
+                }`}
+                onClick={() => setVelocityTierFilter("top")}
+              >
+                <Flame className="mr-1 size-3.5 text-orange-400" /> Top ({productVelocity.topCount})
+              </Button>
+              <Button
+                size="sm"
+                variant={velocityTierFilter === "medium" ? "default" : "outline"}
+                className={`rounded-xl h-8 text-xs font-semibold ${
+                  velocityTierFilter === "medium" ? "bg-blue-600 hover:bg-blue-700 text-white" : ""
+                }`}
+                onClick={() => setVelocityTierFilter("medium")}
+              >
+                <Scale className="mr-1 size-3.5 text-blue-400" /> Medium ({productVelocity.mediumCount})
+              </Button>
+              <Button
+                size="sm"
+                variant={velocityTierFilter === "slow" ? "default" : "outline"}
+                className={`rounded-xl h-8 text-xs font-semibold ${
+                  velocityTierFilter === "slow" ? "bg-slate-700 hover:bg-slate-800 text-white" : ""
+                }`}
+                onClick={() => setVelocityTierFilter("slow")}
+              >
+                <Snowflake className="mr-1 size-3.5 text-slate-400" /> Slow ({productVelocity.slowCount})
+              </Button>
+            </div>
+
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2.5 top-2 size-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search fish or category..."
+                value={velocitySearch}
+                onChange={(e) => setVelocitySearch(e.target.value)}
+                className="h-8 pl-8 text-xs rounded-xl"
+              />
+            </div>
+          </div>
+
+          {/* Product Cards for Mobile (< sm) */}
+          <div className="space-y-3 sm:hidden pt-2">
+            {filteredVelocityProducts.map((p) => {
+              const isLowStock = p.stock <= p.lowStockThreshold;
+              return (
+                <div
+                  key={p.id}
+                  className="rounded-2xl border border-border/70 bg-card p-3.5 shadow-2xs space-y-2.5"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {p.imageUrl ? (
+                        <img
+                          src={p.imageUrl}
+                          alt={p.name}
+                          className="size-11 rounded-xl object-cover border border-border/50 shrink-0"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLElement).style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <Fish className="size-5" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm text-foreground truncate">{p.name}</p>
+                        <p className="text-[11px] text-muted-foreground capitalize">{p.category}</p>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold border flex items-center gap-1 ${
+                        p.tier === "top"
+                          ? "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30"
+                          : p.tier === "medium"
+                          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30"
+                          : "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30"
+                      }`}
+                    >
+                      {p.tier === "top" && <Flame className="size-3" />}
+                      {p.tier === "medium" && <Scale className="size-3" />}
+                      {p.tier === "slow" && <Snowflake className="size-3" />}
+                      {p.tier === "top" ? "Top Selling" : p.tier === "medium" ? "Steady Mover" : "Slow Mover"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/30 p-2.5 text-xs">
+                    <div>
+                      <span className="text-[10px] text-muted-foreground block">Period Sales</span>
+                      <span className="font-bold text-foreground">
+                        {p.qtySold > 0 ? `${p.qtySold} sold` : "0 sold"}
+                      </span>
+                      <span className="text-[11px] text-emerald-600 dark:text-emerald-400 block font-semibold">
+                        {formatINR(p.revenue)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-muted-foreground block">Live Stock</span>
+                      <span
+                        className={`font-bold inline-flex items-center gap-1 ${
+                          isLowStock ? "text-amber-600 dark:text-amber-400" : "text-foreground"
+                        }`}
+                      >
+                        {isLowStock && <AlertCircle className="size-3 shrink-0" />}
+                        {formatStockDisplay(p.stock, p.unit)}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block">
+                        Threshold: {p.lowStockThreshold}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border/50 bg-background/60 p-2.5 text-[11px] text-muted-foreground">
+                    <span className="font-semibold text-foreground">Strategy: </span>
+                    {p.recommendation}
+                  </div>
+                </div>
+              );
+            })}
+
+            {filteredVelocityProducts.length === 0 && (
+              <div className="rounded-2xl border border-dashed border-border/70 p-6 text-center text-xs text-muted-foreground">
+                No products match the selected velocity filter or search term.
+              </div>
+            )}
+          </div>
+
+          {/* Product Table for Desktop (>= sm) */}
+          <div className="hidden sm:block overflow-x-auto rounded-2xl border border-border/60">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-border/60 bg-muted/30 text-muted-foreground">
+                  <th className="py-2.5 px-3.5 font-semibold">Product SKU</th>
+                  <th className="py-2.5 px-3 font-semibold">Category</th>
+                  <th className="py-2.5 px-3 font-semibold">Velocity Classification</th>
+                  <th className="py-2.5 px-3 text-right font-semibold">Units Sold</th>
+                  <th className="py-2.5 px-3 text-right font-semibold">Revenue</th>
+                  <th className="py-2.5 px-3 font-semibold">Current Stock</th>
+                  <th className="py-2.5 px-3 font-semibold">Inventory Strategy & Recommendation</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {filteredVelocityProducts.map((p) => {
+                  const isLowStock = p.stock <= p.lowStockThreshold;
+                  return (
+                    <tr key={p.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="py-2.5 px-3.5 font-medium">
+                        <div className="flex items-center gap-2.5">
+                          {p.imageUrl ? (
+                            <img
+                              src={p.imageUrl}
+                              alt={p.name}
+                              className="size-8 rounded-lg object-cover border border-border/50 shrink-0"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = "none";
+                              }}
+                            />
+                          ) : (
+                            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                              <Fish className="size-4" />
+                            </div>
+                          )}
+                          <div>
+                            <span className="font-bold text-foreground block">{p.name}</span>
+                            <span className="text-[10px] text-muted-foreground">{formatINR(p.price)} / {p.unit}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 capitalize text-muted-foreground">{p.category}</td>
+                      <td className="py-2.5 px-3">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold border ${
+                            p.tier === "top"
+                              ? "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30"
+                              : p.tier === "medium"
+                              ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30"
+                              : "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30"
+                          }`}
+                        >
+                          {p.tier === "top" && <Flame className="size-3" />}
+                          {p.tier === "medium" && <Scale className="size-3" />}
+                          {p.tier === "slow" && <Snowflake className="size-3" />}
+                          {p.tier === "top" ? "Top Selling 🔥" : p.tier === "medium" ? "Steady Mover ⚖️" : "Slow Mover ❄️"}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-semibold text-foreground">
+                        {p.qtySold > 0 ? `${p.qtySold}` : "0"}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                        {formatINR(p.revenue)}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`font-semibold ${
+                              isLowStock ? "text-amber-600 dark:text-amber-400" : "text-foreground"
+                            }`}
+                          >
+                            {formatStockDisplay(p.stock, p.unit)}
+                          </span>
+                          {isLowStock && (
+                            <span className="rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                              Low Stock
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 text-[11px] text-muted-foreground leading-snug">
+                        {p.recommendation}
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {filteredVelocityProducts.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="py-6 text-center text-xs text-muted-foreground">
+                      No products match the selected velocity filter or search term.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </AdminShell>
   );
 }
