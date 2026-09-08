@@ -66,6 +66,7 @@ function ProductsAdmin() {
     category: "",
     customCategory: "",
     price: "",
+    old_price: "",
     unit: "kg",
     customUnit: "",
     stock: "25",
@@ -109,6 +110,7 @@ function ProductsAdmin() {
         name_tamil: newProduct.name_tamil.trim() || null,
         category: resolvedCat,
         price: priceNum,
+        old_price: newProduct.old_price ? Number(newProduct.old_price) : null,
         unit: resolvedUnit,
         stock: Number(newProduct.stock) || 0,
         gst_percent: Number(newProduct.gst_percent) || 0,
@@ -129,6 +131,7 @@ function ProductsAdmin() {
         category: "",
         customCategory: "",
         price: "",
+        old_price: "",
         unit: "kg",
         customUnit: "",
         stock: "25",
@@ -165,6 +168,7 @@ function ProductsAdmin() {
         name_tamil: editingProduct.name_tamil?.trim() || null,
         category: resolvedCat,
         price: priceNum,
+        old_price: editingProduct.old_price ? Number(editingProduct.old_price) : null,
         unit: resolvedUnit,
         stock: Number(editingProduct.stock) || 0,
         gst_percent: Number(editingProduct.gst_percent) || 0,
@@ -309,15 +313,25 @@ function ProductsAdmin() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="prod-price">Price (₹) *</Label>
+                  <Label htmlFor="prod-price">Selling Price (₹) *</Label>
                   <Input
                     id="prod-price"
                     type="number"
                     placeholder="450"
                     value={newProduct.price}
                     onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="prod-old-price">MRP (₹)</Label>
+                  <Input
+                    id="prod-old-price"
+                    type="number"
+                    placeholder="500"
+                    value={newProduct.old_price}
+                    onChange={(e) => setNewProduct({ ...newProduct, old_price: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -341,6 +355,17 @@ function ProductsAdmin() {
                   />
                 </div>
               </div>
+
+              {Number(newProduct.old_price) > Number(newProduct.price) && Number(newProduct.price) > 0 && (
+                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-2 text-xs text-emerald-700 dark:text-emerald-300 flex items-center justify-between">
+                  <span>
+                    Discount: <strong>{Math.round(((Number(newProduct.old_price) - Number(newProduct.price)) / Number(newProduct.old_price)) * 100)}% OFF</strong>
+                  </span>
+                  <span>
+                    Customer saves <strong>{formatINR(Number(newProduct.old_price) - Number(newProduct.price))}</strong>
+                  </span>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <Label>Product Image</Label>
@@ -408,8 +433,17 @@ function ProductsAdmin() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{p.name}</p>
                   {p.name_tamil && <p className="text-xs text-muted-foreground">{p.name_tamil}</p>}
-                  <p className="text-xs text-muted-foreground">
-                    {p.category ?? "Uncategorised"} · {formatINR(Number(p.price))} / {p.unit} · Stock: {p.stock} {p.unit}
+                  <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-1.5">
+                    <span>{p.category ?? "Uncategorised"}</span>
+                    <span>·</span>
+                    <span className="font-semibold text-foreground">{formatINR(Number(p.price))} / {p.unit}</span>
+                    {p.old_price && Number(p.old_price) > Number(p.price) && (
+                      <span className="rounded bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold border border-emerald-200 dark:border-emerald-800">
+                        MRP: <span className="line-through">{formatINR(Number(p.old_price))}</span> ({Math.round(((Number(p.old_price) - Number(p.price)) / Number(p.old_price)) * 100)}% off)
+                      </span>
+                    )}
+                    <span>·</span>
+                    <span>Stock: {p.stock} {p.unit}</span>
                   </p>
                 </div>
               </div>
@@ -589,14 +623,24 @@ function ProductsAdmin() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="edit-price">Price (₹) *</Label>
+                  <Label htmlFor="edit-price">Selling Price (₹) *</Label>
                   <Input
                     id="edit-price"
                     type="number"
                     value={editingProduct.price}
                     onChange={(e) => setEditingProduct({ ...editingProduct, price: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-old-price">MRP (₹)</Label>
+                  <Input
+                    id="edit-old-price"
+                    type="number"
+                    placeholder="Optional"
+                    value={editingProduct.old_price ?? ""}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, old_price: e.target.value ? Number(e.target.value) : null })}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -618,6 +662,17 @@ function ProductsAdmin() {
                   />
                 </div>
               </div>
+
+              {Number(editingProduct.old_price) > Number(editingProduct.price) && Number(editingProduct.price) > 0 && (
+                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-2 text-xs text-emerald-700 dark:text-emerald-300 flex items-center justify-between">
+                  <span>
+                    Discount: <strong>{Math.round(((Number(editingProduct.old_price) - Number(editingProduct.price)) / Number(editingProduct.old_price)) * 100)}% OFF</strong>
+                  </span>
+                  <span>
+                    Customer saves <strong>{formatINR(Number(editingProduct.old_price) - Number(editingProduct.price))}</strong>
+                  </span>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <Label>Product Image</Label>

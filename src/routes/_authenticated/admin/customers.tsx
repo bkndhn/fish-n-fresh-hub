@@ -17,6 +17,7 @@ import {
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminCustomersQuery, adminSuspensionsQuery, type CustomerRow, type OrderRow } from "@/lib/admin";
 import { formatINR, formatIST } from "@/lib/format";
+import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -254,7 +255,7 @@ function CustomersAdmin() {
                     <span className="font-mono font-medium text-foreground">{c.phone}</span>
                     <div className="flex items-center gap-2">
                       <a
-                        href={`https://wa.me/91${c.phone.replace(/[^0-9]/g, "")}`}
+                        href={getWhatsAppUrl(c.phone, `Hello ${c.name || "Customer"}, this is Fish N Fresh.`)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 rounded-md bg-green-50 px-2 py-0.5 text-[11px] font-medium text-green-700 hover:bg-green-100 transition"
@@ -342,10 +343,11 @@ function CustomersAdmin() {
 
                   <div className="flex items-center gap-2">
                     <a
-                      href={`https://wa.me/91${selectedCustomer.phone.replace(/[^0-9]/g, "")}`}
+                      href={getWhatsAppUrl(selectedCustomer.phone, `Hello ${selectedCustomer.name || ""}, this is Fish N Fresh regarding your order.`)}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center gap-1.5 rounded-xl bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 transition"
+                      title="Open WhatsApp chat directly"
                     >
                       <MessageCircle className="size-3.5" /> WhatsApp
                     </a>
@@ -387,12 +389,23 @@ function CustomersAdmin() {
                 {uniqueAddresses.length > 0 ? (
                   <div className="space-y-2">
                     {uniqueAddresses.map((addr, i) => (
-                      <div key={i} className="flex items-start justify-between gap-2 rounded-lg bg-muted/40 p-2 text-xs">
-                        <p className="text-foreground">{addr}</p>
+                      <div key={i} className="flex items-start justify-between gap-3 rounded-lg bg-muted/40 p-2.5 text-xs">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-foreground leading-relaxed">{addr}</p>
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                            title="Open address in Google Maps"
+                          >
+                            <MapPin className="size-3 shrink-0" /> Open in Google Maps &rarr;
+                          </a>
+                        </div>
                         <button
                           type="button"
                           onClick={() => copyToClipboard(addr, "Address")}
-                          className="shrink-0 text-muted-foreground hover:text-foreground"
+                          className="shrink-0 p-1 text-muted-foreground hover:text-foreground rounded hover:bg-muted"
                           title="Copy address"
                         >
                           <Copy className="size-3.5" />
@@ -401,7 +414,7 @@ function CustomersAdmin() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground italic">No delivery addresses recorded (or pickup orders).</p>
+                  <p className="text-xs text-muted-foreground italic">No saved delivery address recorded on orders.</p>
                 )}
               </div>
 
@@ -493,9 +506,18 @@ function CustomersAdmin() {
                         </div>
 
                         {order.customer_address && (
-                          <div className="mt-1.5 flex items-start gap-1 text-[11px] text-muted-foreground">
+                          <div className="mt-1.5 flex items-start gap-1.5 text-[11px] text-muted-foreground">
                             <MapPin className="size-3 shrink-0 mt-0.5 text-primary" />
-                            <span>{order.customer_address}</span>
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.customer_address)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="hover:text-primary hover:underline inline-flex items-center gap-1"
+                              title="Open address in Google Maps"
+                            >
+                              <span>{order.customer_address}</span>
+                              <ExternalLink className="size-2.5 shrink-0 opacity-60" />
+                            </a>
                           </div>
                         )}
                       </div>

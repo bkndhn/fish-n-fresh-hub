@@ -53,8 +53,15 @@ export function ImageUpload({ onUpload, currentImage }: ImageUploadProps) {
   return (
     <div className="flex items-center gap-4">
       {currentImage && (
-        <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-border">
-          <img src={currentImage} alt="Current" className="size-full object-cover" />
+        <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-border bg-muted/40">
+          <img
+            src={currentImage}
+            alt="Current"
+            className="size-full object-cover"
+            onError={(e) => {
+              e.currentTarget.src = "https://images.unsplash.com/photo-1509722747041-616f39b57569?w=800";
+            }}
+          />
         </div>
       )}
       <div className="relative">

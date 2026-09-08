@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Minus, Plus, ShieldCheck, Star, MessageSquare } from "lucide-react";
+import { Minus, Plus, ShieldCheck, Star, MessageSquare, Fish } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -50,8 +50,19 @@ function ProductPage() {
     <AppShell>
       <div className="grid gap-6 md:grid-cols-2">
         <div className="overflow-hidden rounded-3xl border border-border bg-muted">
-          {product.image_url && (
-            <img src={product.image_url} alt={product.name} className="aspect-square w-full object-cover" />
+          {product.image_url ? (
+            <img
+              src={product.image_url}
+              alt={product.name}
+              className="aspect-square w-full object-cover"
+              onError={(e) => {
+                e.currentTarget.src = "https://images.unsplash.com/photo-1509722747041-616f39b57569?w=800";
+              }}
+            />
+          ) : (
+            <div className="aspect-square w-full flex items-center justify-center bg-muted/60 text-muted-foreground">
+              <Fish className="size-16 opacity-30" />
+            </div>
           )}
         </div>
         <div>
@@ -66,7 +77,22 @@ function ProductPage() {
               </Badge>
             )}
           </div>
-          <p className="mt-3 font-display text-3xl font-bold">{inr(Number(product.price))}</p>
+          <div className="mt-3 flex flex-wrap items-baseline gap-2.5">
+            <span className="font-display text-3xl font-bold">{inr(Number(product.price))}</span>
+            {product.old_price && Number(product.old_price) > Number(product.price) && (
+              <>
+                <span className="text-base text-muted-foreground line-through">
+                  MRP: {inr(Number(product.old_price))}
+                </span>
+                <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs">
+                  {Math.round(((Number(product.old_price) - Number(product.price)) / Number(product.old_price)) * 100)}% OFF
+                </Badge>
+                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  (Save {inr(Number(product.old_price) - Number(product.price))})
+                </span>
+              </>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground">per {product.unit}</p>
           {product.description && <p className="mt-4 text-sm">{product.description}</p>}
 

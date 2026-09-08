@@ -83,7 +83,16 @@ export const adminProductsQuery = queryOptions({
   queryFn: async (): Promise<Product[]> => {
     const { data, error } = await supabase.from("products").select("*").order("name");
     if (error) throw error;
-    return (data ?? []) as unknown as Product[];
+    const defaultVanjaram = "https://images.unsplash.com/photo-1509722747041-616f39b57569?w=800";
+    return ((data ?? []) as unknown as Product[]).map((p) => {
+      if (
+        (p.name?.toLowerCase().includes("vanjaram") || p.name?.toLowerCase().includes("seer fish")) &&
+        (!p.image_url || p.image_url.includes("photo-1611171711791-b34fa42e9fc4"))
+      ) {
+        p.image_url = defaultVanjaram;
+      }
+      return p;
+    });
   },
 });
 

@@ -7,6 +7,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery, ORDER_STATUSES, type OrderRow } from "@/lib/admin";
 import { settingsQuery } from "@/lib/queries";
 import { formatINR, formatIST } from "@/lib/format";
+import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -246,9 +247,10 @@ function OrdersAdmin() {
                       <Phone className="size-3" /> Call
                     </a>
                     <a
-                      href={`https://wa.me/91${o.customer_phone.replace(/\D/g, "")}?text=${encodeURIComponent(
+                      href={getWhatsAppUrl(
+                        o.customer_phone,
                         `Hi ${o.customer_name}, regarding your Fish N Fresh seafood order #${o.order_number ?? o.id.slice(0, 8)}...`
-                      )}`}
+                      )}
                       target="_blank"
                       rel="noreferrer"
                       className="text-green-600 hover:text-green-700 font-medium inline-flex items-center gap-0.5"

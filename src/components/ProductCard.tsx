@@ -1,4 +1,4 @@
-import { Minus, Plus, Star } from "lucide-react";
+import { Minus, Plus, Star, Fish } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/lib/cart";
@@ -10,6 +10,11 @@ export function ProductCard({ product }: { product: Product }) {
   const { items, add, setQty } = useCart();
   const cartItem = items.find((i) => i.product_id === product.id);
 
+  const hasDiscount = product.old_price && Number(product.old_price) > Number(product.price);
+  const discountPercent = hasDiscount
+    ? Math.round(((Number(product.old_price) - Number(product.price)) / Number(product.old_price)) * 100)
+    : 0;
+
   return (
     <div
       className={cn(
@@ -17,17 +22,29 @@ export function ProductCard({ product }: { product: Product }) {
         cartItem ? "border-primary/50 bg-primary/5" : "border-border bg-card"
       )}
     >
-      <div className="block">
+      <div className="block relative">
         <div className="aspect-[4/3] overflow-hidden bg-muted">
-          {product.image_url && (
+          {product.image_url ? (
             <img
               src={product.image_url}
               alt={product.name}
               loading="lazy"
               className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+              onError={(e) => {
+                e.currentTarget.src = "https://images.unsplash.com/photo-1509722747041-616f39b57569?w=800";
+              }}
             />
+          ) : (
+            <div className="flex size-full items-center justify-center bg-muted/50 text-muted-foreground">
+              <Fish className="size-8 opacity-30" />
+            </div>
           )}
         </div>
+        {discountPercent > 0 && (
+          <span className="absolute top-2 left-2 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-xs">
+            {discountPercent}% OFF
+          </span>
+        )}
       </div>
       <div className="space-y-1 p-3">
         <div className="block">
@@ -44,10 +61,15 @@ export function ProductCard({ product }: { product: Product }) {
         <div className="mt-1 flex items-end justify-between gap-1">
           <div className="flex min-w-0 flex-col">
             <span className="truncate font-display font-bold">{inr(Number(product.price))}</span>
-            {product.old_price ? (
-              <span className="truncate text-[10px] text-muted-foreground line-through">
-                {inr(Number(product.old_price))}
-              </span>
+            {hasDiscount ? (
+              <div className="flex items-center gap-1 text-[10px]">
+                <span className="truncate text-muted-foreground line-through">
+                  {inr(Number(product.old_price))}
+                </span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                  Save {inr(Number(product.old_price) - Number(product.price))}
+                </span>
+              </div>
             ) : null}
           </div>
           

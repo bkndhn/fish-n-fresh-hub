@@ -2,6 +2,26 @@ import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Banner, Category, Product } from "./types";
 
+const DEFAULT_VANJARAM_IMG = "https://images.unsplash.com/photo-1509722747041-616f39b57569?w=800";
+
+function sanitizeProduct(p: Product): Product {
+  if (
+    p.name?.toLowerCase().includes("vanjaram") ||
+    p.name?.toLowerCase().includes("seer fish")
+  ) {
+    if (!p.image_url || p.image_url.includes("photo-1611171711791-b34fa42e9fc4")) {
+      p.image_url = DEFAULT_VANJARAM_IMG;
+      // Persist to DB in background
+      supabase
+        .from("products")
+        .update({ image_url: DEFAULT_VANJARAM_IMG })
+        .eq("id", p.id)
+        .then(() => {});
+    }
+  }
+  return p;
+}
+
 export const productsQuery = queryOptions({
   queryKey: ["products"],
   queryFn: async (): Promise<Product[]> => {
@@ -11,7 +31,7 @@ export const productsQuery = queryOptions({
       .eq("is_available", true)
       .order("name");
     if (error) throw error;
-    return (data ?? []) as unknown as Product[];
+    return ((data ?? []) as unknown as Product[]).map(sanitizeProduct);
   },
 });
 
@@ -52,7 +72,8 @@ export function productQuery(id: string) {
     queryFn: async (): Promise<Product | null> => {
       const { data, error } = await supabase.from("products").select("*").eq("id", id).maybeSingle();
       if (error) throw error;
-      return (data ?? null) as unknown as Product | null;
+      const res = (data ?? null) as unknown as Product | null;
+      return res ? sanitizeProduct(res) : null;
     },
   });
 }

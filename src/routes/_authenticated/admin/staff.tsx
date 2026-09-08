@@ -317,9 +317,13 @@ function StaffPage() {
             {staffQuery.isLoading ? (
               <p className="text-sm text-muted-foreground">Loading team...</p>
             ) : staffQuery.isError ? (
-              <p className="text-sm text-destructive">
-                {(staffQuery.error as Error).message}
-              </p>
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
+                <p className="font-semibold">Unable to list team members automatically</p>
+                <p className="mt-1 opacity-90">{(staffQuery.error as Error).message}</p>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Tip: Connect your Supabase project in Lovable Cloud settings or add SUPABASE_SERVICE_ROLE_KEY for full account administration.
+                </p>
+              </div>
             ) : members.length === 0 ? (
               <p className="text-sm text-muted-foreground">No accounts yet.</p>
             ) : (
