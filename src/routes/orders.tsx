@@ -15,6 +15,7 @@ import { useSessionUser } from "@/lib/session";
 import { useCart } from "@/lib/cart";
 import { settingsQuery } from "@/lib/queries";
 import { lookupGuestOrder, type GuestOrder } from "@/lib/orders.functions";
+import { CustomerDeliveryPinCard } from "@/components/CustomerDeliveryPinCard";
 
 export const Route = createFileRoute("/orders")({
   head: () => ({
@@ -158,6 +159,13 @@ function MyOrders() {
                 </Button>
               </div>
             </div>
+
+            {/* Secret Handover PIN for Active Orders */}
+            {o.status !== "delivered" && o.status !== "cancelled" && (
+              <div className="mt-3 pt-3 border-t border-border/50">
+                <CustomerDeliveryPinCard orderId={o.id} orderStatus={o.status} />
+              </div>
+            )}
 
             {o.complaint && (
               <div className="mt-3 rounded-xl bg-muted p-3 text-sm">

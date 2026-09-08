@@ -20,10 +20,12 @@ import {
   Clock,
   Compass,
   Route as RouteIcon,
+  KeyRound,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery, ORDER_STATUSES, type OrderRow } from "@/lib/admin";
 import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
+import { DeliveryPinVerificationModal } from "@/components/DeliveryPinVerificationModal";
 import { getGoogleMapsDirUrl } from "@/lib/maps";
 import { settingsQuery } from "@/lib/queries";
 import { formatINR, formatIST } from "@/lib/format";
@@ -78,6 +80,7 @@ function OrdersAdmin() {
   const [customDate, setCustomDate] = useState<string>(todayStr);
   const [printOrder, setPrintOrder] = useState<OrderRow | null>(null);
   const [routeModalOrder, setRouteModalOrder] = useState<OrderRow | null>(null);
+  const [pinModalOrder, setPinModalOrder] = useState<OrderRow | null>(null);
 
   // Bulk Actions State
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -158,12 +161,15 @@ function OrdersAdmin() {
 
   const handleBulkStatus = async (status: string) => {
     if (selectedOrderIds.length === 0) return;
+    if (status === "delivered") {
+      toast.error(
+        "Anti-Theft Protection: Every delivery must be verified with the customer's individual 4-digit Delivery PIN. Please verify orders individually."
+      );
+      return;
+    }
     setBulkProcessing(true);
     try {
       const patch: any = { status };
-      if (status === "delivered") {
-        patch.delivered_at = new Date().toISOString();
-      }
       const { error } = await supabase
         .from("orders")
         .update(patch)
@@ -562,7 +568,16 @@ function OrdersAdmin() {
                   </Button>
 
                   <div className="flex-1">
-                    <Select value={o.status} onValueChange={(status) => update.mutate({ id: o.id, status })}>
+                    <Select
+                      value={o.status}
+                      onValueChange={(status) => {
+                        if (status === "delivered") {
+                          setPinModalOrder(o);
+                        } else {
+                          update.mutate({ id: o.id, status });
+                        }
+                      }}
+                    >
                       <SelectTrigger className="w-full h-8.5 text-xs rounded-xl font-semibold">
                         <SelectValue />
                       </SelectTrigger>
@@ -575,6 +590,18 @@ function OrdersAdmin() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Fast Delivery PIN Verification Action */}
+                  {o.status !== "delivered" && o.status !== "cancelled" && (
+                    <Button
+                      size="sm"
+                      className="rounded-xl h-8.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shrink-0 gap-1 shadow-xs"
+                      onClick={() => setPinModalOrder(o)}
+                      title="Verify customer 4-digit Delivery PIN to mark delivered"
+                    >
+                      <KeyRound className="size-3" /> Deliver
+                    </Button>
+                  )}
                 </div>
 
                 {o.notes && (
@@ -765,6 +792,25 @@ function OrdersAdmin() {
           storeLng={settings?.shop_lng}
           storeAddress={settings?.store_address || "Fish N Fresh Seafood Hub"}
           driverName={routeModalOrder.driver_name}
+        />
+      )}
+
+      {/* Secret Delivery PIN Verification Modal with Admin Bypass */}
+      {pinModalOrder && (
+        <DeliveryPinVerificationModal
+          open={!!pinModalOrder}
+          onOpenChange={(open) => !open && setPinModalOrder(null)}
+          orderId={pinModalOrder.id}
+          orderNumber={pinModalOrder.order_number}
+          customerName={pinModalOrder.customer_name}
+          customerPhone={pinModalOrder.customer_phone}
+          fulfillmentType={pinModalOrder.fulfillment_type}
+          isCod={pinModalOrder.payment_method === "cod" && pinModalOrder.payment_status !== "paid"}
+          totalAmount={Number(pinModalOrder.total)}
+          isAdmin={true}
+          onSuccess={() => {
+            qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+          }}
         />
       )}
     </AdminShell>

@@ -30,6 +30,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
+import { DeliveryPinVerificationModal } from "@/components/DeliveryPinVerificationModal";
 import { getGoogleMapsDirUrl } from "@/lib/maps";
 import { settingsQuery } from "@/lib/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -76,6 +77,7 @@ export function DriverDispatchPage() {
   const [selectedDriverFilter, setSelectedDriverFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [routeModalOrder, setRouteModalOrder] = useState<OrderRow | null>(null);
+  const [pinModalOrder, setPinModalOrder] = useState<OrderRow | null>(null);
 
   useEffect(() => {
     const channel = supabase
@@ -552,27 +554,14 @@ export function DriverDispatchPage() {
                           ) : (
                             <Button
                               size="sm"
-                              className={`rounded-xl h-8.5 text-xs font-bold px-2 ${
+                              className={`rounded-xl h-8.5 text-xs font-bold px-2.5 ${
                                 isCod ? "bg-amber-600 hover:bg-amber-500 text-white shadow-xs" : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs"
                               }`}
-                              onClick={() => {
-                                const promptText = isCod
-                                  ? `Confirm cash collected of ${formatINR(Number(o.total))} and mark delivered?`
-                                  : "Mark order as successfully delivered?";
-                                if (confirm(promptText)) {
-                                  updateOrder.mutate({
-                                    id: o.id,
-                                    patch: {
-                                      status: "delivered",
-                                      delivered_at: new Date().toISOString(),
-                                      payment_status: "paid",
-                                    },
-                                  });
-                                }
-                              }}
+                              onClick={() => setPinModalOrder(o)}
+                              title="Verify customer one-time delivery PIN to mark delivered"
                             >
                               <CheckCircle2 className="size-3 mr-1" />
-                              {isCod ? "Collect" : "Delivered"}
+                              {isCod ? "Collect & Verify PIN" : "🔑 Verify PIN"}
                             </Button>
                           )}
                         </div>
@@ -798,6 +787,25 @@ export function DriverDispatchPage() {
         storeLat={settings?.shop_lat ?? null}
         storeLng={settings?.shop_lng ?? null}
       />
+
+      {/* Delivery PIN Verification Modal with Admin Override */}
+      {pinModalOrder && (
+        <DeliveryPinVerificationModal
+          open={!!pinModalOrder}
+          onOpenChange={(open) => !open && setPinModalOrder(null)}
+          orderId={pinModalOrder.id}
+          orderNumber={pinModalOrder.order_number}
+          customerName={pinModalOrder.customer_name}
+          customerPhone={pinModalOrder.customer_phone}
+          fulfillmentType={pinModalOrder.fulfillment_type}
+          isCod={pinModalOrder.payment_method === "cod" && pinModalOrder.payment_status !== "paid"}
+          totalAmount={Number(pinModalOrder.total)}
+          isAdmin={true}
+          onSuccess={() => {
+            qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+          }}
+        />
+      )}
     </AdminShell>
   );
 }

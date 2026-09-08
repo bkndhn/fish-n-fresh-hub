@@ -23,6 +23,8 @@ import { useSessionUser } from "@/lib/session";
 import { checkSuspension } from "@/lib/suspensions.functions";
 import { getStoreStatus, isDateHoliday, getNextWorkingDate } from "@/lib/storeSchedule";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
+import { registerOrderDeliveryPin } from "@/lib/deliveryPin";
+import { CustomerDeliveryPinCard } from "@/components/CustomerDeliveryPinCard";
 
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371; // Radius of the earth in km
@@ -317,6 +319,13 @@ function Checkout() {
     localStorage.setItem("fnf_phone", phone);
     clear();
 
+    // Securely provision customer One-Time Delivery PIN
+    try {
+      await registerOrderDeliveryPin(data.id, userId || "");
+    } catch (pinErr) {
+      console.warn("Delivery PIN provisioning notice:", pinErr);
+    }
+
     if (payment === "card") {
       setCheckoutOrderId(data.id);
       return;
@@ -380,6 +389,9 @@ function Checkout() {
               <span className="capitalize font-medium">{fulfillment}</span>
             </div>
           </div>
+
+          {/* Customer Secret Delivery PIN Card */}
+          <CustomerDeliveryPinCard orderId={orderSuccess.id} fulfillmentType={fulfillment} />
 
           <div className="pt-2 space-y-2">
             <Button

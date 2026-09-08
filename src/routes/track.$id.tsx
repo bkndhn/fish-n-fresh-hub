@@ -30,6 +30,7 @@ import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
 import { getGoogleMapsDirUrl } from "@/lib/maps";
+import { CustomerDeliveryPinCard } from "@/components/CustomerDeliveryPinCard";
 
 export const Route = createFileRoute("/track/$id")({
   head: () => ({
@@ -202,6 +203,15 @@ function TrackPage() {
             </Button>
           </div>
         </div>
+
+        {/* Customer Secret Delivery & Handover PIN Card (Visible ONLY to Customer) */}
+        {!isCancelled && (
+          <CustomerDeliveryPinCard
+            orderId={order.id}
+            orderStatus={order.status}
+            fulfillmentType={order.fulfillment_type}
+          />
+        )}
 
         {/* Live Delivery Hero Card */}
         {isCancelled ? (

@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
 import { getGoogleMapsDirUrl } from "@/lib/maps";
 import { settingsQuery } from "@/lib/queries";
+import { DeliveryPinVerificationModal } from "@/components/DeliveryPinVerificationModal";
 
 export const Route = createFileRoute("/_authenticated/crew")({
   head: () => ({
@@ -46,6 +47,7 @@ function CrewBoard() {
   const isCrew = (roles.data ?? []).some((r) => r === "driver" || r === "staff" || r === "admin");
   const { data: settings } = useQuery(settingsQuery);
   const [routeModalOrder, setRouteModalOrder] = useState<OrderRow | null>(null);
+  const [pinModalOrder, setPinModalOrder] = useState<OrderRow | null>(null);
 
   const myOrders = useQuery({
     queryKey: ["crew", "orders"],
@@ -222,8 +224,18 @@ function CrewBoard() {
 
                   <div className="flex flex-wrap items-center gap-2">
                     {next && (
-                      <Button size="sm" onClick={() => update.mutate({ id: o.id, patch: { status: next } })}>
-                        Mark {next.replace(/_/g, " ")}
+                      <Button
+                        size="sm"
+                        className={next === "delivered" ? "bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-xs" : ""}
+                        onClick={() => {
+                          if (next === "delivered") {
+                            setPinModalOrder(o);
+                          } else {
+                            update.mutate({ id: o.id, patch: { status: next } });
+                          }
+                        }}
+                      >
+                        {next === "delivered" ? "🔑 Enter Delivery PIN" : `Mark ${next.replace(/_/g, " ")}`}
                       </Button>
                     )}
                     <Button
@@ -348,6 +360,25 @@ function CrewBoard() {
         storeLat={settings?.shop_lat ?? null}
         storeLng={settings?.shop_lng ?? null}
       />
+
+      {/* Secret Delivery PIN Verification Modal */}
+      {pinModalOrder && (
+        <DeliveryPinVerificationModal
+          open={!!pinModalOrder}
+          onOpenChange={(open) => !open && setPinModalOrder(null)}
+          orderId={pinModalOrder.id}
+          orderNumber={pinModalOrder.order_number}
+          customerName={pinModalOrder.customer_name}
+          customerPhone={pinModalOrder.customer_phone}
+          fulfillmentType={pinModalOrder.fulfillment_type}
+          isCod={pinModalOrder.payment_method === "cod" && pinModalOrder.payment_status !== "paid"}
+          totalAmount={Number(pinModalOrder.total)}
+          isAdmin={(roles.data ?? []).includes("admin")}
+          onSuccess={() => {
+            qc.invalidateQueries({ queryKey: ["crew", "orders"] });
+          }}
+        />
+      )}
     </div>
   );
 }
