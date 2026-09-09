@@ -100,7 +100,7 @@ export function RetailPosCounterPage() {
 
   // Filter products that are active
   const products = useMemo(() => {
-    return (rawProducts as Product[]).filter((p) => p.is_active !== false);
+    return (rawProducts as Product[]).filter((p) => p.is_available !== false);
   }, [rawProducts]);
 
   // UI States
@@ -132,7 +132,7 @@ export function RetailPosCounterPage() {
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user) {
         setCashierId(data.user.id);
-        const name = data.user.user_metadata?.name || data.user.email?.split("@")[0] || "Cashier";
+        const name = (data.user.user_metadata as Record<string, string> | null)?.["name"] || data.user.email?.split("@")[0] || "Cashier";
         setCashierName(name);
       }
     });
@@ -141,14 +141,14 @@ export function RetailPosCounterPage() {
   // Filtered Products
   const displayedProducts = useMemo(() => {
     return products.filter((p) => {
-      if (selectedCategory !== "all" && p.category_id !== selectedCategory) {
+      if (selectedCategory !== "all" && p.category !== selectedCategory) {
         return false;
       }
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
       return (
         p.name.toLowerCase().includes(q) ||
-        (p.name_ta && p.name_ta.toLowerCase().includes(q))
+        (p.name_tamilmil ? p.name_tamilmil.toLowerCase().includes(q) : false)
       );
     });
   }, [products, selectedCategory, searchQuery]);
@@ -212,7 +212,7 @@ export function RetailPosCounterPage() {
   const handleOpenItem = (prod: Product) => {
     setActiveItemModal(prod);
     setModalWeight(1.0);
-    setModalCutting(CUTTING_STYLES[0]);
+    setModalCutting(CUTTING_STYLES[0] ?? "Curry Cut");
   };
 
   // Add item to cart
@@ -307,7 +307,7 @@ export function RetailPosCounterPage() {
       upiRef: paymentMode === "upi" && upiUtr.trim() ? upiUtr.trim() : undefined,
       storeName: settings?.store_name || "Fish N Fresh Hub",
       storeAddress: settings?.store_address || undefined,
-      storePhone: settings?.store_phone || undefined,
+      storePhone: (settings as any)?.contact_phone || undefined,
       storeGstin: (settings as any)?.gst_number || undefined,
     };
 
