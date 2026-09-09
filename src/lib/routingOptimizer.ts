@@ -30,10 +30,13 @@ export interface OptimizedTripRoute {
  * Minimizes total round-trip travel distance and rider fuel consumption.
  */
 export function optimizeMultiOrderRoute(
-  storeLat: number,
-  storeLng: number,
+  storeLatInput: number | null,
+  storeLngInput: number | null,
   orders: OrderRow[]
 ): OptimizedTripRoute {
+  const storeLat = storeLatInput ?? 13.0827;
+  const storeLng = storeLngInput ?? 80.2707;
+
   // Filter valid orders that have coordinates
   const validOrders = orders.filter(
     (o) => typeof o.location_lat === "number" && typeof o.location_lng === "number"
