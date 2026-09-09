@@ -21,6 +21,7 @@ import { useCart } from "@/lib/cart";
 import { inr, formatIST, formatStockDisplay } from "@/lib/format";
 import { productQuery, productsQuery, settingsQuery } from "@/lib/queries";
 import { ProductCard } from "@/components/ProductCard";
+import { ProductAiBenefitsCard } from "@/components/ProductAiBenefitsCard";
 
 export const Route = createFileRoute("/product/$id")({
   head: () => ({
@@ -167,6 +168,11 @@ function ProductPage() {
             {product.traceability && <Info label="Traceability" value={product.traceability} />}
           </dl>
         </div>
+      </div>
+
+      {/* AI Multi-Language Health & Culinary Intelligence */}
+      <div className="mt-8">
+        <ProductAiBenefitsCard product={product} />
       </div>
 
       {product.recipe_title && (

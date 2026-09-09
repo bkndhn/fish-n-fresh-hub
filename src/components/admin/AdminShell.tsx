@@ -19,6 +19,7 @@ import {
   MessageSquareWarning,
   Anchor,
   Trash2,
+  Bell,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { myRolesQuery, type AppRole } from "@/lib/admin";
@@ -46,6 +47,7 @@ import {
 const NAV = [
   { to: "/admin", label: "Dashboard", icon: BarChart3, exact: true, roles: ["admin", "staff"] },
   { to: "/admin/products", label: "Products", icon: Package, roles: ["admin", "staff"] },
+  { to: "/admin/broadcasts", label: "Catch Alerts", icon: Bell, roles: ["admin", "staff"] },
   { to: "/admin/purchases", label: "Purchases", icon: Anchor, roles: ["admin", "staff"] },
   { to: "/admin/waste", label: "Waste mgmt", icon: Trash2, roles: ["admin", "staff"] },
   { to: "/admin/banners", label: "Banners", icon: Sparkles, roles: ["admin"] },

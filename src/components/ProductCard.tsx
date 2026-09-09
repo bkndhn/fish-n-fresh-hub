@@ -1,4 +1,4 @@
-import { Minus, Plus, Star, Fish } from "lucide-react";
+import { Minus, Plus, Star, Fish, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -75,6 +75,16 @@ export function ProductCard({ product }: { product: Product }) {
             </span>
           )}
         </div>
+
+        {/* Top Right: Express Turnaround SLA Badge */}
+        {!isOutOfStock && ((settings as any)?.express_delivery_enabled ?? true) && (
+          <div className="absolute top-2 right-2">
+            <span className="rounded-md bg-black/65 backdrop-blur-md px-1.5 py-0.5 text-[9px] font-mono font-bold text-amber-300 flex items-center gap-0.5 shadow-xs border border-white/10">
+              <Zap className="size-2.5 fill-amber-400 text-amber-400" />
+              {(settings as any)?.express_sla_mins || 35}m
+            </span>
+          </div>
+        )}
       </div>
       <div className="space-y-1 p-3">
         <div className="block">

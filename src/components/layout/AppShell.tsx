@@ -4,6 +4,7 @@ import { settingsQuery } from "@/lib/queries";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "../WhatsAppIcon";
 import { SiteHeader } from "./SiteHeader";
+import { CatchAlertBanner } from "../CatchAlertBanner";
 import { BottomNav } from "./BottomNav";
 import { FloatingCart } from "../FloatingCart";
 import { PwaPrompt } from "../PwaPrompt";
@@ -22,6 +23,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background w-full max-w-full overflow-x-hidden flex flex-col">
       <PwaPrompt />
+      <CatchAlertBanner />
       <SiteHeader />
       <main className="mx-auto w-full max-w-5xl px-3 sm:px-4 pt-3 sm:pt-4 flex-1 overflow-x-hidden">{children}</main>
       <Footer />

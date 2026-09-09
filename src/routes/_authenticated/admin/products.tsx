@@ -2,13 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Search, Edit, AlertTriangle, Zap, PackagePlus, CheckCircle2, X, CheckSquare, Square, Layers, ArrowUpCircle, Eye, EyeOff } from "lucide-react";
+import { Plus, Trash2, Search, Edit, AlertTriangle, Zap, PackagePlus, CheckCircle2, X, CheckSquare, Square, Layers, ArrowUpCircle, Eye, EyeOff, Sparkles } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminProductsQuery } from "@/lib/admin";
 import { categoriesQuery } from "@/lib/queries";
 import type { Product } from "@/lib/types";
 import { formatINR, formatStockDisplay, formatStockUnitLabel } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
+import { ProductAiBenefitsCard } from "@/components/ProductAiBenefitsCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,6 +74,7 @@ function ProductsAdmin() {
   const [stockFilter, setStockFilter] = useState<"all" | "low">("all");
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [aiProduct, setAiProduct] = useState<Product | null>(null);
 
   const [newProduct, setNewProduct] = useState({
     name: "",
@@ -943,6 +945,17 @@ function ProductsAdmin() {
                     <Edit className="mr-1.5 size-3.5" /> Edit
                   </Button>
 
+                  {/* AI Marine Health & Culinary Intelligence */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl h-8 px-2.5 text-primary border-primary/30 hover:bg-primary/10"
+                    title="View / Pre-cache Multi-Language AI Profile"
+                    onClick={() => setAiProduct(p)}
+                  >
+                    <Sparkles className="size-3.5" />
+                  </Button>
+
                   {/* Delete Button */}
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -1294,6 +1307,23 @@ function ProductsAdmin() {
                 </div>
               </div>
             </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Profile Inspector Dialog */}
+      <Dialog open={Boolean(aiProduct)} onOpenChange={(open) => !open && setAiProduct(null)}>
+        <DialogContent className="rounded-3xl max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="size-5 text-primary" />
+              AI Marine Nutrition & Culinary Intelligence: {aiProduct?.name}
+            </DialogTitle>
+          </DialogHeader>
+          {aiProduct && (
+            <div className="mt-2">
+              <ProductAiBenefitsCard product={aiProduct} />
+            </div>
           )}
         </DialogContent>
       </Dialog>

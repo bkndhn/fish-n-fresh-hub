@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Minus, Plus, Trash2, AlertTriangle } from "lucide-react";
+import { Minus, Plus, Trash2, AlertTriangle, Zap } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -57,6 +57,19 @@ function CartPage() {
         <div className="mt-4 rounded-2xl border border-border bg-card p-3">
           <p className="text-sm">Add {inr(freeOver - subtotal)} more for free delivery</p>
           <Progress value={progress} className="mt-2" />
+        </div>
+      )}
+
+      {/* Express Delivery Callout */}
+      {((settings as any)?.express_delivery_enabled ?? true) && (
+        <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-amber-500/20 bg-amber-50/50 dark:bg-amber-950/20 p-2.5 text-xs text-amber-800 dark:text-amber-300">
+          <span className="flex items-center gap-1.5 font-medium">
+            <Zap className="size-3.5 fill-amber-500 text-amber-500" />
+            Express 30–{(settings as any)?.express_sla_mins || 35} Mins Priority Dispatch available
+          </span>
+          <span className="font-mono font-bold text-[11px] text-amber-700 dark:text-amber-400">
+            Ice-Packed
+          </span>
         </div>
       )}
       <ul className="mt-4 space-y-3">

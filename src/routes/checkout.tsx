@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { MapPin, Copy, QrCode, Smartphone, Tag, MessageCircle, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { MapPin, Copy, QrCode, Smartphone, Tag, MessageCircle, AlertTriangle, CheckCircle2, Zap, Clock, Gift, Wallet, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,6 +26,8 @@ import { getStoreStatus, isDateHoliday, getNextWorkingDate } from "@/lib/storeSc
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { registerOrderDeliveryPin } from "@/lib/deliveryPin";
 import { CustomerDeliveryPinCard } from "@/components/CustomerDeliveryPinCard";
+import { getOrCreateUserWallet, calculateMaxRedeemable, redeemWalletBalance, validateReferralCode } from "@/lib/wallet";
+import { notifyOrderStatusChange } from "@/lib/fcm";
 
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371; // Radius of the earth in km
@@ -94,6 +97,21 @@ function Checkout() {
   const [slot, setSlot] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(() => new Date().toISOString().slice(0, 10));
 
+  // Delivery Speed & Turnaround (Express 30-45 mins vs Morning Harbour Scheduled)
+  const [deliverySpeed, setDeliverySpeed] = useState<"express" | "scheduled">("express");
+
+  // FreshCash Loyalty & Referral Wallet
+  const [useWalletBalance, setUseWalletBalance] = useState(false);
+  const [referralInput, setReferralInput] = useState("");
+  const [appliedReferral, setAppliedReferral] = useState<{ code: string; bonus: number } | null>(null);
+  const [validatingReferral, setValidatingReferral] = useState(false);
+
+  const { data: userWallet } = useQuery({
+    queryKey: ["customer-wallet", user?.id],
+    queryFn: () => (user ? getOrCreateUserWallet(user.id) : null),
+    enabled: Boolean(user),
+  });
+
   const storeStatus = getStoreStatus(settings);
   const selectedHoliday = isDateHoliday(
     deliveryDate,
@@ -116,13 +134,23 @@ function Checkout() {
   );
 
   const freeOver = Number(settings?.free_delivery_over ?? 500);
-  
+
+  // Delivery Speed Express Surcharge
+  const isExpressActive =
+    fulfillment === "delivery" &&
+    deliverySpeed === "express" &&
+    ((settings as any)?.express_delivery_enabled ?? true);
+  const expressFee = isExpressActive ? Number((settings as any)?.express_delivery_fee ?? 25) : 0;
+
   // Dynamic Delivery Fee
   let deliveryFee = 0;
-  if (fulfillment === "delivery" && subtotal < freeOver) {
-    const baseFee = Number(settings?.base_delivery_fee ?? settings?.delivery_fee ?? 40);
-    const perKm = Number(settings?.per_km_charge ?? 0);
-    deliveryFee = distanceKm ? baseFee + Math.round(distanceKm * perKm) : baseFee;
+  if (fulfillment === "delivery") {
+    if (subtotal < freeOver) {
+      const baseFee = Number(settings?.base_delivery_fee ?? settings?.delivery_fee ?? 40);
+      const perKm = Number(settings?.per_km_charge ?? 0);
+      deliveryFee = distanceKm ? baseFee + Math.round(distanceKm * perKm) : baseFee;
+    }
+    deliveryFee += expressFee;
   }
 
   // Smart GST Calculation
@@ -135,8 +163,40 @@ function Checkout() {
   });
   gstAmount = Math.round(gstAmount);
 
-  const discount = appliedPromo?.discount ?? 0;
-  const total = Math.max(0, subtotal - discount + deliveryFee + gstAmount);
+  // FreshCash Wallet calculations
+  const walletEnabled = (settings as any)?.wallet_enabled ?? true;
+  const maxBurnPercent = Number((settings as any)?.max_wallet_burn_percent ?? 50);
+  const availableWalletBal = Number(userWallet?.balance || 0);
+  const maxRedeemableFreshCash = calculateMaxRedeemable(availableWalletBal, subtotal, maxBurnPercent);
+  const walletDiscount = useWalletBalance && walletEnabled ? maxRedeemableFreshCash : 0;
+  const referralDiscount = appliedReferral ? appliedReferral.bonus : 0;
+
+  const discount = (appliedPromo?.discount ?? 0) + referralDiscount;
+  const total = Math.max(0, subtotal - discount - walletDiscount + deliveryFee + gstAmount);
+
+  async function applyReferralCode() {
+    if (!referralInput.trim()) return;
+    setValidatingReferral(true);
+    try {
+      const res = await validateReferralCode(referralInput, user?.id);
+      if (res.valid) {
+        const bonus = Number((settings as any)?.referral_reward_referee ?? 50);
+        setAppliedReferral({ code: referralInput.trim().toUpperCase(), bonus });
+        toast.success(`Referral code ${referralInput.trim().toUpperCase()} applied! -${inr(bonus)} discount`);
+      } else {
+        toast.error(res.message);
+      }
+    } catch {
+      toast.error("Could not validate referral code");
+    } finally {
+      setValidatingReferral(false);
+    }
+  }
+
+  function removeReferralCode() {
+    setAppliedReferral(null);
+    setReferralInput("");
+  }
 
   async function applyCoupon() {
     if (!couponCode.trim()) return;
@@ -257,7 +317,21 @@ function Checkout() {
 
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = sessionData.session?.user.id ?? null;
-    const orderNotes = [notes.trim(), upiUtr ? `UPI UTR: ${upiUtr}` : ""].filter(Boolean).join(" | ");
+    const finalSlot =
+      fulfillment === "delivery"
+        ? deliverySpeed === "express"
+          ? `⚡ Express (30–${(settings as any)?.express_sla_mins || 35} Mins Priority Dispatch)`
+          : slot || null
+        : null;
+
+    const orderNotes = [
+      notes.trim(),
+      upiUtr ? `UPI UTR: ${upiUtr}` : "",
+      appliedReferral ? `Referral: ${appliedReferral.code} (-${inr(appliedReferral.bonus)})` : "",
+      walletDiscount > 0 ? `FreshCash Redeemed: -${inr(walletDiscount)}` : "",
+    ]
+      .filter(Boolean)
+      .join(" | ");
 
     const { data, error } = await supabase
       .from("orders")
@@ -272,13 +346,13 @@ function Checkout() {
         delivery_fee: deliveryFee,
         gst_amount: gstAmount,
         discount,
-        coupon_code: appliedPromo?.code ?? null,
+        coupon_code: appliedPromo?.code ?? (appliedReferral?.code || null),
         total,
         status: "pending",
         payment_method: payment,
         fulfillment_type: fulfillment,
         delivery_date: fulfillment === "delivery" ? deliveryDate : null,
-        delivery_slot: fulfillment === "delivery" && slot ? slot : null,
+        delivery_slot: finalSlot,
         notes: orderNotes || null,
         user_id: userId,
         created_by: userId,
@@ -290,6 +364,31 @@ function Checkout() {
     if (error || !data) {
       toast.error("Could not place order. Please try again.");
       return;
+    }
+
+    // Deduct redeemed FreshCash from customer wallet
+    if (walletDiscount > 0 && userId) {
+      try {
+        await redeemWalletBalance({
+          userId,
+          amount: walletDiscount,
+          orderId: data.id,
+        });
+      } catch (wErr) {
+        console.warn("Wallet deduction notice:", wErr);
+      }
+    }
+
+    // Trigger FCM instant push confirmation
+    try {
+      await notifyOrderStatusChange({
+        orderId: data.id,
+        orderNumber: data.order_number,
+        newStatus: "confirmed",
+        customerName: cleanName,
+      });
+    } catch (fcmErr) {
+      console.warn("FCM push notice:", fcmErr);
     }
 
     // Automatically reduce product stock based on sale
@@ -589,22 +688,101 @@ function Checkout() {
             />
           </div>
         )}
+
+        {/* Delivery Speed / Turnaround Selector */}
+        {fulfillment === "delivery" && (
+          <div className="space-y-2.5 rounded-2xl border border-border bg-muted/20 p-3.5 sm:p-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs sm:text-sm font-bold flex items-center gap-1.5 text-foreground">
+                <Zap className="size-4 text-amber-500 fill-amber-500" /> Delivery Speed & Turnaround
+              </Label>
+              <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px]">
+                Express SLA
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {/* Express Delivery Option */}
+              <button
+                type="button"
+                onClick={() => {
+                  setDeliverySpeed("express");
+                }}
+                className={`relative rounded-xl border p-3 text-left transition-all flex items-start gap-2.5 ${
+                  deliverySpeed === "express"
+                    ? "border-amber-500 bg-amber-50/70 dark:bg-amber-950/30 shadow-xs ring-1 ring-amber-500"
+                    : "border-border bg-card hover:border-border/80"
+                }`}
+              >
+                <div className="size-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Zap className="size-4.5 fill-current" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs sm:text-sm text-foreground">
+                      ⚡ Express ({(settings as any)?.express_sla_mins || 35} Mins)
+                    </span>
+                    <span className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400">
+                      +{inr(Number((settings as any)?.express_delivery_fee ?? 25))}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Fastest SLA · Packed on crushed ice & dispatched immediately
+                  </p>
+                </div>
+              </button>
+
+              {/* Scheduled Morning Harbour Slot Option */}
+              <button
+                type="button"
+                onClick={() => {
+                  setDeliverySpeed("scheduled");
+                  setSlot("");
+                }}
+                className={`relative rounded-xl border p-3 text-left transition-all flex items-start gap-2.5 ${
+                  deliverySpeed === "scheduled"
+                    ? "border-sky-500 bg-sky-50/70 dark:bg-sky-950/30 shadow-xs ring-1 ring-sky-500"
+                    : "border-border bg-card hover:border-border/80"
+                }`}
+              >
+                <div className="size-8 rounded-lg bg-sky-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Clock className="size-4.5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs sm:text-sm text-foreground">
+                      🌅 Scheduled Slot
+                    </span>
+                    <span className="text-xs font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                      Standard
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Morning 06:30 AM & 02:00 PM harbour boat catch arrival slots
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
         
-        <div>
-          <Label htmlFor="delivery-date">
-            {fulfillment === "pickup" ? "Pickup day & time" : "Delivery day & time"}
-          </Label>
-          <Input
-            id="delivery-date"
-            type="date"
-            value={deliveryDate}
-            min={new Date().toISOString().slice(0, 10)}
-            onChange={(e) => {
-              setDeliveryDate(e.target.value);
-              setSlot("");
-            }}
-            className="mt-1 rounded-xl"
-          />
+        {/* Date & Slot selection (shown if pickup or scheduled delivery) */}
+        {(fulfillment === "pickup" || deliverySpeed === "scheduled") && (
+          <div>
+            <Label htmlFor="delivery-date">
+              {fulfillment === "pickup" ? "Pickup day & time" : "Delivery day & time slot"}
+            </Label>
+            <Input
+              id="delivery-date"
+              type="date"
+              value={deliveryDate}
+              min={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => {
+                setDeliveryDate(e.target.value);
+                setSlot("");
+              }}
+              className="mt-1 rounded-xl"
+            />
           {selectedHoliday.isHoliday && (
             <div className="mt-2 flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
               <AlertTriangle className="size-4 shrink-0 mt-0.5" />
@@ -650,6 +828,82 @@ function Checkout() {
               })
             )}
           </div>
+        </div>
+      )}
+
+        {/* FreshCash Loyalty Wallet Balance Redemption */}
+        {walletEnabled && availableWalletBal > 0 && (
+          <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/5 via-background to-accent/5 p-3.5 space-y-2.5 shadow-2xs">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs sm:text-sm font-bold flex items-center gap-1.5 text-foreground">
+                <Wallet className="size-4 text-primary" /> FreshCash Loyalty Wallet
+              </Label>
+              <Badge className="bg-primary/15 text-primary border-primary/30 text-[10px] font-mono">
+                {inr(availableWalletBal)} Balance
+              </Badge>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card p-3">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-foreground">
+                  Redeem FreshCash on this order
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Save up to {maxBurnPercent}% ({inr(maxRedeemableFreshCash)}) with your wallet credits
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant={useWalletBalance ? "default" : "outline"}
+                className="rounded-xl h-8 text-xs font-semibold shrink-0"
+                onClick={() => setUseWalletBalance(!useWalletBalance)}
+              >
+                {useWalletBalance ? `Applied (-${inr(walletDiscount)})` : `Apply (-${inr(maxRedeemableFreshCash)})`}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Friend Referral Code Box */}
+        <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
+          <Label className="text-xs font-semibold flex items-center gap-1.5">
+            <Gift className="size-3.5 text-primary" /> Have a Friend's Referral / Invite Code?
+          </Label>
+          {appliedReferral ? (
+            <div className="flex items-center justify-between rounded-xl bg-emerald-50 dark:bg-emerald-950/40 p-2.5 border border-emerald-200 dark:border-emerald-900">
+              <div>
+                <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                  Invite Code {appliedReferral.code} Applied!
+                </p>
+                <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                  Welcome bonus discount: -{inr(appliedReferral.bonus)}
+                </p>
+              </div>
+              <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:bg-destructive/10" onClick={removeReferralCode}>
+                Remove
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter friend's code (e.g. FNF-8X2M9)"
+                value={referralInput}
+                onChange={(e) => setReferralInput(e.target.value.toUpperCase())}
+                className="rounded-xl text-xs uppercase font-mono"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-xl shrink-0 text-xs"
+                disabled={!referralInput.trim() || validatingReferral}
+                onClick={applyReferralCode}
+              >
+                {validatingReferral ? "Checking..." : "Apply Code"}
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Promo Code Box */}
@@ -800,13 +1054,37 @@ function Checkout() {
 
       <div className="mt-5 space-y-2 rounded-2xl border border-border bg-card p-4 text-sm">
         <Row label="Subtotal" value={inr(subtotal)} />
-        {discount > 0 && (
-          <div className="flex justify-between text-green-600 font-medium">
-            <span>Coupon Discount ({appliedPromo?.code})</span>
-            <span>-{inr(discount)}</span>
+        {appliedPromo && appliedPromo.discount > 0 && (
+          <div className="flex justify-between text-green-600 dark:text-green-400 font-medium text-xs sm:text-sm">
+            <span>Coupon Discount ({appliedPromo.code})</span>
+            <span>-{inr(appliedPromo.discount)}</span>
           </div>
         )}
-        <Row label="Delivery" value={deliveryFee === 0 ? "Free" : inr(deliveryFee)} />
+        {appliedReferral && appliedReferral.bonus > 0 && (
+          <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium text-xs sm:text-sm">
+            <span>Referral Welcome Bonus ({appliedReferral.code})</span>
+            <span>-{inr(appliedReferral.bonus)}</span>
+          </div>
+        )}
+        {walletDiscount > 0 && (
+          <div className="flex justify-between text-primary font-semibold text-xs sm:text-sm">
+            <span className="flex items-center gap-1">
+              <Wallet className="size-3" /> FreshCash Redeemed
+            </span>
+            <span>-{inr(walletDiscount)}</span>
+          </div>
+        )}
+        <div className="flex justify-between text-xs sm:text-sm">
+          <span className="text-muted-foreground flex items-center gap-1">
+            Delivery Fee
+            {isExpressActive && (
+              <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[9px] py-0 px-1 font-mono">
+                ⚡ Express
+              </Badge>
+            )}
+          </span>
+          <span className="font-medium">{deliveryFee === 0 ? "Free" : inr(deliveryFee)}</span>
+        </div>
         {gstAmount > 0 && <Row label="GST (Smart Calculation)" value={inr(gstAmount)} />}
         <div className="flex justify-between border-t border-border pt-2 font-display text-lg font-bold">
           <span>Total</span>

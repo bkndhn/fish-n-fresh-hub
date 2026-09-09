@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { RotateCcw, MapPin, Compass } from "lucide-react";
+import { RotateCcw, MapPin, Compass, Zap, Gift, Bell, Wallet, ShieldCheck } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { settingsQuery } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { ImageUpload } from "@/components/ImageUpload";
 import { useState, useEffect } from "react";
 import { MapPinPickerModal } from "@/components/MapPinPickerModal";
@@ -622,6 +624,208 @@ function AdminSettings() {
             </p>
           </div>
 
+        </CardContent>
+      </Card>
+
+      {/* 1. Express Delivery Turnaround & SLA Settings */}
+      <Card className="mt-6 rounded-2xl shadow-xs">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Zap className="size-4 text-amber-500 fill-amber-500" />
+              ⚡ Express Delivery Turnaround & SLA Settings
+            </span>
+            <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-600 dark:text-amber-400">
+              High Priority Dispatch
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-semibold">Enable Express Turnaround (30–45 Mins)</Label>
+              <p className="text-xs text-muted-foreground">
+                Allows customers to pick fastest doorstep dispatch packed fresh on ice.
+              </p>
+            </div>
+            <Switch
+              checked={form.express_delivery_enabled ?? true}
+              onCheckedChange={(val) => setForm({ ...form, express_delivery_enabled: val })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="express_delivery_fee">Express Surcharge / Priority Fee (₹)</Label>
+              <Input
+                id="express_delivery_fee"
+                type="number"
+                min="0"
+                value={form.express_delivery_fee ?? 25}
+                onChange={(e) => setForm({ ...form, express_delivery_fee: Number(e.target.value) })}
+                className="mt-1"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Added to delivery fee when express turnaround is selected (Default ₹25).
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="express_sla_mins">Turnaround Promised SLA (Minutes)</Label>
+              <Input
+                id="express_sla_mins"
+                type="number"
+                min="15"
+                max="120"
+                value={form.express_sla_mins ?? 35}
+                onChange={(e) => setForm({ ...form, express_sla_mins: Number(e.target.value) })}
+                className="mt-1"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Badge displayed on product cards and checkout SLA guarantee (e.g. 35 mins).
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 2. FreshCash Loyalty & Referral Wallet Settings */}
+      <Card className="mt-6 rounded-2xl shadow-xs">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Wallet className="size-4 text-primary" />
+              🎁 FreshCash Loyalty & Referral Wallet Program
+            </span>
+            <Badge variant="outline" className="text-xs border-primary/40 text-primary">
+              Toggleable & Ledger Audited
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-semibold">Enable FreshCash Wallet & Referral Program</Label>
+              <p className="text-xs text-muted-foreground">
+                When enabled, customers get personal invite codes, cashback on delivered orders, and can redeem balance at checkout.
+              </p>
+            </div>
+            <Switch
+              checked={form.wallet_enabled ?? true}
+              onCheckedChange={(val) => setForm({ ...form, wallet_enabled: val })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="referral_reward_referrer">Referrer Bonus (₹)</Label>
+              <Input
+                id="referral_reward_referrer"
+                type="number"
+                min="0"
+                value={form.referral_reward_referrer ?? 50}
+                onChange={(e) => setForm({ ...form, referral_reward_referrer: Number(e.target.value) })}
+                className="mt-1"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                FreshCash credited to the user who shared the code upon friend's first delivered order.
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="referral_reward_referee">Referee Welcome Discount (₹)</Label>
+              <Input
+                id="referral_reward_referee"
+                type="number"
+                min="0"
+                value={form.referral_reward_referee ?? 50}
+                onChange={(e) => setForm({ ...form, referral_reward_referee: Number(e.target.value) })}
+                className="mt-1"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Instant checkout welcome discount for the newly invited friend.
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="cashback_percent">Order Cashback (%)</Label>
+              <Input
+                id="cashback_percent"
+                type="number"
+                min="0"
+                max="50"
+                step="0.5"
+                value={form.cashback_percent ?? 2.5}
+                onChange={(e) => setForm({ ...form, cashback_percent: Number(e.target.value) })}
+                className="mt-1"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Cashback percentage credited to customer wallet upon successful order delivery.
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="max_wallet_burn_percent">Max Wallet Burn Per Order (%)</Label>
+              <Input
+                id="max_wallet_burn_percent"
+                type="number"
+                min="5"
+                max="100"
+                value={form.max_wallet_burn_percent ?? 50}
+                onChange={(e) => setForm({ ...form, max_wallet_burn_percent: Number(e.target.value) })}
+                className="mt-1"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Max percentage of order subtotal that can be paid using FreshCash balance (e.g. 50%).
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 3. Firebase Cloud Messaging (FCM) Foundation */}
+      <Card className="mt-6 rounded-2xl shadow-xs">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Bell className="size-4 text-sky-500" />
+              🔔 Firebase Cloud Messaging (FCM) & Push Setup
+            </span>
+            <Badge className="bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30 text-xs">
+              PWA Foundation Ready
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-xl border border-sky-500/20 bg-sky-50/50 dark:bg-sky-950/20 p-3 text-xs text-sky-800 dark:text-sky-300">
+            <p className="font-semibold flex items-center gap-1.5">
+              <ShieldCheck className="size-4 text-sky-600 dark:text-sky-400" />
+              Push Architecture Active: Web Push & Token Registry Configured
+            </p>
+            <p className="mt-1 opacity-90">
+              Customer & staff device tokens are automatically captured in PostgreSQL <code className="font-mono bg-sky-100 dark:bg-sky-900/60 px-1 py-0.5 rounded">fcm_tokens</code> table. The system operates locally with service worker push fallback. When you are ready to configure your Firebase project, enter your credentials below.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="fcm_project_id">Firebase Project ID</Label>
+              <Input
+                id="fcm_project_id"
+                value={form.fcm_project_id ?? ""}
+                onChange={(e) => setForm({ ...form, fcm_project_id: e.target.value })}
+                placeholder="e.g. fish-n-fresh-hub"
+                className="mt-1 font-mono text-xs"
+              />
+            </div>
+            <div>
+              <Label htmlFor="fcm_server_key">FCM Server Key / Web VAPID Key (Add Later)</Label>
+              <Input
+                id="fcm_server_key"
+                type="password"
+                value={form.fcm_server_key ?? ""}
+                onChange={(e) => setForm({ ...form, fcm_server_key: e.target.value })}
+                placeholder="AAAA... or BOrz..."
+                className="mt-1 font-mono text-xs"
+              />
+            </div>
+          </div>
         </CardContent>
       </Card>
       

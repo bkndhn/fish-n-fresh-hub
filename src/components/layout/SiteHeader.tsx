@@ -11,6 +11,7 @@ import { getStoreStatus } from "@/lib/storeSchedule";
 
 import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
+import { ReferralModal } from "@/components/ReferralModal";
 
 export function SiteHeader() {
   const { count } = useCart();
@@ -149,6 +150,8 @@ export function SiteHeader() {
             >
               <User className="size-4 sm:size-5" />
             </Link>
+
+            <ReferralModal />
 
             <ThemeToggle />
 

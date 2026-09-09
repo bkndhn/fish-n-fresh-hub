@@ -897,6 +897,16 @@ export type Database = {
           upi_name: string
           weekly_holidays: string[]
           whatsapp_number: string | null
+          express_delivery_enabled?: boolean
+          express_delivery_fee?: number
+          express_sla_mins?: number
+          wallet_enabled?: boolean
+          referral_reward_referrer?: number
+          referral_reward_referee?: number
+          cashback_percent?: number
+          max_wallet_burn_percent?: number
+          fcm_server_key?: string | null
+          fcm_project_id?: string | null
         }
         Insert: {
           accent_color?: string
@@ -977,6 +987,16 @@ export type Database = {
           upi_name?: string
           weekly_holidays?: string[]
           whatsapp_number?: string | null
+          express_delivery_enabled?: boolean
+          express_delivery_fee?: number
+          express_sla_mins?: number
+          wallet_enabled?: boolean
+          referral_reward_referrer?: number
+          referral_reward_referee?: number
+          cashback_percent?: number
+          max_wallet_burn_percent?: number
+          fcm_server_key?: string | null
+          fcm_project_id?: string | null
         }
         Update: {
           accent_color?: string
@@ -1057,6 +1077,16 @@ export type Database = {
           upi_name?: string
           weekly_holidays?: string[]
           whatsapp_number?: string | null
+          express_delivery_enabled?: boolean
+          express_delivery_fee?: number
+          express_sla_mins?: number
+          wallet_enabled?: boolean
+          referral_reward_referrer?: number
+          referral_reward_referee?: number
+          cashback_percent?: number
+          max_wallet_burn_percent?: number
+          fcm_server_key?: string | null
+          fcm_project_id?: string | null
         }
         Relationships: []
       }
@@ -1162,6 +1192,180 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      catch_broadcasts: {
+        Row: {
+          id: string
+          title: string
+          message: string
+          harbour_source: string
+          target_category: string | null
+          is_active: boolean
+          sent_by: string | null
+          sent_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          message: string
+          harbour_source?: string
+          target_category?: string | null
+          is_active?: boolean
+          sent_by?: string | null
+          sent_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          message?: string
+          harbour_source?: string
+          target_category?: string | null
+          is_active?: boolean
+          sent_by?: string | null
+          sent_at?: string
+        }
+        Relationships: []
+      }
+      customer_wallets: {
+        Row: {
+          user_id: string
+          balance: number
+          referral_code: string
+          referred_by: string | null
+          total_earned: number
+          total_redeemed: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          balance?: number
+          referral_code: string
+          referred_by?: string | null
+          total_earned?: number
+          total_redeemed?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          balance?: number
+          referral_code?: string
+          referred_by?: string | null
+          total_earned?: number
+          total_redeemed?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      wallet_transactions: {
+        Row: {
+          id: string
+          wallet_id: string
+          amount: number
+          type: string
+          description: string | null
+          order_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          wallet_id: string
+          amount: number
+          type: string
+          description?: string | null
+          order_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          wallet_id?: string
+          amount?: number
+          type?: string
+          description?: string | null
+          order_id?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      fcm_tokens: {
+        Row: {
+          id: string
+          user_id: string | null
+          token: string
+          role: string
+          device_type: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          token: string
+          role?: string
+          device_type?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          token?: string
+          role?: string
+          device_type?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      product_ai_benefits: {
+        Row: {
+          id: string
+          product_id: string
+          product_name: string
+          omega3_level: string
+          protein_per_100g: string
+          calories_per_100g: string
+          benefits_en: Json
+          benefits_ta: Json
+          benefits_hi: Json
+          cooking_tips: Json
+          disclaimer: string
+          generated_at: string
+          model_used: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          product_name: string
+          omega3_level?: string
+          protein_per_100g?: string
+          calories_per_100g?: string
+          benefits_en?: Json
+          benefits_ta?: Json
+          benefits_hi?: Json
+          cooking_tips?: Json
+          disclaimer?: string
+          generated_at?: string
+          model_used?: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          product_name?: string
+          omega3_level?: string
+          protein_per_100g?: string
+          calories_per_100g?: string
+          benefits_en?: Json
+          benefits_ta?: Json
+          benefits_hi?: Json
+          cooking_tips?: Json
+          disclaimer?: string
+          generated_at?: string
+          model_used?: string
         }
         Relationships: []
       }

@@ -114,3 +114,61 @@ export type WasteEntry = {
   created_at?: string;
 };
 
+export type CustomerWallet = {
+  user_id: string;
+  balance: number;
+  referral_code: string;
+  referred_by?: string | null;
+  total_earned: number;
+  total_redeemed: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type WalletTransaction = {
+  id: string;
+  wallet_id: string;
+  amount: number;
+  type: "referral_bonus" | "signup_bonus" | "cashback" | "order_redemption" | "admin_adjustment";
+  description: string | null;
+  order_id?: string | null;
+  created_at: string;
+};
+
+export type ProductAiBenefits = {
+  id?: string;
+  product_id: string;
+  product_name: string;
+  omega3_level: string;
+  protein_per_100g: string;
+  calories_per_100g: string;
+  benefits_en: string[];
+  benefits_ta: string[];
+  benefits_hi: string[];
+  cooking_tips: string[];
+  disclaimer: string;
+  generated_at?: string;
+  model_used?: string;
+};
+
+export type CatchBroadcast = {
+  id: string;
+  title: string;
+  message: string;
+  harbour_source: string;
+  target_category?: string | null;
+  is_active: boolean;
+  sent_by?: string | null;
+  sent_at: string;
+};
+
+export type FcmToken = {
+  id?: string;
+  user_id?: string | null;
+  token: string;
+  role: "customer" | "driver" | "staff" | "admin";
+  device_type: "web" | "android" | "ios";
+  created_at?: string;
+  updated_at?: string;
+};
+

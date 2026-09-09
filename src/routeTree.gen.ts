@@ -28,6 +28,7 @@ import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedAdminBadgesRouteImport } from './routes/_authenticated/admin/badges'
 import { Route as AuthenticatedAdminBannersRouteImport } from './routes/_authenticated/admin/banners'
+import { Route as AuthenticatedAdminBroadcastsRouteImport } from './routes/_authenticated/admin/broadcasts'
 import { Route as AuthenticatedAdminComplaintsRouteImport } from './routes/_authenticated/admin/complaints'
 import { Route as AuthenticatedAdminCustomersRouteImport } from './routes/_authenticated/admin/customers'
 import { Route as AuthenticatedAdminDeliveryRouteImport } from './routes/_authenticated/admin/delivery'
@@ -141,6 +142,12 @@ const AuthenticatedAdminBannersRoute =
     path: '/admin/banners',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminBroadcastsRoute =
+  AuthenticatedAdminBroadcastsRouteImport.update({
+    id: '/admin/broadcasts',
+    path: '/admin/broadcasts',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminComplaintsRoute =
   AuthenticatedAdminComplaintsRouteImport.update({
     id: '/admin/complaints',
@@ -248,6 +255,7 @@ export interface FileRoutesByFullPath {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/admin/badges': typeof AuthenticatedAdminBadgesRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
+  '/admin/broadcasts': typeof AuthenticatedAdminBroadcastsRoute
   '/admin/complaints': typeof AuthenticatedAdminComplaintsRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/admin/delivery': typeof AuthenticatedAdminDeliveryRoute
@@ -283,6 +291,7 @@ export interface FileRoutesByTo {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/admin/badges': typeof AuthenticatedAdminBadgesRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
+  '/admin/broadcasts': typeof AuthenticatedAdminBroadcastsRoute
   '/admin/complaints': typeof AuthenticatedAdminComplaintsRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/admin/delivery': typeof AuthenticatedAdminDeliveryRoute
@@ -320,6 +329,7 @@ export interface FileRoutesById {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/_authenticated/admin/badges': typeof AuthenticatedAdminBadgesRoute
   '/_authenticated/admin/banners': typeof AuthenticatedAdminBannersRoute
+  '/_authenticated/admin/broadcasts': typeof AuthenticatedAdminBroadcastsRoute
   '/_authenticated/admin/complaints': typeof AuthenticatedAdminComplaintsRoute
   '/_authenticated/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/_authenticated/admin/delivery': typeof AuthenticatedAdminDeliveryRoute
@@ -357,6 +367,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/admin/badges'
     | '/admin/banners'
+    | '/admin/broadcasts'
     | '/admin/complaints'
     | '/admin/customers'
     | '/admin/delivery'
@@ -392,6 +403,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/admin/badges'
     | '/admin/banners'
+    | '/admin/broadcasts'
     | '/admin/complaints'
     | '/admin/customers'
     | '/admin/delivery'
@@ -428,6 +440,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/_authenticated/admin/badges'
     | '/_authenticated/admin/banners'
+    | '/_authenticated/admin/broadcasts'
     | '/_authenticated/admin/complaints'
     | '/_authenticated/admin/customers'
     | '/_authenticated/admin/delivery'
@@ -600,6 +613,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminBannersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/broadcasts': {
+      id: '/_authenticated/admin/broadcasts'
+      path: '/admin/broadcasts'
+      fullPath: '/admin/broadcasts'
+      preLoaderRoute: typeof AuthenticatedAdminBroadcastsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/complaints': {
       id: '/_authenticated/admin/complaints'
       path: '/admin/complaints'
@@ -712,6 +732,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCrewRoute: typeof AuthenticatedCrewRoute
   AuthenticatedAdminBadgesRoute: typeof AuthenticatedAdminBadgesRoute
   AuthenticatedAdminBannersRoute: typeof AuthenticatedAdminBannersRoute
+  AuthenticatedAdminBroadcastsRoute: typeof AuthenticatedAdminBroadcastsRoute
   AuthenticatedAdminComplaintsRoute: typeof AuthenticatedAdminComplaintsRoute
   AuthenticatedAdminCustomersRoute: typeof AuthenticatedAdminCustomersRoute
   AuthenticatedAdminDeliveryRoute: typeof AuthenticatedAdminDeliveryRoute
@@ -733,6 +754,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCrewRoute: AuthenticatedCrewRoute,
   AuthenticatedAdminBadgesRoute: AuthenticatedAdminBadgesRoute,
   AuthenticatedAdminBannersRoute: AuthenticatedAdminBannersRoute,
+  AuthenticatedAdminBroadcastsRoute: AuthenticatedAdminBroadcastsRoute,
   AuthenticatedAdminComplaintsRoute: AuthenticatedAdminComplaintsRoute,
   AuthenticatedAdminCustomersRoute: AuthenticatedAdminCustomersRoute,
   AuthenticatedAdminDeliveryRoute: AuthenticatedAdminDeliveryRoute,
