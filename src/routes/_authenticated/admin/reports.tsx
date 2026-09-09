@@ -35,6 +35,7 @@ import { formatINR, formatIST, formatStockDisplay } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/admin/reports")({
   head: () => ({
@@ -526,6 +527,57 @@ export function Reports() {
     ];
   }, [paid]);
 
+  // Channel Performance: POS Retail Counter vs Online App Delivery
+  const channelAnalytics = useMemo(() => {
+    const posOrders = paid.filter((o) => o.fulfillment_type === "pos");
+    const onlineOrders = paid.filter((o) => o.fulfillment_type !== "pos");
+
+    const posRev = posOrders.reduce((s, o) => s + Number(o.total || 0), 0);
+    const onlineRev = onlineOrders.reduce((s, o) => s + Number(o.total || 0), 0);
+    const totalRev = (posRev + onlineRev) || 1;
+
+    const posAov = posOrders.length ? Math.round(posRev / posOrders.length) : 0;
+    const onlineAov = onlineOrders.length ? Math.round(onlineRev / onlineOrders.length) : 0;
+
+    // POS Payment breakdown
+    let posCash = 0;
+    let posUpi = 0;
+    let posCard = 0;
+    for (const o of posOrders) {
+      const tot = Number(o.total || 0);
+      const meth = (o.actual_payment_method || o.payment_method || "").toLowerCase();
+      if (meth === "cash") posCash += tot;
+      else if (meth === "upi" || meth === "upi_qr") posUpi += tot;
+      else posCard += tot;
+    }
+
+    // Online Payment breakdown
+    let onlineCod = 0;
+    let onlinePrepaid = 0;
+    for (const o of onlineOrders) {
+      const tot = Number(o.total || 0);
+      const meth = (o.actual_payment_method || o.payment_method || "").toLowerCase();
+      if (meth === "cod" || meth === "cash") onlineCod += tot;
+      else onlinePrepaid += tot;
+    }
+
+    return {
+      posCount: posOrders.length,
+      posRev,
+      posAov,
+      posSharePct: Math.round((posRev / totalRev) * 100),
+      posCash,
+      posUpi,
+      posCard,
+      onlineCount: onlineOrders.length,
+      onlineRev,
+      onlineAov,
+      onlineSharePct: Math.round((onlineRev / totalRev) * 100),
+      onlineCod,
+      onlinePrepaid,
+    };
+  }, [paid]);
+
   // Delivery SLA & On-Time Performance Analytics
   const deliverySlaAnalytics = useMemo(() => {
     const deliveredOrders = rows.filter(
@@ -790,6 +842,163 @@ export function Reports() {
           );
         })}
       </div>
+
+      {/* Omnichannel Performance: In-Store Counter POS vs Online App Delivery */}
+      <Card className="mt-4 border-border/70 shadow-sm overflow-hidden">
+        <CardHeader className="bg-muted/30 pb-3 pt-4 border-b border-border/60">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Store className="size-4" />
+              </div>
+              <div>
+                <CardTitle className="text-sm font-bold text-foreground">
+                  Channel Performance: In-Store POS Counter vs Online App Delivery
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Real-time revenue split, average ticket comparison, and payment tender distribution
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                POS Share: {channelAnalytics.posSharePct}%
+              </span>
+              <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20">
+                Online Share: {channelAnalytics.onlineSharePct}%
+              </span>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-4 space-y-4">
+          {/* Visual Channel Share Bar */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs font-semibold">
+              <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <Store className="size-3.5" /> In-Store Counter POS ({channelAnalytics.posSharePct}%)
+              </span>
+              <span className="text-sky-600 dark:text-sky-400 flex items-center gap-1">
+                <Truck className="size-3.5" /> Online App Delivery ({channelAnalytics.onlineSharePct}%)
+              </span>
+            </div>
+            <div className="h-2.5 w-full rounded-full overflow-hidden bg-muted flex">
+              <div
+                className="bg-emerald-500 transition-all duration-500"
+                style={{ width: `${channelAnalytics.posSharePct}%` }}
+                title={`POS: ${formatINR(channelAnalytics.posRev)}`}
+              />
+              <div
+                className="bg-sky-500 transition-all duration-500"
+                style={{ width: `${channelAnalytics.onlineSharePct}%` }}
+                title={`Online: ${formatINR(channelAnalytics.onlineRev)}`}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {/* IN-STORE POS COUNTER CARD */}
+            <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="size-7 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-bold">
+                    <Store className="size-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground">In-Store Counter POS</h4>
+                    <p className="text-[10px] text-muted-foreground">Walk-in retail counter sales &amp; instant receipts</p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-[10px] font-mono border-emerald-500/30 text-emerald-700 dark:text-emerald-300">
+                  {channelAnalytics.posCount} bills
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-emerald-500/20">
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">POS Revenue</p>
+                  <p className="text-lg font-bold font-display text-emerald-700 dark:text-emerald-400">
+                    {formatINR(channelAnalytics.posRev)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Counter AOV</p>
+                  <p className="text-lg font-bold font-display text-foreground">
+                    {formatINR(channelAnalytics.posAov)}
+                  </p>
+                </div>
+              </div>
+
+              {/* POS Tender Mix */}
+              <div className="pt-2 border-t border-emerald-500/20 space-y-1.5 text-xs">
+                <p className="text-[11px] font-semibold text-muted-foreground">Payment Tender Mix:</p>
+                <div className="grid grid-cols-3 gap-1.5 text-center">
+                  <div className="p-1.5 rounded-lg bg-background/80 border border-emerald-500/20">
+                    <span className="text-[10px] text-muted-foreground block">Cash</span>
+                    <span className="font-bold text-xs font-mono text-amber-600">{formatINR(channelAnalytics.posCash)}</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-background/80 border border-emerald-500/20">
+                    <span className="text-[10px] text-muted-foreground block">UPI QR</span>
+                    <span className="font-bold text-xs font-mono text-emerald-600">{formatINR(channelAnalytics.posUpi)}</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-background/80 border border-emerald-500/20">
+                    <span className="text-[10px] text-muted-foreground block">Card / Split</span>
+                    <span className="font-bold text-xs font-mono text-primary">{formatINR(channelAnalytics.posCard)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ONLINE APP DELIVERY CARD */}
+            <div className="p-4 rounded-2xl bg-sky-500/5 border border-sky-500/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="size-7 rounded-lg bg-sky-500 text-white flex items-center justify-center font-bold">
+                    <Truck className="size-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground">Online App Orders</h4>
+                    <p className="text-[10px] text-muted-foreground">Doorstep express delivery &amp; scheduled orders</p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-[10px] font-mono border-sky-500/30 text-sky-700 dark:text-sky-300">
+                  {channelAnalytics.onlineCount} orders
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-sky-500/20">
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Online Revenue</p>
+                  <p className="text-lg font-bold font-display text-sky-700 dark:text-sky-400">
+                    {formatINR(channelAnalytics.onlineRev)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Online AOV</p>
+                  <p className="text-lg font-bold font-display text-foreground">
+                    {formatINR(channelAnalytics.onlineAov)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Online Payment Mix */}
+              <div className="pt-2 border-t border-sky-500/20 space-y-1.5 text-xs">
+                <p className="text-[11px] font-semibold text-muted-foreground">Payment Method Mix:</p>
+                <div className="grid grid-cols-2 gap-1.5 text-center">
+                  <div className="p-1.5 rounded-lg bg-background/80 border border-sky-500/20">
+                    <span className="text-[10px] text-muted-foreground block">Cash on Delivery (COD)</span>
+                    <span className="font-bold text-xs font-mono text-amber-600">{formatINR(channelAnalytics.onlineCod)}</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-background/80 border border-sky-500/20">
+                    <span className="text-[10px] text-muted-foreground block">Online / UPI Prepaid</span>
+                    <span className="font-bold text-xs font-mono text-sky-600">{formatINR(channelAnalytics.onlinePrepaid)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* AI Demand & Business Insights Panel */}
       <Card className="mt-4 border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card shadow-sm">

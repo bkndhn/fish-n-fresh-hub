@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -25,6 +25,16 @@ import {
   RefreshCw,
   Clock,
   ArrowRight,
+  Wifi,
+  WifiOff,
+  History,
+  Bookmark,
+  Share2,
+  Sliders,
+  Layers,
+  Keyboard,
+  FileText,
+  ArrowUpDown,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminProductsQuery } from "@/lib/admin";
@@ -45,11 +55,14 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { PrinterSettingsModal } from "@/components/admin/PrinterSettingsModal";
+import { PosPastBillsModal } from "@/components/admin/PosPastBillsModal";
 import {
   getSavedPrinterConfig,
   sendEscPosToPrinter,
   buildPosReceiptEscPos,
   buildPosReceiptHtml,
+  generatePosWhatsAppText,
+  getPosWhatsAppShareUrl,
   type PosReceiptData,
   type PosReceiptItem,
 } from "@/lib/thermalPrinter";
@@ -81,6 +94,16 @@ export interface PosCartItem {
   gstPercent: number;
 }
 
+interface ParkedCart {
+  id: string;
+  timestamp: string;
+  label: string;
+  cart: PosCartItem[];
+  customerName: string;
+  customerPhone: string;
+  discountAmount: number;
+}
+
 const CUTTING_STYLES = [
   "Curry Cut",
   "Fry Cut / Slices",
@@ -91,10 +114,36 @@ const CUTTING_STYLES = [
   "No Cleaning (Whole)",
 ];
 
-const QUICK_WEIGHTS = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 5.0];
+const QUICK_WEIGHTS = [0.1, 0.25, 0.35, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 5.0];
+
+function getNextPosReceiptNo(prefix = "POS-", dailyReset = true): string {
+  try {
+    const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const stored = localStorage.getItem("fnf_pos_seq");
+    let seq = 1;
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (dailyReset) {
+        if (parsed.date === todayStr) {
+          seq = (parsed.lastSeq || 0) + 1;
+        } else {
+          seq = 1;
+        }
+      } else {
+        seq = (parsed.lastSeq || 0) + 1;
+      }
+    }
+    localStorage.setItem("fnf_pos_seq", JSON.stringify({ date: todayStr, lastSeq: seq }));
+    const padded = String(seq).padStart(3, "0");
+    return dailyReset ? `${prefix}${todayStr}-${padded}` : `${prefix}${seq}`;
+  } catch {
+    return `${prefix}${Date.now().toString().slice(-6)}`;
+  }
+}
 
 export function RetailPosCounterPage() {
   const qc = useQueryClient();
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const { data: rawProducts = [], isLoading: productsLoading } = useQuery(adminProductsQuery);
   const { data: categories = [] } = useQuery(categoriesQuery);
   const { data: settings } = useQuery(settingsQuery);
@@ -112,18 +161,45 @@ export function RetailPosCounterPage() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [discountAmount, setDiscountAmount] = useState<number>(0);
 
-  // Item customizer modal
+  // Item customizer modal (Decimal scale input fix)
   const [activeItemModal, setActiveItemModal] = useState<Product | null>(null);
-  const [modalWeight, setModalWeight] = useState<number>(1.0);
+  const [modalWeightInput, setModalWeightInput] = useState<string>("1.0");
   const [modalCutting, setModalCutting] = useState<string>("Curry Cut");
 
-  // Payment states
-  const [paymentMode, setPaymentMode] = useState<"cash" | "upi" | "card">("cash");
+  // Payment states (Single or Multi-payment / Split)
+  const [paymentMode, setPaymentMode] = useState<"cash" | "upi" | "card" | "split">("cash");
   const [tenderedAmount, setTenderedAmount] = useState<string>("");
   const [upiUtr, setUpiUtr] = useState<string>("");
+
+  // Split Tender states
+  const [splitCash, setSplitCash] = useState<string>("");
+  const [splitUpi, setSplitUpi] = useState<string>("");
+  const [splitCard, setSplitCard] = useState<string>("");
+  const [splitUtr, setSplitUtr] = useState<string>("");
+
   const [processingOrder, setProcessingOrder] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<PosReceiptData | null>(null);
   const [printerModalOpen, setPrinterModalOpen] = useState(false);
+  const [pastBillsModalOpen, setPastBillsModalOpen] = useState(false);
+  const [parkedModalOpen, setParkedModalOpen] = useState(false);
+
+  // Offline and Auto-sync state
+  const [isOnline, setIsOnline] = useState<boolean>(
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
+  const [offlineQueueCount, setOfflineQueueCount] = useState<number>(0);
+  const [isSyncingOffline, setIsSyncingOffline] = useState(false);
+
+  // Parked Carts
+  const [parkedCarts, setParkedCarts] = useState<ParkedCart[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem("fnf_pos_parked_carts");
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Cashier Identity
   const [cashierName, setCashierName] = useState("Counter Staff");
@@ -173,6 +249,25 @@ export function RetailPosCounterPage() {
   const tenderedNum = parseFloat(tenderedAmount) || 0;
   const changeDue = Math.max(0, tenderedNum - totalPayable);
 
+  // Derived numeric weight for active weighing scale modal
+  const modalWeight = useMemo(() => {
+    const parsed = parseFloat(modalWeightInput);
+    return isNaN(parsed) ? 0 : parsed;
+  }, [modalWeightInput]);
+
+  const adjustWeightByDelta = (deltaGrams: number) => {
+    const current = parseFloat(modalWeightInput) || 0;
+    const next = Math.max(0.01, Math.round((current + deltaGrams / 1000) * 1000) / 1000);
+    setModalWeightInput(next.toString());
+  };
+
+  // Split Tender Calculations
+  const splitCashNum = parseFloat(splitCash) || 0;
+  const splitUpiNum = parseFloat(splitUpi) || 0;
+  const splitCardNum = parseFloat(splitCard) || 0;
+  const splitTotalAllocated = splitCashNum + splitUpiNum + splitCardNum;
+  const splitRemaining = Math.max(0, totalPayable - splitTotalAllocated);
+
   // Today's POS summary stats from orders
   const { data: todaysPosOrders = [] } = useQuery({
     queryKey: ["admin", "pos-orders-today"],
@@ -209,10 +304,79 @@ export function RetailPosCounterPage() {
     };
   }, [todaysPosOrders]);
 
+  // Offline queue helpers & auto-sync
+  const loadOfflineQueue = () => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem("fnf_pos_offline_orders");
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const syncOfflineOrders = async () => {
+    const queue = loadOfflineQueue();
+    if (queue.length === 0) return;
+    setIsSyncingOffline(true);
+    let synced = 0;
+    const remaining = [];
+
+    for (const item of queue) {
+      try {
+        const { data: orderRes, error: orderErr } = await (supabase as any)
+          .from("orders")
+          .insert(item.orderPayload)
+          .select("id, order_number")
+          .single();
+
+        if (!orderErr && orderRes) {
+          await deductOrderStock(orderRes.id, item.stockItems);
+          synced++;
+        } else {
+          remaining.push(item);
+        }
+      } catch {
+        remaining.push(item);
+      }
+    }
+
+    try {
+      localStorage.setItem("fnf_pos_offline_orders", JSON.stringify(remaining));
+    } catch {}
+    setOfflineQueueCount(remaining.length);
+    setIsSyncingOffline(false);
+    if (synced > 0) {
+      toast.success(`Synced ${synced} offline bill(s) to cloud database!`);
+      qc.invalidateQueries({ queryKey: ["admin", "pos-orders-today"] });
+      qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+    }
+  };
+
+  useEffect(() => {
+    setOfflineQueueCount(loadOfflineQueue().length);
+    const handleOnline = () => {
+      setIsOnline(true);
+      toast.success("Network connection restored. Auto-syncing offline orders...");
+      syncOfflineOrders();
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast.warning("Network connection lost. Offline Billing Mode active.");
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
   // Open item customization modal
   const handleOpenItem = (prod: Product) => {
     setActiveItemModal(prod);
-    setModalWeight(1.0);
+    setModalWeightInput("1.0");
     setModalCutting(CUTTING_STYLES[0] ?? "Curry Cut");
   };
 
@@ -223,7 +387,7 @@ export function RetailPosCounterPage() {
     const pricePerKg = Number(activeItemModal.price);
     const weight = isWeightBased ? modalWeight : 1;
     const qty = isWeightBased ? 1 : Math.round(modalWeight);
-    const totalPrice = Math.round(pricePerKg * modalWeight);
+    const totalPrice = Math.round(pricePerKg * (isWeightBased ? modalWeight : qty));
 
     const newItem: PosCartItem = {
       id: `${activeItemModal.id}-${Date.now()}`,
@@ -244,6 +408,31 @@ export function RetailPosCounterPage() {
     toast.success(`Added ${newItem.name} (${newItem.weightKg ? `${newItem.weightKg} kg` : `${newItem.qty} pcs`}) to bill`);
   };
 
+  // Adjust Cart Item (+/- stepper)
+  const handleAdjustCartItem = (id: string, delta: number) => {
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const isWeight = item.unit.toLowerCase() === "kg";
+        if (isWeight) {
+          const newWeight = Math.max(0.05, Math.round((item.weightKg + delta) * 100) / 100);
+          return {
+            ...item,
+            weightKg: newWeight,
+            totalPrice: Math.round(newWeight * item.pricePerKg),
+          };
+        } else {
+          const newQty = Math.max(1, item.qty + delta);
+          return {
+            ...item,
+            qty: newQty,
+            totalPrice: Math.round(newQty * item.pricePerKg),
+          };
+        }
+      })
+    );
+  };
+
   const handleRemoveFromCart = (id: string) => {
     setCart((prev) => prev.filter((item) => item.id !== id));
   };
@@ -253,8 +442,63 @@ export function RetailPosCounterPage() {
     setDiscountAmount(0);
     setTenderedAmount("");
     setUpiUtr("");
+    setSplitCash("");
+    setSplitUpi("");
+    setSplitCard("");
+    setSplitUtr("");
     setCustomerName("");
     setCustomerPhone("");
+  };
+
+  // Park / Hold bill
+  const handleParkCart = () => {
+    if (cart.length === 0) {
+      toast.error("Cannot park an empty cart");
+      return;
+    }
+    const newParked: ParkedCart = {
+      id: `parked-${Date.now()}`,
+      timestamp: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+      label: customerName.trim() || `Customer #${parkedCarts.length + 1} (${cart.length} items)`,
+      cart,
+      customerName,
+      customerPhone,
+      discountAmount,
+    };
+    const updated = [newParked, ...parkedCarts];
+    setParkedCarts(updated);
+    try {
+      localStorage.setItem("fnf_pos_parked_carts", JSON.stringify(updated));
+    } catch {}
+    handleClearBill();
+    toast.success(`Bill held for ${newParked.label}`);
+  };
+
+  const handleResumeParkedCart = (p: ParkedCart) => {
+    if (cart.length > 0) {
+      toast.error("Current bill has items! Clear or park it before resuming another.");
+      return;
+    }
+    setCart(p.cart);
+    setCustomerName(p.customerName);
+    setCustomerPhone(p.customerPhone);
+    setDiscountAmount(p.discountAmount);
+    const updated = parkedCarts.filter((x) => x.id !== p.id);
+    setParkedCarts(updated);
+    try {
+      localStorage.setItem("fnf_pos_parked_carts", JSON.stringify(updated));
+    } catch {}
+    setParkedModalOpen(false);
+    toast.success(`Resumed bill for ${p.label}`);
+  };
+
+  const handleDeleteParkedCart = (id: string) => {
+    const updated = parkedCarts.filter((x) => x.id !== id);
+    setParkedCarts(updated);
+    try {
+      localStorage.setItem("fnf_pos_parked_carts", JSON.stringify(updated));
+    } catch {}
+    toast.info("Removed held bill");
   };
 
   // Generate UPI Deep Link and QR Code for POS counter screen
@@ -262,6 +506,68 @@ export function RetailPosCounterPage() {
   const upiName = settings?.upi_name || "Fish N Fresh";
   const posUpiDeepLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${totalPayable}&cu=INR&tn=${encodeURIComponent(`Counter Bill`)}`;
   const posUpiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(posUpiDeepLink)}`;
+
+  const splitUpiDeepLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${splitUpiNum}&cu=INR&tn=${encodeURIComponent(`Counter Bill Split UPI`)}`;
+  const splitUpiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(splitUpiDeepLink)}`;
+
+  // Desktop keyboard shortcuts (F1-F12, Esc)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "F1") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      } else if (e.key === "F2") {
+        e.preventDefault();
+        handleClearBill();
+      } else if (e.key === "F4") {
+        e.preventDefault();
+        handleParkCart();
+      } else if (e.key === "F5") {
+        e.preventDefault();
+        setPastBillsModalOpen((prev) => !prev);
+      } else if (e.key === "F8") {
+        e.preventDefault();
+        setPaymentMode("split");
+      } else if (e.key === "F9") {
+        e.preventDefault();
+        setPaymentMode("cash");
+      } else if (e.key === "F10") {
+        e.preventDefault();
+        setPaymentMode("upi");
+      } else if (e.key === "F12") {
+        e.preventDefault();
+        if (!processingOrder && cart.length > 0) {
+          completeSale();
+        }
+      } else if (e.key === "Escape") {
+        if (activeItemModal) setActiveItemModal(null);
+        if (pastBillsModalOpen) setPastBillsModalOpen(false);
+        if (parkedModalOpen) setParkedModalOpen(false);
+        if (printerModalOpen) setPrinterModalOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    cart,
+    processingOrder,
+    activeItemModal,
+    pastBillsModalOpen,
+    parkedModalOpen,
+    printerModalOpen,
+    totalPayable,
+    tenderedNum,
+    splitCashNum,
+    splitUpiNum,
+    splitCardNum,
+    splitTotalAllocated,
+    splitRemaining,
+    customerName,
+    customerPhone,
+    discountAmount,
+    parkedCarts,
+  ]);
 
   // Complete Retail Sale Mutation
   const completeSale = async () => {
@@ -273,9 +579,19 @@ export function RetailPosCounterPage() {
       toast.error(`Cash tendered (₹${tenderedNum}) is less than total payable (₹${totalPayable})`);
       return;
     }
+    if (paymentMode === "split") {
+      if (splitRemaining > 0) {
+        toast.error(`Please allocate remaining ${formatINR(splitRemaining)} across Cash, UPI, or Card`);
+        return;
+      }
+    }
 
     setProcessingOrder(true);
-    const orderNumber = `POS-${Date.now().toString().slice(-6)}`;
+    const printerConfig = getSavedPrinterConfig();
+    const orderNumber = getNextPosReceiptNo(
+      printerConfig.billPrefix || "POS-",
+      printerConfig.billSequenceDailyReset !== false
+    );
     const nowIso = new Date().toISOString();
     const dateFormatted = new Date().toLocaleString("en-IN", {
       dateStyle: "medium",
@@ -305,11 +621,18 @@ export function RetailPosCounterPage() {
       paymentMethod: paymentMode,
       amountTendered: paymentMode === "cash" ? (tenderedNum || totalPayable) : undefined,
       changeDue: paymentMode === "cash" ? changeDue : undefined,
-      upiRef: paymentMode === "upi" && upiUtr.trim() ? upiUtr.trim() : undefined,
+      upiRef: paymentMode === "upi" ? (upiUtr.trim() || undefined) : (paymentMode === "split" && splitUtr.trim() ? splitUtr.trim() : undefined),
+      splitPayments: paymentMode === "split" ? {
+        cash: splitCashNum,
+        upi: splitUpiNum,
+        card: splitCardNum,
+      } : undefined,
       storeName: settings?.store_name || "Fish N Fresh Hub",
       storeAddress: settings?.store_address || undefined,
       storePhone: (settings as any)?.contact_phone || undefined,
       storeGstin: (settings as any)?.gst_number || undefined,
+      copyType: "ORIGINAL",
+      isReprint: false,
     };
 
     try {
@@ -323,8 +646,9 @@ export function RetailPosCounterPage() {
         payment_method: paymentMode,
         payment_status: "paid",
         actual_payment_method: paymentMode === "upi" ? "upi_qr" : paymentMode,
-        actual_payment_ref: upiUtr.trim() || null,
-        paid_to_bank_directly: paymentMode === "upi",
+        actual_payment_ref: paymentMode === "upi" ? (upiUtr.trim() || null) : (paymentMode === "split" ? (splitUtr.trim() || null) : null),
+        paid_to_bank_directly: paymentMode === "upi" || (paymentMode === "split" && splitUpiNum > 0),
+        pos_split_payments: paymentMode === "split" ? { cash: splitCashNum, upi: splitUpiNum, card: splitCardNum } : null,
         subtotal,
         discount: discountAmount,
         gst_amount: gstTotal,
@@ -345,38 +669,74 @@ export function RetailPosCounterPage() {
         delivered_at: nowIso,
       };
 
-      const { data: orderRes, error: orderErr } = await supabase
-        .from("orders")
-        .insert(orderPayload as any)
-        .select("id, order_number")
-        .single();
+      const stockItems = cart.map((it) => ({
+        product_id: it.productId,
+        qty: it.weightKg > 0 ? it.weightKg : it.qty,
+      }));
 
-      if (orderErr) {
-        console.warn("Could not insert order:", orderErr.message);
+      if (navigator.onLine) {
+        try {
+          const { data: orderRes, error: orderErr } = await (supabase as any)
+            .from("orders")
+            .insert(orderPayload)
+            .select("id, order_number")
+            .single();
+
+          if (orderErr) {
+            console.warn("Could not insert order:", orderErr.message);
+          }
+
+          // Real-time Atomic Inventory Deduction
+          await deductOrderStock(orderRes?.id || orderNumber, stockItems);
+        } catch (netErr) {
+          console.warn("Falling back to offline queue:", netErr);
+          const queue = loadOfflineQueue();
+          queue.push({ orderPayload, stockItems });
+          try {
+            localStorage.setItem("fnf_pos_offline_orders", JSON.stringify(queue));
+          } catch {}
+          setOfflineQueueCount(queue.length);
+        }
+      } else {
+        const queue = loadOfflineQueue();
+        queue.push({ orderPayload, stockItems });
+        try {
+          localStorage.setItem("fnf_pos_offline_orders", JSON.stringify(queue));
+        } catch {}
+        setOfflineQueueCount(queue.length);
+        toast.info("Offline: Bill queued in local register. Will auto-sync when online.");
       }
 
-      // 2. Real-time Atomic Inventory Deduction: update product stock
-      await deductOrderStock(
-        orderRes?.id || orderNumber,
-        cart.map((it) => ({
-          product_id: it.productId,
-          qty: it.weightKg > 0 ? it.weightKg : it.qty,
-        }))
-      );
+      // 3. Print ESC/POS thermal receipt (multi-copies support)
+      const copies = Math.min(3, Math.max(1, printerConfig.printCopies || 1));
+      const copyLabels: ("ORIGINAL" | "KITCHEN TOKEN" | "STORE RECORD")[] = [
+        "ORIGINAL",
+        "KITCHEN TOKEN",
+        "STORE RECORD",
+      ];
 
-      // 3. Print ESC/POS thermal receipt via connected printer or styled fallback
-      const printerConfig = getSavedPrinterConfig();
-      const escPosBytes = buildPosReceiptEscPos(receiptData, printerConfig);
-      const fallbackHtml = buildPosReceiptHtml(receiptData, printerConfig);
-
-      try {
-        await sendEscPosToPrinter(escPosBytes, printerConfig, fallbackHtml);
-      } catch (printErr) {
-        console.warn("Direct thermal print notice:", printErr);
+      for (let i = 0; i < copies; i++) {
+        const copyData: PosReceiptData = {
+          ...receiptData,
+          copyType: copyLabels[i] || "ORIGINAL",
+        };
+        const escPosBytes = buildPosReceiptEscPos(copyData, printerConfig);
+        const fallbackHtml = buildPosReceiptHtml(copyData, printerConfig);
+        try {
+          await sendEscPosToPrinter(escPosBytes, printerConfig, fallbackHtml);
+        } catch (printErr) {
+          console.warn("Direct thermal print notice:", printErr);
+        }
       }
 
       setLastReceipt(receiptData);
       toast.success(`Bill #${orderNumber} completed! Net: ${formatINR(totalPayable)}`);
+
+      // Auto WhatsApp prompt if enabled
+      if (printerConfig.autoWhatsAppPrompt && customerPhone.trim().length >= 10) {
+        const waUrl = getPosWhatsAppShareUrl(customerPhone.trim(), receiptData);
+        window.open(waUrl, "_blank");
+      }
 
       // Reset bill
       handleClearBill();
@@ -396,10 +756,17 @@ export function RetailPosCounterPage() {
       return;
     }
     const printerConfig = getSavedPrinterConfig();
-    const escPosBytes = buildPosReceiptEscPos(lastReceipt, printerConfig);
-    const fallbackHtml = buildPosReceiptHtml(lastReceipt, printerConfig);
+    const reprintData: PosReceiptData = {
+      ...lastReceipt,
+      isReprint: true,
+      reprintCount: 1,
+      reprintTimestamp: new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }),
+      copyType: "STORE RECORD",
+    };
+    const escPosBytes = buildPosReceiptEscPos(reprintData, printerConfig);
+    const fallbackHtml = buildPosReceiptHtml(reprintData, printerConfig);
     await sendEscPosToPrinter(escPosBytes, printerConfig, fallbackHtml);
-    toast.success(`Reprinted Bill #${lastReceipt.receiptNo}`);
+    toast.success(`Reprinted Bill #${lastReceipt.receiptNo} with Audit Mark`);
   };
 
   return (
@@ -419,9 +786,32 @@ export function RetailPosCounterPage() {
                 <Badge variant="outline" className="text-[10px] font-mono">
                   Cashier: {cashierName}
                 </Badge>
+                {/* Offline & Sync status indicator */}
+                {!isOnline ? (
+                  <Badge
+                    variant="destructive"
+                    className="flex items-center gap-1 font-mono text-[10px] cursor-pointer hover:opacity-90"
+                    onClick={() => syncOfflineOrders()}
+                    title="Offline billing active. Click to retry syncing."
+                  >
+                    <WifiOff className="size-3" /> Offline ({offlineQueueCount})
+                  </Badge>
+                ) : offlineQueueCount > 0 ? (
+                  <Badge
+                    className="bg-amber-500 hover:bg-amber-600 text-white flex items-center gap-1 font-mono text-[10px] cursor-pointer"
+                    onClick={() => syncOfflineOrders()}
+                    title="Click to sync queued offline bills"
+                  >
+                    <RefreshCw className={`size-3 ${isSyncingOffline ? "animate-spin" : ""}`} /> Sync Queue ({offlineQueueCount})
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/30 bg-emerald-500/10 flex items-center gap-1">
+                    <Wifi className="size-3" /> Live Cloud
+                  </Badge>
+                )}
               </div>
               <p className="text-xs text-muted-foreground">
-                In-store walk-in counter checkout · Real-time unified stock deduction
+                In-store walk-in counter checkout · Real-time unified stock deduction · Hotkeys F1-F12
               </p>
             </div>
           </div>
@@ -441,6 +831,35 @@ export function RetailPosCounterPage() {
               </span>
             </div>
 
+            {/* Held / Parked Carts Trigger */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-border/80 relative"
+              onClick={() => setParkedModalOpen(true)}
+              title="View held bills [F4]"
+            >
+              <Bookmark className="size-3.5 text-amber-500" />
+              <span>Held Bills [F4]</span>
+              {parkedCarts.length > 0 && (
+                <span className="size-4 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  {parkedCarts.length}
+                </span>
+              )}
+            </Button>
+
+            {/* Past Bills & Sales Register Trigger */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-border/80"
+              onClick={() => setPastBillsModalOpen(true)}
+              title="Sales Register & Past Bills [F5]"
+            >
+              <History className="size-3.5 text-primary" />
+              <span>Sales Register [F5]</span>
+            </Button>
+
             {/* Reprint Last Bill */}
             {lastReceipt && (
               <Button
@@ -448,9 +867,10 @@ export function RetailPosCounterPage() {
                 size="sm"
                 className="rounded-xl h-8.5 text-xs font-semibold gap-1.5"
                 onClick={reprintLastBill}
+                title="Reprint last completed receipt"
               >
                 <RotateCcw className="size-3.5 text-primary" />
-                <span>Reprint Last Bill</span>
+                <span>Reprint Last</span>
               </Button>
             )}
 
@@ -462,13 +882,13 @@ export function RetailPosCounterPage() {
               onClick={() => setPrinterModalOpen(true)}
             >
               <Printer className="size-3.5 text-primary" />
-              <span>Thermal Printer</span>
+              <span>Printer Setup</span>
             </Button>
           </div>
         </div>
 
         {/* 2-Column POS Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-4 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_430px] gap-4 items-start">
           {/* LEFT: Fast Touch Product Catalog */}
           <div className="space-y-3">
             {/* Search & Category Filter */}
@@ -476,7 +896,8 @@ export function RetailPosCounterPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                 <Input
-                  placeholder="Fast search seafood / meat by name (English or Tamil)..."
+                  ref={searchInputRef}
+                  placeholder="Fast search seafood / meat by name (English or Tamil) [F1]..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 h-9 text-xs rounded-xl bg-background"
@@ -599,18 +1020,30 @@ export function RetailPosCounterPage() {
                     <CardTitle className="text-sm font-bold">Current Counter Bill</CardTitle>
                   </div>
                   {cart.length > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleClearBill}
-                      className="h-7 text-xs text-destructive hover:bg-destructive/10 px-2"
-                    >
-                      <Trash2 className="size-3 mr-1" /> Clear
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleParkCart}
+                        className="h-7 text-xs text-amber-600 hover:bg-amber-500/10 px-2"
+                        title="Hold current bill [F4]"
+                      >
+                        <Bookmark className="size-3 mr-1" /> Hold [F4]
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleClearBill}
+                        className="h-7 text-xs text-destructive hover:bg-destructive/10 px-2"
+                        title="Clear bill [F2]"
+                      >
+                        <Trash2 className="size-3 mr-1" /> Clear
+                      </Button>
+                    </div>
                   )}
                 </div>
 
-                {/* Optional Customer Contact for FreshCash / History */}
+                {/* Optional Customer Contact for FreshCash / WhatsApp receipt */}
                 <div className="grid grid-cols-2 gap-2 pt-2">
                   <Input
                     placeholder="Customer Name (Opt)"
@@ -619,7 +1052,7 @@ export function RetailPosCounterPage() {
                     className="h-7 text-xs rounded-lg bg-background"
                   />
                   <Input
-                    placeholder="Mobile No. (Opt)"
+                    placeholder="Mobile No. (for WhatsApp)"
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                     className="h-7 text-xs rounded-lg bg-background font-mono"
@@ -635,11 +1068,33 @@ export function RetailPosCounterPage() {
                       <div className="min-w-0 flex-1">
                         <p className="font-bold text-xs text-foreground truncate">{item.name}</p>
                         <p className="text-[11px] text-muted-foreground">
-                          {item.weightKg > 0 ? `${item.weightKg.toFixed(2)} kg` : `${item.qty} ${item.unit}`} × ₹{item.pricePerKg}
                           {item.cuttingStyle && (
-                            <span className="ml-1.5 text-primary font-medium">[{item.cuttingStyle}]</span>
+                            <span className="text-primary font-medium">[{item.cuttingStyle}] · </span>
                           )}
+                          ₹{item.pricePerKg}/{item.unit}
                         </p>
+                        {/* Inline Item Stepper */}
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <button
+                            type="button"
+                            onClick={() => handleAdjustCartItem(item.id, item.unit.toLowerCase() === "kg" ? -0.25 : -1)}
+                            className="size-5 rounded flex items-center justify-center bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition"
+                            title="Decrease quantity/weight"
+                          >
+                            <Minus className="size-3" />
+                          </button>
+                          <span className="font-mono text-[11px] font-bold px-1 bg-background rounded border border-border/60">
+                            {item.weightKg > 0 ? `${item.weightKg.toFixed(2)} kg` : `${item.qty} ${item.unit}`}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleAdjustCartItem(item.id, item.unit.toLowerCase() === "kg" ? 0.25 : 1)}
+                            className="size-5 rounded flex items-center justify-center bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition"
+                            title="Increase quantity/weight"
+                          >
+                            <Plus className="size-3" />
+                          </button>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-xs font-mono">{formatINR(item.totalPrice)}</span>
@@ -704,39 +1159,54 @@ export function RetailPosCounterPage() {
                 {/* Payment Selection Tabs */}
                 {cart.length > 0 && (
                   <div className="space-y-3 pt-2">
-                    <div className="grid grid-cols-3 gap-1.5 bg-muted/40 p-1 rounded-xl border border-border/60">
+                    <div className="grid grid-cols-4 gap-1 bg-muted/40 p-1 rounded-xl border border-border/60">
                       <button
                         type="button"
                         onClick={() => setPaymentMode("cash")}
-                        className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
                           paymentMode === "cash"
                             ? "bg-amber-600 text-white shadow-xs"
                             : "text-muted-foreground hover:text-foreground"
                         }`}
+                        title="Cash tender [F9]"
                       >
                         <Banknote className="size-3.5" /> Cash
                       </button>
                       <button
                         type="button"
                         onClick={() => setPaymentMode("upi")}
-                        className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
                           paymentMode === "upi"
                             ? "bg-emerald-600 text-white shadow-xs"
                             : "text-muted-foreground hover:text-foreground"
                         }`}
+                        title="UPI QR payment [F10]"
                       >
                         <QrCode className="size-3.5" /> UPI QR
                       </button>
                       <button
                         type="button"
                         onClick={() => setPaymentMode("card")}
-                        className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
                           paymentMode === "card"
                             ? "bg-primary text-primary-foreground shadow-xs"
                             : "text-muted-foreground hover:text-foreground"
                         }`}
+                        title="Card Swipe"
                       >
                         <CreditCard className="size-3.5" /> Card
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMode("split")}
+                        className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          paymentMode === "split"
+                            ? "bg-indigo-600 text-white shadow-xs"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                        title="Split payment [F8]"
+                      >
+                        <Layers className="size-3.5" /> Split
                       </button>
                     </div>
 
@@ -813,12 +1283,144 @@ export function RetailPosCounterPage() {
                       </div>
                     )}
 
+                    {/* Split Tender Panel */}
+                    {paymentMode === "split" && (
+                      <div className="space-y-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/25 p-3.5 text-xs">
+                        <div className="flex items-center justify-between font-bold">
+                          <span className="text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
+                            <Layers className="size-4 text-indigo-600 dark:text-indigo-400" /> Split Tender Breakdown
+                          </span>
+                          <span className="font-mono text-foreground font-extrabold">{formatINR(totalPayable)}</span>
+                        </div>
+
+                        {/* Balance Allocation Indicator */}
+                        <div className="p-2 rounded-xl bg-background/80 border border-indigo-500/20 flex items-center justify-between">
+                          <span className="text-[11px] text-muted-foreground">Allocated: <strong className="text-foreground">{formatINR(splitTotalAllocated)}</strong></span>
+                          {splitRemaining === 0 ? (
+                            <Badge className="bg-emerald-600 text-white text-[10px] font-bold">
+                              Fully Allocated
+                            </Badge>
+                          ) : (
+                            <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                              Remaining: {formatINR(splitRemaining)}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Split Inputs */}
+                        <div className="space-y-2">
+                          {/* Cash Portion */}
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-foreground flex items-center gap-1 w-20">
+                              <Banknote className="size-3.5 text-amber-600" /> Cash:
+                            </span>
+                            <div className="flex items-center gap-1.5 flex-1">
+                              <Input
+                                type="number"
+                                placeholder="0"
+                                value={splitCash}
+                                onChange={(e) => setSplitCash(e.target.value)}
+                                className="h-7 text-right text-xs font-mono bg-background rounded-lg flex-1"
+                              />
+                              {splitRemaining > 0 && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-[10px] px-2"
+                                  onClick={() => setSplitCash((splitCashNum + splitRemaining).toString())}
+                                >
+                                  Fill
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* UPI Portion */}
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-foreground flex items-center gap-1 w-20">
+                              <QrCode className="size-3.5 text-emerald-600" /> UPI:
+                            </span>
+                            <div className="flex items-center gap-1.5 flex-1">
+                              <Input
+                                type="number"
+                                placeholder="0"
+                                value={splitUpi}
+                                onChange={(e) => setSplitUpi(e.target.value)}
+                                className="h-7 text-right text-xs font-mono bg-background rounded-lg flex-1"
+                              />
+                              {splitRemaining > 0 && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-[10px] px-2"
+                                  onClick={() => setSplitUpi((splitUpiNum + splitRemaining).toString())}
+                                >
+                                  Fill
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Card Portion */}
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-foreground flex items-center gap-1 w-20">
+                              <CreditCard className="size-3.5 text-primary" /> Card:
+                            </span>
+                            <div className="flex items-center gap-1.5 flex-1">
+                              <Input
+                                type="number"
+                                placeholder="0"
+                                value={splitCard}
+                                onChange={(e) => setSplitCard(e.target.value)}
+                                className="h-7 text-right text-xs font-mono bg-background rounded-lg flex-1"
+                              />
+                              {splitRemaining > 0 && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-[10px] px-2"
+                                  onClick={() => setSplitCard((splitCardNum + splitRemaining).toString())}
+                                >
+                                  Fill
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Dynamic QR for split UPI if split UPI > 0 */}
+                        {splitUpiNum > 0 && (
+                          <div className="p-2.5 rounded-xl bg-background border border-emerald-500/30 flex flex-col items-center justify-center space-y-1.5">
+                            <div className="flex items-center justify-between w-full text-[11px] font-bold text-emerald-700">
+                              <span>Exact UPI Portion:</span>
+                              <span className="font-mono">{formatINR(splitUpiNum)}</span>
+                            </div>
+                            <img
+                              src={splitUpiQrUrl}
+                              alt="Split UPI QR"
+                              className="size-28 object-contain"
+                            />
+                            <Input
+                              placeholder="UPI UTR / Ref (Optional)"
+                              value={splitUtr}
+                              onChange={(e) => setSplitUtr(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                              className="h-6 text-[11px] font-mono rounded bg-muted/40 w-full"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* One-Click Complete & Print Bill */}
                     <Button
                       type="button"
                       disabled={processingOrder}
                       onClick={completeSale}
                       className="w-full rounded-2xl h-12 text-sm font-bold shadow-md bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+                      title="Complete and print bill [F12]"
                     >
                       {processingOrder ? (
                         <span className="flex items-center gap-2">
@@ -828,7 +1430,7 @@ export function RetailPosCounterPage() {
                       ) : (
                         <>
                           <Printer className="size-4.5" />
-                          <span>Complete Sale &amp; Print Bill ({formatINR(totalPayable)})</span>
+                          <span>Complete &amp; Print Bill ({formatINR(totalPayable)}) [F12]</span>
                         </>
                       )}
                     </Button>
@@ -840,7 +1442,7 @@ export function RetailPosCounterPage() {
         </div>
       </div>
 
-      {/* Item Weighing Scale & Cutting Style Customizer Modal */}
+      {/* Item Weighing Scale & Cutting Style Customizer Modal (Fixed Decimal Weight Input < 1kg) */}
       {activeItemModal && (
         <Dialog open={!!activeItemModal} onOpenChange={(open) => !open && setActiveItemModal(null)}>
           <DialogContent className="max-w-md p-0 overflow-hidden rounded-3xl border-border/80 shadow-2xl">
@@ -874,30 +1476,86 @@ export function RetailPosCounterPage() {
 
                 <div className="flex items-center gap-2">
                   <Input
-                    type="number"
-                    step="0.01"
-                    min="0.05"
-                    value={modalWeight}
-                    onChange={(e) => setModalWeight(Math.max(0.01, parseFloat(e.target.value) || 0))}
-                    className="h-11 text-center font-mono text-xl font-bold rounded-xl"
+                    type="text"
+                    inputMode="decimal"
+                    value={modalWeightInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                        setModalWeightInput(val);
+                      }
+                    }}
+                    placeholder="1.0"
+                    className="h-12 text-center font-mono text-2xl font-black rounded-xl"
                   />
-                  <span className="text-xs font-bold text-muted-foreground shrink-0">KG</span>
+                  <span className="text-sm font-black text-muted-foreground shrink-0 font-mono">KG</span>
                 </div>
 
-                {/* Quick Weight Preset Buttons */}
+                {/* Fine Delta Adjustment Steppers */}
+                <div className="grid grid-cols-4 gap-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-lg h-7 text-xs font-mono font-bold"
+                    onClick={() => adjustWeightByDelta(-100)}
+                  >
+                    -100g
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-lg h-7 text-xs font-mono font-bold"
+                    onClick={() => adjustWeightByDelta(-50)}
+                  >
+                    -50g
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-lg h-7 text-xs font-mono font-bold"
+                    onClick={() => adjustWeightByDelta(50)}
+                  >
+                    +50g
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-lg h-7 text-xs font-mono font-bold"
+                    onClick={() => adjustWeightByDelta(100)}
+                  >
+                    +100g
+                  </Button>
+                </div>
+
+                {/* Quick Weight Preset Chips */}
                 <div className="flex flex-wrap gap-1.5 pt-1">
-                  {QUICK_WEIGHTS.map((w) => (
+                  {[
+                    { label: "100g", val: 0.1 },
+                    { label: "250g", val: 0.25 },
+                    { label: "350g", val: 0.35 },
+                    { label: "500g", val: 0.5 },
+                    { label: "750g", val: 0.75 },
+                    { label: "1 kg", val: 1.0 },
+                    { label: "1.5 kg", val: 1.5 },
+                    { label: "2 kg", val: 2.0 },
+                    { label: "3 kg", val: 3.0 },
+                    { label: "5 kg", val: 5.0 },
+                  ].map((chip) => (
                     <button
-                      key={w}
+                      key={chip.val}
                       type="button"
-                      onClick={() => setModalWeight(w)}
+                      onClick={() => setModalWeightInput(chip.val.toString())}
                       className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold transition-all ${
-                        modalWeight === w
+                        modalWeight === chip.val
                           ? "bg-primary text-primary-foreground shadow-2xs"
                           : "bg-muted/50 hover:bg-muted text-foreground border border-border/60"
                       }`}
                     >
-                      {w} kg
+                      {chip.label}
                     </button>
                   ))}
                 </div>
@@ -906,7 +1564,7 @@ export function RetailPosCounterPage() {
               {/* Cutting & Cleaning Style Selection */}
               <div className="space-y-2 pt-1 border-t border-border/50">
                 <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Scissors className="size-3.5 text-primary" /> Cleaning & Cutting Style
+                  <Scissors className="size-3.5 text-primary" /> Cleaning &amp; Cutting Style
                 </label>
                 <div className="grid grid-cols-2 gap-1.5">
                   {CUTTING_STYLES.map((style) => (
@@ -932,13 +1590,84 @@ export function RetailPosCounterPage() {
                 onClick={handleAddToCart}
                 className="w-full rounded-2xl h-11 text-sm font-bold shadow-md gap-2"
               >
-                <span>Add {modalWeight} kg to Bill · {formatINR(Math.round(Number(activeItemModal.price) * modalWeight))}</span>
+                <span>Add {modalWeightInput || "0"} kg to Bill · {formatINR(Math.round(Number(activeItemModal.price) * modalWeight))}</span>
                 <ArrowRight className="size-4" />
               </Button>
             </div>
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Held / Parked Carts Dialog */}
+      <Dialog open={parkedModalOpen} onOpenChange={setParkedModalOpen}>
+        <DialogContent className="max-w-lg rounded-3xl p-5">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold">
+              <Bookmark className="size-5 text-amber-500" />
+              Held Counter Bills ({parkedCarts.length})
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Temporary held customer orders. Resume any bill when the customer is ready to checkout.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2.5 max-h-80 overflow-y-auto pt-2">
+            {parkedCarts.map((p) => {
+              const pTotal = p.cart.reduce((s, it) => s + it.totalPrice, 0) - p.discountAmount;
+              return (
+                <div
+                  key={p.id}
+                  className="p-3.5 rounded-2xl border border-border/80 bg-card flex items-center justify-between gap-3 shadow-xs hover:border-primary/40 transition"
+                >
+                  <div className="min-w-0">
+                    <p className="font-bold text-xs text-foreground truncate">{p.label}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {p.cart.length} item(s) · {formatINR(pTotal)} · Held at {p.timestamp}
+                    </p>
+                    {p.customerPhone && (
+                      <p className="text-[10px] text-muted-foreground font-mono">
+                        Phone: {p.customerPhone}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      onClick={() => handleResumeParkedCart(p)}
+                      className="rounded-xl h-8 text-xs font-bold bg-primary text-primary-foreground"
+                    >
+                      Resume Bill
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteParkedCart(p.id)}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
+                      title="Discard held bill"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {parkedCarts.length === 0 && (
+              <div className="py-8 text-center text-muted-foreground text-xs space-y-1">
+                <Bookmark className="size-8 mx-auto opacity-30 text-amber-500" />
+                <p>No held bills currently</p>
+                <p className="text-[10px]">Use "Hold [F4]" while billing to park a customer cart</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* POS Past Bills & Sales Register Modal */}
+      <PosPastBillsModal
+        open={pastBillsModalOpen}
+        onOpenChange={setPastBillsModalOpen}
+        storeSettings={settings}
+      />
 
       {/* Bluetooth & USB ESC/POS Printer Pairing Modal */}
       <PrinterSettingsModal

@@ -240,6 +240,61 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
             </div>
           </div>
 
+          {/* Automation & Anti-Theft Copy Controls */}
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <div className="flex items-center justify-between p-2 rounded-xl bg-muted/40 border border-border/50">
+              <div className="space-y-0.5">
+                <p className="text-[11px] font-bold">Auto-Print on Bill</p>
+                <p className="text-[10px] text-muted-foreground">Direct silent print</p>
+              </div>
+              <Switch
+                checked={config.autoPrintOnComplete ?? true}
+                onCheckedChange={(autoPrintOnComplete) => setConfig({ ...config, autoPrintOnComplete })}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[11px] font-bold">Print Copies (Anti-Theft)</Label>
+              <Select
+                value={String(config.printCopies || 1)}
+                onValueChange={(v) => setConfig({ ...config, printCopies: Number(v) })}
+              >
+                <SelectTrigger className="rounded-xl h-8 text-xs font-semibold">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="1">1 Copy (Customer Only)</SelectItem>
+                  <SelectItem value="2">2 Copies (+ Kitchen Token)</SelectItem>
+                  <SelectItem value="3">3 Copies (+ Store Record)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Bill Sequence & WhatsApp Controls */}
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <div className="space-y-1">
+              <Label className="text-[11px] font-bold">Bill Prefix</Label>
+              <Input
+                value={config.billPrefix ?? "POS-"}
+                onChange={(e) => setConfig({ ...config, billPrefix: e.target.value })}
+                className="h-7.5 rounded-xl text-xs font-mono"
+                placeholder="POS-"
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-2 rounded-xl bg-muted/40 border border-border/50">
+              <div className="space-y-0.5">
+                <p className="text-[11px] font-bold">Daily Sequence Reset</p>
+                <p className="text-[10px] text-muted-foreground">Resets to #001 daily</p>
+              </div>
+              <Switch
+                checked={config.billSequenceDailyReset ?? true}
+                onCheckedChange={(billSequenceDailyReset) => setConfig({ ...config, billSequenceDailyReset })}
+              />
+            </div>
+          </div>
+
           {/* Header & Footer Customization */}
           <div className="space-y-2 pt-1">
             <div className="space-y-1">

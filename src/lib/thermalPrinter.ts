@@ -23,6 +23,11 @@ export interface ThermalPrinterConfig {
   footerText: string;
   networkIp?: string;
   networkPort?: number;
+  autoPrintOnComplete?: boolean;
+  printCopies?: number; // 1, 2, 3
+  billPrefix?: string;
+  billSequenceDailyReset?: boolean;
+  autoWhatsAppPrompt?: boolean;
 }
 
 export const DEFAULT_PRINTER_CONFIG: ThermalPrinterConfig = {
@@ -33,6 +38,11 @@ export const DEFAULT_PRINTER_CONFIG: ThermalPrinterConfig = {
   headerLine1: "FISH N FRESH HUB",
   headerLine2: "Premium Fresh Seafood & Meat",
   footerText: "Thank You! Fresh Catch Guaranteed.",
+  autoPrintOnComplete: true,
+  printCopies: 1,
+  billPrefix: "POS-",
+  billSequenceDailyReset: true,
+  autoWhatsAppPrompt: false,
 };
 
 const STORAGE_KEY = "fnf_printer_config";
@@ -387,6 +397,15 @@ export interface PosReceiptData {
   storeAddress?: string | undefined;
   storePhone?: string | undefined;
   storeGstin?: string | undefined;
+  copyType?: "original" | "kitchen_token" | "merchant_copy" | "ORIGINAL" | "KITCHEN TOKEN" | "STORE RECORD" | undefined;
+  isReprint?: boolean | undefined;
+  reprintCount?: number | undefined;
+  reprintTimestamp?: string | undefined;
+  splitPayments?: {
+    cash?: number;
+    upi?: number;
+    card?: number;
+  } | undefined;
 }
 
 /**
@@ -399,6 +418,19 @@ export function buildPosReceiptEscPos(
   const b = new EscPosBuilder(config.paperWidth);
   const store = data.storeName || config.headerLine1;
 
+  // Anti-theft reprint banner
+  if (data.isReprint) {
+    b.horizontalRule("*")
+      .align("center")
+      .bold(true)
+      .size("normal")
+      .textLine("*** REPRINT COPY (AUDIT) ***")
+      .textLine(`Reprint #${data.reprintCount || 1} · ${data.reprintTimestamp || new Date().toLocaleTimeString("en-IN")}`)
+      .textLine(`Cashier: ${data.cashierName} · NOT ORIGINAL`)
+      .bold(false)
+      .horizontalRule("*");
+  }
+
   b.align("center")
     .bold(true)
     .size("double")
@@ -410,9 +442,16 @@ export function buildPosReceiptEscPos(
   if (data.storePhone) b.textLine(`Ph: ${data.storePhone}`);
   if (data.storeGstin) b.textLine(`GSTIN: ${data.storeGstin}`);
 
+  const copyHeader =
+    data.copyType === "kitchen_token" || data.copyType === "KITCHEN TOKEN"
+      ? "KITCHEN / CUTTING TOKEN"
+      : data.copyType === "merchant_copy" || data.copyType === "STORE RECORD"
+      ? "MERCHANT / STORE AUDIT COPY"
+      : "RETAIL TAX INVOICE / COUNTER BILL";
+
   b.horizontalRule("=")
     .bold(true)
-    .textLine("RETAIL TAX INVOICE / COUNTER BILL")
+    .textLine(copyHeader)
     .bold(false)
     .horizontalRule("-")
     .align("left")
@@ -453,8 +492,16 @@ export function buildPosReceiptEscPos(
     .size("normal")
     .bold(false)
     .horizontalRule("-")
-    .align("left")
-    .row("Payment Mode:", data.paymentMethod.toUpperCase());
+    .align("left");
+
+  if (data.splitPayments) {
+    b.row("Payment:", "SPLIT TENDER");
+    if (data.splitPayments.cash) b.row("  - Cash:", `₹${data.splitPayments.cash.toFixed(0)}`);
+    if (data.splitPayments.upi) b.row("  - UPI QR:", `₹${data.splitPayments.upi.toFixed(0)}`);
+    if (data.splitPayments.card) b.row("  - Card:", `₹${data.splitPayments.card.toFixed(0)}`);
+  } else {
+    b.row("Payment Mode:", data.paymentMethod.toUpperCase());
+  }
 
   if (data.amountTendered && data.amountTendered > 0) {
     b.row("Cash Tendered:", `₹${data.amountTendered.toFixed(0)}`)
@@ -470,7 +517,7 @@ export function buildPosReceiptEscPos(
     .textLine("Have a Healthy & Delicious Meal!")
     .lineFeed(3);
 
-  if (config.openCashDrawer && data.paymentMethod.toLowerCase() === "cash") {
+  if (config.openCashDrawer && (data.paymentMethod.toLowerCase() === "cash" || (data.splitPayments?.cash ?? 0) > 0)) {
     b.openCashDrawer();
   }
   if (config.autoCut) {
@@ -488,13 +535,31 @@ export function buildPosReceiptHtml(
   config: ThermalPrinterConfig = getSavedPrinterConfig()
 ): string {
   const store = data.storeName || config.headerLine1;
+  const copyHeader =
+    data.copyType === "kitchen_token" || data.copyType === "KITCHEN TOKEN"
+      ? "KITCHEN / CUTTING TOKEN"
+      : data.copyType === "merchant_copy" || data.copyType === "STORE RECORD"
+      ? "MERCHANT / STORE AUDIT COPY"
+      : "RETAIL INVOICE / COUNTER BILL";
+
   return `
+    ${
+      data.isReprint
+        ? `
+      <div style="border: 1px dashed #000; padding: 4px; text-align: center; margin-bottom: 6px; font-weight: bold;">
+        <div>*** REPRINT COPY (AUDIT) ***</div>
+        <div style="font-size: 0.85em;">Reprint #${data.reprintCount || 1} · ${data.reprintTimestamp || new Date().toLocaleTimeString("en-IN")}</div>
+        <div style="font-size: 0.8em;">Cashier: ${data.cashierName} · NOT AN ORIGINAL</div>
+      </div>
+    `
+        : ""
+    }
     <div class="center bold title">${store}</div>
     ${data.storeAddress ? `<div class="center">${data.storeAddress}</div>` : ""}
     ${data.storePhone ? `<div class="center">Ph: ${data.storePhone}</div>` : ""}
     ${data.storeGstin ? `<div class="center">GSTIN: ${data.storeGstin}</div>` : ""}
     <div class="hr"></div>
-    <div class="center bold">RETAIL INVOICE / COUNTER BILL</div>
+    <div class="center bold">${copyHeader}</div>
     <div class="hr"></div>
     <div class="row"><span>Bill No:</span><span class="bold">${data.receiptNo}</span></div>
     <div class="row"><span>Date:</span><span>${data.date}</span></div>
@@ -504,38 +569,89 @@ export function buildPosReceiptHtml(
     ${data.items
       .map(
         (it) => `
-        <div class="bold">${it.name}</div>
-        <div class="row" style="font-size: 0.9em; color: #333;">
-          <span>${it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} unit`} @ ₹${it.unitPrice}${it.cuttingStyle ? ` [${it.cuttingStyle}]` : ""}</span>
-          <span class="bold">₹${it.totalPrice.toFixed(0)}</span>
-        </div>
-      `
+      <div class="row">
+        <span>${it.name}${it.cuttingStyle ? ` [${it.cuttingStyle}]` : ""}</span>
+        <span>₹${it.totalPrice.toFixed(0)}</span>
+      </div>
+      <div class="row muted font-mono" style="padding-left: 8px;">
+        <span>${it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} pcs`} × ₹${it.unitPrice.toFixed(0)}</span>
+      </div>
+    `
       )
       .join("")}
     <div class="hr"></div>
     <div class="row"><span>Subtotal:</span><span>₹${data.subtotal.toFixed(0)}</span></div>
     ${data.discount > 0 ? `<div class="row"><span>Discount:</span><span>-₹${data.discount.toFixed(0)}</span></div>` : ""}
     ${data.gstAmount > 0 ? `<div class="row"><span>GST:</span><span>₹${data.gstAmount.toFixed(0)}</span></div>` : ""}
-    <div class="total-row row">
-      <span>NET TOTAL:</span>
-      <span>₹${data.total.toFixed(0)}</span>
-    </div>
-    <div class="row"><span>Payment:</span><span class="bold">${data.paymentMethod.toUpperCase()}</span></div>
-    ${
-      data.amountTendered
-        ? `
-      <div class="row"><span>Cash Tendered:</span><span>₹${data.amountTendered.toFixed(0)}</span></div>
-      <div class="row"><span>Change Returned:</span><span class="bold">₹${(data.changeDue || 0).toFixed(0)}</span></div>
-    `
-        : ""
-    }
-    ${data.upiRef ? `<div class="row"><span>UPI UTR:</span><span class="bold">${data.upiRef}</span></div>` : ""}
     <div class="hr"></div>
-    <div class="center" style="font-size: 0.85em; margin-top: 4px;">
-      ${config.footerText || "Fresh Catch Daily · No Returns After Cutting"}
-    </div>
-    <div class="center bold" style="font-size: 0.9em; margin-top: 2px;">
-      Thank You! Visit Again
-    </div>
+    <div class="row bold total"><span>TOTAL PAYABLE:</span><span>₹${data.total.toFixed(0)}</span></div>
+    <div class="hr"></div>
+    ${
+      data.splitPayments
+        ? `
+      <div class="row"><span>Split Tender:</span></div>
+      ${data.splitPayments.cash ? `<div class="row muted" style="padding-left: 8px;"><span>Cash:</span><span>₹${data.splitPayments.cash}</span></div>` : ""}
+      ${data.splitPayments.upi ? `<div class="row muted" style="padding-left: 8px;"><span>UPI:</span><span>₹${data.splitPayments.upi}</span></div>` : ""}
+      ${data.splitPayments.card ? `<div class="row muted" style="padding-left: 8px;"><span>Card:</span><span>₹${data.splitPayments.card}</span></div>` : ""}
+    `
+        : `
+      <div class="row"><span>Payment Mode:</span><span class="bold">${data.paymentMethod.toUpperCase()}</span></div>
+    `
+    }
+    ${data.amountTendered ? `<div class="row"><span>Cash Tendered:</span><span>₹${data.amountTendered.toFixed(0)}</span></div>` : ""}
+    ${typeof data.changeDue === "number" ? `<div class="row"><span>Change Returned:</span><span>₹${data.changeDue.toFixed(0)}</span></div>` : ""}
+    ${data.upiRef ? `<div class="row muted font-mono"><span>UPI Ref:</span><span>${data.upiRef}</span></div>` : ""}
+    <div class="hr"></div>
+    <div class="center bold footer">${config.footerLine1}</div>
+    <div class="center muted">${config.footerLine2}</div>
   `;
+}
+
+/**
+ * Generate formatted WhatsApp receipt text for quick sharing.
+ */
+export function generatePosWhatsAppText(data: PosReceiptData, orderId?: string): string {
+  const store = data.storeName || "Fish N Fresh Hub";
+  const lines: string[] = [];
+  lines.push(`🧾 *${store.toUpperCase()} - TAX INVOICE*`);
+  lines.push(`Bill No: *${data.receiptNo}*`);
+  lines.push(`Date: ${data.date}`);
+  lines.push(`Cashier: ${data.cashierName}`);
+  if (data.customerName && data.customerName !== "Walk-in Customer") {
+    lines.push(`Customer: ${data.customerName}`);
+  }
+  lines.push("--------------------------------");
+  for (const it of data.items) {
+    const qtyStr = it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} unit`;
+    const cutStr = it.cuttingStyle ? ` [${it.cuttingStyle}]` : "";
+    lines.push(`• *${it.name}*${cutStr}\n   ${qtyStr} × ₹${it.unitPrice.toFixed(0)} = ₹${it.totalPrice.toFixed(0)}`);
+  }
+  lines.push("--------------------------------");
+  lines.push(`Subtotal: ₹${data.subtotal.toFixed(0)}`);
+  if (data.discount > 0) lines.push(`Discount: -₹${data.discount.toFixed(0)}`);
+  if (data.gstAmount > 0) lines.push(`GST: ₹${data.gstAmount.toFixed(0)}`);
+  lines.push(`*NET TOTAL: ₹${data.total.toFixed(0)}*`);
+
+  if (data.splitPayments) {
+    lines.push(`Payment: *Split Tender*`);
+    if (data.splitPayments.cash) lines.push(`  Cash: ₹${data.splitPayments.cash}`);
+    if (data.splitPayments.upi) lines.push(`  UPI: ₹${data.splitPayments.upi}`);
+    if (data.splitPayments.card) lines.push(`  Card: ₹${data.splitPayments.card}`);
+  } else {
+    lines.push(`Payment Mode: *${data.paymentMethod.toUpperCase()}*`);
+  }
+
+  if (orderId) {
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://fishnfresh.com";
+    lines.push(`\n📄 View Digital Invoice: ${origin}/orders?id=${orderId}`);
+  }
+  lines.push(`\nThank you for choosing ${store}! 🐟 Have a delicious meal.`);
+  return lines.join("\n");
+}
+
+export function getPosWhatsAppShareUrl(phone: string, dataOrText: PosReceiptData | string, orderId?: string): string {
+  const cleanPhone = phone.replace(/\D/g, "");
+  const targetPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+  const text = typeof dataOrText === "string" ? dataOrText : generatePosWhatsAppText(dataOrText, orderId);
+  return `https://wa.me/${targetPhone}?text=${encodeURIComponent(text)}`;
 }
