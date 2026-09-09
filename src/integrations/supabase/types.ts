@@ -907,6 +907,10 @@ export type Database = {
           max_wallet_burn_percent?: number
           fcm_server_key?: string | null
           fcm_project_id?: string | null
+          business_vertical?: "seafood" | "chicken_meat" | "all_meat" | string
+          vertical_tagline?: string | null
+          vertical_banner_url?: string | null
+          vertical_badge_text?: string | null
         }
         Insert: {
           accent_color?: string
@@ -997,6 +1001,10 @@ export type Database = {
           max_wallet_burn_percent?: number
           fcm_server_key?: string | null
           fcm_project_id?: string | null
+          business_vertical?: "seafood" | "chicken_meat" | "all_meat" | string
+          vertical_tagline?: string | null
+          vertical_banner_url?: string | null
+          vertical_badge_text?: string | null
         }
         Update: {
           accent_color?: string
@@ -1087,6 +1095,10 @@ export type Database = {
           max_wallet_burn_percent?: number
           fcm_server_key?: string | null
           fcm_project_id?: string | null
+          business_vertical?: "seafood" | "chicken_meat" | "all_meat" | string
+          vertical_tagline?: string | null
+          vertical_banner_url?: string | null
+          vertical_badge_text?: string | null
         }
         Relationships: []
       }

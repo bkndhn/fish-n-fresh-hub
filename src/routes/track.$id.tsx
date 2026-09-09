@@ -31,6 +31,8 @@ import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
 import { getGoogleMapsDirUrl } from "@/lib/maps";
 import { CustomerDeliveryPinCard } from "@/components/CustomerDeliveryPinCard";
+import { InlineDeliveryRouteMap } from "@/components/InlineDeliveryRouteMap";
+import { getVerticalConfig } from "@/lib/verticals";
 
 export const Route = createFileRoute("/track/$id")({
   head: () => ({
@@ -361,6 +363,25 @@ function TrackPage() {
           </Card>
         )}
 
+        {/* Live Interactive Delivery GPS Route Map (Swiggy / Zomato standard) */}
+        {!isCancelled && order.fulfillment_type !== "pickup" && (
+          <InlineDeliveryRouteMap
+            storeLat={settings?.shop_lat ?? null}
+            storeLng={settings?.shop_lng ?? null}
+            storeAddress={settings?.store_address ?? "Store Hub"}
+            destLat={order.location_lat ?? null}
+            destLng={order.location_lng ?? null}
+            destAddress={order.customer_address ?? undefined}
+            customerName={order.customer_name}
+            customerPhone={order.customer_phone}
+            orderNumber={order.order_number ?? order.id.slice(0, 8)}
+            etaMinutes={order.eta_minutes ?? null}
+            driverName={order.driver_name}
+            verticalEmoji={getVerticalConfig(settings?.business_vertical).emoji}
+            onExpand={() => setRouteModalOpen(true)}
+          />
+        )}
+
         {/* Assigned Driver / Delivery Partner Card */}
         {order.driver_name && (
           <Card className="border-border/70 shadow-xs overflow-hidden">
@@ -541,6 +562,7 @@ function TrackPage() {
         storeAddress={settings?.store_address ?? "Fish & Fresh Store"}
         storeLat={settings?.shop_lat ?? null}
         storeLng={settings?.shop_lng ?? null}
+        verticalEmoji={getVerticalConfig(settings?.business_vertical).emoji}
       />
     </AppShell>
   );

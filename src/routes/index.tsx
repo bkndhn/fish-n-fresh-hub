@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { BannerCarousel } from "@/components/BannerCarousel";
 import { TrustBadges } from "@/components/TrustBadges";
 import { ProductCard } from "@/components/ProductCard";
+import { QualityPromiseBanner } from "@/components/QualityPromiseBanner";
+import { getVerticalConfig } from "@/lib/verticals";
 import { bannersQuery, categoriesQuery, productsQuery, trustBadgesQuery, settingsQuery } from "@/lib/queries";
 import { useTranslation } from "@/lib/i18n";
 import { getStoreStatus } from "@/lib/storeSchedule";
@@ -44,9 +46,13 @@ function Home() {
     .sort((a, b) => Number(b.rating) - Number(a.rating))
     .slice(0, 6);
 
+  const vertical = getVerticalConfig(settings?.business_vertical);
+
   return (
     <AppShell>
-      <h1 className="sr-only">Fish N Fresh — fresh seafood delivered</h1>
+      <h1 className="sr-only">
+        {settings?.store_name || "Fish N Fresh"} — {vertical.name}
+      </h1>
 
       {storeStatus && !storeStatus.isOpen && (
         <div
@@ -79,6 +85,8 @@ function Home() {
       <div className="mt-4">
         <TrustBadges badges={badges ?? []} />
       </div>
+
+      <QualityPromiseBanner className="mt-4" verticalEmoji={vertical.emoji} />
 
       <section className="mt-8">
         <div className="mb-3 flex items-center justify-between">

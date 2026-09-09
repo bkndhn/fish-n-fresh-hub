@@ -47,6 +47,7 @@ interface DeliveryRouteModalProps {
   storeLng?: number | null | undefined;
   storeAddress?: string | null | undefined;
   driverName?: string | null | undefined;
+  verticalEmoji?: string | null | undefined;
 }
 
 const DEFAULT_STORE_LAT = 13.0827;
@@ -68,6 +69,7 @@ export function DeliveryRouteModal({
   storeLng = DEFAULT_STORE_LNG,
   storeAddress = "Fish N Fresh Seafood Hub",
   driverName,
+  verticalEmoji = "🐟",
 }: DeliveryRouteModalProps) {
   const destLat = propDestLat ?? destinationLat ?? null;
   const destLng = propDestLng ?? destinationLng ?? null;
@@ -132,7 +134,7 @@ export function DeliveryRouteModal({
           className: "custom-div-icon",
           html: `
             <div style="background-color: #0284c7; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 2px solid white;">
-              <span style="font-size: 16px;">🐟</span>
+              <span style="font-size: 16px;">${verticalEmoji || "🐟"}</span>
             </div>
           `,
           iconSize: [36, 36],
@@ -153,7 +155,7 @@ export function DeliveryRouteModal({
 
         const storeMarker = L.marker([effectiveStoreLat, effectiveStoreLng], { icon: storeIcon })
           .addTo(map)
-          .bindPopup(`<strong>🐟 Store Hub</strong><br/>${storeAddress}`);
+          .bindPopup(`<strong>${verticalEmoji || "🐟"} Store Hub</strong><br/>${storeAddress}`);
 
         const destMarker = L.marker([effectiveDestLat, effectiveDestLng], { icon: customerIcon })
           .addTo(map)

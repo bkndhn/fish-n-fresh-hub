@@ -15,6 +15,9 @@ const translations = {
     "checkout.title": "Checkout",
     "footer.support": "Support & Contact",
     "footer.legal": "Legal & Safety",
+    "promise.motto": "No Compromise in Quality · Best Affordable Price",
+    "promise.sub": "100% Day-Fresh Harvest · Zero Preservatives · Pan-Ready Cuts",
+    "promise.badge": "Customer Quality Promise",
   },
   ta: {
     "nav.catalog": "பட்டியல்",
@@ -28,6 +31,9 @@ const translations = {
     "checkout.title": "பணம் செலுத்து",
     "footer.support": "ஆதரவு & தொடர்பு",
     "footer.legal": "சட்ட & பாதுகாப்பு",
+    "promise.motto": "தரத்திலும் சுவையிலும் சமரசம் இல்லை · நியாயமான குறைந்த விலை",
+    "promise.sub": "தினசரி புதிய பிடிப்பு · இரசாயனம் இல்லாத இயற்கை புத்துணர்ச்சி",
+    "promise.badge": "வாடிக்கையாளர் தர உத்தரவாதம்",
   },
   hi: {
     "nav.catalog": "कैटलॉग देखें",
@@ -41,6 +47,9 @@ const translations = {
     "checkout.title": "चेकआउट",
     "footer.support": "सहायता और संपर्क",
     "footer.legal": "कानूनी और सुरक्षा",
+    "promise.motto": "क्वालिटी में कोई समझौता नहीं · सबसे किफायती और सही दाम",
+    "promise.sub": "रोज़ाना ताज़ा माल · बिना किसी मिलावट और प्रिजर्वेटिव",
+    "promise.badge": "गुणवत्ता एवं उचित मूल्य वादा",
   }
 };
 

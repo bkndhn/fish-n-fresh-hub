@@ -22,11 +22,15 @@ import { getStoreStatus } from "@/lib/storeSchedule";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 
+import { QualityPromiseBanner } from "@/components/QualityPromiseBanner";
+import { getVerticalConfig } from "@/lib/verticals";
+
 export function Footer() {
   const { data: settings } = useQuery(settingsQuery);
 
   if (!settings) return null;
 
+  const vertical = getVerticalConfig(settings.business_vertical);
   const storeStatus = getStoreStatus(settings);
 
   const mapLink =
@@ -45,56 +49,43 @@ export function Footer() {
 
   return (
     <footer className="mt-16 border-t border-border/80 bg-card text-muted-foreground pb-24 md:pb-12 text-xs sm:text-sm w-full max-w-full overflow-hidden">
-      {/* 1. Quality & Trust Assurance Bar */}
-      <div className="border-b border-border/60 bg-muted/30 py-6 px-3 sm:px-4 w-full max-w-full overflow-hidden">
+      {/* 1. Trilingual Quality & Affordability Promise Motto */}
+      <div className="border-b border-border/60 bg-muted/40 px-3 py-3 sm:px-4">
+        <div className="mx-auto max-w-6xl">
+          <QualityPromiseBanner variant="compact" verticalEmoji={vertical.emoji} />
+        </div>
+      </div>
+
+      {/* 2. Quality & Trust Assurance Bar */}
+      <div className="border-b border-border/60 bg-muted/20 py-6 px-3 sm:px-4 w-full max-w-full overflow-hidden">
         <div className="mx-auto max-w-6xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-4">
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <Fish className="size-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-bold text-foreground text-xs sm:text-sm">100% Day Catch</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight break-words">
-                Daily fresh harbour landings. Zero chemicals or formalin.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="size-9 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
-              <Zap className="size-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-bold text-foreground text-xs sm:text-sm">45-Min Cold Chain</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight break-words">
-                Packed with insulated gel ice chill pads at 0–4°C.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="size-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <ShieldCheck className="size-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-bold text-foreground text-xs sm:text-sm">Cleaned & Pan-Ready</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight break-words">
-                Custom cuts: Bengali, Steaks, or Curry Cut to order.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="size-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-              <Award className="size-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-bold text-foreground text-xs sm:text-sm">Freshness Guarantee</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight break-words">
-                100% satisfaction promise or instant replacement.
-              </p>
-            </div>
-          </div>
+          {vertical.features.map((feat, idx) => {
+            const icons = [
+              <Fish key={0} className="size-5" />,
+              <Zap key={1} className="size-5" />,
+              <ShieldCheck key={2} className="size-5" />,
+              <Award key={3} className="size-5" />,
+            ];
+            const bgColors = [
+              "bg-primary/10 text-primary",
+              "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
+              "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+              "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+            ];
+            return (
+              <div key={idx} className="flex items-start gap-3 min-w-0">
+                <div className={`size-9 rounded-xl flex items-center justify-center shrink-0 ${bgColors[idx % 4]}`}>
+                  {icons[idx % 4]}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-foreground text-xs sm:text-sm">{feat.title}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight break-words">
+                    {feat.desc}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

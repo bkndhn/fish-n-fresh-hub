@@ -15,6 +15,8 @@ import { ImageUpload } from "@/components/ImageUpload";
 import { useState, useEffect } from "react";
 import { MapPinPickerModal } from "@/components/MapPinPickerModal";
 import { getGoogleMapsDirUrl, type GeocodedAddress } from "@/lib/maps";
+import { VERTICAL_CONFIGS, getVerticalConfig, type BusinessVertical } from "@/lib/verticals";
+import { Layers, Sparkles, Store } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/settings")({
   component: AdminSettings,
@@ -120,6 +122,143 @@ function AdminSettings() {
           />
         </div>
       </div>
+
+      {/* Store Business Vertical & Industry Theme Switcher */}
+      <Card className="mb-6 border-border/80 shadow-xs">
+        <CardHeader className="pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Store className="size-5 text-primary" />
+                Store Business Vertical & Industry Switcher
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Instantly switch this app between Seafood, Chicken & Meat, or a Multi-Meat Superstore without losing any operational systems.
+              </p>
+            </div>
+            <Badge variant="outline" className="text-xs border-primary/30 text-primary bg-primary/5">
+              ⚡ Multi-Vertical Ready
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Vertical Selector Radio Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {(["seafood", "chicken_meat", "all_meat"] as BusinessVertical[]).map((vId) => {
+              const cfg = VERTICAL_CONFIGS[vId];
+              const isSelected = (form.business_vertical || "seafood") === vId;
+              return (
+                <div
+                  key={vId}
+                  onClick={() => setForm({ ...form, business_vertical: vId })}
+                  className={`cursor-pointer rounded-2xl border p-3.5 transition-all relative ${
+                    isSelected
+                      ? "border-primary bg-primary/5 ring-2 ring-primary shadow-xs"
+                      : "border-border/80 bg-card hover:border-primary/40 hover:bg-muted/30"
+                  }`}
+                >
+                  {isSelected && (
+                    <span className="absolute top-2.5 right-2.5 flex size-4 items-center justify-center rounded-full bg-primary text-white text-[10px] font-bold">
+                      ✓
+                    </span>
+                  )}
+                  <div className="flex items-center gap-2.5 mb-1.5">
+                    <span className="text-2xl">{cfg.emoji}</span>
+                    <div>
+                      <h4 className="font-bold text-sm text-foreground">{cfg.shortName}</h4>
+                      <span className="text-[10px] text-muted-foreground font-medium">Industry Model</span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground line-clamp-2 leading-tight">
+                    {cfg.tagline}
+                  </p>
+                  <div className="mt-2.5 pt-2 border-t border-border/50 flex items-center justify-between text-[10px]">
+                    <span className="text-muted-foreground font-medium">Palette</span>
+                    <span className="flex items-center gap-1">
+                      <span
+                        className="size-2.5 rounded-full border border-black/10"
+                        style={{ backgroundColor: cfg.recommendedThemeColor }}
+                      />
+                      <span className="font-mono text-muted-foreground">{cfg.recommendedThemeColor}</span>
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Quick Apply Industry Presets Button */}
+          {(() => {
+            const currentCfg = getVerticalConfig(form.business_vertical || "seafood");
+            return (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="text-xs">
+                  <p className="font-bold text-foreground flex items-center gap-1.5">
+                    <Sparkles className="size-3.5 text-primary" />
+                    Apply Recommended Defaults for {currentCfg.name}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Sets theme color ({currentCfg.recommendedThemeColor}), tagline, and guarantee badge.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="rounded-xl h-8 text-xs font-semibold text-primary border-primary/30 hover:bg-primary/10 shrink-0"
+                  onClick={() => {
+                    setForm({
+                      ...form,
+                      theme_color: currentCfg.recommendedThemeColor,
+                      vertical_tagline: currentCfg.tagline,
+                      vertical_badge_text: currentCfg.badgeText,
+                    });
+                    toast.success(`Applied ${currentCfg.name} theme and presets!`);
+                  }}
+                >
+                  <Sparkles className="size-3 mr-1" /> Apply {currentCfg.shortName} Presets
+                </Button>
+              </div>
+            );
+          })()}
+
+          {/* Vertical Details Customization Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+            <div>
+              <Label className="text-xs">Vertical Catchphrase / Tagline</Label>
+              <Input
+                value={form.vertical_tagline ?? ""}
+                onChange={(e) => setForm({ ...form, vertical_tagline: e.target.value })}
+                placeholder="Daily Harbour Day-Catch · 100% Chemical-Free"
+                className="mt-1 text-sm rounded-xl"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Trust Badge Text</Label>
+              <Input
+                value={form.vertical_badge_text ?? ""}
+                onChange={(e) => setForm({ ...form, vertical_badge_text: e.target.value })}
+                placeholder="100% Day Catch · Formalin Free"
+                className="mt-1 text-sm rounded-xl"
+              />
+            </div>
+          </div>
+
+          {/* Vertical Banner Image Upload */}
+          <div>
+            <Label className="text-xs">Vertical Hero Banner Image</Label>
+            <div className="mt-1.5">
+              <ImageUpload
+                currentImage={form.vertical_banner_url}
+                onUpload={(url) => setForm({ ...form, vertical_banner_url: url })}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Upload a showcase banner for this vertical (e.g. fresh farm chicken cuts or seafood harvest display).
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="border-border/70 shadow-xs">

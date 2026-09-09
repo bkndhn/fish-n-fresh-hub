@@ -98,19 +98,23 @@ export function ProductCard({ product }: { product: Product }) {
           {Number(product.rating).toFixed(1)}
           <span>· {product.unit}</span>
         </div>
-        <div className="mt-1 flex items-end justify-between gap-1">
-          <div className="flex min-w-0 flex-col">
-            <span className="truncate font-display font-bold">{inr(Number(product.price))}</span>
-            {hasDiscount ? (
-              <div className="flex items-center gap-1 text-[10px]">
-                <span className="truncate text-muted-foreground line-through">
+        <div className="mt-1.5 flex items-end justify-between gap-1.5">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              <span className="font-display text-base font-bold text-foreground">
+                {inr(Number(product.price))}
+              </span>
+              {hasDiscount && (
+                <span className="text-[11px] font-medium text-muted-foreground line-through whitespace-nowrap">
                   {inr(Number(product.old_price))}
                 </span>
-                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                  Save {inr(Number(product.old_price) - Number(product.price))}
-                </span>
+              )}
+            </div>
+            {hasDiscount && (
+              <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap leading-tight mt-0.5">
+                Save {inr(Number(product.old_price) - Number(product.price))}
               </div>
-            ) : null}
+            )}
           </div>
           
           <div className="shrink-0">

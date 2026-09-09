@@ -33,6 +33,7 @@ import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
 import { DeliveryPinVerificationModal } from "@/components/DeliveryPinVerificationModal";
 import { getGoogleMapsDirUrl } from "@/lib/maps";
 import { settingsQuery } from "@/lib/queries";
+import { getVerticalConfig } from "@/lib/verticals";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -786,6 +787,7 @@ export function DriverDispatchPage() {
         storeAddress={settings?.store_address ?? "Fish & Fresh Store"}
         storeLat={settings?.shop_lat ?? null}
         storeLng={settings?.shop_lng ?? null}
+        verticalEmoji={getVerticalConfig(settings?.business_vertical).emoji}
       />
 
       {/* Delivery PIN Verification Modal with Admin Override */}

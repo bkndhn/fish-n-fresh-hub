@@ -12,6 +12,7 @@ import { getStoreStatus } from "@/lib/storeSchedule";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { ReferralModal } from "@/components/ReferralModal";
+import { getVerticalConfig } from "@/lib/verticals";
 
 export function SiteHeader() {
   const { count } = useCart();
@@ -29,6 +30,8 @@ export function SiteHeader() {
     : null;
 
   
+  const vertical = getVerticalConfig(settings?.business_vertical);
+
   return (
     <header className="glass sticky top-0 z-50 border-b border-border w-full max-w-full overflow-hidden">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-1.5 sm:gap-3 px-3 sm:px-4">
@@ -38,8 +41,8 @@ export function SiteHeader() {
             {settings?.logo_url ? (
               <img src={settings.logo_url} alt="Store Logo" className="h-7 sm:h-8 w-auto object-contain shrink-0" />
             ) : (
-              <span className="ocean-gradient flex size-7 sm:size-8 items-center justify-center rounded-xl text-primary-foreground shrink-0 shadow-2xs">
-                <Fish className="size-3.5 sm:size-4" />
+              <span className="ocean-gradient flex size-7 sm:size-8 items-center justify-center rounded-xl text-primary-foreground shrink-0 shadow-2xs text-sm sm:text-base">
+                {vertical.emoji}
               </span>
             )}
             <span className="truncate max-w-[130px] sm:max-w-none text-foreground">
