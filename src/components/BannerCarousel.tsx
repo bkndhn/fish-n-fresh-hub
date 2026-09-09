@@ -101,7 +101,7 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
   return (
     <section
       ref={containerRef}
-      className="group relative overflow-hidden rounded-3xl shadow-sm select-none"
+      className="group relative overflow-hidden rounded-3xl shadow-sm select-none w-full max-w-full"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => {
         handleMouseUpOrLeave();

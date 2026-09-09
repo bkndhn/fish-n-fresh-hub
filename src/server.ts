@@ -44,18 +44,71 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+function applySecurityAndCdnHeaders(response: Response, url: string): Response {
+  const headers = new Headers(response.headers);
+
+  // 1. Enterprise Defense-in-Depth Security Headers ("Non-Hackable App")
+  headers.set("X-Frame-Options", "DENY");
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(self)");
+  headers.set("X-XSS-Protection", "1; mode=block");
+
+  // Content Security Policy
+  headers.set(
+    "Content-Security-Policy",
+    "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; " +
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org; " +
+      "img-src 'self' data: blob: https:; " +
+      "font-src 'self' https://fonts.gstatic.com data:; " +
+      "frame-src https://js.stripe.com https://hooks.stripe.com; " +
+      "frame-ancestors 'none';"
+  );
+
+  // 2. Cloudflare & CDN Edge Caching Headers
+  const isStaticAsset =
+    url.includes("/assets/") ||
+    url.includes("/_build/") ||
+    url.endsWith(".js") ||
+    url.endsWith(".css") ||
+    url.endsWith(".png") ||
+    url.endsWith(".jpg") ||
+    url.endsWith(".webp") ||
+    url.endsWith(".svg") ||
+    url.endsWith(".woff2");
+
+  if (isStaticAsset) {
+    headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  } else if (!headers.has("Cache-Control")) {
+    headers.set(
+      "Cache-Control",
+      "public, max-age=0, s-maxage=60, stale-while-revalidate=300"
+    );
+  }
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      const normalized = await normalizeCatastrophicSsrResponse(response);
+      return applySecurityAndCdnHeaders(normalized, request.url);
     } catch (error) {
       console.error(error);
-      return new Response(renderErrorPage(), {
+      const errorResp = new Response(renderErrorPage(), {
         status: 500,
         headers: { "content-type": "text/html; charset=utf-8" },
       });
+      return applySecurityAndCdnHeaders(errorResp, request.url);
     }
   },
 };

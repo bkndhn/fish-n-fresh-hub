@@ -36,25 +36,24 @@ export function BadgeIcon({ name, className }: { name: string; className?: strin
 
 export function TrustBadges({ badges }: { badges: { id: string; label: string; icon: string }[] }) {
   if (!badges.length) return null;
-  const scroll = badges.length > 4;
   return (
-    <section
-      className={
-        scroll
-          ? "-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 no-scrollbar scrollbar-none"
-          : "grid gap-2"
-      }
-      style={scroll ? undefined : { gridTemplateColumns: `repeat(${badges.length}, minmax(0, 1fr))` }}
-    >
-      {badges.map((b) => (
-        <div
-          key={b.id}
-          className="flex min-w-[92px] flex-col items-center gap-1 rounded-xl border border-border bg-card px-2 py-2 text-center text-[11px] leading-tight"
-        >
-          <BadgeIcon name={b.icon} className="size-4 text-primary" />
-          <span className="line-clamp-2">{b.label}</span>
-        </div>
-      ))}
+    <section className="w-full max-w-full overflow-hidden">
+      <div 
+        className="grid gap-2"
+        style={{
+          gridTemplateColumns: `repeat(${Math.min(badges.length, 4)}, minmax(0, 1fr))`,
+        }}
+      >
+        {badges.slice(0, 4).map((b) => (
+          <div
+            key={b.id}
+            className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-border bg-card/90 px-1.5 py-2 text-center text-[10px] sm:text-[11px] leading-tight shadow-2xs"
+          >
+            <BadgeIcon name={b.icon} className="size-3.5 sm:size-4 text-primary shrink-0" />
+            <span className="line-clamp-2 font-medium break-words text-foreground">{b.label}</span>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

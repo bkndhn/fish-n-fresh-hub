@@ -44,53 +44,53 @@ export function Footer() {
     : null;
 
   return (
-    <footer className="mt-16 border-t border-border/80 bg-card text-muted-foreground pb-24 md:pb-12 text-xs sm:text-sm">
+    <footer className="mt-16 border-t border-border/80 bg-card text-muted-foreground pb-24 md:pb-12 text-xs sm:text-sm w-full max-w-full overflow-hidden">
       {/* 1. Quality & Trust Assurance Bar */}
-      <div className="border-b border-border/60 bg-muted/30 py-6 px-4">
-        <div className="mx-auto max-w-6xl grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="flex items-start gap-3">
+      <div className="border-b border-border/60 bg-muted/30 py-6 px-3 sm:px-4 w-full max-w-full overflow-hidden">
+        <div className="mx-auto max-w-6xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-4">
+          <div className="flex items-start gap-3 min-w-0">
             <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
               <Fish className="size-5" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="font-bold text-foreground text-xs sm:text-sm">100% Day Catch</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
+              <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight break-words">
                 Daily fresh harbour landings. Zero chemicals or formalin.
               </p>
             </div>
           </div>
 
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3 min-w-0">
             <div className="size-9 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
               <Zap className="size-5" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="font-bold text-foreground text-xs sm:text-sm">45-Min Cold Chain</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
+              <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight break-words">
                 Packed with insulated gel ice chill pads at 0–4°C.
               </p>
             </div>
           </div>
 
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3 min-w-0">
             <div className="size-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
               <ShieldCheck className="size-5" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="font-bold text-foreground text-xs sm:text-sm">Cleaned & Pan-Ready</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
+              <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight break-words">
                 Custom cuts: Bengali, Steaks, or Curry Cut to order.
               </p>
             </div>
           </div>
 
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3 min-w-0">
             <div className="size-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
               <Award className="size-5" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="font-bold text-foreground text-xs sm:text-sm">Freshness Guarantee</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
+              <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight break-words">
                 100% satisfaction promise or instant replacement.
               </p>
             </div>
@@ -99,7 +99,7 @@ export function Footer() {
       </div>
 
       {/* 2. Main 5-Column Navigation & Information */}
-      <div className="mx-auto max-w-6xl px-4 pt-12 pb-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mx-auto max-w-6xl px-3 sm:px-4 pt-10 pb-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-5 w-full max-w-full overflow-hidden">
         {/* Column 1: Brand & Heritage */}
         <div className="space-y-4 lg:col-span-1">
           {settings.logo_url ? (
@@ -370,12 +370,12 @@ export function Footer() {
       </div>
 
       {/* 3. Bottom Legal & Copyright Bar */}
-      <div className="mt-8 border-t border-border/60 pt-6 px-4">
-        <div className="mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left text-xs text-muted-foreground">
-          <p>
+      <div className="mt-8 border-t border-border/60 pt-6 px-3 sm:px-4 w-full max-w-full overflow-hidden">
+        <div className="mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left text-xs text-muted-foreground w-full">
+          <p className="break-words">
             &copy; {new Date().getFullYear()} {settings.store_name || "Fish N Fresh"}. All rights reserved. 100% Certified Chemical-Free Seafood Delivery.
           </p>
-          <div className="flex items-center gap-4 text-xs">
+          <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
             <Link to="/terms" className="hover:text-primary transition-colors">
               Terms of Service
             </Link>

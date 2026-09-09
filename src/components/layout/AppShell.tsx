@@ -20,10 +20,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     : null;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background w-full max-w-full overflow-x-hidden flex flex-col">
       <PwaPrompt />
       <SiteHeader />
-      <main className="mx-auto max-w-5xl px-4 pt-4">{children}</main>
+      <main className="mx-auto w-full max-w-5xl px-3 sm:px-4 pt-3 sm:pt-4 flex-1 overflow-x-hidden">{children}</main>
       <Footer />
       <FloatingCart />
       <BottomNav />

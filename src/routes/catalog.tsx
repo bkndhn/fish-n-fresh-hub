@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProductCard } from "@/components/ProductCard";
 import { Input } from "@/components/ui/input";
@@ -61,8 +61,17 @@ function Catalog() {
   const [unitFilter, setUnitFilter] = useState<string>("all");
   const [filterModalOpen, setFilterModalOpen] = useState(false);
 
+  const PAGE_SIZE = 12;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const observerTarget = useRef<HTMLDivElement>(null);
+
   const { data: products } = useQuery(productsQuery);
   const { data: categories } = useQuery(categoriesQuery);
+
+  // Reset pagination when search or filters change
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [category, q, sort, priceRange, inStockOnly, discountOnly, unitFilter]);
 
   const activeFilterCount =
     (category ? 1 : 0) +
@@ -125,6 +134,28 @@ function Catalog() {
       if (sort === "name") return a.name.localeCompare(b.name);
       return 0; // "featured" keeps default sort
     });
+
+  const visibleProducts = filtered.slice(0, visibleCount);
+  const hasMore = visibleCount < filtered.length;
+
+  // Progressive scroll-and-load observer
+  useEffect(() => {
+    if (!hasMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filtered.length));
+        }
+      },
+      { rootMargin: "250px" }
+    );
+
+    const target = observerTarget.current;
+    if (target) observer.observe(target);
+    return () => {
+      if (target) observer.unobserve(target);
+    };
+  }, [hasMore, filtered.length, PAGE_SIZE]);
 
   return (
     <AppShell>
@@ -492,10 +523,44 @@ function Catalog() {
 
       {/* Product Cards Grid */}
       <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
-        {filtered.map((p) => (
+        {visibleProducts.map((p) => (
           <ProductCard key={p.id} product={p} />
         ))}
       </div>
+
+      {/* Progressive Scroll & Load Sentinel + Indicator */}
+      {filtered.length > 0 && (
+        <div className="mt-6 flex flex-col items-center gap-2.5">
+          <p className="text-xs text-muted-foreground">
+            Showing <span className="font-semibold text-foreground">{visibleProducts.length}</span> of <span className="font-semibold text-foreground">{filtered.length}</span> catches
+          </p>
+          <div className="h-1.5 w-44 sm:w-56 rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full bg-primary transition-all duration-300 rounded-full"
+              style={{ width: `${Math.min(100, (visibleProducts.length / filtered.length) * 100)}%` }}
+            />
+          </div>
+
+          {hasMore ? (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filtered.length))}
+                className="mt-1.5 rounded-xl text-xs h-9 px-4 gap-1.5 hover:bg-primary/10 hover:text-primary hover:border-primary transition-colors shadow-2xs"
+              >
+                <span>Load More Catches (+{Math.min(PAGE_SIZE, filtered.length - visibleProducts.length)})</span>
+              </Button>
+              {/* Invisible sentinel observed by IntersectionObserver for automatic background loading */}
+              <div ref={observerTarget} className="h-4 w-full" />
+            </>
+          ) : filtered.length > PAGE_SIZE ? (
+            <p className="text-xs text-muted-foreground pt-1">
+              ✨ You have viewed all {filtered.length} catches!
+            </p>
+          ) : null}
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-6 text-center space-y-3">
