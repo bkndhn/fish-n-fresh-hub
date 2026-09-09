@@ -23,17 +23,21 @@ export const Route = createFileRoute("/catalog")({
   validateSearch: (search: Record<string, unknown>): Search => ({
     category: typeof search['category'] === "string" ? (search['category'] as string) : undefined,
   }),
-  head: () => ({
-    meta: [
-      { title: "Seafood Catalog — Fish N Fresh" },
-      {
-        name: "description",
-        content: "Browse fresh fish, prawns, crab and squid by category. Search in English or Tamil.",
-      },
-      { property: "og:title", content: "Seafood Catalog — Fish N Fresh" },
-      { property: "og:description", content: "Browse and order fresh seafood by category." },
-    ],
-  }),
+  head: ({ search }: any) => {
+    const cat = search?.category;
+    const title = cat ? `${cat} | Fresh Daily Catch Catalog` : "Fresh Seafood & Farm Meat Catalog | Kasimedu Catch";
+    const desc = cat
+      ? `Explore premium fresh ${cat} sourced daily from Kasimedu harbour trawlers. Express ice-box delivery across Chennai.`
+      : "Browse fresh fish, tiger prawns, blue crabs, squid, and farm meat by category. Same-day express ice-box delivery.";
+    return {
+      meta: [
+        { title },
+        { name: "description", content: desc },
+        { property: "og:title", content: title },
+        { property: "og:description", content: desc },
+      ],
+    };
+  },
   component: Catalog,
 });
 
@@ -46,6 +50,7 @@ import {
   Search as SearchIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { SeoStructuredData } from "@/components/SeoStructuredData";
 
 type PriceRange = "all" | "under300" | "300-600" | "600-1000" | "above1000";
 type SortOption = "featured" | "price-asc" | "price-desc" | "rating" | "discount" | "name";
@@ -159,6 +164,13 @@ function Catalog() {
 
   return (
     <AppShell>
+      <SeoStructuredData
+        breadcrumbs={[
+          { name: "Home", path: "/" },
+          { name: "Catalog", path: "/catalog" },
+          ...(category ? [{ name: category, path: `/catalog?category=${encodeURIComponent(category)}` }] : []),
+        ]}
+      />
       {/* Header & Search */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">

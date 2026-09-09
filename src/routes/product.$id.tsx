@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Minus, Plus, ShieldCheck, Star, MessageSquare, Fish } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
@@ -22,16 +22,47 @@ import { inr, formatIST, formatStockDisplay } from "@/lib/format";
 import { productQuery, productsQuery, settingsQuery } from "@/lib/queries";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductAiBenefitsCard } from "@/components/ProductAiBenefitsCard";
+import { SeoStructuredData } from "@/components/SeoStructuredData";
 
 export const Route = createFileRoute("/product/$id")({
-  head: () => ({
-    meta: [
-      { title: "Product — Fish N Fresh" },
-      { name: "description", content: "Fresh seafood details, nutrition, quality and recipes." },
-      { property: "og:title", content: "Product — Fish N Fresh" },
-      { property: "og:description", content: "Nutrition, traceability and recipes for fresh seafood." },
-    ],
-  }),
+  loader: async ({ params, context }: any) => {
+    try {
+      const product = await context.queryClient.ensureQueryData(productQuery(params.id));
+      return { product };
+    } catch {
+      return { product: null };
+    }
+  },
+  head: ({ loaderData }: any) => {
+    const p = loaderData?.product;
+    if (!p) {
+      return {
+        meta: [
+          { title: "Fresh Seafood & Farm Meat | Fish N Fresh" },
+          { name: "description", content: "Fresh seafood details, nutrition, quality and recipes." },
+        ],
+      };
+    }
+
+    const title = `${p.name} (Fresh ${p.unit}) | Daily Ocean Catch`;
+    const desc = p.description || `Order fresh ${p.name} online. 100% chemical-free, lab-tested quality delivered in 35 mins.`;
+    const img = p.image_url || "/placeholder.svg";
+
+    return {
+      meta: [
+        { title },
+        { name: "description", content: desc },
+        { property: "og:title", content: `${p.name} — ₹${p.price}/${p.unit}` },
+        { property: "og:description", content: desc },
+        { property: "og:image", content: img },
+        { property: "og:type", content: "product" },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: `${p.name} — ₹${p.price}/${p.unit}` },
+        { name: "twitter:description", content: desc },
+        { name: "twitter:image", content: img },
+      ],
+    };
+  },
   component: ProductPage,
 });
 
@@ -42,6 +73,12 @@ function ProductPage() {
   const { data: settings } = useQuery(settingsQuery);
   const { add } = useCart();
   const [qty, setQty] = useState(1);
+
+  useEffect(() => {
+    if (product) {
+      document.title = `${product.name} (Fresh ${product.unit}) | ${settings?.store_name || "Fish N Fresh"}`;
+    }
+  }, [product, settings?.store_name]);
 
   if (isLoading) return <AppShell><p className="py-20 text-center text-muted-foreground">Loading…</p></AppShell>;
   if (!product) return <AppShell><p className="py-20 text-center">Product not found.</p></AppShell>;
@@ -59,6 +96,15 @@ function ProductPage() {
 
   return (
     <AppShell>
+      <SeoStructuredData
+        product={product}
+        breadcrumbs={[
+          { name: "Home", path: "/" },
+          { name: "Catalog", path: "/catalog" },
+          ...(product.category ? [{ name: product.category, path: `/catalog?category=${encodeURIComponent(product.category)}` }] : []),
+          { name: product.name, path: `/product/${product.id}` },
+        ]}
+      />
       <div className="grid gap-6 md:grid-cols-2">
         <div className="overflow-hidden rounded-3xl border border-border bg-muted">
           {product.image_url ? (

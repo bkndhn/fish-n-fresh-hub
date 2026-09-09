@@ -10,6 +10,7 @@ import { getVerticalConfig } from "@/lib/verticals";
 import { bannersQuery, categoriesQuery, productsQuery, trustBadgesQuery, settingsQuery } from "@/lib/queries";
 import { useTranslation } from "@/lib/i18n";
 import { getStoreStatus } from "@/lib/storeSchedule";
+import { SeoStructuredData } from "@/components/SeoStructuredData";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -53,6 +54,27 @@ function Home() {
 
   return (
     <AppShell>
+      <SeoStructuredData
+        breadcrumbs={[{ name: "Home", path: "/" }]}
+        faqs={[
+          {
+            question: "Is your seafood guaranteed 100% chemical-free and fresh?",
+            answer: "Yes, our seafood is sourced daily directly from deep sea trawlers at Kasimedu harbour and local coastal fishers. We never use ammonia, formalin, or chemical preservatives — our catch is preserved strictly in food-grade crushed sea ice.",
+          },
+          {
+            question: "How fast is the delivery to my doorstep?",
+            answer: "We deliver within 35 to 45 minutes of order confirmation across Chennai, packed in temperature-controlled insulated ice boxes with live driver GPS tracking and OTP verification.",
+          },
+          {
+            question: "Can I choose custom cutting styles for my fish?",
+            answer: "Yes, you can customize your cuts (curry cut, slice/steaks, whole cleaned with gills removed, or head/tail separated) at zero extra charge.",
+          },
+          {
+            question: "What payment methods are supported at doorstep delivery?",
+            answer: "We accept Cash on Delivery (COD), UPI QR scan at doorstep (Google Pay, PhonePe, Paytm), and instant online card/netbanking payments.",
+          },
+        ]}
+      />
       <h1 className="sr-only">
         {settings?.store_name || "Fish N Fresh"} — {vertical.name}
       </h1>

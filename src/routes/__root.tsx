@@ -91,6 +91,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:description", content: "Order fresh ocean catch & farm meat delivered fast with live order PIN and driver tracking." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      {
+        name: "robots",
+        content: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      },
+      {
+        name: "googlebot",
+        content: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      },
+      { name: "format-detection", content: "telephone=no" },
     ],
     links: [
       {
@@ -170,6 +179,8 @@ function RealtimeSubscriber({ queryClient }: { queryClient: any }) {
 
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { SeoStructuredData } from "@/components/SeoStructuredData";
+import { AnalyticsTracker } from "@/components/AnalyticsTracker";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
@@ -180,6 +191,8 @@ function RootComponent() {
         <LanguageProvider>
           <CartProvider>
             <OfflineBanner />
+            <SeoStructuredData />
+            <AnalyticsTracker />
             <RealtimeSubscriber queryClient={queryClient} />
             {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
             <Outlet />

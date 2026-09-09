@@ -42,6 +42,7 @@ import { MapPinPickerModal } from "@/components/MapPinPickerModal";
 import { getGoogleMapsDirUrl, type GeocodedAddress } from "@/lib/maps";
 import { VERTICAL_CONFIGS, getVerticalConfig, type BusinessVertical } from "@/lib/verticals";
 import { getCurrentTenant } from "@/lib/tenant";
+import { SeoSettingsManager } from "@/components/admin/SeoSettingsManager";
 
 export const Route = createFileRoute("/_authenticated/admin/settings")({
   component: AdminSettings,
@@ -448,6 +449,11 @@ function AdminSettings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* World-Class Search Engine Optimization (SEO) & Social Graph Studio */}
+      <div className="mb-6">
+        <SeoSettingsManager form={form} setForm={setForm} />
+      </div>
 
       {/* Customer Live Catch & Landing Alerts Banner Settings */}
       <Card className="mb-6 border-border/80 shadow-xs">
