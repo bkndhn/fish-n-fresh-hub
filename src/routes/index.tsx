@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { BannerCarousel } from "@/components/BannerCarousel";
 import { TrustBadges } from "@/components/TrustBadges";
 import { ProductCard } from "@/components/ProductCard";
-import { QualityPromiseBanner } from "@/components/QualityPromiseBanner";
 import { getVerticalConfig } from "@/lib/verticals";
 import { bannersQuery, categoriesQuery, productsQuery, trustBadgesQuery, settingsQuery } from "@/lib/queries";
 import { useTranslation } from "@/lib/i18n";
@@ -89,8 +88,6 @@ function Home() {
       <div className="mt-4">
         <TrustBadges badges={badges ?? []} />
       </div>
-
-      <QualityPromiseBanner className="mt-4" verticalEmoji={vertical.emoji} />
 
       <section className="mt-8">
         <div className="mb-3 flex items-center justify-between">

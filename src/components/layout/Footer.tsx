@@ -21,8 +21,6 @@ import { Link } from "@tanstack/react-router";
 import { getStoreStatus } from "@/lib/storeSchedule";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
-
-import { QualityPromiseBanner } from "@/components/QualityPromiseBanner";
 import { getVerticalConfig } from "@/lib/verticals";
 
 export function Footer() {
@@ -49,14 +47,7 @@ export function Footer() {
 
   return (
     <footer className="mt-16 border-t border-border/80 bg-card text-muted-foreground pb-24 md:pb-12 text-xs sm:text-sm w-full max-w-full overflow-hidden">
-      {/* 1. Trilingual Quality & Affordability Promise Motto */}
-      <div className="border-b border-border/60 bg-muted/40 px-3 py-3 sm:px-4">
-        <div className="mx-auto max-w-6xl">
-          <QualityPromiseBanner variant="compact" verticalEmoji={vertical.emoji} />
-        </div>
-      </div>
-
-      {/* 2. Quality & Trust Assurance Bar */}
+      {/* Quality & Trust Assurance Bar */}
       <div className="border-b border-border/60 bg-muted/20 py-6 px-3 sm:px-4 w-full max-w-full overflow-hidden">
         <div className="mx-auto max-w-6xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-4">
           {vertical.features.map((feat, idx) => {
