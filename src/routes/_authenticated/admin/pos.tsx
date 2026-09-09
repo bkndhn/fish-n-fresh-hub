@@ -148,7 +148,7 @@ export function RetailPosCounterPage() {
       const q = searchQuery.toLowerCase();
       return (
         p.name.toLowerCase().includes(q) ||
-        (p.name_tamilmil ? p.name_tamilmil.toLowerCase().includes(q) : false)
+        (p.name_tamil ? p.name_tamil.toLowerCase().includes(q) : false)
       );
     });
   }, [products, selectedCategory, searchQuery]);
@@ -502,7 +502,7 @@ export function RetailPosCounterPage() {
                   All Items ({products.length})
                 </Button>
                 {categories.map((cat) => {
-                  const count = products.filter((p) => p.category_id === cat.id).length;
+                  const count = products.filter((p) => p.category === cat.id).length;
                   return (
                     <Button
                       key={cat.id}
@@ -568,9 +568,9 @@ export function RetailPosCounterPage() {
                         <p className="font-bold text-xs text-foreground line-clamp-1 group-hover:text-primary transition-colors">
                           {prod.name}
                         </p>
-                        {prod.name_ta && (
+                        {prod.name_tamil && (
                           <p className="text-[10px] text-muted-foreground line-clamp-1">
-                            {prod.name_ta}
+                            {prod.name_tamil}
                           </p>
                         )}
                       </div>
