@@ -104,7 +104,7 @@ export class EscPosBuilder {
     const encoder = new TextEncoder();
     const bytes = encoder.encode(str);
     for (let i = 0; i < bytes.length; i++) {
-      this.buffer.push(bytes[i]);
+      this.buffer.push(bytes[i]!);
     }
     return this;
   }

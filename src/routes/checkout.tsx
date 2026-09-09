@@ -383,7 +383,7 @@ function Checkout() {
     try {
       await notifyOrderStatusChange({
         orderId: data.id,
-        orderNumber: data.order_number,
+        orderNumber: data.order_number ?? undefined,
         newStatus: "confirmed",
         customerName: cleanName,
       });
