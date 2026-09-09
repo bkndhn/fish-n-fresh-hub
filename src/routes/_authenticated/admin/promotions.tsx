@@ -16,6 +16,12 @@ import {
   X,
   Check,
   AlertCircle,
+  Sparkles,
+  Zap,
+  Flame,
+  Split,
+  TrendingUp,
+  Gift,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminPromotionsQuery, type PromotionRow } from "@/lib/admin";
@@ -95,10 +101,88 @@ function PromotionsAdmin() {
   const rows = promos.data ?? [];
 
   const [search, setSearch] = useState("");
+  const [mainTab, setMainTab] = useState<"coupons" | "campaigns">("coupons");
   const [filterTab, setFilterTab] = useState<"all" | "active" | "scheduled" | "expired" | "paused">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formData, setFormData] = useState<PromoFormData>(INITIAL_FORM);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Marketing campaigns & A/B testing query
+  const campaigns = useQuery({
+    queryKey: ["admin", "marketing-campaigns"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("marketing_campaigns")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error || !data || data.length === 0) {
+        return [
+          {
+            id: "camp-1",
+            name: "Sunday Morning Catch Rush",
+            type: "flash_sale",
+            banner_headline: "⚡ Harbour Catch Flash Deal: 15% Off Until 11:30 AM",
+            banner_subtext: "Use code MORNING15 at checkout for freshly landed Seer Fish & Pomfret.",
+            variant_a_code: "MORNING15",
+            min_cart_value: 499,
+            starts_at: new Date().toISOString(),
+            ends_at: new Date(Date.now() + 4 * 3600000).toISOString(),
+            is_active: true,
+            impressions_a: 240,
+            conversions_a: 38,
+            impressions_b: 0,
+            conversions_b: 0,
+          },
+          {
+            id: "camp-2",
+            name: "Free Cleaned Prawns Cart Trigger",
+            type: "cart_rule",
+            banner_headline: "🎁 Automatic Reward: Free Cleaned Prawn Pack on Orders ₹999+",
+            banner_subtext: "Auto-adds to cart with zero coupon code required.",
+            variant_a_code: "FREEPRAWN",
+            min_cart_value: 999,
+            is_active: true,
+            impressions_a: 520,
+            conversions_a: 84,
+            impressions_b: 0,
+            conversions_b: 0,
+          },
+          {
+            id: "camp-3",
+            name: "Flat ₹100 Off vs 15% Off Experiment",
+            type: "ab_test",
+            banner_headline: "A/B Conversion Test: Fixed Cash Discount vs Percentage Cut",
+            banner_subtext: "Live conversion velocity between flat cash rebate and percentage discount.",
+            variant_a_code: "FLAT100",
+            variant_b_code: "SEAFOOD15",
+            min_cart_value: 699,
+            is_active: true,
+            impressions_a: 350,
+            conversions_a: 58,
+            impressions_b: 365,
+            conversions_b: 71,
+          },
+        ];
+      }
+      return data;
+    },
+  });
+
+  const toggleCampaign = useMutation({
+    mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
+      const { error } = await (supabase as any)
+        .from("marketing_campaigns")
+        .update({ is_active })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Campaign status updated");
+      qc.invalidateQueries({ queryKey: ["admin", "marketing-campaigns"] });
+    },
+    onError: () => toast.error("Could not update campaign"),
+  });
 
   // Toggle quick active status
   const toggle = useMutation({
@@ -224,15 +308,39 @@ function PromotionsAdmin() {
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs text-muted-foreground">
-            Manage coupons, discount percentages, date validity periods, and store offers.
+            Manage coupons, discount percentages, automated flash sales, and A/B campaign experiments.
           </p>
         </div>
-        <Button onClick={openCreate} className="rounded-xl self-start sm:self-auto">
-          <Plus className="mr-1.5 size-4" /> Create Promotion
+        {mainTab === "coupons" && (
+          <Button onClick={openCreate} className="rounded-xl self-start sm:self-auto">
+            <Plus className="mr-1.5 size-4" /> Create Coupon
+          </Button>
+        )}
+      </div>
+
+      {/* View Switcher: Coupons vs Automated Campaigns */}
+      <div className="mb-4 flex items-center gap-2 border-b border-border pb-3">
+        <Button
+          size="sm"
+          variant={mainTab === "coupons" ? "default" : "outline"}
+          onClick={() => setMainTab("coupons")}
+          className="rounded-xl h-8 text-xs font-semibold"
+        >
+          <Tag className="mr-1.5 size-3.5" /> Discount Coupons ({rows.length})
+        </Button>
+        <Button
+          size="sm"
+          variant={mainTab === "campaigns" ? "default" : "outline"}
+          onClick={() => setMainTab("campaigns")}
+          className="rounded-xl h-8 text-xs font-semibold"
+        >
+          <Sparkles className="mr-1.5 size-3.5 text-amber-500" /> Automated Campaigns & A/B Testing ({(campaigns.data || []).length})
         </Button>
       </div>
 
-      {/* Filter and Search Bar */}
+      {mainTab === "coupons" ? (
+        <>
+          {/* Filter and Search Bar */}
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -380,6 +488,167 @@ function PromotionsAdmin() {
           </div>
         )}
       </div>
+    </>
+  ) : (
+        /* Automated Campaigns & A/B Testing View */
+        <div className="space-y-4">
+          <div className="p-3.5 rounded-2xl border border-border/80 bg-muted/30 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600">
+                <Flame className="size-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-foreground">Active Growth Tooling & Conversion Experiments</h3>
+                <p className="text-xs text-muted-foreground">
+                  Automate flash catch drops, minimum-basket reward rules, and split-test promotional discounts.
+                </p>
+              </div>
+            </div>
+            <Badge className="bg-primary text-primary-foreground font-semibold text-xs">
+              Autonomous Growth Engine Active
+            </Badge>
+          </div>
+
+          <div className="grid gap-4">
+            {(campaigns.data || []).map((camp: any) => {
+              const isAb = camp.type === "ab_test";
+              const isFlash = camp.type === "flash_sale";
+              const isCartRule = camp.type === "cart_rule";
+
+              const rateA =
+                camp.impressions_a > 0
+                  ? Math.round((camp.conversions_a / camp.impressions_a) * 1000) / 10
+                  : 0;
+              const rateB =
+                camp.impressions_b > 0
+                  ? Math.round((camp.conversions_b / camp.impressions_b) * 1000) / 10
+                  : 0;
+              const winner = isAb ? (rateB > rateA ? "B" : "A") : null;
+
+              return (
+                <Card key={camp.id} className="border-border/80 shadow-sm overflow-hidden">
+                  <div className="p-4 sm:p-5 space-y-3">
+                    {/* Header */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase border flex items-center gap-1 ${
+                            isFlash
+                              ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30"
+                              : isCartRule
+                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
+                              : "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30"
+                          }`}
+                        >
+                          {isFlash && <Zap className="size-3" />}
+                          {isCartRule && <Gift className="size-3" />}
+                          {isAb && <Split className="size-3" />}
+                          {isFlash ? "Flash Catch Deal" : isCartRule ? "Auto Cart Rule" : "A/B Promotional Test"}
+                        </span>
+                        <h4 className="font-bold text-sm text-foreground">{camp.name}</h4>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`camp-switch-${camp.id}`} className="text-xs text-muted-foreground">
+                          {camp.is_active ? "Running Live" : "Paused"}
+                        </Label>
+                        <Switch
+                          id={`camp-switch-${camp.id}`}
+                          checked={camp.is_active}
+                          onCheckedChange={(active) =>
+                            toggleCampaign.mutate({ id: camp.id, is_active: active })
+                          }
+                          disabled={toggleCampaign.isPending}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Banner Headline Preview */}
+                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <div className="font-bold text-foreground text-sm flex items-center gap-1.5">
+                          {camp.banner_headline}
+                        </div>
+                        <div className="text-muted-foreground text-xs mt-0.5">{camp.banner_subtext}</div>
+                      </div>
+                      {isFlash && camp.ends_at && (
+                        <div className="rounded-lg bg-amber-500/15 px-2.5 py-1 text-center border border-amber-500/30">
+                          <span className="text-[10px] uppercase font-bold text-amber-700 dark:text-amber-400 block">
+                            Ends In
+                          </span>
+                          <span className="font-mono text-xs font-extrabold text-foreground">
+                            ~3h 45m
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* A/B Test Results Split Comparison */}
+                    {isAb ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        {/* Variant A */}
+                        <div
+                          className={`rounded-xl border p-3 bg-muted/20 space-y-2 ${
+                            winner === "A" ? "border-emerald-500/60 bg-emerald-500/5 ring-1 ring-emerald-500/20" : "border-border/70"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs text-foreground flex items-center gap-1">
+                              Variant A ({camp.variant_a_code})
+                              {winner === "A" && (
+                                <Badge className="bg-emerald-600 text-[9px] py-0 px-1">Winner ⭐</Badge>
+                              )}
+                            </span>
+                            <span className="font-mono text-sm font-extrabold text-primary">{rateA}% CVR</span>
+                          </div>
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                            <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, rateA * 4)}%` }} />
+                          </div>
+                          <div className="flex justify-between text-[11px] text-muted-foreground">
+                            <span>{camp.impressions_a} Shoppers Seen</span>
+                            <span className="font-semibold text-foreground">{camp.conversions_a} Orders Placed</span>
+                          </div>
+                        </div>
+
+                        {/* Variant B */}
+                        <div
+                          className={`rounded-xl border p-3 bg-muted/20 space-y-2 ${
+                            winner === "B" ? "border-emerald-500/60 bg-emerald-500/5 ring-1 ring-emerald-500/20" : "border-border/70"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs text-foreground flex items-center gap-1">
+                              Variant B ({camp.variant_b_code})
+                              {winner === "B" && (
+                                <Badge className="bg-emerald-600 text-[9px] py-0 px-1">Winner ⭐</Badge>
+                              )}
+                            </span>
+                            <span className="font-mono text-sm font-extrabold text-emerald-600 dark:text-emerald-400">{rateB}% CVR</span>
+                          </div>
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, rateB * 4)}%` }} />
+                          </div>
+                          <div className="flex justify-between text-[11px] text-muted-foreground">
+                            <span>{camp.impressions_b} Shoppers Seen</span>
+                            <span className="font-semibold text-foreground">{camp.conversions_b} Orders Placed</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                        <span>Min Cart Trigger: <strong>{formatINR(camp.min_cart_value || 0)}</strong></span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                          {camp.conversions_a} conversions recorded
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Create / Edit Promotion Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

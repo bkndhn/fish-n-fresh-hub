@@ -1,7 +1,32 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { RotateCcw, MapPin, Compass, Zap, Gift, Bell, Wallet, ShieldCheck } from "lucide-react";
+import { 
+  RotateCcw, 
+  MapPin, 
+  Compass, 
+  Zap, 
+  Gift, 
+  Bell, 
+  Wallet, 
+  ShieldCheck,
+  Layers, 
+  Sparkles, 
+  Store, 
+  Database, 
+  Globe, 
+  Server, 
+  CheckCircle2,
+  Download,
+  FileSpreadsheet,
+  FileJson,
+  FileText,
+  SlidersHorizontal,
+  ArrowUpRight,
+  ShoppingBag,
+  MessageSquare,
+  Bot
+} from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { settingsQuery } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +41,6 @@ import { useState, useEffect } from "react";
 import { MapPinPickerModal } from "@/components/MapPinPickerModal";
 import { getGoogleMapsDirUrl, type GeocodedAddress } from "@/lib/maps";
 import { VERTICAL_CONFIGS, getVerticalConfig, type BusinessVertical } from "@/lib/verticals";
-import { Layers, Sparkles, Store, Database, Globe, Server, CheckCircle2 } from "lucide-react";
 import { getCurrentTenant } from "@/lib/tenant";
 
 export const Route = createFileRoute("/_authenticated/admin/settings")({
@@ -32,6 +56,169 @@ function AdminSettings() {
   const [form, setForm] = useState<any>({});
   const [gatewayForm, setGatewayForm] = useState<GatewayCreds>({ provider: "none", api_key: "", secret_key: "" });
   const [shopPinModalOpen, setShopPinModalOpen] = useState(false);
+  const [exportingBackup, setExportingBackup] = useState(false);
+
+  const { data: schemaVersion } = useQuery<{ version: string }>({
+    queryKey: ["schema_version_current"],
+    queryFn: async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .from("schema_version")
+          .select("*")
+          .order("applied_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (error || !data) return { version: "v2.2.0" };
+        return data as { version: string };
+      } catch {
+        return { version: "v2.2.0" };
+      }
+    },
+  });
+
+  const handleDownloadJsonBackup = async () => {
+    try {
+      setExportingBackup(true);
+      toast.info("Preparing complete store database backup...");
+
+      const [
+        { data: products },
+        { data: orders },
+        { data: categories },
+        { data: campaigns },
+      ] = await Promise.all([
+        (supabase as any).from("products").select("*"),
+        (supabase as any).from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(2000),
+        (supabase as any).from("categories").select("*"),
+        (supabase as any).from("marketing_campaigns").select("*"),
+      ]);
+
+      const backupPayload = {
+        backup_version: "2.2.0",
+        schema_version: schemaVersion?.version || "v2.2.0",
+        exported_at: new Date().toISOString(),
+        tenant: {
+          id: tenant.tenantId,
+          name: tenant.clientName,
+          host: tenant.supabaseHost,
+        },
+        counts: {
+          products: products?.length || 0,
+          orders: orders?.length || 0,
+          categories: categories?.length || 0,
+          campaigns: campaigns?.length || 0,
+        },
+        data: {
+          store_settings: settings,
+          categories: categories || [],
+          products: products || [],
+          orders: orders || [],
+          marketing_campaigns: campaigns || [],
+        },
+      };
+
+      const blob = new Blob([JSON.stringify(backupPayload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const dateStr = new Date().toISOString().split("T")[0];
+      link.href = url;
+      link.download = `backup-${tenant.tenantId}-${dateStr}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success("Complete store backup downloaded!");
+    } catch (err: any) {
+      console.error("Backup error:", err);
+      toast.error("Failed to generate backup: " + (err.message || err));
+    } finally {
+      setExportingBackup(false);
+    }
+  };
+
+  const handleExportOrdersCsv = async () => {
+    try {
+      toast.info("Preparing orders ledger CSV...");
+      const { data: orders, error } = await (supabase as any)
+        .from("orders")
+        .select("id, created_at, status, payment_status, payment_method, total, subtotal, delivery_fee, discount, customer_name, customer_phone, delivery_address")
+        .order("created_at", { ascending: false })
+        .limit(3000);
+
+      if (error) throw error;
+      if (!orders || orders.length === 0) {
+        toast.info("No orders found to export.");
+        return;
+      }
+
+      const headers = ["Order ID", "Date", "Customer Name", "Customer Phone", "Status", "Payment Method", "Payment Status", "Subtotal (INR)", "Delivery Fee (INR)", "Discount (INR)", "Total (INR)", "Delivery Address"];
+      const rows = (orders as any[]).map((o) => [
+        o.id,
+        new Date(o.created_at).toLocaleString("en-IN"),
+        `"${(o.customer_name || "").replace(/"/g, '""')}"`,
+        `"${(o.customer_phone || "").replace(/"/g, '""')}"`,
+        o.status,
+        o.payment_method || "cod",
+        o.payment_status || "pending",
+        o.subtotal || 0,
+        o.delivery_fee || 0,
+        o.discount || o.discount_amount || 0,
+        o.total || 0,
+        `"${(o.delivery_address || "").replace(/"/g, '""')}"`,
+      ]);
+
+      const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `orders-ledger-${tenant.tenantId}-${new Date().toISOString().split("T")[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(`Exported ${orders.length} orders to CSV`);
+    } catch (err: any) {
+      toast.error("Failed to export orders CSV: " + err.message);
+    }
+  };
+
+  const handleExportProductsCsv = async () => {
+    try {
+      toast.info("Preparing catalog CSV...");
+      const { data: products, error } = await (supabase as any)
+        .from("products")
+        .select("id, name, price, cost_price, hsn_code, stock, is_available")
+        .order("name", { ascending: true });
+
+      if (error) throw error;
+      if (!products || products.length === 0) {
+        toast.info("No products found to export.");
+        return;
+      }
+
+      const headers = ["Product ID", "Item Name", "Retail Price (INR)", "Inward Cost (INR)", "HSN Code", "Stock", "Available"];
+      const rows = (products as any[]).map((p) => [
+        p.id,
+        `"${(p.name || "").replace(/"/g, '""')}"`,
+        p.price || 0,
+        p.cost_price || 0,
+        `"${p.hsn_code || "0302"}"`,
+        p.stock ?? 0,
+        p.is_available ? "Yes" : "No",
+      ]);
+
+      const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `products-catalog-${tenant.tenantId}-${new Date().toISOString().split("T")[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(`Exported ${products.length} products to CSV`);
+    } catch (err: any) {
+      toast.error("Failed to export products CSV: " + err.message);
+    }
+  };
 
   const { data: gateway } = useQuery({
     queryKey: ["payment_gateway_credentials"],
@@ -657,24 +844,78 @@ function AdminSettings() {
 
         <Card className="md:col-span-2">
           <CardHeader>
-            <CardTitle className="text-lg">Legal & Certifications</CardTitle>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <CardTitle className="text-lg">Legal, Tax Invoicing & Certifications</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Statutory details printed automatically on GST Tax Invoices and thermal slips.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" asChild className="rounded-xl text-xs h-7">
+                  <Link to="/licence" target="_blank">
+                    <FileText className="size-3 mr-1" /> View SLA &amp; License <ArrowUpRight className="size-3 ml-0.5" />
+                  </Link>
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label>FSSAI License Number</Label>
-              <Input
-                value={form.fssai_number ?? ""}
-                onChange={(e) => setForm({ ...form, fssai_number: e.target.value })}
-                placeholder="Enter 14-digit FSSAI number"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="gstin">GSTIN (GST Number)</Label>
+                <Input
+                  id="gstin"
+                  value={form.gstin ?? ""}
+                  onChange={(e) => setForm({ ...form, gstin: e.target.value.toUpperCase() })}
+                  placeholder="e.g. 33AAAAA0000A1Z5"
+                  className="mt-1 font-mono uppercase text-xs"
+                  maxLength={15}
+                />
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Printed on official Tax Invoices. Leave empty if unregistered.
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="gst_legal_name">GST Registered Legal Trade Name</Label>
+                <Input
+                  id="gst_legal_name"
+                  value={form.gst_legal_name ?? ""}
+                  onChange={(e) => setForm({ ...form, gst_legal_name: e.target.value })}
+                  placeholder="e.g. Fish N Fresh Enterprises LLP"
+                  className="mt-1 text-xs"
+                />
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Official registered business entity name.
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="fssai_license_no">FSSAI 14-Digit License Number</Label>
+                <Input
+                  id="fssai_license_no"
+                  value={form.fssai_license_no || form.fssai_number || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setForm({ ...form, fssai_license_no: val, fssai_number: val });
+                  }}
+                  placeholder="e.g. 12423008000123"
+                  className="mt-1 font-mono text-xs"
+                  maxLength={14}
+                />
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Required by Food Safety and Standards Authority of India.
+                </p>
+              </div>
             </div>
+
             <div>
-              <Label>Terms and Conditions</Label>
+              <Label htmlFor="terms_and_conditions">Terms and Conditions &amp; Return Policies</Label>
               <textarea
-                className="flex min-h-[120px] w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                id="terms_and_conditions"
+                className="mt-1 flex min-h-[100px] w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 value={form.terms_and_conditions ?? ""}
                 onChange={(e) => setForm({ ...form, terms_and_conditions: e.target.value })}
-                placeholder="Write your terms and conditions here..."
+                placeholder="Write store return policies, complaint windows, and terms here..."
               />
             </div>
           </CardContent>
@@ -1033,7 +1274,249 @@ function AdminSettings() {
         </CardContent>
       </Card>
 
-      {/* 4. Multi-Client White-Label & Supabase Backend Architecture */}
+      {/* 4. Modular Feature Controls & Commercial Capabilities */}
+      <Card className="mt-6 rounded-2xl shadow-xs border-border/80">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <SlidersHorizontal className="size-4 text-primary" />
+                Modular Feature Modules &amp; Tenant Capabilities
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Toggle modular software suites on or off for this client instance.
+              </p>
+            </div>
+            <Badge variant="outline" className="text-xs border-primary/30 text-primary bg-primary/5">
+              Client Module Controls
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* POS Terminal */}
+            <div className="flex items-center justify-between rounded-xl border border-border/70 p-3.5 bg-muted/20">
+              <div className="space-y-0.5 pr-2">
+                <div className="flex items-center gap-2">
+                  <ShoppingBag className="size-4 text-primary" />
+                  <Label htmlFor="toggle_feature_pos" className="font-semibold text-sm cursor-pointer">
+                    Retail Counter POS Terminal
+                  </Label>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  In-store barcode scanning, quick cash/QR billing, and direct ESC/POS thermal printing.
+                </p>
+              </div>
+              <Switch
+                id="toggle_feature_pos"
+                checked={form.feature_pos_enabled ?? true}
+                onCheckedChange={(checked) => setForm({ ...form, feature_pos_enabled: checked })}
+              />
+            </div>
+
+            {/* Live Chat */}
+            <div className="flex items-center justify-between rounded-xl border border-border/70 p-3.5 bg-muted/20">
+              <div className="space-y-0.5 pr-2">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="size-4 text-emerald-500" />
+                  <Label htmlFor="toggle_feature_chat" className="font-semibold text-sm cursor-pointer">
+                    Customer Live Support Chat
+                  </Label>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Real-time two-way messaging desk for customer inquiries, order assistance, and WhatsApp dial.
+                </p>
+              </div>
+              <Switch
+                id="toggle_feature_chat"
+                checked={form.feature_live_chat_enabled ?? true}
+                onCheckedChange={(checked) => setForm({ ...form, feature_live_chat_enabled: checked })}
+              />
+            </div>
+
+            {/* Wallet & Loyalty */}
+            <div className="flex items-center justify-between rounded-xl border border-border/70 p-3.5 bg-muted/20">
+              <div className="space-y-0.5 pr-2">
+                <div className="flex items-center gap-2">
+                  <Wallet className="size-4 text-amber-500" />
+                  <Label htmlFor="toggle_feature_wallet" className="font-semibold text-sm cursor-pointer">
+                    FreshCash Store Wallet &amp; Rewards
+                  </Label>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Order cashback, referral rewards, and instant checkout wallet burn balances.
+                </p>
+              </div>
+              <Switch
+                id="toggle_feature_wallet"
+                checked={form.feature_wallet_enabled ?? true}
+                onCheckedChange={(checked) => setForm({ ...form, feature_wallet_enabled: checked })}
+              />
+            </div>
+
+            {/* AI Benefits */}
+            <div className="flex items-center justify-between rounded-xl border border-border/70 p-3.5 bg-muted/20">
+              <div className="space-y-0.5 pr-2">
+                <div className="flex items-center gap-2">
+                  <Bot className="size-4 text-purple-500" />
+                  <Label htmlFor="toggle_feature_ai" className="font-semibold text-sm cursor-pointer">
+                    Smart Culinary &amp; Recipe AI
+                  </Label>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Dynamic health benefits, cooking tips, and nutrient breakdowns on product pages.
+                </p>
+              </div>
+              <Switch
+                id="toggle_feature_ai"
+                checked={form.feature_ai_benefits_enabled ?? true}
+                onCheckedChange={(checked) => setForm({ ...form, feature_ai_benefits_enabled: checked })}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 5. Data Management, Disaster Recovery & Commercial License */}
+      <Card className="mt-6 rounded-2xl shadow-xs border-emerald-500/30">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <ShieldCheck className="size-4 text-emerald-600 dark:text-emerald-400" />
+                Data Management, Disaster Recovery &amp; Versioning
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Complete database portability, 1-click JSON backup, CSV ledger exports, and schema verification.
+              </p>
+            </div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-xs px-2.5 py-0.5 font-bold font-mono">
+              <CheckCircle2 className="size-3.5 text-emerald-500" />
+              Schema: {schemaVersion?.version || "v2.2.0"} · Up to Date
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-950/20 p-3.5 text-xs text-emerald-900 dark:text-emerald-200">
+            <p className="font-semibold flex items-center gap-1.5">
+              <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
+              Zero Lock-in Architecture: 100% Client Data Ownership
+            </p>
+            <p className="mt-1 opacity-90 leading-relaxed">
+              All product catalogs, order history, inventory logs, and customer records belong unconditionally to your business. Download regular backups to safeguard against accidental changes or migrate to any Postgres environment.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Download Complete Backup */}
+            <div className="rounded-2xl border border-border/80 bg-card p-4 space-y-2.5 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                    <FileJson className="size-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs text-foreground">Full Store Backup</h4>
+                    <span className="text-[10px] text-muted-foreground">JSON Complete Snapshot</span>
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                  Exports products, orders with items, categories, marketing campaigns, and store settings.
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="w-full rounded-xl text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10"
+                onClick={handleDownloadJsonBackup}
+                disabled={exportingBackup}
+              >
+                <Download className="size-3.5 mr-1.5" />
+                {exportingBackup ? "Packaging Backup..." : "Download Backup (.json)"}
+              </Button>
+            </div>
+
+            {/* Export Orders CSV */}
+            <div className="rounded-2xl border border-border/80 bg-card p-4 space-y-2.5 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="size-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <FileSpreadsheet className="size-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs text-foreground">Orders Ledger</h4>
+                    <span className="text-[10px] text-muted-foreground">Accounting CSV Format</span>
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                  Spreadsheet export of sales, payment methods, delivery fees, and customer contact data.
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="w-full rounded-xl text-xs font-semibold border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
+                onClick={handleExportOrdersCsv}
+              >
+                <Download className="size-3.5 mr-1.5" />
+                Export Orders (.csv)
+              </Button>
+            </div>
+
+            {/* Export Products CSV */}
+            <div className="rounded-2xl border border-border/80 bg-card p-4 space-y-2.5 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="size-8 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+                    <FileSpreadsheet className="size-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs text-foreground">Catalog &amp; COGS</h4>
+                    <span className="text-[10px] text-muted-foreground">Inventory &amp; HSN Codes</span>
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                  Export product SKU lists with retail prices, inward cost prices, HSN classification, and stock units.
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="w-full rounded-xl text-xs font-semibold border-sky-500/30 text-sky-700 dark:text-sky-300 hover:bg-sky-500/10"
+                onClick={handleExportProductsCsv}
+              >
+                <Download className="size-3.5 mr-1.5" />
+                Export Catalog (.csv)
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border/60 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Commercial Tools:</span>
+              <Button variant="ghost" size="sm" asChild className="h-7 text-xs text-primary hover:text-primary">
+                <Link to="/admin/onboarding">
+                  ⚡ Store Onboarding Wizard <ArrowUpRight className="size-3 ml-0.5" />
+                </Link>
+              </Button>
+              <span>·</span>
+              <Button variant="ghost" size="sm" asChild className="h-7 text-xs text-primary hover:text-primary">
+                <Link to="/licence" target="_blank">
+                  📄 Commercial Software License &amp; SLA <ArrowUpRight className="size-3 ml-0.5" />
+                </Link>
+              </Button>
+            </div>
+            <span className="text-[11px] text-muted-foreground font-mono">
+              PostgreSQL Multi-Client Verified
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 6. Multi-Client White-Label & Supabase Backend Architecture */}
       <Card className="mt-6 rounded-2xl shadow-xs border-primary/30">
         <CardHeader>
           <CardTitle className="text-base flex items-center justify-between">

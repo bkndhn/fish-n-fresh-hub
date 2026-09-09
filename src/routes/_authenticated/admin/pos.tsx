@@ -31,6 +31,7 @@ import { adminProductsQuery } from "@/lib/admin";
 import { categoriesQuery, settingsQuery } from "@/lib/queries";
 import { formatINR, formatStockDisplay, formatStockUnitLabel } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
+import { deductOrderStock } from "@/lib/inventorySync";
 import type { Product } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -354,23 +355,14 @@ export function RetailPosCounterPage() {
         console.warn("Could not insert order:", orderErr.message);
       }
 
-      // 2. Real-time Inventory Deduction: update product stock atomically
-      for (const item of cart) {
-        const { data: prodData } = await supabase
-          .from("products")
-          .select("stock")
-          .eq("id", item.productId)
-          .maybeSingle();
-
-        if (prodData && typeof prodData.stock === "number") {
-          const deductAmount = item.weightKg > 0 ? item.weightKg : item.qty;
-          const newStock = Math.max(0, Math.round((prodData.stock - deductAmount) * 100) / 100);
-          await supabase
-            .from("products")
-            .update({ stock: newStock } as any)
-            .eq("id", item.productId);
-        }
-      }
+      // 2. Real-time Atomic Inventory Deduction: update product stock
+      await deductOrderStock(
+        orderRes?.id || orderNumber,
+        cart.map((it) => ({
+          product_id: it.productId,
+          qty: it.weightKg > 0 ? it.weightKg : it.qty,
+        }))
+      );
 
       // 3. Print ESC/POS thermal receipt via connected printer or styled fallback
       const printerConfig = getSavedPrinterConfig();

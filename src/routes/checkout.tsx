@@ -28,6 +28,7 @@ import { registerOrderDeliveryPin } from "@/lib/deliveryPin";
 import { CustomerDeliveryPinCard } from "@/components/CustomerDeliveryPinCard";
 import { getOrCreateUserWallet, calculateMaxRedeemable, redeemWalletBalance, validateReferralCode } from "@/lib/wallet";
 import { notifyOrderStatusChange } from "@/lib/fcm";
+import { checkCartStockAvailability, deductOrderStock } from "@/lib/inventorySync";
 
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371; // Radius of the earth in km
@@ -304,6 +305,14 @@ function Checkout() {
     
     setSaving(true);
 
+    // Pre-flight live stock check before processing payment or creating order
+    const stockCheck = await checkCartStockAvailability(items);
+    if (!stockCheck.available) {
+      toast.error(stockCheck.message || "Some items in your cart are currently out of stock.");
+      setSaving(false);
+      return;
+    }
+
     try {
       const suspension = await checkSuspension({ data: { phone: cleanPhone } });
       if (suspension.suspended) {
@@ -391,29 +400,9 @@ function Checkout() {
       console.warn("FCM push notice:", fcmErr);
     }
 
-    // Automatically reduce product stock based on sale
+    // Atomically reduce product stock
     const snapshotItems = [...items];
-    try {
-      for (const item of snapshotItems) {
-        if (item.product_id) {
-          const { data: prodData } = await supabase
-            .from("products")
-            .select("stock")
-            .eq("id", item.product_id)
-            .maybeSingle();
-
-          if (prodData && typeof prodData.stock === "number") {
-            const newStock = Math.max(0, prodData.stock - Number(item.qty || 1));
-            await supabase
-              .from("products")
-              .update({ stock: newStock } as any)
-              .eq("id", item.product_id);
-          }
-        }
-      }
-    } catch (stockErr) {
-      console.error("Auto stock decrement warning:", stockErr);
-    }
+    await deductOrderStock(data.id, snapshotItems);
 
     localStorage.setItem("fnf_phone", phone);
     clear();

@@ -366,6 +366,10 @@ export function Footer() {
               Refund Policy
             </Link>
             <span>·</span>
+            <Link to="/licence" className="hover:text-primary transition-colors">
+              Software License
+            </Link>
+            <span>·</span>
             <Link to="/catalog" className="hover:text-primary transition-colors font-medium text-foreground">
               Daily Catches
             </Link>

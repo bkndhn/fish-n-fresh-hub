@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CartRouteImport } from './routes/cart'
 import { Route as CatalogRouteImport } from './routes/catalog'
 import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as LicenceRouteImport } from './routes/licence'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as PaymentStatusRouteImport } from './routes/payment-status'
@@ -34,6 +35,7 @@ import { Route as AuthenticatedAdminComplaintsRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminCustomersRouteImport } from './routes/_authenticated/admin/customers'
 import { Route as AuthenticatedAdminDeliveryRouteImport } from './routes/_authenticated/admin/delivery'
 import { Route as AuthenticatedAdminDriverRouteImport } from './routes/_authenticated/admin/driver'
+import { Route as AuthenticatedAdminOnboardingRouteImport } from './routes/_authenticated/admin/onboarding'
 import { Route as AuthenticatedAdminOrdersRouteImport } from './routes/_authenticated/admin/orders'
 import { Route as AuthenticatedAdminPaymentsRouteImport } from './routes/_authenticated/admin/payments'
 import { Route as AuthenticatedAdminPosRouteImport } from './routes/_authenticated/admin/pos'
@@ -44,6 +46,7 @@ import { Route as AuthenticatedAdminReportsRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminScheduleRouteImport } from './routes/_authenticated/admin/schedule'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin/settings'
 import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authenticated/admin/staff'
+import { Route as AuthenticatedAdminSupportRouteImport } from './routes/_authenticated/admin/support'
 import { Route as AuthenticatedAdminWasteRouteImport } from './routes/_authenticated/admin/waste'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 
@@ -74,6 +77,11 @@ const CatalogRoute = CatalogRouteImport.update({
 const CheckoutRoute = CheckoutRouteImport.update({
   id: '/checkout',
   path: '/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LicenceRoute = LicenceRouteImport.update({
+  id: '/licence',
+  path: '/licence',
   getParentRoute: () => rootRouteImport,
 } as any)
 const McpRoute = McpRouteImport.update({
@@ -179,6 +187,12 @@ const AuthenticatedAdminDriverRoute =
     path: '/admin/driver',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminOnboardingRoute =
+  AuthenticatedAdminOnboardingRouteImport.update({
+    id: '/admin/onboarding',
+    path: '/admin/onboarding',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminOrdersRoute =
   AuthenticatedAdminOrdersRouteImport.update({
     id: '/admin/orders',
@@ -237,6 +251,12 @@ const AuthenticatedAdminStaffRoute = AuthenticatedAdminStaffRouteImport.update({
   path: '/admin/staff',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminSupportRoute =
+  AuthenticatedAdminSupportRouteImport.update({
+    id: '/admin/support',
+    path: '/admin/support',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminWasteRoute = AuthenticatedAdminWasteRouteImport.update({
   id: '/admin/waste',
   path: '/admin/waste',
@@ -255,6 +275,7 @@ export interface FileRoutesByFullPath {
   '/cart': typeof CartRoute
   '/catalog': typeof CatalogRoute
   '/checkout': typeof CheckoutRoute
+  '/licence': typeof LicenceRoute
   '/mcp': typeof McpRoute
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
@@ -273,6 +294,7 @@ export interface FileRoutesByFullPath {
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/admin/delivery': typeof AuthenticatedAdminDeliveryRoute
   '/admin/driver': typeof AuthenticatedAdminDriverRoute
+  '/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/pos': typeof AuthenticatedAdminPosRoute
@@ -283,6 +305,7 @@ export interface FileRoutesByFullPath {
   '/admin/schedule': typeof AuthenticatedAdminScheduleRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/staff': typeof AuthenticatedAdminStaffRoute
+  '/admin/support': typeof AuthenticatedAdminSupportRoute
   '/admin/waste': typeof AuthenticatedAdminWasteRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -293,6 +316,7 @@ export interface FileRoutesByTo {
   '/cart': typeof CartRoute
   '/catalog': typeof CatalogRoute
   '/checkout': typeof CheckoutRoute
+  '/licence': typeof LicenceRoute
   '/mcp': typeof McpRoute
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
@@ -311,6 +335,7 @@ export interface FileRoutesByTo {
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/admin/delivery': typeof AuthenticatedAdminDeliveryRoute
   '/admin/driver': typeof AuthenticatedAdminDriverRoute
+  '/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/pos': typeof AuthenticatedAdminPosRoute
@@ -321,6 +346,7 @@ export interface FileRoutesByTo {
   '/admin/schedule': typeof AuthenticatedAdminScheduleRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/staff': typeof AuthenticatedAdminStaffRoute
+  '/admin/support': typeof AuthenticatedAdminSupportRoute
   '/admin/waste': typeof AuthenticatedAdminWasteRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -333,6 +359,7 @@ export interface FileRoutesById {
   '/cart': typeof CartRoute
   '/catalog': typeof CatalogRoute
   '/checkout': typeof CheckoutRoute
+  '/licence': typeof LicenceRoute
   '/mcp': typeof McpRoute
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
@@ -351,6 +378,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/_authenticated/admin/delivery': typeof AuthenticatedAdminDeliveryRoute
   '/_authenticated/admin/driver': typeof AuthenticatedAdminDriverRoute
+  '/_authenticated/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/_authenticated/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/_authenticated/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/_authenticated/admin/pos': typeof AuthenticatedAdminPosRoute
@@ -361,6 +389,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/schedule': typeof AuthenticatedAdminScheduleRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/admin/staff': typeof AuthenticatedAdminStaffRoute
+  '/_authenticated/admin/support': typeof AuthenticatedAdminSupportRoute
   '/_authenticated/admin/waste': typeof AuthenticatedAdminWasteRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -373,6 +402,7 @@ export interface FileRouteTypes {
     | '/cart'
     | '/catalog'
     | '/checkout'
+    | '/licence'
     | '/mcp'
     | '/orders'
     | '/payment-status'
@@ -391,6 +421,7 @@ export interface FileRouteTypes {
     | '/admin/customers'
     | '/admin/delivery'
     | '/admin/driver'
+    | '/admin/onboarding'
     | '/admin/orders'
     | '/admin/payments'
     | '/admin/pos'
@@ -401,6 +432,7 @@ export interface FileRouteTypes {
     | '/admin/schedule'
     | '/admin/settings'
     | '/admin/staff'
+    | '/admin/support'
     | '/admin/waste'
     | '/admin/'
     | '/api/public/payments/webhook'
@@ -411,6 +443,7 @@ export interface FileRouteTypes {
     | '/cart'
     | '/catalog'
     | '/checkout'
+    | '/licence'
     | '/mcp'
     | '/orders'
     | '/payment-status'
@@ -429,6 +462,7 @@ export interface FileRouteTypes {
     | '/admin/customers'
     | '/admin/delivery'
     | '/admin/driver'
+    | '/admin/onboarding'
     | '/admin/orders'
     | '/admin/payments'
     | '/admin/pos'
@@ -439,6 +473,7 @@ export interface FileRouteTypes {
     | '/admin/schedule'
     | '/admin/settings'
     | '/admin/staff'
+    | '/admin/support'
     | '/admin/waste'
     | '/admin'
     | '/api/public/payments/webhook'
@@ -450,6 +485,7 @@ export interface FileRouteTypes {
     | '/cart'
     | '/catalog'
     | '/checkout'
+    | '/licence'
     | '/mcp'
     | '/orders'
     | '/payment-status'
@@ -468,6 +504,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/customers'
     | '/_authenticated/admin/delivery'
     | '/_authenticated/admin/driver'
+    | '/_authenticated/admin/onboarding'
     | '/_authenticated/admin/orders'
     | '/_authenticated/admin/payments'
     | '/_authenticated/admin/pos'
@@ -478,6 +515,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/schedule'
     | '/_authenticated/admin/settings'
     | '/_authenticated/admin/staff'
+    | '/_authenticated/admin/support'
     | '/_authenticated/admin/waste'
     | '/_authenticated/admin/'
     | '/api/public/payments/webhook'
@@ -490,6 +528,7 @@ export interface RootRouteChildren {
   CartRoute: typeof CartRoute
   CatalogRoute: typeof CatalogRoute
   CheckoutRoute: typeof CheckoutRoute
+  LicenceRoute: typeof LicenceRoute
   McpRoute: typeof McpRoute
   OrdersRoute: typeof OrdersRoute
   PaymentStatusRoute: typeof PaymentStatusRoute
@@ -544,6 +583,13 @@ declare module '@tanstack/react-router' {
       path: '/checkout'
       fullPath: '/checkout'
       preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/licence': {
+      id: '/licence'
+      path: '/licence'
+      fullPath: '/licence'
+      preLoaderRoute: typeof LicenceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mcp': {
@@ -679,6 +725,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDriverRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/onboarding': {
+      id: '/_authenticated/admin/onboarding'
+      path: '/admin/onboarding'
+      fullPath: '/admin/onboarding'
+      preLoaderRoute: typeof AuthenticatedAdminOnboardingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/orders': {
       id: '/_authenticated/admin/orders'
       path: '/admin/orders'
@@ -749,6 +802,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminStaffRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/support': {
+      id: '/_authenticated/admin/support'
+      path: '/admin/support'
+      fullPath: '/admin/support'
+      preLoaderRoute: typeof AuthenticatedAdminSupportRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/waste': {
       id: '/_authenticated/admin/waste'
       path: '/admin/waste'
@@ -776,6 +836,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminCustomersRoute: typeof AuthenticatedAdminCustomersRoute
   AuthenticatedAdminDeliveryRoute: typeof AuthenticatedAdminDeliveryRoute
   AuthenticatedAdminDriverRoute: typeof AuthenticatedAdminDriverRoute
+  AuthenticatedAdminOnboardingRoute: typeof AuthenticatedAdminOnboardingRoute
   AuthenticatedAdminOrdersRoute: typeof AuthenticatedAdminOrdersRoute
   AuthenticatedAdminPaymentsRoute: typeof AuthenticatedAdminPaymentsRoute
   AuthenticatedAdminPosRoute: typeof AuthenticatedAdminPosRoute
@@ -786,6 +847,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminScheduleRoute: typeof AuthenticatedAdminScheduleRoute
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminStaffRoute: typeof AuthenticatedAdminStaffRoute
+  AuthenticatedAdminSupportRoute: typeof AuthenticatedAdminSupportRoute
   AuthenticatedAdminWasteRoute: typeof AuthenticatedAdminWasteRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
@@ -800,6 +862,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminCustomersRoute: AuthenticatedAdminCustomersRoute,
   AuthenticatedAdminDeliveryRoute: AuthenticatedAdminDeliveryRoute,
   AuthenticatedAdminDriverRoute: AuthenticatedAdminDriverRoute,
+  AuthenticatedAdminOnboardingRoute: AuthenticatedAdminOnboardingRoute,
   AuthenticatedAdminOrdersRoute: AuthenticatedAdminOrdersRoute,
   AuthenticatedAdminPaymentsRoute: AuthenticatedAdminPaymentsRoute,
   AuthenticatedAdminPosRoute: AuthenticatedAdminPosRoute,
@@ -810,6 +873,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminScheduleRoute: AuthenticatedAdminScheduleRoute,
   AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
   AuthenticatedAdminStaffRoute: AuthenticatedAdminStaffRoute,
+  AuthenticatedAdminSupportRoute: AuthenticatedAdminSupportRoute,
   AuthenticatedAdminWasteRoute: AuthenticatedAdminWasteRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
 }
@@ -824,6 +888,7 @@ const rootRouteChildren: RootRouteChildren = {
   CartRoute: CartRoute,
   CatalogRoute: CatalogRoute,
   CheckoutRoute: CheckoutRoute,
+  LicenceRoute: LicenceRoute,
   McpRoute: McpRoute,
   OrdersRoute: OrdersRoute,
   PaymentStatusRoute: PaymentStatusRoute,

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, FileText } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +16,7 @@ import { useCart } from "@/lib/cart";
 import { settingsQuery } from "@/lib/queries";
 import { lookupGuestOrder, type GuestOrder } from "@/lib/orders.functions";
 import { CustomerDeliveryPinCard } from "@/components/CustomerDeliveryPinCard";
+import { TaxInvoiceModal } from "@/components/TaxInvoiceModal";
 
 export const Route = createFileRoute("/orders")({
   head: () => ({
@@ -104,6 +105,7 @@ function MyOrders() {
 
   const [complainingId, setComplainingId] = useState<string | null>(null);
   const [complaintText, setComplaintText] = useState("");
+  const [invoiceOrder, setInvoiceOrder] = useState<any>(null);
 
   if (!orders?.length) {
     return (
@@ -152,6 +154,14 @@ function MyOrders() {
                 >
                   <RotateCcw className="mr-1 size-3.5" /> Reorder
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-xl border-sky-500/30 text-sky-700 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40"
+                  onClick={() => setInvoiceOrder(o)}
+                >
+                  <FileText className="mr-1 size-3.5 text-sky-600" /> Invoice
+                </Button>
                 <Button asChild size="sm" variant="outline" className="rounded-xl">
                   <Link to="/track/$id" params={{ id: o.id }}>
                     Track
@@ -197,6 +207,16 @@ function MyOrders() {
           </li>
         );
       })}
+
+      {/* Official Tax Invoice Modal */}
+      {invoiceOrder && (
+        <TaxInvoiceModal
+          isOpen={!!invoiceOrder}
+          onClose={() => setInvoiceOrder(null)}
+          order={invoiceOrder}
+          settings={settings}
+        />
+      )}
     </ul>
   );
 }

@@ -21,17 +21,20 @@ import {
   Compass,
   Route as RouteIcon,
   KeyRound,
+  FileText,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery, ORDER_STATUSES, type OrderRow } from "@/lib/admin";
 import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
 import { DeliveryPinVerificationModal } from "@/components/DeliveryPinVerificationModal";
+import { TaxInvoiceModal } from "@/components/TaxInvoiceModal";
 import { getGoogleMapsDirUrl } from "@/lib/maps";
 import { settingsQuery } from "@/lib/queries";
 import { formatINR, formatIST } from "@/lib/format";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { supabase } from "@/integrations/supabase/client";
+import { restoreOrderStock } from "@/lib/inventorySync";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -81,6 +84,7 @@ function OrdersAdmin() {
   const [printOrder, setPrintOrder] = useState<OrderRow | null>(null);
   const [routeModalOrder, setRouteModalOrder] = useState<OrderRow | null>(null);
   const [pinModalOrder, setPinModalOrder] = useState<OrderRow | null>(null);
+  const [invoiceOrder, setInvoiceOrder] = useState<OrderRow | null>(null);
 
   // Bulk Actions State
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -92,6 +96,9 @@ function OrdersAdmin() {
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const { error } = await supabase.from("orders").update({ status }).eq("id", id);
       if (error) throw error;
+      if (status === "cancelled") {
+        await restoreOrderStock(id);
+      }
     },
     onSuccess: () => {
       toast.success("Order updated");
@@ -175,6 +182,11 @@ function OrdersAdmin() {
         .update(patch)
         .in("id", selectedOrderIds);
       if (error) throw error;
+      if (status === "cancelled") {
+        for (const orderId of selectedOrderIds) {
+          await restoreOrderStock(orderId);
+        }
+      }
       toast.success(`${selectedOrderIds.length} orders updated to ${status.replace(/_/g, " ")}`);
       setSelectedOrderIds([]);
       qc.invalidateQueries({ queryKey: ["admin", "orders"] });
@@ -556,7 +568,7 @@ function OrdersAdmin() {
                   </div>
                 </div>
 
-                {/* Bottom Action Row: Print Bill + Status Selector */}
+                {/* Bottom Action Row: Print Bill + Tax Invoice + Status Selector */}
                 <div className="flex items-center gap-2 pt-1 border-t border-border/50">
                   <Button
                     size="sm"
@@ -565,6 +577,15 @@ function OrdersAdmin() {
                     onClick={() => setPrintOrder(o)}
                   >
                     <Printer className="mr-1.5 size-3.5" /> Bill
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl h-8.5 text-xs font-semibold shrink-0 border-sky-500/30 text-sky-700 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40"
+                    onClick={() => setInvoiceOrder(o)}
+                  >
+                    <FileText className="mr-1.5 size-3.5 text-sky-600" /> Invoice
                   </Button>
 
                   <div className="flex-1">
@@ -811,6 +832,16 @@ function OrdersAdmin() {
           onSuccess={() => {
             qc.invalidateQueries({ queryKey: ["admin", "orders"] });
           }}
+        />
+      )}
+
+      {/* Official GSTIN Tax Invoice Modal */}
+      {invoiceOrder && (
+        <TaxInvoiceModal
+          isOpen={!!invoiceOrder}
+          onClose={() => setInvoiceOrder(null)}
+          order={invoiceOrder}
+          settings={settings}
         />
       )}
     </AdminShell>

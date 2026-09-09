@@ -26,6 +26,7 @@ import { formatINR, formatIST } from "@/lib/format";
 import { cancelAndRefundOrder } from "@/lib/refunds.functions";
 import { getStripeEnvironment, isPaymentsConfigured } from "@/lib/stripe";
 import { supabase } from "@/integrations/supabase/client";
+import { restoreOrderStock } from "@/lib/inventorySync";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +69,9 @@ export function ComplaintsAdmin() {
     mutationFn: async ({ id, patch }: { id: string; patch: Partial<OrderRow> }) => {
       const { error } = await supabase.from("orders").update(patch as never).eq("id", id);
       if (error) throw error;
+      if (patch.status === "cancelled" || patch.payment_status === "refunded") {
+        await restoreOrderStock(id);
+      }
     },
     onSuccess: () => {
       toast.success("Complaint status updated");
@@ -88,6 +92,7 @@ export function ComplaintsAdmin() {
         },
       });
       if ("error" in res) throw new Error(res.error);
+      await restoreOrderStock(orderId);
       return res;
     },
     onSuccess: (res) => {

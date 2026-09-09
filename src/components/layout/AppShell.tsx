@@ -8,6 +8,7 @@ import { CatchAlertBanner } from "../CatchAlertBanner";
 import { BottomNav } from "./BottomNav";
 import { FloatingCart } from "../FloatingCart";
 import { PwaPrompt } from "../PwaPrompt";
+import { CustomerSupportChatWidget } from "../CustomerSupportChatWidget";
 import { Footer } from "./Footer";
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -30,8 +31,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       <FloatingCart />
       <BottomNav />
 
-      {/* Floating WhatsApp Speed-Dial Widget */}
-      {waUrl && (
+      {/* Unified Live Customer Support Desk & WhatsApp Speed-Dial */}
+      {(settings as any)?.feature_live_chat_enabled !== false ? (
+        <CustomerSupportChatWidget />
+      ) : waUrl ? (
         <a
           href={waUrl}
           target="_blank"
@@ -49,7 +52,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="relative inline-flex rounded-full size-3 bg-emerald-500" />
           </span>
         </a>
-      )}
+      ) : null}
     </div>
   );
 }

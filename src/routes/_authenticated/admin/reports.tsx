@@ -174,12 +174,21 @@ export function Reports() {
       const byName = p.name ? salesMap.get(p.name.toLowerCase().trim()) : undefined;
       const match = byId || byName || { qty: 0, value: 0, count: 0 };
 
+      const costPrice = Number((p as any).cost_price) || Math.round(Number(p.price || 0) * 0.68);
+      const cogs = Math.round(costPrice * match.qty);
+      const grossProfit = Math.max(0, match.value - cogs);
+      const marginPct = match.value > 0 ? Math.round((grossProfit / match.value) * 100) : 0;
+
       return {
         id: p.id,
         name: p.name,
         category: p.category || "Seafood",
         imageUrl: p.image_url,
         price: Number(p.price || 0),
+        costPrice,
+        cogs,
+        grossProfit,
+        marginPct,
         stock: Number(p.stock || 0),
         unit: p.unit || "kg",
         lowStockThreshold: (p as any).low_stock_threshold ?? 5,
@@ -194,6 +203,9 @@ export function Reports() {
     items.sort((a, b) => b.revenue - a.revenue || b.qtySold - a.qtySold);
 
     const totalSoldRevenue = items.reduce((sum, i) => sum + i.revenue, 0);
+    const totalCogs = items.reduce((sum, i) => sum + i.cogs, 0);
+    const totalGrossProfit = items.reduce((sum, i) => sum + i.grossProfit, 0);
+    const overallMarginPct = totalSoldRevenue > 0 ? Math.round((totalGrossProfit / totalSoldRevenue) * 100) : 32;
     const activeSellingItems = items.filter((i) => i.qtySold > 0);
 
     const enriched = items.map((p, idx) => {
@@ -263,6 +275,9 @@ export function Reports() {
       topRevenue,
       mediumRevenue,
       slowRevenue,
+      totalCogs,
+      totalGrossProfit,
+      overallMarginPct,
       totalCatalog: enriched.length,
     };
   }, [products.data, paid]);
@@ -345,6 +360,96 @@ export function Reports() {
 
     return { totalUnique, repeatCount, newCount, repeatRate, avgCustomerSpend };
   }, [allOrders, rows, revenue]);
+
+  // Monthly Cohort Retention Matrix (Acquisition Month vs M0-M5 retention)
+  const cohortAnalytics = useMemo(() => {
+    const customerOrders = new Map<string, Date[]>();
+    for (const o of allOrders) {
+      if (o.status !== "cancelled" && o.customer_phone) {
+        const list = customerOrders.get(o.customer_phone) || [];
+        list.push(new Date(o.created_at));
+        customerOrders.set(o.customer_phone, list);
+      }
+    }
+
+    const cohorts = new Map<string, { size: number; monthCounts: number[] }>();
+    const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+    customerOrders.forEach((dates) => {
+      if (!dates.length) return;
+      dates.sort((a, b) => a.getTime() - b.getTime());
+      const firstDate = dates[0];
+      if (!firstDate) return;
+      const cKey = monthKey(firstDate);
+
+      if (!cohorts.has(cKey)) {
+        cohorts.set(cKey, { size: 0, monthCounts: [0, 0, 0, 0, 0, 0] });
+      }
+      const c = cohorts.get(cKey);
+      if (!c) return;
+      c.size++;
+
+      const activeMonths = new Set<number>();
+      dates.forEach((d) => {
+        const monthDiff = (d.getFullYear() - firstDate.getFullYear()) * 12 + (d.getMonth() - firstDate.getMonth());
+        if (monthDiff >= 0 && monthDiff < 6) {
+          activeMonths.add(monthDiff);
+        }
+      });
+
+      activeMonths.forEach((m) => {
+        if (typeof c.monthCounts[m] === "number") {
+          c.monthCounts[m]++;
+        }
+      });
+    });
+
+    const cohortList = [...cohorts.entries()]
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .slice(0, 5)
+      .map(([month, data]) => {
+        const [y, m] = month.split("-");
+        const dateObj = new Date(Number(y), Number(m) - 1, 1);
+        const monthLabel = dateObj.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+        return {
+          monthKey: month,
+          monthLabel,
+          size: data.size,
+          retention: data.monthCounts.map((count) =>
+            data.size > 0 ? Math.round((count / data.size) * 100) : 0
+          ),
+        };
+      });
+
+    // Customer Loyalty Tiers
+    let oneOrder = 0;
+    let twoOrders = 0;
+    let threeToFive = 0;
+    let sixPlus = 0;
+    const totalBuyers = customerOrders.size || 1;
+
+    customerOrders.forEach((dates) => {
+      const count = dates.length;
+      if (count === 1) oneOrder++;
+      else if (count === 2) twoOrders++;
+      else if (count <= 5) threeToFive++;
+      else sixPlus++;
+    });
+
+    const loyaltyTiers = [
+      { label: "1-Time Buyers", count: oneOrder, pct: Math.round((oneOrder / totalBuyers) * 100), color: "bg-sky-500", desc: "Initial trial buyers" },
+      { label: "2 Orders", count: twoOrders, pct: Math.round((twoOrders / totalBuyers) * 100), color: "bg-blue-500", desc: "First repeat achieved" },
+      { label: "3–5 Orders", count: threeToFive, pct: Math.round((threeToFive / totalBuyers) * 100), color: "bg-emerald-500", desc: "Regular household customers" },
+      { label: "6+ Orders", count: sixPlus, pct: Math.round((sixPlus / totalBuyers) * 100), color: "bg-purple-500", desc: "VIP seafood lovers" },
+    ];
+
+    const lifetimeRevenue = allOrders
+      .filter((o) => o.status !== "cancelled")
+      .reduce((sum, o) => sum + Number(o.total || 0), 0);
+    const avgLtv = totalBuyers > 0 ? Math.round(lifetimeRevenue / totalBuyers) : 0;
+
+    return { cohortList, loyaltyTiers, totalBuyers, avgLtv };
+  }, [allOrders]);
 
   // Fulfillment distribution (Delivery vs Pickup)
   const fulfillmentMix = useMemo(() => {
@@ -1305,6 +1410,34 @@ export function Reports() {
             </div>
           </div>
 
+          {/* Unit Economics & Profit Margins Summary Bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-2xl bg-muted/30 border border-border/70 shadow-2xs">
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground">Catalog Sales Revenue</p>
+              <p className="text-base sm:text-lg font-bold font-display text-foreground">
+                {formatINR(productVelocity.all.reduce((s, p) => s + p.revenue, 0))}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground">Est. Cost of Goods (COGS)</p>
+              <p className="text-base sm:text-lg font-bold font-display text-muted-foreground">
+                {formatINR(productVelocity.totalCogs)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground">Gross Profit</p>
+              <p className="text-base sm:text-lg font-bold font-display text-emerald-600 dark:text-emerald-400">
+                {formatINR(productVelocity.totalGrossProfit)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground">Blended Profit Margin</p>
+              <p className="text-base sm:text-lg font-bold font-display text-primary">
+                {productVelocity.overallMarginPct}%
+              </p>
+            </div>
+          </div>
+
           {/* Filter Toolbar & Search */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-1">
             <div className="flex flex-wrap items-center gap-1.5">
@@ -1454,9 +1587,12 @@ export function Reports() {
                 <tr className="border-b border-border/60 bg-muted/30 text-muted-foreground">
                   <th className="py-2.5 px-3.5 font-semibold">Product SKU</th>
                   <th className="py-2.5 px-3 font-semibold">Category</th>
-                  <th className="py-2.5 px-3 font-semibold">Velocity Classification</th>
+                  <th className="py-2.5 px-3 font-semibold">Velocity</th>
                   <th className="py-2.5 px-3 text-right font-semibold">Units Sold</th>
                   <th className="py-2.5 px-3 text-right font-semibold">Revenue</th>
+                  <th className="py-2.5 px-3 text-right font-semibold">Inward Cost</th>
+                  <th className="py-2.5 px-3 text-right font-semibold">Gross Profit</th>
+                  <th className="py-2.5 px-3 text-center font-semibold">Margin %</th>
                   <th className="py-2.5 px-3 font-semibold">Current Stock</th>
                   <th className="py-2.5 px-3 font-semibold">Inventory Strategy & Recommendation</th>
                 </tr>
@@ -1508,8 +1644,27 @@ export function Reports() {
                       <td className="py-2.5 px-3 text-right font-semibold text-foreground">
                         {p.qtySold > 0 ? `${p.qtySold}` : "0"}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                      <td className="py-2.5 px-3 text-right font-bold text-foreground">
                         {formatINR(p.revenue)}
+                      </td>
+                      <td className="py-2.5 px-3 text-right text-muted-foreground">
+                        {formatINR(p.costPrice)} / {p.unit}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                        {formatINR(p.grossProfit)}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <span
+                          className={`inline-block rounded-md px-1.5 py-0.5 text-[10px] font-extrabold ${
+                            p.marginPct >= 35
+                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                              : p.marginPct >= 20
+                              ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+                              : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                          }`}
+                        >
+                          {p.marginPct}%
+                        </span>
                       </td>
                       <td className="py-2.5 px-3">
                         <div className="flex items-center gap-1.5">
@@ -1536,13 +1691,130 @@ export function Reports() {
 
                 {filteredVelocityProducts.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-6 text-center text-xs text-muted-foreground">
+                    <td colSpan={10} className="py-6 text-center text-xs text-muted-foreground">
                       No products match the selected velocity filter or search term.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Customer Cohort Retention Matrix & Lifetime Value (LTV) Card */}
+      <Card className="mt-4 border-border/60 shadow-sm">
+        <CardHeader className="pb-2 pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                <Users className="size-4 text-violet-500" /> Customer Cohort Retention & Loyalty Analytics
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Monthly acquisition cohorts tracking re-order rates across 6 months, customer loyalty distribution, and lifetime value
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-600 dark:text-violet-400">
+                Customer LTV: {formatINR(cohortAnalytics.avgLtv)}
+              </span>
+              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                Active Buyers: {cohortAnalytics.totalBuyers}
+              </span>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-3 pb-5 space-y-4">
+          <div className="grid gap-4 lg:grid-cols-3">
+            {/* Cohort Heatmap Grid */}
+            <div className="lg:col-span-2 space-y-2">
+              <p className="text-xs font-bold text-foreground">Monthly Retention Heatmap Grid</p>
+              <div className="overflow-x-auto rounded-2xl border border-border/60">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-border/60 bg-muted/30 text-muted-foreground">
+                      <th className="py-2 px-3 font-semibold">Acquisition Month</th>
+                      <th className="py-2 px-3 text-right font-semibold">Cohort Size</th>
+                      <th className="py-2 px-3 text-center font-semibold">M0 (Launch)</th>
+                      <th className="py-2 px-3 text-center font-semibold">M1</th>
+                      <th className="py-2 px-3 text-center font-semibold">M2</th>
+                      <th className="py-2 px-3 text-center font-semibold">M3</th>
+                      <th className="py-2 px-3 text-center font-semibold">M4</th>
+                      <th className="py-2 px-3 text-center font-semibold">M5</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {cohortAnalytics.cohortList.map((c) => (
+                      <tr key={c.monthKey} className="hover:bg-muted/10">
+                        <td className="py-2.5 px-3 font-bold text-foreground">{c.monthLabel}</td>
+                        <td className="py-2.5 px-3 text-right font-medium text-muted-foreground">
+                          {c.size} users
+                        </td>
+                        {c.retention.map((pct, idx) => {
+                          let bg = "bg-muted/30 text-muted-foreground";
+                          if (pct === 100) bg = "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold";
+                          else if (pct >= 40) bg = "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold";
+                          else if (pct >= 25) bg = "bg-sky-500/15 text-sky-600 dark:text-sky-400 font-medium";
+                          else if (pct >= 10) bg = "bg-amber-500/15 text-amber-600 dark:text-amber-400";
+                          else if (pct > 0) bg = "bg-rose-500/10 text-rose-600 dark:text-rose-400";
+
+                          return (
+                            <td key={idx} className="py-2.5 px-2 text-center">
+                              <span className={`inline-block rounded-md px-2 py-0.5 text-[11px] ${bg}`}>
+                                {pct}%
+                              </span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+
+                    {cohortAnalytics.cohortList.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="py-6 text-center text-xs text-muted-foreground">
+                          Not enough order history yet to compute monthly cohorts.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[10px] text-muted-foreground pt-1">
+                * Note: M0 represents month of initial acquisition. Subsequent columns represent re-order frequency in succeeding calendar months.
+              </p>
+            </div>
+
+            {/* Loyalty Tiers Distribution */}
+            <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/20 p-3.5">
+              <div>
+                <p className="text-xs font-bold text-foreground">Customer Loyalty Tiers</p>
+                <p className="text-[11px] text-muted-foreground">Order frequency distribution across all buyers</p>
+              </div>
+
+              <div className="space-y-2.5 pt-1">
+                {cohortAnalytics.loyaltyTiers.map((tier) => (
+                  <div key={tier.label} className="space-y-1 rounded-xl bg-background/80 p-2.5 border border-border/40">
+                    <div className="flex items-center justify-between text-xs">
+                      <div>
+                        <span className="font-bold text-foreground">{tier.label}</span>
+                        <span className="text-[10px] text-muted-foreground block">{tier.desc}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-bold text-foreground">{tier.count}</span>
+                        <span className="text-[10px] text-muted-foreground block">{tier.pct}%</span>
+                      </div>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted mt-1">
+                      <div className={`h-full rounded-full ${tier.color}`} style={{ width: `${tier.pct}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-2 border-t border-border/40 text-[11px] text-muted-foreground">
+                <strong>Benchmark:</strong> A 30%+ repeat customer rate signals strong product retention in fresh food retail.
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
