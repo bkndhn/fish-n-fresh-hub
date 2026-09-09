@@ -21,6 +21,7 @@ import { Route as PaymentStatusRouteImport } from './routes/payment-status'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedCrewRouteImport } from './routes/_authenticated/crew'
 import { Route as ProductIdRouteImport } from './routes/product.$id'
 import { Route as TrackIdRouteImport } from './routes/track.$id'
@@ -106,6 +107,11 @@ const Char91DotwellKnownChar93OauthProtectedResourceRoute =
     path: '/.well-known/oauth-protected-resource',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCrewRoute = AuthenticatedCrewRouteImport.update({
   id: '/crew',
   path: '/crew',
@@ -255,6 +261,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/account': typeof AuthenticatedAccountRoute
   '/crew': typeof AuthenticatedCrewRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
@@ -292,6 +299,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/account': typeof AuthenticatedAccountRoute
   '/crew': typeof AuthenticatedCrewRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
@@ -331,6 +339,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/crew': typeof AuthenticatedCrewRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
@@ -370,6 +379,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/terms'
     | '/.well-known/oauth-protected-resource'
+    | '/account'
     | '/crew'
     | '/product/$id'
     | '/track/$id'
@@ -407,6 +417,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/terms'
     | '/.well-known/oauth-protected-resource'
+    | '/account'
     | '/crew'
     | '/product/$id'
     | '/track/$id'
@@ -445,6 +456,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/terms'
     | '/.well-known/oauth-protected-resource'
+    | '/_authenticated/account'
     | '/_authenticated/crew'
     | '/product/$id'
     | '/track/$id'
@@ -575,6 +587,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/.well-known/oauth-protected-resource'
       preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/account': {
+      id: '/_authenticated/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AuthenticatedAccountRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/crew': {
       id: '/_authenticated/crew'
@@ -748,6 +767,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
   AuthenticatedCrewRoute: typeof AuthenticatedCrewRoute
   AuthenticatedAdminBadgesRoute: typeof AuthenticatedAdminBadgesRoute
   AuthenticatedAdminBannersRoute: typeof AuthenticatedAdminBannersRoute
@@ -771,6 +791,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAccountRoute: AuthenticatedAccountRoute,
   AuthenticatedCrewRoute: AuthenticatedCrewRoute,
   AuthenticatedAdminBadgesRoute: AuthenticatedAdminBadgesRoute,
   AuthenticatedAdminBannersRoute: AuthenticatedAdminBannersRoute,
