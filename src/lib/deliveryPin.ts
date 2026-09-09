@@ -131,7 +131,7 @@ export interface VerifyPinResult {
 
 export interface DeliveryPaymentDetails {
   actualMethod: "cash" | "upi_qr" | "card" | "online" | string;
-  actualRef?: string;
+  actualRef?: string | undefined;
   paidToBankDirectly: boolean;
 }
 
@@ -179,14 +179,14 @@ export async function verifyAndDeliverOrder(
     };
 
     if (paymentDetails) {
-      updatePayload.actual_payment_method = paymentDetails.actualMethod;
-      updatePayload.actual_payment_ref = paymentDetails.actualRef || null;
-      updatePayload.paid_to_bank_directly = paymentDetails.paidToBankDirectly;
+      updatePayload['actual_payment_method'] = paymentDetails.actualMethod;
+      updatePayload['actual_payment_ref'] = paymentDetails.actualRef || null;
+      updatePayload['paid_to_bank_directly'] = paymentDetails.paidToBankDirectly;
     }
 
     // If admin emergency override
     if (isAdminOverride) {
-      updatePayload.delivery_note = overrideReason ? `ADMIN BYPASS: ${overrideReason}` : "ADMIN OVERRIDE";
+      updatePayload['delivery_note'] = overrideReason ? `ADMIN BYPASS: ${overrideReason}` : "ADMIN OVERRIDE";
       const { error: updErr } = await supabase
         .from("orders")
         .update(updatePayload as any)

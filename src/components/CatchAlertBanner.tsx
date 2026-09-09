@@ -79,10 +79,7 @@ export function CatchAlertBanner() {
       : "Kasimedu Harbour, Chennai");
 
   const handleSubscribePush = async () => {
-    const token = await registerPushNotificationToken({
-      userId: user?.id || null,
-      role: "customer",
-    });
+    const token = await registerPushNotificationToken(user?.id || null, "customer");
     if (token) {
       setSubscribed(true);
       toast.success("🔔 Subscribed to Daily Arrival Alerts!");
