@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import {
   reverseGeocodeNominatim,
   searchNominatim,
+  createResilientTileLayer,
   type GeocodedAddress,
   type NominatimSearchResult,
 } from "@/lib/maps";
@@ -99,11 +100,8 @@ export function MapPinPickerModal({
           zoomControl: false,
         });
 
-        // Add OSM tiles
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-          maxZoom: 19,
-        }).addTo(map);
+        // Add resilient multi-provider tiles
+        createResilientTileLayer(L, map).addTo(map);
 
         // Add zoom control at bottom right
         L.control.zoom({ position: "bottomright" }).addTo(map);

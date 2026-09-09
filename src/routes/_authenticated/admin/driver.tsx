@@ -37,6 +37,8 @@ import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
 import { DeliveryPinVerificationModal } from "@/components/DeliveryPinVerificationModal";
 import { DriverCashSettlementModal } from "@/components/admin/DriverCashSettlementModal";
 import { SettlementReceiptModal } from "@/components/admin/SettlementReceiptModal";
+import { PrinterSettingsModal } from "@/components/admin/PrinterSettingsModal";
+import { optimizeMultiOrderRoute } from "@/lib/routingOptimizer";
 import type { DriverCashSettlement } from "@/lib/types";
 import { getGoogleMapsDirUrl } from "@/lib/maps";
 import { settingsQuery } from "@/lib/queries";
@@ -93,6 +95,7 @@ export function DriverDispatchPage() {
     unsettledOrders: OrderRow[];
   } | null>(null);
   const [viewingReceipt, setViewingReceipt] = useState<DriverCashSettlement | null>(null);
+  const [printerModalOpen, setPrinterModalOpen] = useState(false);
 
   const settlementsQuery = useQuery({
     queryKey: ["driver_cash_settlements"],
@@ -218,6 +221,25 @@ export function DriverDispatchPage() {
     });
   }, [activeDeliveries, selectedDriverFilter, search]);
 
+  // Multi-Stop Route Clustering for selected driver
+  const driverOrdersForRoute = useMemo(() => {
+    if (selectedDriverFilter === "all" || selectedDriverFilter === "__unassigned__") {
+      return [];
+    }
+    return displayedDeliveries.filter(
+      (o) => o.driver_name === selectedDriverFilter || o.driver_id === selectedDriverFilter
+    );
+  }, [displayedDeliveries, selectedDriverFilter]);
+
+  const multiStopRoute = useMemo(() => {
+    if (driverOrdersForRoute.length < 2) return null;
+    return optimizeMultiOrderRoute(
+      settings?.shop_lat ? Number(settings.shop_lat) : null,
+      settings?.shop_lng ? Number(settings.shop_lng) : null,
+      driverOrdersForRoute
+    );
+  }, [driverOrdersForRoute, settings?.shop_lat, settings?.shop_lng]);
+
   // Auto-Assign Algorithm: Distribute unassigned orders fairly across active drivers
   const autoAssignMutation = useMutation({
     mutationFn: async () => {
@@ -314,19 +336,25 @@ export function DriverDispatchPage() {
 
       if (o.status === "delivered") {
         cur.completedRuns++;
-        if (o.payment_method === "cod" || o.payment_status === "paid") {
-          if (o.payment_method === "cod") {
-            const orderTotal = Number(o.total || 0);
-            cur.codTotal += orderTotal;
-            if (o.cod_settled) {
-              cur.codSettled += orderTotal;
-            } else {
-              cur.codPending += orderTotal;
-              cur.unsettledOrders.push(o);
-            }
+        const orderTotal = Number(o.total || 0);
+        const isBankDirect = Boolean(
+          (o as any).paid_to_bank_directly ||
+          (o as any).actual_payment_method === "upi_qr"
+        );
+
+        if (isBankDirect) {
+          cur.codTotal += orderTotal;
+          // Direct bank UPI - driver has zero physical cash liability for this order
+        } else if (o.payment_method === "cod" || (o as any).actual_payment_method === "cash") {
+          cur.codTotal += orderTotal;
+          if (o.cod_settled) {
+            cur.codSettled += orderTotal;
           } else {
-            cur.prepaidDelivered += Number(o.total || 0);
+            cur.codPending += orderTotal;
+            cur.unsettledOrders.push(o);
           }
+        } else {
+          cur.prepaidDelivered += orderTotal;
         }
 
         const createdTime = new Date(o.created_at).getTime();
@@ -406,6 +434,16 @@ export function DriverDispatchPage() {
           </TabsList>
 
           <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-border/80 shadow-2xs"
+              onClick={() => setPrinterModalOpen(true)}
+            >
+              <Printer className="size-3.5 text-primary" />
+              <span>Thermal Printer (BT / USB)</span>
+            </Button>
+
             {/* Smart Auto-Assign Button */}
             <Button
               size="sm"
@@ -456,6 +494,41 @@ export function DriverDispatchPage() {
               Showing <span className="font-semibold text-foreground">{displayedDeliveries.length}</span> active runs
             </div>
           </div>
+
+          {/* Multi-Stop Optimized Route Banner */}
+          {multiStopRoute && (
+            <div className="rounded-2xl border border-primary/40 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-xs">
+                  <RouteIcon className="size-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold text-foreground">
+                      Optimized Multi-Stop Delivery Sequence
+                    </p>
+                    <Badge variant="secondary" className="text-[10px] font-mono font-bold">
+                      {multiStopRoute.optimizedOrderIds.length} Drops · {multiStopRoute.totalDistanceKm.toFixed(1)} km
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Sequenced by Nearest-Neighbor TSP algorithm to minimize delivery transit time and fuel cost.
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                className="rounded-xl h-9 text-xs font-bold gap-2 shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                asChild
+              >
+                <a href={multiStopRoute.googleMapsUrl} target="_blank" rel="noopener noreferrer">
+                  <Navigation className="size-3.5" />
+                  <span>Launch Google Maps Route ({multiStopRoute.optimizedOrderIds.length} Stops)</span>
+                  <ExternalLink className="size-3" />
+                </a>
+              </Button>
+            </div>
+          )}
 
           {/* Grid Layout: Map & Dispatch Cards */}
           <div className="grid gap-4 lg:grid-cols-[380px_1fr]">
@@ -1211,6 +1284,12 @@ export function DriverDispatchPage() {
           }}
         />
       )}
+
+      {/* Bluetooth & USB ESC/POS Printer Settings Modal */}
+      <PrinterSettingsModal
+        open={printerModalOpen}
+        onOpenChange={setPrinterModalOpen}
+      />
     </AdminShell>
   );
 }

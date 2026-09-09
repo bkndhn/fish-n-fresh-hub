@@ -21,11 +21,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { formatINR, formatIST } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import type { OrderRow } from "@/lib/admin";
 import { useSessionUser } from "@/lib/session";
+import {
+  EscPosBuilder,
+  sendEscPosToPrinter,
+  getSavedPrinterConfig,
+} from "@/lib/thermalPrinter";
 
 interface DriverCashSettlementModalProps {
   open: boolean;
@@ -114,41 +118,75 @@ export function DriverCashSettlementModal({
 
       const balanceRemaining = Math.max(0, selectedTotal - settledNum);
 
-      // 1. Insert into driver_cash_settlements
-      const { data: record, error: insertError } = await (supabase as any)
-        .from("driver_cash_settlements")
-        .insert({
-          settlement_number: settlementNumber,
-          driver_name: driverName,
-          driver_phone: driverPhone || null,
-          driver_id: driverId || null,
-          amount_collected: selectedTotal,
-          amount_settled: settledNum,
-          balance_remaining: balanceRemaining,
-          orders_count: selectedOrderIds.length,
-          order_ids: selectedOrderIds,
-          settled_by_name: collectorName.trim() || "Store Admin",
-          settled_by_id: user?.id || null,
-          payment_mode: paymentMode,
-          notes: notes.trim() || null,
-          settled_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
+      let record: any = null;
 
-      if (insertError) throw insertError;
+      // 1. Attempt atomic stored procedure with row-level mutex (FOR UPDATE)
+      try {
+        const { data: rpcData, error: rpcError } = await (supabase as any).rpc(
+          "settle_driver_cod_orders_atomic",
+          {
+            p_settlement_number: settlementNumber,
+            p_driver_name: driverName,
+            p_driver_phone: driverPhone || null,
+            p_driver_id: driverId || null,
+            p_order_ids: selectedOrderIds,
+            p_amount_collected: selectedTotal,
+            p_amount_settled: settledNum,
+            p_balance_remaining: balanceRemaining,
+            p_settled_by_name: collectorName.trim() || "Store Admin",
+            p_settled_by_id: user?.id || null,
+            p_payment_mode: paymentMode,
+            p_notes: notes.trim() || null,
+          }
+        );
 
-      // 2. Mark orders as settled
-      const { error: updateOrdersError } = await (supabase as any)
-        .from("orders")
-        .update({
-          cod_settled: true,
-          settlement_id: record.id,
-          settled_at: new Date().toISOString(),
-        })
-        .in("id", selectedOrderIds);
+        if (!rpcError && rpcData) {
+          record = rpcData;
+        } else if (rpcError?.message?.includes("ERR_ALREADY_SETTLED")) {
+          throw new Error("Concurrency Conflict: One or more selected orders have already been settled by another cashier.");
+        }
+      } catch (rpcErr: any) {
+        if (rpcErr.message?.includes("Concurrency Conflict")) throw rpcErr;
+        // RPC might not exist on remote db yet, fallback to client transaction
+      }
 
-      if (updateOrdersError) throw updateOrdersError;
+      // 2. Fallback transaction if RPC not yet deployed
+      if (!record) {
+        const { data: insertRec, error: insertError } = await (supabase as any)
+          .from("driver_cash_settlements")
+          .insert({
+            settlement_number: settlementNumber,
+            driver_name: driverName,
+            driver_phone: driverPhone || null,
+            driver_id: driverId || null,
+            amount_collected: selectedTotal,
+            amount_settled: settledNum,
+            balance_remaining: balanceRemaining,
+            orders_count: selectedOrderIds.length,
+            order_ids: selectedOrderIds,
+            settled_by_name: collectorName.trim() || "Store Admin",
+            settled_by_id: user?.id || null,
+            payment_mode: paymentMode,
+            notes: notes.trim() || null,
+            settled_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        record = insertRec;
+
+        const { error: updateOrdersError } = await (supabase as any)
+          .from("orders")
+          .update({
+            cod_settled: true,
+            settlement_id: record.id,
+            settled_at: new Date().toISOString(),
+          })
+          .in("id", selectedOrderIds);
+
+        if (updateOrdersError) throw updateOrdersError;
+      }
 
       return record;
     },
@@ -162,8 +200,71 @@ export function DriverCashSettlementModal({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const handlePrintSlip = () => {
-    window.print();
+  const handlePrintSlip = async () => {
+    if (!completedSettlement) return;
+    const cfg = getSavedPrinterConfig();
+    const builder = new EscPosBuilder(cfg.paperWidth);
+    builder
+      .align("center")
+      .bold(true)
+      .size("double")
+      .textLine(cfg.headerLine1)
+      .size("normal")
+      .textLine("CASH HANDOVER VOUCHER")
+      .textLine(`Voucher #${completedSettlement.settlement_number}`)
+      .textLine(formatIST(completedSettlement.settled_at))
+      .horizontalRule("=")
+      .align("left")
+      .row("Driver:", driverName)
+      .row("Received By:", collectorName || "Store Admin")
+      .row("Orders Settled:", `${selectedOrderIds.length} orders`)
+      .row("Payment Mode:", paymentMode.toUpperCase())
+      .horizontalRule("-")
+      .row("Total COD Value:", formatINR(selectedTotal))
+      .bold(true)
+      .row("Handed to Admin:", formatINR(Number(amountSettled)))
+      .bold(false);
+
+    if (Math.max(0, selectedTotal - Number(amountSettled)) > 0) {
+      builder.row("Balance Due:", formatINR(selectedTotal - Number(amountSettled)));
+    }
+    if (notes.trim()) {
+      builder.textLine(`Note: ${notes.trim()}`);
+    }
+
+    builder
+      .horizontalRule("=")
+      .lineFeed(2)
+      .row("Driver Sig", "Admin Sig")
+      .lineFeed(2);
+
+    if (cfg.autoCut) builder.cutPaper();
+
+    const fallbackHtml = `
+      <div class="center">
+        <div class="title">${cfg.headerLine1}</div>
+        <div>Cashier & Driver Settlement Voucher</div>
+        <div class="bold">#${completedSettlement.settlement_number}</div>
+        <div>${formatIST(completedSettlement.settled_at)}</div>
+        <div class="hr"></div>
+      </div>
+      <div class="row"><span>Driver:</span><span class="bold">${driverName}</span></div>
+      <div class="row"><span>Received By:</span><span class="bold">${collectorName || "Store Admin"}</span></div>
+      <div class="row"><span>Orders Count:</span><span>${selectedOrderIds.length} orders</span></div>
+      <div class="row"><span>Payment Mode:</span><span class="bold">${paymentMode.toUpperCase()}</span></div>
+      <div class="hr"></div>
+      <div class="row"><span>Total COD Orders:</span><span>${formatINR(selectedTotal)}</span></div>
+      <div class="row bold total-row"><span>Handed to Admin:</span><span>${formatINR(Number(amountSettled))}</span></div>
+      ${selectedTotal - Number(amountSettled) > 0 ? `<div class="row" style="color:red"><span>Pending Due:</span><span>${formatINR(selectedTotal - Number(amountSettled))}</span></div>` : ""}
+      ${notes.trim() ? `<div style="margin:4px 0; font-style:italic">Note: ${notes.trim()}</div>` : ""}
+      <div class="hr"></div>
+      <div style="display:flex; justify-content:space-between; margin-top:35px; text-align:center;">
+        <div style="border-top:1px solid #000; width:45%; padding-top:4px;">Driver Signature</div>
+        <div style="border-top:1px solid #000; width:45%; padding-top:4px;">Admin Signature</div>
+      </div>
+    `;
+
+    await sendEscPosToPrinter(builder.build(), cfg, fallbackHtml);
   };
 
   return (

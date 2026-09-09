@@ -27,6 +27,7 @@ import {
   getGoogleMapsDirUrl,
   getAppleMapsDirUrl,
   getWazeDirUrl,
+  createResilientTileLayer,
 } from "@/lib/maps";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
@@ -122,10 +123,7 @@ export function DeliveryRouteModal({
           zoomControl: false,
         });
 
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-          maxZoom: 19,
-        }).addTo(map);
+        createResilientTileLayer(L, map).addTo(map);
 
         L.control.zoom({ position: "bottomright" }).addTo(map);
 

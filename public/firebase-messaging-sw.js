@@ -1,75 +1,56 @@
 // Firebase Cloud Messaging & Web Push Service Worker
-// Fish N Fresh Hub Enterprise PWA Notification Engine
+/* eslint-disable no-restricted-globals */
 
-importScripts("https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js");
-importScripts("https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js");
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
 
-// When FCM config is provided in localStorage / query params, initialize:
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener("push", (event) => {
   let data = {
     title: "Fish N Fresh Hub",
-    body: "Fresh seafood update from Kasimedu Harbour!",
-    icon: "/favicon.ico",
-    badge: "/favicon.ico",
+    body: "Fresh coastal catch updates and order delivery alerts.",
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/icon-72x72.png",
     data: { url: "/" },
   };
 
-  try {
-    if (event.data) {
-      const payload = event.data.json();
-      if (payload.notification) {
-        data.title = payload.notification.title || data.title;
-        data.body = payload.notification.body || data.body;
-        data.icon = payload.notification.icon || data.icon;
-      }
-      if (payload.data) {
-        data.data = payload.data;
-        if (payload.data.url) {
-          data.data.url = payload.data.url;
-        }
-      }
-    }
-  } catch (e) {
-    // Text fallback
-    if (event.data) {
+  if (event.data) {
+    try {
+      const parsed = event.data.json();
+      data = { ...data, ...parsed };
+    } catch {
       data.body = event.data.text();
     }
   }
 
-  const options = {
-    body: data.body,
-    icon: data.icon,
-    badge: data.badge,
-    vibrate: [200, 100, 200],
-    data: data.data,
-    actions: [
-      { action: "open", title: "View Details" },
-      { action: "dismiss", title: "Close" }
-    ],
-  };
-
-  event.waitUntil(self.registration.showNotification(data.title, options));
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: data.icon || "/icons/icon-192x192.png",
+      badge: data.badge || "/icons/icon-72x72.png",
+      vibrate: [200, 100, 200],
+      data: data.data || { url: "/" },
+    })
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-
-  if (event.action === "dismiss") {
-    return;
-  }
-
   const targetUrl = event.notification.data?.url || "/";
 
   event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && "focus" in client) {
-          client.navigate(targetUrl);
+        if (client.url === targetUrl && "focus" in client) {
           return client.focus();
         }
       }
-      if (clients.openWindow) {
-        return clients.openWindow(targetUrl);
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
       }
     })
   );

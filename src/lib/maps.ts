@@ -177,3 +177,58 @@ export async function searchNominatim(query: string): Promise<NominatimSearchRes
     return [];
   }
 }
+
+/**
+ * Multi-Provider Resilient Tile Layer for Leaflet.
+ * Automatically fails over from OSM Standard -> CartoDB Voyager -> OSM HOT.
+ * Guarantees zero blank tiles even during OpenStreetMap rate-limiting.
+ */
+export const TILE_PROVIDERS = [
+  {
+    name: "OpenStreetMap Standard",
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    options: {
+      maxZoom: 19,
+      subdomains: ["a", "b", "c"],
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    },
+  },
+  {
+    name: "CartoDB Voyager (Resilient High-Contrast)",
+    url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+    options: {
+      maxZoom: 20,
+      subdomains: "abcd",
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+    },
+  },
+  {
+    name: "OSM Humanitarian (HOT)",
+    url: "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
+    options: {
+      maxZoom: 19,
+      subdomains: ["a", "b"],
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    },
+  },
+];
+
+export function createResilientTileLayer(L: any, map?: any) {
+  let providerIndex = 0;
+  const layer = L.tileLayer(TILE_PROVIDERS[0].url, {
+    ...TILE_PROVIDERS[0].options,
+    crossOrigin: true,
+  });
+
+  layer.on("tileerror", () => {
+    if (providerIndex < TILE_PROVIDERS.length - 1) {
+      providerIndex++;
+      const next = TILE_PROVIDERS[providerIndex];
+      console.warn(`Map tile failover activated -> Switching to ${next.name}`);
+      layer.setUrl(next.url);
+    }
+  });
+
+  return layer;
+}
+

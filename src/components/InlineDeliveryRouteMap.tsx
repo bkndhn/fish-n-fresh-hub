@@ -14,6 +14,7 @@ import {
   estimateBikeMinutes,
   getGoogleMapsDirUrl,
   getAppleMapsDirUrl,
+  createResilientTileLayer,
 } from "@/lib/maps";
 
 interface InlineDeliveryRouteMapProps {
@@ -100,10 +101,7 @@ export function InlineDeliveryRouteMap({
           dragging: !L.Browser.mobile,
         });
 
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
-          maxZoom: 19,
-        }).addTo(map);
+        createResilientTileLayer(L, map).addTo(map);
 
         L.control.zoom({ position: "bottomright" }).addTo(map);
 

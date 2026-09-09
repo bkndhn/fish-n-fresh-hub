@@ -129,16 +129,23 @@ export interface VerifyPinResult {
   message: string;
 }
 
+export interface DeliveryPaymentDetails {
+  actualMethod: "cash" | "upi_qr" | "card" | "online" | string;
+  actualRef?: string;
+  paidToBankDirectly: boolean;
+}
+
 /**
  * Verifies the customer's PIN and marks order delivered.
  * Can be executed by driver, crew, staff, or admin.
- * Uses secure PostgreSQL RPC `verify_and_deliver_order`.
+ * Supports doorstep payment mode switching (Cash vs Dynamic UPI QR).
  */
 export async function verifyAndDeliverOrder(
   orderId: string,
   enteredPin: string,
   isAdminOverride = false,
-  overrideReason?: string
+  overrideReason?: string,
+  paymentDetails?: DeliveryPaymentDetails
 ): Promise<VerifyPinResult> {
   const cleanPin = enteredPin.trim();
 
@@ -149,6 +156,9 @@ export async function verifyAndDeliverOrder(
       p_entered_pin: cleanPin,
       p_is_admin_override: isAdminOverride,
       p_override_reason: overrideReason || null,
+      p_actual_payment_method: paymentDetails?.actualMethod || null,
+      p_actual_payment_ref: paymentDetails?.actualRef || null,
+      p_paid_to_bank_directly: paymentDetails ? paymentDetails.paidToBankDirectly : null,
     });
 
     if (!error && data && typeof data === "object") {
@@ -162,16 +172,24 @@ export async function verifyAndDeliverOrder(
   // Graceful client fallback:
   // Query order to check status and handle direct verification
   try {
+    const updatePayload: Record<string, any> = {
+      status: "delivered",
+      delivered_at: new Date().toISOString(),
+      payment_status: "paid",
+    };
+
+    if (paymentDetails) {
+      updatePayload.actual_payment_method = paymentDetails.actualMethod;
+      updatePayload.actual_payment_ref = paymentDetails.actualRef || null;
+      updatePayload.paid_to_bank_directly = paymentDetails.paidToBankDirectly;
+    }
+
     // If admin emergency override
     if (isAdminOverride) {
+      updatePayload.delivery_note = overrideReason ? `ADMIN BYPASS: ${overrideReason}` : "ADMIN OVERRIDE";
       const { error: updErr } = await supabase
         .from("orders")
-        .update({
-          status: "delivered",
-          delivered_at: new Date().toISOString(),
-          delivery_note: overrideReason ? `ADMIN BYPASS: ${overrideReason}` : "ADMIN OVERRIDE",
-          payment_status: "paid",
-        } as any)
+        .update(updatePayload as any)
         .eq("id", orderId);
 
       if (updErr) throw updErr;
@@ -218,14 +236,10 @@ export async function verifyAndDeliverOrder(
         .eq("order_id", orderId);
     }
 
-    // Mark order as delivered
+    // Mark order as delivered with payment details
     const { error: orderErr } = await supabase
       .from("orders")
-      .update({
-        status: "delivered",
-        delivered_at: new Date().toISOString(),
-        payment_status: "paid",
-      } as any)
+      .update(updatePayload as any)
       .eq("id", orderId);
 
     if (orderErr) throw orderErr;

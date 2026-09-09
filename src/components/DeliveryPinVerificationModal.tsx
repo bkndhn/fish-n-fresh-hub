@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import {
   ShieldCheck,
   ShieldAlert,
@@ -11,6 +12,10 @@ import {
   HelpCircle,
   ChevronDown,
   ChevronUp,
+  QrCode,
+  Banknote,
+  Building2,
+  Copy,
 } from "lucide-react";
 import {
   Dialog,
@@ -23,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatINR } from "@/lib/format";
 import { verifyAndDeliverOrder } from "@/lib/deliveryPin";
+import { settingsQuery } from "@/lib/queries";
 
 interface DeliveryPinVerificationModalProps {
   open: boolean;
@@ -51,11 +57,14 @@ export function DeliveryPinVerificationModal({
   isAdmin = false,
   onSuccess,
 }: DeliveryPinVerificationModalProps) {
+  const { data: settings } = useQuery(settingsQuery);
   const [digits, setDigits] = useState<string[]>(["", "", "", ""]);
   const [verifying, setVerifying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showAdminOverride, setShowAdminOverride] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
+  const [doorstepPaymentMethod, setDoorstepPaymentMethod] = useState<"cash" | "upi_qr">("cash");
+  const [upiRef, setUpiRef] = useState("");
 
   const inputRefs = [
     useRef<HTMLInputElement | null>(null),
@@ -71,11 +80,18 @@ export function DeliveryPinVerificationModal({
       setErrorMessage(null);
       setShowAdminOverride(false);
       setOverrideReason("");
+      setDoorstepPaymentMethod(isCod ? "cash" : "cash");
+      setUpiRef("");
       setTimeout(() => {
         inputRefs[0]?.current?.focus();
       }, 150);
     }
-  }, [open]);
+  }, [open, isCod]);
+
+  const upiId = settings?.upi_id || "9843061919@upi";
+  const upiName = settings?.upi_name || "Fish N Fresh";
+  const upiDeepLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${totalAmount || 0}&cu=INR&tn=${encodeURIComponent(`FNF Order ${orderNumber || orderId?.slice(0, 8) || ""}`)}`;
+  const upiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiDeepLink)}`;
 
   const handleDigitChange = (index: number, value: string) => {
     // Clean to numeric only
@@ -130,8 +146,16 @@ export function DeliveryPinVerificationModal({
     setVerifying(true);
     setErrorMessage(null);
 
+    const paymentDetails = isCod
+      ? {
+          actualMethod: doorstepPaymentMethod,
+          actualRef: doorstepPaymentMethod === "upi_qr" && upiRef.trim() ? upiRef.trim() : undefined,
+          paidToBankDirectly: doorstepPaymentMethod === "upi_qr",
+        }
+      : undefined;
+
     try {
-      const result = await verifyAndDeliverOrder(orderId, enteredPin);
+      const result = await verifyAndDeliverOrder(orderId, enteredPin, false, undefined, paymentDetails);
       if (result.success) {
         toast.success(result.message || "Delivery PIN verified! Order completed.");
         onSuccess();
@@ -158,8 +182,17 @@ export function DeliveryPinVerificationModal({
     }
 
     setVerifying(true);
+
+    const paymentDetails = isCod
+      ? {
+          actualMethod: doorstepPaymentMethod,
+          actualRef: doorstepPaymentMethod === "upi_qr" && upiRef.trim() ? upiRef.trim() : undefined,
+          paidToBankDirectly: doorstepPaymentMethod === "upi_qr",
+        }
+      : undefined;
+
     try {
-      const result = await verifyAndDeliverOrder(orderId, "", true, overrideReason);
+      const result = await verifyAndDeliverOrder(orderId, "", true, overrideReason, paymentDetails);
       if (result.success) {
         toast.success(result.message || "Emergency override recorded. Order marked delivered.");
         onSuccess();
@@ -178,9 +211,9 @@ export function DeliveryPinVerificationModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0 overflow-hidden rounded-3xl border-border/80 shadow-2xl">
+      <DialogContent className="max-w-md p-0 max-h-[92vh] flex flex-col overflow-hidden rounded-3xl border-border/80 shadow-2xl">
         {/* Header Ribbon */}
-        <div className="bg-linear-to-r from-primary/15 via-primary/10 to-transparent p-5 pb-4 border-b border-border/60">
+        <div className="bg-gradient-to-r from-primary/15 via-primary/10 to-transparent p-5 pb-4 border-b border-border/60 shrink-0">
           <div className="flex items-center gap-3">
             <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-md">
               <ShieldCheck className="size-6" />
@@ -196,17 +229,105 @@ export function DeliveryPinVerificationModal({
           </div>
         </div>
 
-        <div className="p-5 space-y-4">
-          {/* COD Cash Collection Warning */}
+        <div className="p-5 space-y-4 overflow-y-auto flex-1">
+          {/* COD / Payment Method Switcher */}
           {isCod && (
-            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-800 dark:text-rose-200 space-y-1">
-              <div className="flex items-center gap-2 font-bold text-rose-700 dark:text-rose-300">
-                <AlertTriangle className="size-4 shrink-0 text-rose-600 animate-pulse" />
-                <span>MANDATORY CASH COLLECTION: {formatINR(totalAmount || 0)}</span>
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-bold text-xs text-amber-900 dark:text-amber-200">
+                  <AlertTriangle className="size-4 shrink-0 text-amber-600 animate-pulse" />
+                  <span>PAYMENT DUE: {formatINR(totalAmount || 0)}</span>
+                </div>
+                <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+                  {doorstepPaymentMethod === "cash" ? "Physical Cash" : "Direct Bank UPI"}
+                </span>
               </div>
-              <p className="text-[11px] leading-relaxed text-rose-700/90 dark:text-rose-300/90 pl-6">
-                Collect <strong>{formatINR(totalAmount || 0)}</strong> in exact cash before asking the customer for their secret PIN.
-              </p>
+
+              {/* Toggle Switcher */}
+              <div className="grid grid-cols-2 gap-2 bg-background/80 p-1 rounded-xl border border-amber-500/20">
+                <button
+                  type="button"
+                  onClick={() => setDoorstepPaymentMethod("cash")}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                    doorstepPaymentMethod === "cash"
+                      ? "bg-amber-600 text-white shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Banknote className="size-3.5" />
+                  <span>💵 Cash Collected</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDoorstepPaymentMethod("upi_qr")}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                    doorstepPaymentMethod === "upi_qr"
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <QrCode className="size-3.5" />
+                  <span>📱 Scan Store UPI QR</span>
+                </button>
+              </div>
+
+              {/* Dynamic QR Code Display when UPI is selected */}
+              {doorstepPaymentMethod === "upi_qr" ? (
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex flex-col items-center justify-center p-3 bg-white rounded-2xl border border-border/80 shadow-xs">
+                    <img
+                      src={upiQrUrl}
+                      alt="Doorstep UPI QR Code"
+                      className="size-40 object-contain"
+                    />
+                    <p className="mt-1.5 text-xs font-extrabold text-emerald-700">
+                      Scan to Pay {formatINR(totalAmount || 0)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground text-center">
+                      Pay via Google Pay, PhonePe, Paytm, or BHIM
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-xl bg-background/90 p-2 border border-border/60 text-xs">
+                    <div className="min-w-0 pr-2">
+                      <p className="text-[10px] text-muted-foreground">Store UPI ID</p>
+                      <p className="font-mono font-bold text-foreground truncate">{upiId}</p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs rounded-lg shrink-0 gap-1"
+                      onClick={() => {
+                        navigator.clipboard.writeText(upiId);
+                        toast.success("UPI ID copied!");
+                      }}
+                    >
+                      <Copy className="size-3" /> Copy
+                    </Button>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Input
+                      placeholder="12-Digit UPI Transaction / UTR No. (Optional)"
+                      value={upiRef}
+                      onChange={(e) => setUpiRef(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                      className="h-8 text-xs font-mono rounded-xl bg-background"
+                    />
+                  </div>
+
+                  <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-2 text-[11px] text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                    <Building2 className="size-3.5 shrink-0 text-emerald-600" />
+                    <span>
+                      Direct Bank Credit: Money credited to store account. Waives driver cash liability.
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-200">
+                  Collect <strong>{formatINR(totalAmount || 0)}</strong> in physical cash notes. This will be tracked in your driver settlement shift report.
+                </p>
+              )}
             </div>
           )}
 

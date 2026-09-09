@@ -1,4 +1,4 @@
-﻿import { Printer, Wallet, X, CheckCircle2 } from "lucide-react";
+import { Printer, Wallet, X, CheckCircle2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -8,6 +8,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { formatINR, formatIST } from "@/lib/format";
 import type { DriverCashSettlement } from "@/lib/types";
+import {
+  EscPosBuilder,
+  sendEscPosToPrinter,
+  getSavedPrinterConfig,
+} from "@/lib/thermalPrinter";
 
 interface SettlementReceiptModalProps {
   settlement: DriverCashSettlement | null;
@@ -22,8 +27,70 @@ export function SettlementReceiptModal({
 }: SettlementReceiptModalProps) {
   if (!settlement) return null;
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    const cfg = getSavedPrinterConfig();
+    const builder = new EscPosBuilder(cfg.paperWidth);
+    builder
+      .align("center")
+      .bold(true)
+      .size("double")
+      .textLine(cfg.headerLine1)
+      .size("normal")
+      .textLine("CASH HANDOVER VOUCHER")
+      .textLine(`Voucher #${settlement.settlement_number}`)
+      .textLine(formatIST(settlement.settled_at))
+      .horizontalRule("=")
+      .align("left")
+      .row("Driver:", settlement.driver_name)
+      .row("Received By:", settlement.settled_by_name)
+      .row("Orders Settled:", `${settlement.orders_count} orders`)
+      .row("Handover Mode:", settlement.payment_mode.toUpperCase())
+      .horizontalRule("-")
+      .row("Total COD Value:", formatINR(Number(settlement.amount_collected)))
+      .bold(true)
+      .row("Handed to Admin:", formatINR(Number(settlement.amount_settled)))
+      .bold(false);
+
+    if (Number(settlement.balance_remaining) > 0) {
+      builder.row("Balance Due:", formatINR(Number(settlement.balance_remaining)));
+    }
+    if (settlement.notes) {
+      builder.textLine(`Note: ${settlement.notes}`);
+    }
+
+    builder
+      .horizontalRule("=")
+      .lineFeed(2)
+      .row("Driver Sig", "Admin Sig")
+      .lineFeed(2);
+
+    if (cfg.autoCut) builder.cutPaper();
+
+    const fallbackHtml = `
+      <div class="center">
+        <div class="title">${cfg.headerLine1}</div>
+        <div>Cashier & Driver Settlement Voucher</div>
+        <div class="bold">#${settlement.settlement_number}</div>
+        <div>${formatIST(settlement.settled_at)}</div>
+        <div class="hr"></div>
+      </div>
+      <div class="row"><span>Driver:</span><span class="bold">${settlement.driver_name}</span></div>
+      <div class="row"><span>Received By:</span><span class="bold">${settlement.settled_by_name}</span></div>
+      <div class="row"><span>Orders Count:</span><span>${settlement.orders_count} orders</span></div>
+      <div class="row"><span>Payment Mode:</span><span class="bold">${settlement.payment_mode.toUpperCase()}</span></div>
+      <div class="hr"></div>
+      <div class="row"><span>Total COD Orders:</span><span>${formatINR(Number(settlement.amount_collected))}</span></div>
+      <div class="row bold total-row"><span>Handed to Admin:</span><span>${formatINR(Number(settlement.amount_settled))}</span></div>
+      ${Number(settlement.balance_remaining) > 0 ? `<div class="row" style="color:red"><span>Pending Due:</span><span>${formatINR(Number(settlement.balance_remaining))}</span></div>` : ""}
+      ${settlement.notes ? `<div style="margin:4px 0; font-style:italic">Note: ${settlement.notes}</div>` : ""}
+      <div class="hr"></div>
+      <div style="display:flex; justify-content:space-between; margin-top:35px; text-align:center;">
+        <div style="border-top:1px solid #000; width:45%; padding-top:4px;">Driver Signature</div>
+        <div style="border-top:1px solid #000; width:45%; padding-top:4px;">Admin Signature</div>
+      </div>
+    `;
+
+    await sendEscPosToPrinter(builder.build(), cfg, fallbackHtml);
   };
 
   return (
