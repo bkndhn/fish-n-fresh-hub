@@ -502,14 +502,14 @@ export function RetailPosCounterPage() {
                   All Items ({products.length})
                 </Button>
                 {categories.map((cat) => {
-                  const count = products.filter((p) => p.category === cat.id).length;
+                  const count = products.filter((p) => p.category === cat.name).length;
                   return (
                     <Button
                       key={cat.id}
                       size="sm"
-                      variant={selectedCategory === cat.id ? "default" : "outline"}
+                      variant={selectedCategory === cat.name ? "default" : "outline"}
                       className="rounded-xl h-7 text-xs shrink-0 font-semibold"
-                      onClick={() => setSelectedCategory(cat.id)}
+                      onClick={() => setSelectedCategory(cat.name)}
                     >
                       {cat.name} ({count})
                     </Button>
