@@ -260,6 +260,69 @@ function AdminSettings() {
         </CardContent>
       </Card>
 
+      {/* Customer Live Catch & Landing Alerts Banner Settings */}
+      <Card className="mb-6 border-border/80 shadow-xs">
+        <CardHeader className="pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Bell className="size-5 text-sky-500" />
+                Customer Live Catch & Boat Landing Alerts Banner
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Control the top announcement alert banner shown to customers. Turn OFF if your store is inland or without boat landings.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-semibold ${form.live_alerts_enabled ?? true ? "text-green-600" : "text-muted-foreground"}`}>
+                {form.live_alerts_enabled ?? true ? "Banner Active" : "Banner Disabled"}
+              </span>
+              <Switch
+                checked={form.live_alerts_enabled ?? true}
+                onCheckedChange={(checked) => setForm({ ...form, live_alerts_enabled: checked })}
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-xs">Harbour / Sourcing Hub Name</Label>
+              <Input
+                value={form.harbour_source_name ?? ""}
+                onChange={(e) => setForm({ ...form, harbour_source_name: e.target.value })}
+                placeholder="Kasimedu Harbour, Chennai (or Local Farm Hub)"
+                className="mt-1 text-sm rounded-xl"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Appears on the pill badge in the top banner (e.g. Kasimedu Harbour, Cochin Harbour, Bio-Secure Farm Hub).
+              </p>
+            </div>
+            <div>
+              <Label className="text-xs">Default Alert Headline</Label>
+              <Input
+                value={form.harbour_alert_title ?? ""}
+                onChange={(e) => setForm({ ...form, harbour_alert_title: e.target.value })}
+                placeholder="🌅 Daily Morning Boat Catch Alert"
+                className="mt-1 text-sm rounded-xl"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Headline displayed when no manual broadcast alert is active.
+              </p>
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Default Alert Message</Label>
+            <textarea
+              className="mt-1 flex min-h-[60px] w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={form.harbour_alert_message ?? ""}
+              onChange={(e) => setForm({ ...form, harbour_alert_message: e.target.value })}
+              placeholder="Morning 06:30 AM & 02:00 PM boats arriving with fresh daily harvest..."
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="border-border/70 shadow-xs">
           <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">

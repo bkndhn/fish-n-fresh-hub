@@ -13,6 +13,7 @@ export type Product = {
   origin: string | null;
   rating: number;
   is_featured: boolean;
+  is_bestseller?: boolean;
   tags: string[] | null;
   calories: number | null;
   protein: string | null;
@@ -171,4 +172,24 @@ export type FcmToken = {
   created_at?: string;
   updated_at?: string;
 };
+
+export type DriverCashSettlement = {
+  id: string;
+  settlement_number: string;
+  driver_name: string;
+  driver_phone?: string | null;
+  driver_id?: string | null;
+  amount_collected: number;
+  amount_settled: number;
+  balance_remaining: number;
+  orders_count: number;
+  order_ids: string[];
+  settled_by_name: string;
+  settled_by_id?: string | null;
+  payment_mode: "cash" | "counter_upi" | "bank_transfer" | string;
+  notes?: string | null;
+  settled_at: string;
+  created_at?: string;
+};
+
 

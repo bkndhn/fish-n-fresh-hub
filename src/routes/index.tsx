@@ -43,7 +43,11 @@ function Home() {
 
   const featured = (products ?? []).filter((p) => p.is_featured).slice(0, 6);
   const bestsellers = [...(products ?? [])]
-    .sort((a, b) => Number(b.rating) - Number(a.rating))
+    .sort((a, b) => {
+      if (b.is_bestseller && !a.is_bestseller) return 1;
+      if (!b.is_bestseller && a.is_bestseller) return -1;
+      return Number(b.rating) - Number(a.rating);
+    })
     .slice(0, 6);
 
   const vertical = getVerticalConfig(settings?.business_vertical);

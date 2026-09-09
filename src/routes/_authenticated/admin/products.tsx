@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Search, Edit, AlertTriangle, Zap, PackagePlus, CheckCircle2, X, CheckSquare, Square, Layers, ArrowUpCircle, Eye, EyeOff, Sparkles } from "lucide-react";
+import { Plus, Trash2, Search, Edit, AlertTriangle, Zap, PackagePlus, CheckCircle2, X, CheckSquare, Square, Layers, ArrowUpCircle, Eye, EyeOff, Sparkles, Star, Flame } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminProductsQuery } from "@/lib/admin";
 import { categoriesQuery } from "@/lib/queries";
@@ -71,7 +71,7 @@ function ProductsAdmin() {
   const [refillProduct, setRefillProduct] = useState<Product | null>(null);
   const [refillQty, setRefillQty] = useState<string>("10");
   const [makeLiveOnRefill, setMakeLiveOnRefill] = useState<boolean>(true);
-  const [stockFilter, setStockFilter] = useState<"all" | "low">("all");
+  const [stockFilter, setStockFilter] = useState<"all" | "low" | "featured" | "bestseller">("all");
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [aiProduct, setAiProduct] = useState<Product | null>(null);
@@ -90,6 +90,8 @@ function ProductsAdmin() {
     gst_percent: "0",
     gst_included: false,
     is_available: true,
+    is_featured: false,
+    is_bestseller: false,
     allow_custom_qty: true,
     image_url: "",
     description: "",
@@ -182,6 +184,8 @@ function ProductsAdmin() {
         gst_included: false,
         is_available: true,
         allow_custom_qty: true,
+        is_featured: false,
+        is_bestseller: false,
         image_url: "",
         description: "",
       });
@@ -258,9 +262,13 @@ function ProductsAdmin() {
   };
 
   const lowStockProducts = allProducts.filter((p) => (p.stock ?? 0) <= getThreshold(p) || !p.is_available);
+  const featuredProducts = allProducts.filter((p) => p.is_featured);
+  const bestSellerProducts = allProducts.filter((p) => p.is_bestseller);
 
   const list = allProducts.filter((p) => {
     if (stockFilter === "low" && !((p.stock ?? 0) <= getThreshold(p) || !p.is_available)) return false;
+    if (stockFilter === "featured" && !p.is_featured) return false;
+    if (stockFilter === "bestseller" && !p.is_bestseller) return false;
     if (!search.trim()) return true;
     const term = search.toLowerCase();
     return (
@@ -295,6 +303,45 @@ function ProductsAdmin() {
         .in("id", selectedProductIds);
       if (error) throw error;
       toast.success(`${selectedProductIds.length} products marked ${is_available ? "Live" : "Paused"}`);
+      setSelectedProductIds([]);
+      qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const handleBulkFeatured = async (is_featured: boolean) => {
+    if (selectedProductIds.length === 0) return;
+    setBulkProcessing(true);
+    try {
+      const { error } = await supabase
+        .from("products")
+        .update({ is_featured })
+        .in("id", selectedProductIds);
+      if (error) throw error;
+      toast.success(`${selectedProductIds.length} products ${is_featured ? "marked as Featured" : "unmarked from Featured"}`);
+      setSelectedProductIds([]);
+      qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const handleBulkBestSeller = async (is_bestseller: boolean) => {
+    if (selectedProductIds.length === 0) return;
+    setBulkProcessing(true);
+    try {
+      const { error } = await (supabase.from("products") as any)
+        .update({ is_bestseller })
+        .in("id", selectedProductIds);
+      if (error) throw error;
+      toast.success(`${selectedProductIds.length} products ${is_bestseller ? "marked as Best Sellers" : "unmarked from Best Sellers"}`);
       setSelectedProductIds([]);
       qc.invalidateQueries({ queryKey: ["admin", "products"] });
       qc.invalidateQueries({ queryKey: ["products"] });
@@ -440,6 +487,30 @@ function ProductsAdmin() {
               onClick={() => setStockFilter("all")}
             >
               All ({allProducts.length})
+            </Button>
+            <Button
+              size="sm"
+              variant={stockFilter === "featured" ? "default" : "outline"}
+              className={`rounded-xl h-9 text-xs font-semibold shrink-0 ${
+                stockFilter === "featured"
+                  ? "bg-amber-500 hover:bg-amber-600 text-white"
+                  : "border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10"
+              }`}
+              onClick={() => setStockFilter("featured")}
+            >
+              ⭐ Featured ({featuredProducts.length})
+            </Button>
+            <Button
+              size="sm"
+              variant={stockFilter === "bestseller" ? "default" : "outline"}
+              className={`rounded-xl h-9 text-xs font-semibold shrink-0 ${
+                stockFilter === "bestseller"
+                  ? "bg-rose-500 hover:bg-rose-600 text-white"
+                  : "border-rose-500/40 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10"
+              }`}
+              onClick={() => setStockFilter("bestseller")}
+            >
+              🔥 Best Sellers ({bestSellerProducts.length})
             </Button>
             <Button
               size="sm"
@@ -625,27 +696,41 @@ function ProductsAdmin() {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-2 rounded-xl border p-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 rounded-2xl border border-border/80 bg-muted/20 p-3">
                 <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
                   <Switch
                     checked={newProduct.is_available}
                     onCheckedChange={(is_available) => setNewProduct({ ...newProduct, is_available })}
                   />
-                  Live
+                  <span>Store Live</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-amber-700 dark:text-amber-300">
+                  <Switch
+                    checked={newProduct.is_featured}
+                    onCheckedChange={(is_featured) => setNewProduct({ ...newProduct, is_featured })}
+                  />
+                  <span>⭐ Featured</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-rose-700 dark:text-rose-300">
+                  <Switch
+                    checked={newProduct.is_bestseller}
+                    onCheckedChange={(is_bestseller) => setNewProduct({ ...newProduct, is_bestseller })}
+                  />
+                  <span>🔥 Best Seller</span>
                 </label>
                 <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
                   <Switch
                     checked={newProduct.allow_custom_qty}
                     onCheckedChange={(allow_custom_qty) => setNewProduct({ ...newProduct, allow_custom_qty })}
                   />
-                  Custom Qty
+                  <span>Custom Qty</span>
                 </label>
                 <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
                   <Switch
                     checked={newProduct.gst_included}
                     onCheckedChange={(gst_included) => setNewProduct({ ...newProduct, gst_included })}
                   />
-                  GST Inc
+                  <span>GST Inc</span>
                 </label>
               </div>
 
@@ -725,6 +810,24 @@ function ProductsAdmin() {
               onClick={() => handleBulkRefill(10)}
             >
               <Zap className="size-3.5 fill-current" /> +10 Stock All
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={bulkProcessing}
+              className="h-8 rounded-xl text-xs font-semibold gap-1 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
+              onClick={() => handleBulkFeatured(true)}
+            >
+              <Star className="size-3.5 fill-amber-500 text-amber-500" /> Feature All
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={bulkProcessing}
+              className="h-8 rounded-xl text-xs font-semibold gap-1 text-rose-600 dark:text-rose-400 border-rose-500/30 hover:bg-rose-500/10"
+              onClick={() => handleBulkBestSeller(true)}
+            >
+              <Flame className="size-3.5 fill-rose-500 text-rose-500" /> Best Seller All
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -841,7 +944,7 @@ function ProductsAdmin() {
                       </span>
                     </div>
 
-                    {/* Category & Pricing */}
+                    {/* Category & Pricing & Badges */}
                     <div className="flex flex-wrap items-center gap-2 pt-0.5">
                       <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
                         {p.category ?? "Seafood"}
@@ -856,6 +959,36 @@ function ProductsAdmin() {
                           MRP: <span className="line-through">{formatINR(Number(p.old_price))}</span> ({discountPercent}% OFF)
                         </span>
                       )}
+
+                      {/* 1-Click Featured Toggle */}
+                      <button
+                        type="button"
+                        onClick={() => update.mutate({ id: p.id, patch: { is_featured: !p.is_featured } })}
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition border cursor-pointer ${
+                          p.is_featured
+                            ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40 shadow-2xs hover:bg-amber-500/25"
+                            : "bg-muted/60 text-muted-foreground border-border hover:border-amber-400/50 hover:text-amber-600 dark:hover:text-amber-400"
+                        }`}
+                        title={p.is_featured ? "Featured on Customer Home (Click to unfeature)" : "Click to feature on Customer Home"}
+                      >
+                        <Star className={`size-3 ${p.is_featured ? "fill-amber-500 text-amber-500" : ""}`} />
+                        {p.is_featured ? "Featured" : "+ Feature"}
+                      </button>
+
+                      {/* 1-Click Best Seller Toggle */}
+                      <button
+                        type="button"
+                        onClick={() => update.mutate({ id: p.id, patch: { is_bestseller: !p.is_bestseller } })}
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition border cursor-pointer ${
+                          p.is_bestseller
+                            ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/40 shadow-2xs hover:bg-rose-500/25"
+                            : "bg-muted/60 text-muted-foreground border-border hover:border-rose-400/50 hover:text-rose-600 dark:hover:text-rose-400"
+                        }`}
+                        title={p.is_bestseller ? "Marked as Best Seller (Click to remove)" : "Click to mark as Best Seller"}
+                      >
+                        <Flame className={`size-3 ${p.is_bestseller ? "fill-rose-500 text-rose-500" : ""}`} />
+                        {p.is_bestseller ? "Best Seller" : "+ Best Seller"}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1152,27 +1285,41 @@ function ProductsAdmin() {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-2 rounded-xl border p-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 rounded-2xl border border-border/80 bg-muted/20 p-3">
                 <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
                   <Switch
                     checked={editingProduct.is_available}
                     onCheckedChange={(is_available) => setEditingProduct({ ...editingProduct, is_available })}
                   />
-                  Live
+                  <span>Store Live</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-amber-700 dark:text-amber-300">
+                  <Switch
+                    checked={editingProduct.is_featured ?? false}
+                    onCheckedChange={(is_featured) => setEditingProduct({ ...editingProduct, is_featured })}
+                  />
+                  <span>⭐ Featured</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-rose-700 dark:text-rose-300">
+                  <Switch
+                    checked={editingProduct.is_bestseller ?? false}
+                    onCheckedChange={(is_bestseller) => setEditingProduct({ ...editingProduct, is_bestseller })}
+                  />
+                  <span>🔥 Best Seller</span>
                 </label>
                 <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
                   <Switch
                     checked={editingProduct.allow_custom_qty ?? true}
                     onCheckedChange={(allow_custom_qty) => setEditingProduct({ ...editingProduct, allow_custom_qty })}
                   />
-                  Custom Qty
+                  <span>Custom Qty</span>
                 </label>
                 <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
                   <Switch
                     checked={editingProduct.gst_included ?? false}
                     onCheckedChange={(gst_included) => setEditingProduct({ ...editingProduct, gst_included })}
                   />
-                  GST Inc
+                  <span>GST Inc</span>
                 </label>
               </div>
 

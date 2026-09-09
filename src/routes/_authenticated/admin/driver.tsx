@@ -21,6 +21,10 @@ import {
   Compass,
   Route as RouteIcon,
   AlertTriangle,
+  Printer,
+  Download,
+  Receipt,
+  FileText,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery, type OrderRow } from "@/lib/admin";
@@ -31,6 +35,9 @@ import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
 import { DeliveryPinVerificationModal } from "@/components/DeliveryPinVerificationModal";
+import { DriverCashSettlementModal } from "@/components/admin/DriverCashSettlementModal";
+import { SettlementReceiptModal } from "@/components/admin/SettlementReceiptModal";
+import type { DriverCashSettlement } from "@/lib/types";
 import { getGoogleMapsDirUrl } from "@/lib/maps";
 import { settingsQuery } from "@/lib/queries";
 import { getVerticalConfig } from "@/lib/verticals";
@@ -74,11 +81,34 @@ export function DriverDispatchPage() {
   const drivers = driversQuery.data ?? [];
   const { data: settings } = useQuery(settingsQuery);
 
-  const [activeTab, setActiveTab] = useState<"dispatch" | "analytics">("dispatch");
+  const [activeTab, setActiveTab] = useState<"dispatch" | "analytics" | "settlements">("dispatch");
   const [selectedDriverFilter, setSelectedDriverFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [routeModalOrder, setRouteModalOrder] = useState<OrderRow | null>(null);
   const [pinModalOrder, setPinModalOrder] = useState<OrderRow | null>(null);
+  const [settlingDriver, setSettlingDriver] = useState<{
+    name: string;
+    phone?: string | undefined;
+    driverId?: string | undefined;
+    unsettledOrders: OrderRow[];
+  } | null>(null);
+  const [viewingReceipt, setViewingReceipt] = useState<DriverCashSettlement | null>(null);
+
+  const settlementsQuery = useQuery({
+    queryKey: ["driver_cash_settlements"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("driver_cash_settlements")
+        .select("*")
+        .order("settled_at", { ascending: false });
+      if (error) {
+        console.warn("Could not query driver_cash_settlements:", error);
+        return [];
+      }
+      return (data || []) as DriverCashSettlement[];
+    },
+  });
+  const settlements = settlementsQuery.data ?? [];
 
   useEffect(() => {
     const channel = supabase
@@ -86,11 +116,59 @@ export function DriverDispatchPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
         qc.invalidateQueries({ queryKey: ["admin", "orders"] });
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "driver_cash_settlements" }, () => {
+        qc.invalidateQueries({ queryKey: ["driver_cash_settlements"] });
+      })
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
   }, [qc]);
+
+  function exportSettlementsCsv() {
+    if (settlements.length === 0) {
+      toast.error("No settlement records to export.");
+      return;
+    }
+
+    const headers = [
+      "Settlement Voucher #",
+      "Date & Time (IST)",
+      "Driver Name",
+      "Driver Phone",
+      "Orders Settled Count",
+      "Gross COD Collected (₹)",
+      "Amount Handed Over (₹)",
+      "Balance Remaining (₹)",
+      "Payment Mode",
+      "Admin Collector",
+      "Notes",
+    ];
+
+    const lines = settlements.map((s) => [
+      `"${s.settlement_number}"`,
+      `"${formatIST(s.settled_at)}"`,
+      `"${s.driver_name.replace(/"/g, '""')}"`,
+      `"${s.driver_phone || ""}"`,
+      s.orders_count,
+      s.amount_collected,
+      s.amount_settled,
+      s.balance_remaining,
+      `"${s.payment_mode}"`,
+      `"${(s.settled_by_name || "").replace(/"/g, '""')}"`,
+      `"${(s.notes || "").replace(/"/g, '""')}"`,
+    ]);
+
+    const csvContent = [headers.join(","), ...lines.map((l) => l.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `driver-cash-settlements-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Cash settlements CSV report downloaded successfully");
+  }
 
   const updateOrder = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: Partial<OrderRow> }) => {
@@ -181,30 +259,36 @@ export function DriverDispatchPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Driver Performance Analytics Aggregator
+  // Driver Performance & COD Cash Analytics Aggregator
   const driverAnalytics = useMemo(() => {
-    const stats = new Map<
-      string,
-      {
-        name: string;
-        phone: string;
-        activeRuns: number;
-        completedRuns: number;
-        codCollected: number;
-        prepaidDelivered: number;
-        onTimeCount: number;
-        totalMins: number;
-      }
-    >();
+    type DriverStat = {
+      name: string;
+      phone: string;
+      driverId?: string | undefined;
+      activeRuns: number;
+      completedRuns: number;
+      codPending: number;
+      codSettled: number;
+      codTotal: number;
+      unsettledOrders: OrderRow[];
+      prepaidDelivered: number;
+      onTimeCount: number;
+      totalMins: number;
+    };
+    const stats = new Map<string, DriverStat>();
 
     // Seed known drivers
     for (const d of drivers) {
       stats.set(d.name || d.id, {
         name: d.name || d.email,
         phone: d.phone || "",
+        driverId: d.id || undefined,
         activeRuns: 0,
         completedRuns: 0,
-        codCollected: 0,
+        codPending: 0,
+        codSettled: 0,
+        codTotal: 0,
+        unsettledOrders: [] as OrderRow[],
         prepaidDelivered: 0,
         onTimeCount: 0,
         totalMins: 0,
@@ -213,12 +297,16 @@ export function DriverDispatchPage() {
 
     for (const o of allOrders) {
       if (!o.driver_name) continue;
-      const cur = stats.get(o.driver_name) || {
+      const cur: DriverStat = stats.get(o.driver_name) || {
         name: o.driver_name,
         phone: "",
+        driverId: o.driver_id || undefined,
         activeRuns: 0,
         completedRuns: 0,
-        codCollected: 0,
+        codPending: 0,
+        codSettled: 0,
+        codTotal: 0,
+        unsettledOrders: [] as OrderRow[],
         prepaidDelivered: 0,
         onTimeCount: 0,
         totalMins: 0,
@@ -228,7 +316,14 @@ export function DriverDispatchPage() {
         cur.completedRuns++;
         if (o.payment_method === "cod" || o.payment_status === "paid") {
           if (o.payment_method === "cod") {
-            cur.codCollected += Number(o.total || 0);
+            const orderTotal = Number(o.total || 0);
+            cur.codTotal += orderTotal;
+            if (o.cod_settled) {
+              cur.codSettled += orderTotal;
+            } else {
+              cur.codPending += orderTotal;
+              cur.unsettledOrders.push(o);
+            }
           } else {
             cur.prepaidDelivered += Number(o.total || 0);
           }
@@ -261,6 +356,14 @@ export function DriverDispatchPage() {
     }));
   }, [drivers, allOrders]);
 
+  const totalFleetCodPending = useMemo(() => {
+    return driverAnalytics.reduce((sum, d) => sum + d.codPending, 0);
+  }, [driverAnalytics]);
+
+  const totalFleetCodSettled = useMemo(() => {
+    return driverAnalytics.reduce((sum, d) => sum + d.codSettled, 0);
+  }, [driverAnalytics]);
+
   function sendDriverWhatsApp(order: OrderRow) {
     const driver = drivers.find((d) => d.name === order.driver_name || d.id === order.driver_id);
     const driverPhone = driver?.phone || "";
@@ -290,7 +393,15 @@ export function DriverDispatchPage() {
               <Truck className="size-3.5" /> Live Dispatch ({activeDeliveries.length})
             </TabsTrigger>
             <TabsTrigger value="analytics" className="rounded-lg text-xs font-semibold flex items-center gap-1.5">
-              <Award className="size-3.5 text-amber-500" /> Driver Performance & Cash
+              <Award className="size-3.5 text-amber-500" /> Driver Performance
+            </TabsTrigger>
+            <TabsTrigger value="settlements" className="rounded-lg text-xs font-semibold flex items-center gap-1.5">
+              <Receipt className="size-3.5 text-emerald-500" /> Cash Handover & Reports
+              {totalFleetCodPending > 0 && (
+                <span className="ml-1 rounded-full bg-amber-500 text-white font-bold px-1.5 py-0.2 text-[10px]">
+                  {formatINR(totalFleetCodPending)}
+                </span>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -588,27 +699,29 @@ export function DriverDispatchPage() {
         {/* Tab 2: Driver Performance & Cash Reconciliation */}
         <TabsContent value="analytics" className="space-y-4 m-0">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card className="border-border/60 shadow-xs">
+            <Card className={`border-border/60 shadow-xs ${totalFleetCodPending > 0 ? "border-amber-500/40 bg-amber-500/[0.04]" : ""}`}>
               <CardContent className="pt-5 pb-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium text-muted-foreground">Active Fleets</p>
-                  <Users className="size-4 text-primary" />
-                </div>
-                <p className="mt-1.5 font-display text-2xl font-bold">{driverAnalytics.length} Drivers</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">Registered delivery staff</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/60 shadow-xs">
-              <CardContent className="pt-5 pb-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium text-muted-foreground">Total COD Cash Collected</p>
+                  <p className="text-xs font-medium text-muted-foreground">Pending COD with Drivers</p>
                   <Wallet className="size-4 text-amber-500" />
                 </div>
                 <p className="mt-1.5 font-display text-2xl font-bold text-amber-600 dark:text-amber-400">
-                  {formatINR(driverAnalytics.reduce((s, d) => s + d.codCollected, 0))}
+                  {formatINR(totalFleetCodPending)}
                 </p>
-                <p className="mt-1 text-[11px] text-muted-foreground">Physical cash to remit at counter</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">Cash in transit to remit to admin</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/60 shadow-xs bg-emerald-500/[0.03]">
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground">Total Handed Over to Admin</p>
+                  <DollarSign className="size-4 text-emerald-500" />
+                </div>
+                <p className="mt-1.5 font-display text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                  {formatINR(totalFleetCodSettled)}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">Settled & verified at counter</p>
               </CardContent>
             </Card>
 
@@ -667,9 +780,15 @@ export function DriverDispatchPage() {
 
                     <div className="grid grid-cols-2 gap-2 rounded-2xl bg-muted/40 p-2.5 text-xs border border-border/50">
                       <div>
-                        <p className="text-[10px] text-muted-foreground uppercase font-bold">COD In Hand</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">COD Pending</p>
                         <p className="font-extrabold text-amber-600 dark:text-amber-400 text-sm">
-                          {formatINR(d.codCollected)}
+                          {formatINR(d.codPending)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">COD Settled</p>
+                        <p className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                          {formatINR(d.codSettled)}
                         </p>
                       </div>
                       <div>
@@ -679,18 +798,33 @@ export function DriverDispatchPage() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Active Runs</p>
-                        <p className="font-bold text-primary">
-                          {d.activeRuns} in flight
-                        </p>
-                      </div>
-                      <div>
                         <p className="text-[10px] text-muted-foreground uppercase font-bold">On-Time SLA</p>
                         <p className="font-bold text-emerald-600 dark:text-emerald-400">
                           {d.onTimeRate}% ({d.avgSpeed}m)
                         </p>
                       </div>
                     </div>
+
+                    {d.codPending > 0 ? (
+                      <Button
+                        size="sm"
+                        className="w-full rounded-xl h-8 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                        onClick={() =>
+                          setSettlingDriver({
+                            name: d.name,
+                            phone: d.phone,
+                            driverId: d.driverId,
+                            unsettledOrders: d.unsettledOrders,
+                          })
+                        }
+                      >
+                        <Wallet className="mr-1.5 size-3.5" /> Collect & Settle Cash ({formatINR(d.codPending)})
+                      </Button>
+                    ) : (
+                      <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground py-1 bg-muted/30 rounded-xl">
+                        <CheckCircle2 className="size-3.5 text-emerald-500" /> Cash Settled & Reconciled
+                      </div>
+                    )}
                   </div>
                 ))}
                 {driverAnalytics.length === 0 && (
@@ -708,11 +842,11 @@ export function DriverDispatchPage() {
                       <th className="p-3.5 font-semibold">Driver Partner</th>
                       <th className="p-3.5 font-semibold">Active Runs</th>
                       <th className="p-3.5 font-semibold">Completed Runs</th>
-                      <th className="p-3.5 font-semibold">COD Cash In Hand</th>
-                      <th className="p-3.5 font-semibold">Prepaid Value</th>
+                      <th className="p-3.5 font-semibold">Pending COD in Hand</th>
+                      <th className="p-3.5 font-semibold">Settled Handover</th>
                       <th className="p-3.5 font-semibold">On-Time SLA</th>
-                      <th className="p-3.5 font-semibold">Avg Run Time</th>
                       <th className="p-3.5 font-semibold">Status</th>
+                      <th className="p-3.5 font-semibold text-right">Settlement Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">
@@ -730,10 +864,12 @@ export function DriverDispatchPage() {
                         <td className="p-3.5 font-medium text-foreground">{d.completedRuns} orders</td>
                         <td className="p-3.5">
                           <span className="font-bold text-amber-600 dark:text-amber-400 font-display text-sm">
-                            {formatINR(d.codCollected)}
+                            {formatINR(d.codPending)}
                           </span>
                         </td>
-                        <td className="p-3.5 text-muted-foreground">{formatINR(d.prepaidDelivered)}</td>
+                        <td className="p-3.5 font-medium text-emerald-600 dark:text-emerald-400 font-display">
+                          {formatINR(d.codSettled)}
+                        </td>
                         <td className="p-3.5">
                           <span
                             className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${
@@ -744,15 +880,36 @@ export function DriverDispatchPage() {
                                 : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
                             }`}
                           >
-                            {d.onTimeRate}%
+                            {d.onTimeRate}% ({d.avgSpeed}m)
                           </span>
                         </td>
-                        <td className="p-3.5 text-muted-foreground">{d.avgSpeed} mins</td>
                         <td className="p-3.5">
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                             <span className="size-1.5 rounded-full bg-emerald-500" />
                             {d.activeRuns > 0 ? "On Delivery" : "Ready"}
                           </span>
+                        </td>
+                        <td className="p-3.5 text-right">
+                          {d.codPending > 0 ? (
+                            <Button
+                              size="sm"
+                              className="rounded-xl h-7 px-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                              onClick={() =>
+                                setSettlingDriver({
+                                  name: d.name,
+                                  phone: d.phone,
+                                  driverId: d.driverId,
+                                  unsettledOrders: d.unsettledOrders,
+                                })
+                              }
+                            >
+                              <Wallet className="mr-1 size-3" /> Settle Cash
+                            </Button>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                              <Check className="size-3" /> Settled
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -769,7 +926,253 @@ export function DriverDispatchPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Tab 3: Cash Handover & Audit Reports */}
+        <TabsContent value="settlements" className="space-y-4 m-0">
+          {/* Top Audit KPI Banner */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Card className="border-border/60 shadow-xs bg-emerald-500/[0.03]">
+              <CardContent className="pt-4 pb-3.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground">Total Cash Settled</p>
+                  <DollarSign className="size-4 text-emerald-500" />
+                </div>
+                <p className="mt-1 font-display text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                  {formatINR(settlements.reduce((s, x) => s + Number(x.amount_settled || 0), 0))}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">Handed over & deposited</p>
+              </CardContent>
+            </Card>
+
+            <Card className={`border-border/60 shadow-xs ${totalFleetCodPending > 0 ? "border-amber-500/40 bg-amber-500/[0.04]" : ""}`}>
+              <CardContent className="pt-4 pb-3.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground">Pending on Road</p>
+                  <Wallet className="size-4 text-amber-500" />
+                </div>
+                <p className="mt-1 font-display text-2xl font-bold text-amber-600 dark:text-amber-400">
+                  {formatINR(totalFleetCodPending)}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">Physical cash with drivers</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/60 shadow-xs">
+              <CardContent className="pt-4 pb-3.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground">Reconciled Orders</p>
+                  <CheckCircle2 className="size-4 text-primary" />
+                </div>
+                <p className="mt-1 font-display text-2xl font-bold text-foreground">
+                  {settlements.reduce((s, x) => s + Number(x.orders_count || 0), 0)} orders
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">Delivered & verified</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/60 shadow-xs">
+              <CardContent className="pt-4 pb-3.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground">Settlement Slips</p>
+                  <Receipt className="size-4 text-purple-500" />
+                </div>
+                <p className="mt-1 font-display text-2xl font-bold text-foreground">
+                  {settlements.length} vouchers
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">Audit vouchers generated</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Action Bar & Filter */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                <Receipt className="size-4 text-primary" /> Settlement Audit Ledger
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Historical record of physical cash collected from delivery drivers and handed over to admin
+              </p>
+            </div>
+
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={settlements.length === 0}
+              className="rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-border shadow-xs"
+              onClick={exportSettlementsCsv}
+            >
+              <Download className="size-3.5" /> Export Settlements CSV
+            </Button>
+          </div>
+
+          {/* Settlements Table & Mobile List */}
+          <Card className="border-border/60 shadow-sm overflow-hidden">
+            <CardContent className="p-0">
+              {/* Mobile View */}
+              <div className="divide-y divide-border/50 sm:hidden">
+                {settlements.map((s) => (
+                  <div key={s.id} className="p-4 space-y-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="font-mono text-xs font-bold text-primary">
+                          #{s.settlement_number}
+                        </span>
+                        <p className="text-xs text-muted-foreground">{formatIST(s.settled_at)}</p>
+                      </div>
+                      <span className="font-extrabold text-sm text-emerald-600 dark:text-emerald-400 font-display">
+                        {formatINR(Number(s.amount_settled))}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs bg-muted/40 p-2.5 rounded-2xl border border-border/50">
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Driver</p>
+                        <p className="font-semibold text-foreground">{s.driver_name}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Orders Settled</p>
+                        <p className="font-semibold text-foreground">{s.orders_count} orders</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Handed Over To</p>
+                        <p className="font-semibold text-foreground">{s.settled_by_name}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Payment Mode</p>
+                        <span className="capitalize font-semibold text-foreground">
+                          {s.payment_mode?.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                    </div>
+
+                    {s.notes && (
+                      <p className="text-[11px] text-muted-foreground bg-muted/30 p-2 rounded-xl italic">
+                        Note: {s.notes}
+                      </p>
+                    )}
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full rounded-xl h-8 text-xs font-semibold gap-1.5"
+                      onClick={() => setViewingReceipt(s)}
+                    >
+                      <Printer className="size-3.5" /> View / Print Voucher Slip
+                    </Button>
+                  </div>
+                ))}
+                {settlements.length === 0 && (
+                  <div className="p-8 text-center space-y-1">
+                    <p className="text-sm font-semibold text-foreground">No Settlements Recorded Yet</p>
+                    <p className="text-xs text-muted-foreground">
+                      When drivers return to the store with COD cash, click "Settle Cash" under Driver Performance to record the handover.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-muted/40 text-muted-foreground">
+                    <tr>
+                      <th className="p-3.5 font-semibold">Voucher #</th>
+                      <th className="p-3.5 font-semibold">Settled Date & Time</th>
+                      <th className="p-3.5 font-semibold">Driver Partner</th>
+                      <th className="p-3.5 font-semibold">Orders</th>
+                      <th className="p-3.5 font-semibold">Gross Collected</th>
+                      <th className="p-3.5 font-semibold">Cash Handed Over</th>
+                      <th className="p-3.5 font-semibold">Admin Collector</th>
+                      <th className="p-3.5 font-semibold">Mode</th>
+                      <th className="p-3.5 font-semibold">Notes</th>
+                      <th className="p-3.5 font-semibold text-right">Voucher</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {settlements.map((s) => (
+                      <tr key={s.id} className="hover:bg-muted/30 transition">
+                        <td className="p-3.5 font-mono font-bold text-primary">
+                          #{s.settlement_number}
+                        </td>
+                        <td className="p-3.5 text-muted-foreground">{formatIST(s.settled_at)}</td>
+                        <td className="p-3.5">
+                          <p className="font-semibold text-foreground">{s.driver_name}</p>
+                          {s.driver_phone && (
+                            <p className="text-[11px] text-muted-foreground">{s.driver_phone}</p>
+                          )}
+                        </td>
+                        <td className="p-3.5 font-medium">{s.orders_count} orders</td>
+                        <td className="p-3.5 text-muted-foreground">
+                          {formatINR(Number(s.amount_collected))}
+                        </td>
+                        <td className="p-3.5">
+                          <span className="font-extrabold text-sm text-emerald-600 dark:text-emerald-400 font-display">
+                            {formatINR(Number(s.amount_settled))}
+                          </span>
+                        </td>
+                        <td className="p-3.5 font-medium text-foreground">{s.settled_by_name}</td>
+                        <td className="p-3.5">
+                          <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-semibold capitalize">
+                            {s.payment_mode?.replace(/_/g, " ")}
+                          </span>
+                        </td>
+                        <td className="p-3.5 text-muted-foreground max-w-40 truncate">
+                          {s.notes || "—"}
+                        </td>
+                        <td className="p-3.5 text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-xl h-7 px-2.5 text-xs font-semibold gap-1"
+                            onClick={() => setViewingReceipt(s)}
+                          >
+                            <Printer className="size-3" /> Slip
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                    {settlements.length === 0 && (
+                      <tr>
+                        <td colSpan={10} className="p-8 text-center text-muted-foreground">
+                          No settlements recorded yet. Settle cash from drivers in the "Driver Performance" tab.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Driver COD Cash Settlement Modal */}
+      {settlingDriver && (
+        <DriverCashSettlementModal
+          open={!!settlingDriver}
+          onOpenChange={(open) => {
+            if (!open) setSettlingDriver(null);
+          }}
+          driverName={settlingDriver.name}
+          driverPhone={settlingDriver.phone}
+          driverId={settlingDriver.driverId}
+          unsettledOrders={settlingDriver.unsettledOrders}
+          onSuccess={() => {
+            qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+            qc.invalidateQueries({ queryKey: ["driver_cash_settlements"] });
+          }}
+        />
+      )}
+
+      {/* Settlement Voucher Receipt Modal */}
+      <SettlementReceiptModal
+        settlement={viewingReceipt}
+        open={!!viewingReceipt}
+        onOpenChange={(open) => {
+          if (!open) setViewingReceipt(null);
+        }}
+      />
 
       {/* Route & Navigation Modal */}
       <DeliveryRouteModal

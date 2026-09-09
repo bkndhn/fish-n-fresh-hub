@@ -35,6 +35,9 @@ export type OrderRow = {
   cancel_reason: string | null;
   created_at: string;
   complaint: string | null;
+  cod_settled?: boolean;
+  settlement_id?: string | null;
+  settled_at?: string | null;
 };
 
 export type PromotionRow = {
