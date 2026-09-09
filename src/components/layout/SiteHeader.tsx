@@ -146,13 +146,14 @@ export function SiteHeader() {
             )}
 
             <Link
-              to="/settings"
+              to="/account"
               className="rounded-lg sm:rounded-xl p-1.5 sm:p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-              aria-label="Account Settings"
-              title="Account"
+              aria-label="My account"
+              title="My account"
             >
               <User className="size-4 sm:size-5" />
             </Link>
+
 
             <ReferralModal />
 

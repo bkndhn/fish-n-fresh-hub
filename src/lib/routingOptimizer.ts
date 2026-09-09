@@ -30,10 +30,13 @@ export interface OptimizedTripRoute {
  * Minimizes total round-trip travel distance and rider fuel consumption.
  */
 export function optimizeMultiOrderRoute(
-  storeLat: number,
-  storeLng: number,
+  storeLatInput: number | null,
+  storeLngInput: number | null,
   orders: OrderRow[]
 ): OptimizedTripRoute {
+  const storeLat = storeLatInput ?? 13.0827;
+  const storeLng = storeLngInput ?? 80.2707;
+
   // Filter valid orders that have coordinates
   const validOrders = orders.filter(
     (o) => typeof o.location_lat === "number" && typeof o.location_lng === "number"
@@ -60,7 +63,7 @@ export function optimizeMultiOrderRoute(
     let shortestDist = Infinity;
 
     for (let i = 0; i < unvisited.length; i++) {
-      const target = unvisited[i];
+      const target = unvisited[i]!;
       const dist = calculateDistanceKm(
         currentLat,
         currentLng,
@@ -73,7 +76,7 @@ export function optimizeMultiOrderRoute(
       }
     }
 
-    const picked = unvisited.splice(nearestIdx, 1)[0];
+    const picked = unvisited.splice(nearestIdx, 1)[0]!;
     const pickedLat = picked.location_lat!;
     const pickedLng = picked.location_lng!;
 
@@ -97,7 +100,8 @@ export function optimizeMultiOrderRoute(
 
   // Build Google Maps Multi-Destination URL with waypoints
   const origin = `${storeLat},${storeLng}`;
-  const destination = `${sequenced[sequenced.length - 1].lat},${sequenced[sequenced.length - 1].lng}`;
+  const lastStop = sequenced[sequenced.length - 1]!;
+  const destination = `${lastStop.lat},${lastStop.lng}`;
   const midWaypoints = sequenced
     .slice(0, sequenced.length - 1)
     .map((w) => `${w.lat},${w.lng}`)

@@ -94,8 +94,7 @@ function AdminBroadcastsPage() {
       if (error) throw error;
 
       // 2. Trigger browser push alert to subscribed devices
-      await triggerLocalNotification({
-        title: title.trim(),
+      triggerLocalNotification(title.trim(), {
         body: `${harbour}: ${message.trim()}`,
         url: "/catalog",
       });

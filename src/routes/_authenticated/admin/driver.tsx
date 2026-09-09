@@ -508,7 +508,7 @@ export function DriverDispatchPage() {
                       Optimized Multi-Stop Delivery Sequence
                     </p>
                     <Badge variant="secondary" className="text-[10px] font-mono font-bold">
-                      {multiStopRoute.optimizedOrderIds.length} Drops · {multiStopRoute.totalDistanceKm.toFixed(1)} km
+                      {multiStopRoute.waypoints.length} Drops · {multiStopRoute.totalDistanceKm.toFixed(1)} km
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -521,9 +521,9 @@ export function DriverDispatchPage() {
                 className="rounded-xl h-9 text-xs font-bold gap-2 shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
                 asChild
               >
-                <a href={multiStopRoute.googleMapsUrl} target="_blank" rel="noopener noreferrer">
+                <a href={multiStopRoute.googleMapsMultiStopUrl} target="_blank" rel="noopener noreferrer">
                   <Navigation className="size-3.5" />
-                  <span>Launch Google Maps Route ({multiStopRoute.optimizedOrderIds.length} Stops)</span>
+                  <span>Launch Google Maps Route ({multiStopRoute.waypoints.length} Stops)</span>
                   <ExternalLink className="size-3" />
                 </a>
               </Button>

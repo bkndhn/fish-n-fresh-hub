@@ -215,15 +215,15 @@ export const TILE_PROVIDERS = [
 
 export function createResilientTileLayer(L: any, map?: any) {
   let providerIndex = 0;
-  const layer = L.tileLayer(TILE_PROVIDERS[0].url, {
-    ...TILE_PROVIDERS[0].options,
+  const layer = L.tileLayer(TILE_PROVIDERS[0]!.url, {
+    ...TILE_PROVIDERS[0]!.options,
     crossOrigin: true,
   });
 
   layer.on("tileerror", () => {
     if (providerIndex < TILE_PROVIDERS.length - 1) {
       providerIndex++;
-      const next = TILE_PROVIDERS[providerIndex];
+      const next = TILE_PROVIDERS[providerIndex]!;
       console.warn(`Map tile failover activated -> Switching to ${next.name}`);
       layer.setUrl(next.url);
     }

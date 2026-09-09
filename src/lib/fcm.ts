@@ -136,9 +136,9 @@ export async function notifyOrderStatusChange({
   customerName,
 }: {
   orderId: string;
-  orderNumber?: string;
+  orderNumber?: string | undefined;
   newStatus: string;
-  customerName?: string;
+  customerName?: string | undefined;
 }): Promise<void> {
   const displayNum = orderNumber || orderId.slice(0, 8);
   let statusText = "Updated";

@@ -104,7 +104,7 @@ export class EscPosBuilder {
     const encoder = new TextEncoder();
     const bytes = encoder.encode(str);
     for (let i = 0; i < bytes.length; i++) {
-      this.buffer.push(bytes[i]);
+      this.buffer.push(bytes[i]!);
     }
     return this;
   }
@@ -361,32 +361,32 @@ export function buildTestPrintEscPos(config: ThermalPrinterConfig): Uint8Array {
 
 export interface PosReceiptItem {
   name: string;
-  weightKg?: number;
-  qty?: number;
+  weightKg?: number | undefined;
+  qty?: number | undefined;
   unitPrice: number;
   totalPrice: number;
-  cuttingStyle?: string;
+  cuttingStyle?: string | undefined;
 }
 
 export interface PosReceiptData {
   receiptNo: string;
   date: string;
   cashierName: string;
-  customerName?: string;
-  customerPhone?: string;
+  customerName?: string | undefined;
+  customerPhone?: string | undefined;
   items: PosReceiptItem[];
   subtotal: number;
   discount: number;
   gstAmount: number;
   total: number;
   paymentMethod: string;
-  amountTendered?: number;
-  changeDue?: number;
-  upiRef?: string;
-  storeName?: string;
-  storeAddress?: string;
-  storePhone?: string;
-  storeGstin?: string;
+  amountTendered?: number | undefined;
+  changeDue?: number | undefined;
+  upiRef?: string | undefined;
+  storeName?: string | undefined;
+  storeAddress?: string | undefined;
+  storePhone?: string | undefined;
+  storeGstin?: string | undefined;
 }
 
 /**
