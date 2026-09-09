@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useCart } from "@/lib/cart";
 import { inr } from "@/lib/format";
-import { settingsQuery } from "@/lib/queries";
+import { settingsQuery, productsQuery } from "@/lib/queries";
 import { getStoreStatus } from "@/lib/storeSchedule";
+import type { Product } from "@/lib/types";
 
 export const Route = createFileRoute("/cart")({
   head: () => ({
@@ -33,9 +34,27 @@ const CUT_OPTIONS = [
 function CartPage() {
   const { items, subtotal, setQty, setCutPreference, remove, clear } = useCart();
   const { data: settings } = useQuery(settingsQuery);
+  const { data: products = [] } = useQuery(productsQuery);
   const storeStatus = settings ? getStoreStatus(settings) : null;
   const freeOver = Number(settings?.free_delivery_over ?? 500);
   const progress = Math.min(100, (subtotal / freeOver) * 100);
+
+  // Live omnichannel stock audit for cart items
+  const cartStockAnalysis = items.map((item) => {
+    const matched = (products as Product[]).find((p) => p.id === item.product_id);
+    const availableStock = matched?.stock ?? 999;
+    const isAvailable = matched?.is_available !== false;
+    const isSoldOut = availableStock <= 0 || !isAvailable;
+    const isExceedingStock = item.qty > availableStock;
+    return {
+      ...item,
+      availableStock,
+      isSoldOut,
+      isExceedingStock,
+    };
+  });
+
+  const hasOutOfStockItems = cartStockAnalysis.some((i) => i.isSoldOut || i.isExceedingStock);
 
   if (items.length === 0) {
     return (
@@ -72,15 +91,57 @@ function CartPage() {
           </span>
         </div>
       )}
+      {/* Depleted Stock Alert Banner */}
+      {hasOutOfStockItems && (
+        <div className="mt-3 flex items-start gap-2.5 rounded-2xl border border-destructive/40 bg-destructive/10 p-3.5 text-xs text-destructive">
+          <AlertTriangle className="size-4 shrink-0 mt-0.5 text-destructive" />
+          <div>
+            <p className="font-bold">Items Out of Stock in Your Cart</p>
+            <p className="mt-0.5 opacity-90">
+              One or more items have sold out or exceed our fresh catch dock inventory. Please remove sold out items to proceed to checkout.
+            </p>
+          </div>
+        </div>
+      )}
+
       <ul className="mt-4 space-y-3">
-        {items.map((item) => (
-          <li key={item.product_id} className="flex flex-col sm:flex-row gap-3 rounded-2xl border border-border bg-card p-3">
+        {cartStockAnalysis.map((item) => (
+          <li
+            key={item.product_id}
+            className={`flex flex-col sm:flex-row gap-3 rounded-2xl border p-3 transition-colors ${
+              item.isSoldOut
+                ? "border-destructive/40 bg-destructive/5"
+                : item.isExceedingStock
+                ? "border-amber-500/40 bg-amber-50/20 dark:bg-amber-950/10"
+                : "border-border bg-card"
+            }`}
+          >
             <div className="flex gap-3 items-center flex-1 min-w-0">
               {item.image_url && (
-                <img src={item.image_url} alt={item.name} className="size-20 rounded-xl object-cover shrink-0" />
+                <div className="relative size-20 rounded-xl overflow-hidden shrink-0">
+                  <img src={item.image_url} alt={item.name} className="size-full object-cover" />
+                  {item.isSoldOut && (
+                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center p-1 text-center">
+                      <span className="text-[9px] font-black uppercase text-destructive">OUT</span>
+                    </div>
+                  )}
+                </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="font-semibold truncate">{item.name}</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-semibold truncate">{item.name}</p>
+                  {item.isSoldOut && (
+                    <span className="rounded-md bg-destructive text-destructive-foreground text-[10px] font-extrabold px-1.5 py-0.5">
+                      SOLD OUT
+                    </span>
+                  )}
+                  {item.isExceedingStock && !item.isSoldOut && (
+                    <span className="rounded-md bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5">
+                      Only {item.availableStock} in stock
+                    </span>
+                  )}
+                </div>
+
                 <p className="text-sm text-muted-foreground">
                   {inr(item.price)} / {item.unit}
                 </p>
@@ -108,7 +169,13 @@ function CartPage() {
                   <Minus className="size-4" />
                 </button>
                 <span className="w-5 text-center text-sm font-semibold">{item.qty}</span>
-                <button onClick={() => setQty(item.product_id, item.qty + 1)} aria-label="Increase">
+                <button
+                  disabled={item.isSoldOut || item.qty >= item.availableStock}
+                  onClick={() => setQty(item.product_id, item.qty + 1)}
+                  className="disabled:opacity-30 disabled:cursor-not-allowed"
+                  aria-label="Increase"
+                  title={item.isSoldOut ? "Item is sold out" : item.qty >= item.availableStock ? "Max stock reached" : "Increase quantity"}
+                >
                   <Plus className="size-4" />
                 </button>
               </div>
@@ -154,7 +221,11 @@ function CartPage() {
         <Button variant="outline" className="rounded-xl" onClick={clear}>
           Clear
         </Button>
-        {storeStatus && !storeStatus.canAcceptOrder ? (
+        {hasOutOfStockItems ? (
+          <Button disabled className="flex-1 rounded-xl opacity-75 bg-destructive hover:bg-destructive text-destructive-foreground">
+            Remove Sold Out Items to Checkout
+          </Button>
+        ) : storeStatus && !storeStatus.canAcceptOrder ? (
           <Button disabled className="flex-1 rounded-xl opacity-60">
             Orders Paused · Store Closed
           </Button>

@@ -66,6 +66,11 @@ import {
   type PosReceiptData,
   type PosReceiptItem,
 } from "@/lib/thermalPrinter";
+import {
+  weighingScaleDriver,
+  type ScaleReading,
+  type ScaleConnectionState,
+} from "@/lib/weighingScale";
 
 export const Route = createFileRoute("/_authenticated/admin/pos")({
   head: () => ({
@@ -182,6 +187,40 @@ export function RetailPosCounterPage() {
   const [printerModalOpen, setPrinterModalOpen] = useState(false);
   const [pastBillsModalOpen, setPastBillsModalOpen] = useState(false);
   const [parkedModalOpen, setParkedModalOpen] = useState(false);
+
+  // Electronic Weighing Scale State & Driver Subscription
+  const [scaleStatus, setScaleStatus] = useState<ScaleConnectionState>(() =>
+    weighingScaleDriver.getConnectionState()
+  );
+  const [scaleReading, setScaleReading] = useState<ScaleReading>(() =>
+    weighingScaleDriver.getLastReading()
+  );
+  const [scaleModalOpen, setScaleModalOpen] = useState(false);
+  const [scaleBaudRate, setScaleBaudRate] = useState<number>(9600);
+  const [simWeightInput, setSimWeightInput] = useState<string>("0.350");
+  const isScaleSupported = weighingScaleDriver.isSerialSupported();
+
+  useEffect(() => {
+    const unsubWeight = weighingScaleDriver.onWeight((reading) => {
+      setScaleReading(reading);
+    });
+    const unsubStatus = weighingScaleDriver.onStatus((status) => {
+      setScaleStatus(status);
+    });
+    return () => {
+      unsubWeight();
+      unsubStatus();
+    };
+  }, []);
+
+  // Omnichannel Low Stock Radar Detection (Omnichannel stock <= 5kg or custom threshold)
+  const lowStockProducts = useMemo(() => {
+    return (rawProducts as Product[]).filter((p) => {
+      const stock = p.stock ?? 0;
+      const threshold = p.low_stock_threshold ?? 5;
+      return p.is_available !== false && stock <= threshold;
+    });
+  }, [rawProducts]);
 
   // Offline and Auto-sync state
   const [isOnline, setIsOnline] = useState<boolean>(
@@ -373,20 +412,46 @@ export function RetailPosCounterPage() {
     };
   }, []);
 
-  // Open item customization modal
+  // Open item customization modal (with stock guard & live scale reading auto-detect)
   const handleOpenItem = (prod: Product) => {
+    if ((prod.stock ?? 0) <= 0 || prod.is_available === false) {
+      toast.error(`${prod.name} is currently SOLD OUT! Inward fresh catch from harbour first.`);
+      return;
+    }
     setActiveItemModal(prod);
-    setModalWeightInput("1.0");
+    // If electronic weighing scale has live weight on plate, auto-populate!
+    if (scaleStatus === "streaming" && scaleReading.weightKg > 0) {
+      setModalWeightInput(scaleReading.weightKg.toFixed(3));
+    } else {
+      setModalWeightInput("1.0");
+    }
     setModalCutting(CUTTING_STYLES[0] ?? "Curry Cut");
   };
 
-  // Add item to cart
+  // Add item to cart with strict stock boundary check
   const handleAddToCart = () => {
     if (!activeItemModal) return;
     const isWeightBased = (activeItemModal.unit || "kg").toLowerCase() === "kg";
     const pricePerKg = Number(activeItemModal.price);
     const weight = isWeightBased ? modalWeight : 1;
     const qty = isWeightBased ? 1 : Math.round(modalWeight);
+
+    const availableStock = activeItemModal.stock ?? 0;
+    const requestedAmt = isWeightBased ? modalWeight : qty;
+
+    if (availableStock <= 0 || activeItemModal.is_available === false) {
+      toast.error(`${activeItemModal.name} is out of stock! Cannot add to bill.`);
+      return;
+    }
+
+    if (requestedAmt > availableStock) {
+      toast.error(
+        `Requested ${requestedAmt} ${activeItemModal.unit || "kg"} exceeds available stock of ${availableStock} ${activeItemModal.unit || "kg"}!`
+      );
+      setModalWeightInput(availableStock.toString());
+      return;
+    }
+
     const totalPrice = Math.round(pricePerKg * (isWeightBased ? modalWeight : qty));
 
     const newItem: PosCartItem = {
@@ -408,14 +473,21 @@ export function RetailPosCounterPage() {
     toast.success(`Added ${newItem.name} (${newItem.weightKg ? `${newItem.weightKg} kg` : `${newItem.qty} pcs`}) to bill`);
   };
 
-  // Adjust Cart Item (+/- stepper)
+  // Adjust Cart Item (+/- stepper with stock check)
   const handleAdjustCartItem = (id: string, delta: number) => {
     setCart((prev) =>
       prev.map((item) => {
         if (item.id !== id) return item;
+        const matched = products.find((p) => p.id === item.productId);
+        const maxStock = matched?.stock ?? 9999;
         const isWeight = item.unit.toLowerCase() === "kg";
+
         if (isWeight) {
           const newWeight = Math.max(0.05, Math.round((item.weightKg + delta) * 100) / 100);
+          if (delta > 0 && newWeight > maxStock) {
+            toast.warning(`Cannot exceed available store stock (${maxStock} kg)!`);
+            return item;
+          }
           return {
             ...item,
             weightKg: newWeight,
@@ -423,6 +495,10 @@ export function RetailPosCounterPage() {
           };
         } else {
           const newQty = Math.max(1, item.qty + delta);
+          if (delta > 0 && newQty > maxStock) {
+            toast.warning(`Cannot exceed available store stock (${maxStock} pcs)!`);
+            return item;
+          }
           return {
             ...item,
             qty: newQty,
@@ -884,6 +960,32 @@ export function RetailPosCounterPage() {
               <Printer className="size-3.5 text-primary" />
               <span>Printer Setup</span>
             </Button>
+
+            {/* Electronic Weighing Scale Hardware Trigger */}
+            <Button
+              variant="outline"
+              size="sm"
+              className={`rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-border/80 ${
+                scaleStatus === "streaming"
+                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                  : scaleStatus === "connected"
+                  ? "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/30"
+                  : ""
+              }`}
+              onClick={() => setScaleModalOpen(true)}
+              title="Connect and manage electronic weighing scale (CAS, Essae, Toledo, Avery)"
+            >
+              <Scale className={`size-3.5 ${scaleStatus === "streaming" ? "text-emerald-600 animate-pulse" : "text-primary"}`} />
+              <span>
+                {scaleStatus === "streaming"
+                  ? `⚖️ ${scaleReading.weightKg.toFixed(3)} kg ${scaleReading.isStable ? "STABLE" : "MOTION"}`
+                  : scaleStatus === "connected"
+                  ? "Scale: Ready"
+                  : scaleStatus === "connecting"
+                  ? "Scale: Connecting..."
+                  : "Weighing Scale"}
+              </span>
+            </Button>
           </div>
         </div>
 
@@ -891,6 +993,52 @@ export function RetailPosCounterPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_430px] gap-4 items-start">
           {/* LEFT: Fast Touch Product Catalog */}
           <div className="space-y-3">
+            {/* Omnichannel Low Stock Radar Alert Banner */}
+            {lowStockProducts.length > 0 && (
+              <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+                <div className="flex items-start sm:items-center gap-2.5">
+                  <div className="size-8 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="size-4" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-extrabold text-amber-900 dark:text-amber-200">
+                        Low Stock Alert Radar ({lowStockProducts.length} items low or out of stock)
+                      </span>
+                      <span className="rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-300 text-[10px] font-bold px-2 py-0.2">
+                        Immediate Inward Required
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {lowStockProducts.slice(0, 4).map((lp) => (
+                        <span
+                          key={lp.id}
+                          className="rounded-md bg-background/80 px-2 py-0.5 text-[10px] font-medium text-foreground border border-amber-500/20"
+                        >
+                          {lp.name}: <strong className={lp.stock <= 0 ? "text-rose-600" : "text-amber-600"}>{lp.stock} {lp.unit || "kg"}</strong>
+                        </span>
+                      ))}
+                      {lowStockProducts.length > 4 && (
+                        <span className="text-[10px] text-muted-foreground self-center">
+                          +{lowStockProducts.length - 4} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <Button
+                  size="sm"
+                  className="rounded-xl h-8 text-xs font-bold gap-1 bg-amber-600 hover:bg-amber-500 text-white shrink-0 self-end sm:self-center"
+                  asChild
+                >
+                  <a href="/admin/purchases">
+                    <Plus className="size-3.5" /> Inward Catch (Purchases)
+                  </a>
+                </Button>
+              </div>
+            )}
+
             {/* Search & Category Filter */}
             <div className="space-y-2 bg-card p-3 rounded-2xl border border-border/80 shadow-2xs">
               <div className="relative">
@@ -934,16 +1082,23 @@ export function RetailPosCounterPage() {
             {/* Product Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
               {displayedProducts.map((prod) => {
-                const isOutOfStock = typeof prod.stock === "number" && prod.stock <= 0;
+                const isOutOfStock =
+                  (typeof prod.stock === "number" && prod.stock <= 0) || prod.is_available === false;
                 return (
                   <button
                     key={prod.id}
                     type="button"
                     disabled={isOutOfStock}
-                    onClick={() => handleOpenItem(prod)}
+                    onClick={() => {
+                      if (isOutOfStock) {
+                        toast.error(`${prod.name} is SOLD OUT! Inward fresh catch from harbour first.`);
+                        return;
+                      }
+                      handleOpenItem(prod);
+                    }}
                     className={`relative text-left p-3 rounded-2xl border transition-all duration-150 flex flex-col justify-between group ${
                       isOutOfStock
-                        ? "opacity-50 border-dashed border-border bg-muted/30 cursor-not-allowed"
+                        ? "opacity-60 border-dashed border-destructive/40 bg-destructive/5 cursor-not-allowed"
                         : "bg-card border-border/80 hover:border-primary/60 hover:shadow-md active:scale-98"
                     }`}
                   >
@@ -961,6 +1116,16 @@ export function RetailPosCounterPage() {
                             No image
                           </div>
                         )}
+
+                        {/* Sold Out Overlay */}
+                        {isOutOfStock && (
+                          <div className="absolute inset-0 bg-background/80 backdrop-blur-[1px] flex items-center justify-center p-1">
+                            <span className="text-[10px] font-black uppercase text-destructive tracking-wider border border-destructive/40 bg-destructive/10 px-2 py-0.5 rounded-md shadow-xs">
+                              SOLD OUT
+                            </span>
+                          </div>
+                        )}
+
                         {/* Live Stock Badge */}
                         <div className="absolute bottom-1 right-1">
                           <span
@@ -972,7 +1137,7 @@ export function RetailPosCounterPage() {
                                 : "bg-emerald-600 text-white"
                             }`}
                           >
-                            {isOutOfStock ? "Out" : `${prod.stock} ${prod.unit || "kg"}`}
+                            {isOutOfStock ? "Out of Stock" : `${prod.stock} ${prod.unit || "kg"}`}
                           </span>
                         </div>
                       </div>
@@ -993,8 +1158,14 @@ export function RetailPosCounterPage() {
                       <span className="font-bold text-xs text-primary font-mono">
                         {formatINR(Number(prod.price))}/{prod.unit || "kg"}
                       </span>
-                      <span className="size-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                        +
+                      <span
+                        className={`size-6 rounded-lg flex items-center justify-center font-bold text-xs transition-colors ${
+                          isOutOfStock
+                            ? "bg-muted text-muted-foreground"
+                            : "bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground"
+                        }`}
+                      >
+                        {isOutOfStock ? "✕" : "+"}
                       </span>
                     </div>
                   </button>
@@ -1463,6 +1634,59 @@ export function RetailPosCounterPage() {
             </div>
 
             <div className="p-5 space-y-4">
+              {/* Electronic Weighing Scale Live Auto-Detect Bar */}
+              <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-3 flex items-center justify-between gap-2 shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className={`size-2.5 rounded-full shrink-0 ${
+                      scaleStatus === "streaming" ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"
+                    }`}
+                  />
+                  <div>
+                    <p className="text-xs font-extrabold text-foreground">
+                      {scaleStatus === "streaming"
+                        ? `Live Scale: ${scaleReading.weightKg.toFixed(3)} kg`
+                        : "Weighing Scale: Standby / Not Connected"}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {scaleStatus === "streaming"
+                        ? scaleReading.isStable
+                          ? "● Stable reading locked"
+                          : "○ Weight reading in motion..."
+                        : "Connect scale for 1-click live weight capture"}
+                    </p>
+                  </div>
+                </div>
+
+                {scaleStatus === "streaming" ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8 rounded-xl text-xs font-bold bg-cyan-700 hover:bg-cyan-600 text-white gap-1 shrink-0"
+                    onClick={() => {
+                      if (scaleReading.weightKg <= 0) {
+                        toast.info("Please place seafood catch on the physical scale plate first.");
+                        return;
+                      }
+                      setModalWeightInput(scaleReading.weightKg.toFixed(3));
+                      toast.success(`Synced ${scaleReading.weightKg.toFixed(3)} kg from scale!`);
+                    }}
+                  >
+                    <Scale className="size-3.5" /> Auto-Detect ({scaleReading.weightKg.toFixed(3)} kg)
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-xl text-xs font-semibold gap-1 shrink-0"
+                    onClick={() => setScaleModalOpen(true)}
+                  >
+                    <Scale className="size-3.5 text-primary" /> Setup Scale
+                  </Button>
+                )}
+              </div>
+
               {/* Decimal Weighing Scale Input */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -1674,6 +1898,205 @@ export function RetailPosCounterPage() {
         open={printerModalOpen}
         onOpenChange={setPrinterModalOpen}
       />
+
+      {/* Electronic Weighing Scale Hardware Hub Modal */}
+      <Dialog open={scaleModalOpen} onOpenChange={setScaleModalOpen}>
+        <DialogContent className="max-w-md rounded-3xl p-5">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Scale className="size-5 text-primary" /> Electronic Weighing Scale Hub
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Direct RS-232 / USB / Bluetooth scale streaming (CAS, Essae, Toledo, Avery, Rongta).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            {/* Digital Weight Terminal Display */}
+            <div className="rounded-2xl border-2 border-primary/40 bg-zinc-950 p-4 text-center text-white shadow-inner font-mono relative overflow-hidden">
+              <div className="flex justify-between items-center text-[10px] text-zinc-400 uppercase tracking-widest pb-1 border-b border-zinc-800">
+                <span>{scaleStatus === "streaming" ? "● PORT ACTIVE" : "○ STANDBY"}</span>
+                <span className={scaleReading.isStable ? "text-emerald-400 font-bold" : "text-amber-400 animate-pulse"}>
+                  {scaleReading.isStable ? "STABLE" : "MOTION"}
+                </span>
+                <span>GROSS WEIGHT</span>
+              </div>
+
+              <div className="py-3 flex items-baseline justify-center gap-2">
+                <span className="text-5xl font-black tracking-tight text-emerald-400 tabular-nums">
+                  {scaleReading.weightKg.toFixed(3)}
+                </span>
+                <span className="text-xl font-bold text-zinc-400">KG</span>
+              </div>
+
+              <div className="text-[10px] text-zinc-400 pt-1 border-t border-zinc-800 flex justify-between">
+                <span>Driver: Web Serial / BLE</span>
+                <span>Raw: {scaleReading.raw || "N/A"}</span>
+              </div>
+            </div>
+
+            {/* Hardware Port Connection Controls */}
+            <div className="space-y-2 rounded-2xl border border-border/80 p-3 bg-muted/20">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-foreground">Hardware Port Connection</span>
+                <span
+                  className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                    scaleStatus === "streaming"
+                      ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
+                      : scaleStatus === "connected"
+                      ? "bg-cyan-500/10 text-cyan-600 border border-cyan-500/20"
+                      : "bg-zinc-500/10 text-zinc-600"
+                  }`}
+                >
+                  {scaleStatus}
+                </span>
+              </div>
+
+              {isScaleSupported ? (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Baud Rate</label>
+                      <select
+                        value={scaleBaudRate}
+                        onChange={(e) => setScaleBaudRate(Number(e.target.value))}
+                        className="flex h-8 w-full rounded-xl border border-input bg-background px-2 py-1 text-xs font-mono"
+                      >
+                        <option value={9600}>9600 (CAS / Essae)</option>
+                        <option value={2400}>2400 (Toledo)</option>
+                        <option value={4800}>4800 (Avery)</option>
+                        <option value={19200}>19200 (High Speed)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Action</label>
+                      {scaleStatus === "streaming" || scaleStatus === "connected" ? (
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="h-8 rounded-xl text-xs w-full font-bold"
+                          onClick={() => {
+                            weighingScaleDriver.disconnect();
+                            toast.info("Weighing scale disconnected");
+                          }}
+                        >
+                          Disconnect
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-8 rounded-xl text-xs w-full font-bold bg-primary text-primary-foreground"
+                          onClick={async () => {
+                            const ok = await weighingScaleDriver.connectSerial(scaleBaudRate);
+                            if (ok) {
+                              toast.success("Scale connected & streaming live weight!");
+                            }
+                          }}
+                        >
+                          Select Port & Connect
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Tare & Zero Commands */}
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl h-8 text-xs font-semibold"
+                      onClick={() => {
+                        weighingScaleDriver.tare();
+                        toast.success("Tare command sent to scale");
+                      }}
+                    >
+                      Tare (T)
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl h-8 text-xs font-semibold"
+                      onClick={() => {
+                        weighingScaleDriver.zero();
+                        toast.success("Zero command sent to scale");
+                      }}
+                    >
+                      Zero (Z)
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl bg-amber-500/10 p-2.5 text-xs text-amber-800 dark:text-amber-300 border border-amber-500/20">
+                  <p className="font-bold">Web Serial not supported in this browser.</p>
+                  <p className="text-[11px] mt-0.5">Please open Fish N Fresh in Google Chrome or Microsoft Edge on Windows to connect physical serial/USB scales.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Scale Testing & Simulator (Useful for testing without physical scale hardware) */}
+            <div className="space-y-2 rounded-2xl border border-border/80 p-3 bg-muted/10">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-foreground">Hardware Simulation (Testing Mode)</span>
+                <span className="text-[10px] text-muted-foreground">Test live weight injection</span>
+              </div>
+
+              <div className="grid grid-cols-4 gap-1.5">
+                {[0.15, 0.35, 0.5, 0.75, 1.0, 1.5, 2.25, 3.5].map((w) => (
+                  <Button
+                    key={w}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs font-mono"
+                    onClick={() => {
+                      weighingScaleDriver.simulateReading(w, true);
+                      toast.success(`Simulated scale weight: ${w} kg`);
+                    }}
+                  >
+                    {w} kg
+                  </Button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <Input
+                  type="number"
+                  step="0.005"
+                  value={simWeightInput}
+                  onChange={(e) => setSimWeightInput(e.target.value)}
+                  placeholder="Custom kg"
+                  className="h-8 text-xs font-mono rounded-xl flex-1"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8 rounded-xl text-xs font-bold"
+                  onClick={() => {
+                    const n = parseFloat(simWeightInput) || 0;
+                    weighingScaleDriver.simulateReading(n, true);
+                    toast.success(`Injected scale reading: ${n} kg`);
+                  }}
+                >
+                  Inject
+                </Button>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              className="w-full rounded-xl font-bold h-9"
+              onClick={() => setScaleModalOpen(false)}
+            >
+              Done
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AdminShell>
   );
 }

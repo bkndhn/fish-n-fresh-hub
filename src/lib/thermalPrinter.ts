@@ -21,6 +21,8 @@ export interface ThermalPrinterConfig {
   headerLine1: string;
   headerLine2: string;
   footerText: string;
+  footerLine1?: string | undefined;
+  footerLine2?: string | undefined;
   networkIp?: string;
   networkPort?: number;
   autoPrintOnComplete?: boolean;

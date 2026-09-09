@@ -101,6 +101,21 @@ export type PurchaseOrder = {
   created_at?: string;
 };
 
+export type SupplierPaymentRecord = {
+  id: string;
+  supplier_id: string;
+  supplier_name?: string;
+  po_id?: string | null;
+  po_reference?: string | null;
+  payment_date: string;
+  amount: number;
+  payment_mode: "full" | "partial";
+  payment_method: "cash" | "upi" | "bank" | "cheque";
+  reference_no?: string | null;
+  notes?: string | null;
+  created_at: string;
+};
+
 export type WasteEntry = {
   id: string;
   date: string;

@@ -20,6 +20,12 @@ import {
   Eye,
   X,
   ExternalLink,
+  Download,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Receipt,
+  Landmark,
+  Scale,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminProductsQuery } from "@/lib/admin";
@@ -39,7 +45,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
-import type { Supplier, PurchaseOrder, PurchaseItem, Product } from "@/lib/types";
+import {
+  printSupplierLedgerPdf,
+  type SupplierLedgerEntry,
+  type SupplierOutstandingBill,
+  type SupplierStatementData,
+} from "@/lib/supplierLedgerPdf";
+import type { Supplier, PurchaseOrder, PurchaseItem, Product, SupplierPaymentRecord } from "@/lib/types";
 
 export const Route = createFileRoute("/_authenticated/admin/purchases")({
   head: () => ({
@@ -170,16 +182,52 @@ function PurchasesAdmin() {
   const [paidAmount, setPaidAmount] = useState<string>("0");
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "upi" | "bank" | "credit">("cash");
 
-  // Filter state for ledger
+  // Payment transactions history
+  const [payments, setPayments] = useState<SupplierPaymentRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem("fnf_supplier_payments");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      {
+        id: "pay-101",
+        supplier_id: "sup-1",
+        supplier_name: "Kasimedu Deep Sea Fishermen Society",
+        po_id: "po-101",
+        po_reference: "INW-8821",
+        payment_date: new Date().toISOString().slice(0, 10),
+        amount: 15000,
+        payment_mode: "partial",
+        payment_method: "upi",
+        reference_no: "UPI/38291049281",
+        notes: "Morning catch advance disbursement",
+        created_at: new Date().toISOString(),
+      },
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem("fnf_supplier_payments", JSON.stringify(payments));
+  }, [payments]);
+
+  // Filter state for ledger and statements
   const [searchLedger, setSearchLedger] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "paid">("all");
-  const [activeTab, setActiveTab] = useState<"ledger" | "new" | "suppliers">("ledger");
+  const [activeTab, setActiveTab] = useState<"ledger" | "outstanding" | "new" | "suppliers">("ledger");
+  const [statementSupplierFilter, setStatementSupplierFilter] = useState<string>("all");
 
   // Modals
   const [viewVoucher, setViewVoucher] = useState<PurchaseOrder | null>(null);
   const [openAddSupplier, setOpenAddSupplier] = useState(false);
+  
+  // Enhanced Payment Disburse Modal State
   const [recordPaymentOrder, setRecordPaymentOrder] = useState<PurchaseOrder | null>(null);
+  const [paymentMode, setPaymentMode] = useState<"full" | "partial">("full");
   const [additionalPayment, setAdditionalPayment] = useState<string>("");
+  const [paymentDisburseMethod, setPaymentDisburseMethod] = useState<"cash" | "upi" | "bank" | "cheque">("upi");
+  const [paymentRefNumber, setPaymentRefNumber] = useState<string>("");
+  const [paymentNotes, setPaymentNotes] = useState<string>("");
+  const [paymentDate, setPaymentDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
 
   const [newSupplier, setNewSupplier] = useState<Partial<Supplier>>({
     name: "",
@@ -319,12 +367,31 @@ function PurchasesAdmin() {
     setViewVoucher(newPO);
   };
 
-  // Record additional balance payment
+  // Open Disburse Payment Modal with pre-configured full or partial mode
+  const openPaymentModal = (po: PurchaseOrder, mode: "full" | "partial" = "full") => {
+    const due = Math.max(0, po.total_amount - po.paid_amount);
+    setRecordPaymentOrder(po);
+    setPaymentMode(mode);
+    setAdditionalPayment(mode === "full" ? due.toString() : "");
+    setPaymentDisburseMethod("upi");
+    setPaymentRefNumber("");
+    setPaymentNotes("");
+    setPaymentDate(new Date().toISOString().slice(0, 10));
+  };
+
+  // Record full or partial payment against supplier purchase
   const handleRecordPayment = () => {
     if (!recordPaymentOrder) return;
     const addPay = Number(additionalPayment);
+    const due = Math.max(0, recordPaymentOrder.total_amount - recordPaymentOrder.paid_amount);
+
     if (isNaN(addPay) || addPay <= 0) {
-      toast.error("Please enter a valid payment amount");
+      toast.error("Please enter a valid payment amount greater than ₹0");
+      return;
+    }
+
+    if (addPay > due) {
+      toast.error(`Payment amount ₹${addPay} cannot exceed outstanding due of ${formatINR(due)}`);
       return;
     }
 
@@ -332,6 +399,25 @@ function PurchasesAdmin() {
     const newStatus: "paid" | "partial" | "pending" =
       newPaid >= recordPaymentOrder.total_amount ? "paid" : "partial";
 
+    // Create payment transaction record
+    const newTxn: SupplierPaymentRecord = {
+      id: `pay-${Date.now()}`,
+      supplier_id: recordPaymentOrder.supplier_id,
+      supplier_name: recordPaymentOrder.supplier_name,
+      po_id: recordPaymentOrder.id,
+      po_reference: recordPaymentOrder.reference_no,
+      payment_date: paymentDate,
+      amount: addPay,
+      payment_mode: paymentMode,
+      payment_method: paymentDisburseMethod,
+      reference_no: paymentRefNumber.trim() || null,
+      notes: paymentNotes.trim() || null,
+      created_at: new Date().toISOString(),
+    };
+
+    setPayments((prev) => [newTxn, ...prev]);
+
+    // Update Purchase Order
     setPurchases((prev) =>
       prev.map((p) =>
         p.id === recordPaymentOrder.id ? { ...p, paid_amount: newPaid, payment_status: newStatus } : p
@@ -347,9 +433,157 @@ function PurchasesAdmin() {
       )
     );
 
-    toast.success(`Payment of ${formatINR(addPay)} recorded successfully!`);
+    toast.success(
+      `Payment of ${formatINR(addPay)} (${paymentMode === "full" ? "Full Settlement" : "Partial"}) recorded via ${paymentDisburseMethod.toUpperCase()}!`
+    );
     setRecordPaymentOrder(null);
     setAdditionalPayment("");
+    setPaymentRefNumber("");
+    setPaymentNotes("");
+  };
+
+  // Generate & Print Supplier Account Statement PDF
+  const handleGenerateStatementPdf = (targetSupplierId?: string) => {
+    const isAll = !targetSupplierId || targetSupplierId === "all";
+    const targetSupplier = !isAll ? suppliers.find((s) => s.id === targetSupplierId) : null;
+    const supplierName = targetSupplier ? targetSupplier.name : "All Seafood Suppliers (Consolidated)";
+
+    const relevantPOs = !isAll
+      ? purchases.filter((p) => p.supplier_id === targetSupplierId)
+      : purchases;
+    const relevantPayments = !isAll
+      ? payments.filter((p) => p.supplier_id === targetSupplierId)
+      : payments;
+
+    type RawEvent = {
+      date: string;
+      referenceNo: string;
+      description: string;
+      type: "inward_catch" | "payment";
+      debit: number;
+      credit: number;
+      paymentMethod?: string | null | undefined;
+      paymentRef?: string | null | undefined;
+      timestamp: number;
+    };
+
+    const rawEvents: RawEvent[] = [];
+
+    // Catch Inward Debits
+    relevantPOs.forEach((po) => {
+      const summary = po.items.map((i) => `${i.product_name} (${i.quantity}${i.unit})`).join(", ");
+      rawEvents.push({
+        date: po.inward_date,
+        referenceNo: po.reference_no,
+        description: `Catch Inward: ${summary || "Harbour Seafood Catch"}`,
+        type: "inward_catch",
+        debit: po.total_amount,
+        credit: 0,
+        timestamp: new Date(po.inward_date).getTime() || Date.now(),
+      });
+
+      // Upfront payment on creation if not already in payments table
+      if (po.paid_amount > 0 && !relevantPayments.some((pm) => pm.po_id === po.id)) {
+        rawEvents.push({
+          date: po.inward_date,
+          referenceNo: po.reference_no,
+          description: `Initial Settlement against #${po.reference_no}`,
+          type: "payment",
+          debit: 0,
+          credit: po.paid_amount,
+          paymentMethod: po.payment_method?.toUpperCase(),
+          timestamp: (new Date(po.inward_date).getTime() || Date.now()) + 1,
+        });
+      }
+    });
+
+    // Payment Credits
+    relevantPayments.forEach((pay) => {
+      rawEvents.push({
+        date: pay.payment_date,
+        referenceNo: pay.po_reference || `PAY-${pay.id.slice(-4)}`,
+        description: `Disbursement against #${pay.po_reference || "Bill"} (${
+          pay.payment_mode === "full" ? "Full Settlement" : "Partial Payment"
+        })${pay.notes ? ` - ${pay.notes}` : ""}`,
+        type: "payment",
+        debit: 0,
+        credit: pay.amount,
+        paymentMethod: pay.payment_method.toUpperCase(),
+        paymentRef: pay.reference_no || undefined,
+        timestamp: new Date(pay.payment_date).getTime() || Date.now(),
+      });
+    });
+
+    // Sort chronologically ascending
+    rawEvents.sort((a, b) => a.timestamp - b.timestamp);
+
+    let running = 0;
+    const ledgerEntries: SupplierLedgerEntry[] = rawEvents.map((evt) => {
+      running += evt.debit - evt.credit;
+      return {
+        date: evt.date,
+        referenceNo: evt.referenceNo,
+        description: evt.description,
+        type: evt.type,
+        debit: evt.debit,
+        credit: evt.credit,
+        runningBalance: running,
+        paymentMethod: evt.paymentMethod,
+        paymentRef: evt.paymentRef,
+      };
+    });
+
+    const now = Date.now();
+    const outstandingBills: SupplierOutstandingBill[] = relevantPOs
+      .filter((po) => po.total_amount > po.paid_amount)
+      .map((po) => {
+        const d = new Date(po.inward_date).getTime();
+        const ageDays = Math.max(0, Math.floor((now - d) / (1000 * 60 * 60 * 24)));
+        return {
+          referenceNo: po.reference_no,
+          inwardDate: po.inward_date,
+          itemsSummary: po.items.map((i) => `${i.product_name} (${i.quantity}${i.unit})`).join(", "),
+          totalAmount: po.total_amount,
+          paidAmount: po.paid_amount,
+          balanceDue: po.total_amount - po.paid_amount,
+          status: po.paid_amount > 0 ? "partial" : "unpaid",
+          ageDays,
+        };
+      });
+
+    const totalDebits = relevantPOs.reduce((s, p) => s + p.total_amount, 0);
+    const totalCredits = relevantPOs.reduce((s, p) => s + p.paid_amount, 0);
+    const closingBalanceDue = Math.max(0, totalDebits - totalCredits);
+
+    const statementData: SupplierStatementData = {
+      storeName: "Fish N Fresh Seafoods",
+      storeAddress: "Harbour Wholesale & Retail Terminal, Marina Coast",
+      storePhone: "+91 98430 61919",
+      storeEmail: "billing@fishnfresh.in",
+      storeGstin: "33AABCT1234F1Z5",
+      storeFssai: "12423008000456",
+
+      supplierName,
+      supplierHarbour: targetSupplier?.harbour || undefined,
+      supplierContact: targetSupplier?.contact_person || undefined,
+      supplierPhone: targetSupplier?.phone || "-",
+      supplierEmail: targetSupplier?.email || undefined,
+      supplierGstin: targetSupplier?.gstin || undefined,
+      supplierUpiId: targetSupplier?.upi_id || undefined,
+
+      fromDate: relevantPOs.length > 0 && relevantPOs[relevantPOs.length - 1] ? relevantPOs[relevantPOs.length - 1]!.inward_date : new Date().toISOString().slice(0, 10),
+      toDate: new Date().toISOString().slice(0, 10),
+      generatedAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+
+      totalPurchases: totalDebits,
+      totalPayments: totalCredits,
+      closingBalanceDue,
+
+      ledgerEntries,
+      outstandingBills,
+    };
+
+    printSupplierLedgerPdf(statementData);
   };
 
   // Add new supplier
@@ -468,7 +702,15 @@ function PurchasesAdmin() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
           <TabsList className="rounded-2xl p-1 bg-muted/60">
             <TabsTrigger value="ledger" className="rounded-xl text-xs font-bold">
-              <FileText className="mr-1.5 size-3.5" /> Purchase Ledger
+              <FileText className="mr-1.5 size-3.5" /> Catch Purchases
+            </TabsTrigger>
+            <TabsTrigger value="outstanding" className="rounded-xl text-xs font-bold">
+              <Receipt className="mr-1.5 size-3.5" /> Outstanding & Statements
+              {purchases.filter((p) => p.total_amount > p.paid_amount).length > 0 && (
+                <span className="ml-1.5 rounded-full bg-rose-500/20 text-rose-600 dark:text-rose-400 px-1.5 py-0.2 text-[10px] font-extrabold">
+                  {purchases.filter((p) => p.total_amount > p.paid_amount).length}
+                </span>
+              )}
             </TabsTrigger>
             <TabsTrigger value="new" className="rounded-xl text-xs font-bold">
               <PackagePlus className="mr-1.5 size-3.5" /> Inward Catch (New)
@@ -617,16 +859,32 @@ function PurchasesAdmin() {
                         </a>
                       </Button>
 
-                      {balance > 0 && (
+                      {balance > 0 ? (
+                        <div className="flex items-center gap-1.5 ml-auto">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-xl h-8 text-xs font-bold gap-1 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/10"
+                            onClick={() => openPaymentModal(po, "partial")}
+                          >
+                            <CreditCard className="size-3.5" /> Partial
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="rounded-xl h-8 text-xs font-bold gap-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                            onClick={() => openPaymentModal(po, "full")}
+                          >
+                            <CreditCard className="size-3.5" /> Pay Full ({formatINR(balance)})
+                          </Button>
+                        </div>
+                      ) : (
                         <Button
                           size="sm"
-                          className="rounded-xl h-8 text-xs font-bold gap-1 bg-primary hover:bg-primary/90 text-primary-foreground ml-auto"
-                          onClick={() => {
-                            setRecordPaymentOrder(po);
-                            setAdditionalPayment(balance.toString());
-                          }}
+                          variant="ghost"
+                          className="rounded-xl h-8 text-xs font-bold gap-1 text-muted-foreground ml-auto"
+                          onClick={() => handleGenerateStatementPdf(po.supplier_id)}
                         >
-                          <CreditCard className="size-3.5" /> Pay Due ({formatINR(balance)})
+                          <FileText className="size-3.5" /> Statement PDF
                         </Button>
                       )}
                     </div>
@@ -639,6 +897,247 @@ function PurchasesAdmin() {
               <p className="text-center py-10 text-sm text-muted-foreground">
                 No purchases match your criteria. Click "Log Catch" to inward fish.
               </p>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* TAB 2: Bill-Wise Outstanding Ledger & PDF Statements */}
+        <TabsContent value="outstanding" className="space-y-4 mt-0">
+          {/* Controls Bar */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-muted/40 p-3.5 rounded-2xl border border-border/80">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Label className="text-xs font-bold whitespace-nowrap text-muted-foreground">Supplier Filter:</Label>
+              <select
+                value={statementSupplierFilter}
+                onChange={(e) => setStatementSupplierFilter(e.target.value)}
+                className="flex h-9 rounded-xl border border-input bg-background px-3 py-1 text-xs shadow-2xs font-semibold"
+              >
+                <option value="all">All Seafood Suppliers (Consolidated)</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({formatINR(s.balance_due || 0)} due)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <Button
+                size="sm"
+                className="rounded-xl h-9 text-xs font-bold gap-1.5 bg-cyan-700 hover:bg-cyan-600 text-white shadow-xs"
+                onClick={() => handleGenerateStatementPdf(statementSupplierFilter)}
+              >
+                <Download className="size-3.5" /> Download Statement PDF
+              </Button>
+            </div>
+          </div>
+
+          {/* Metric KPI Cards for filtered view */}
+          {(() => {
+            const isAll = statementSupplierFilter === "all";
+            const filteredPOs = isAll
+              ? purchases
+              : purchases.filter((p) => p.supplier_id === statementSupplierFilter);
+            const unpaidPOs = filteredPOs.filter((p) => p.total_amount > p.paid_amount);
+            const totalPurch = filteredPOs.reduce((s, p) => s + p.total_amount, 0);
+            const totalPaid = filteredPOs.reduce((s, p) => s + p.paid_amount, 0);
+            const netBalance = Math.max(0, totalPurch - totalPaid);
+
+            return (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <Card className="rounded-2xl border-border/80 p-3.5 shadow-2xs bg-background">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase">Purchases (Debits)</p>
+                  <p className="text-lg font-extrabold text-foreground mt-0.5">{formatINR(totalPurch)}</p>
+                  <p className="text-[10px] text-muted-foreground">{filteredPOs.length} bills inwarded</p>
+                </Card>
+
+                <Card className="rounded-2xl border-border/80 p-3.5 shadow-2xs bg-background">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase">Settled (Credits)</p>
+                  <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">{formatINR(totalPaid)}</p>
+                  <p className="text-[10px] text-muted-foreground">Disbursed to date</p>
+                </Card>
+
+                <Card className="rounded-2xl border-border/80 p-3.5 shadow-2xs bg-background border-rose-500/30">
+                  <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase">Closing Balance Due</p>
+                  <p className="text-lg font-extrabold text-rose-600 dark:text-rose-400 mt-0.5">{formatINR(netBalance)}</p>
+                  <p className="text-[10px] text-muted-foreground">{unpaidPOs.length} pending vouchers</p>
+                </Card>
+
+                <Card className="rounded-2xl border-border/80 p-3.5 shadow-2xs bg-background">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase">Statement Status</p>
+                  <p className="text-sm font-extrabold text-foreground mt-1">
+                    {netBalance === 0 ? "✨ All Accounts Settled" : "⚠️ Action Required"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Debit - Credit balanced</p>
+                </Card>
+              </div>
+            );
+          })()}
+
+          {/* Section: Outstanding Bills */}
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-extrabold text-foreground flex items-center gap-1.5">
+                <Receipt className="size-4 text-rose-500" /> Outstanding Bills (Aging Breakdown)
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Individual inward catch bills awaiting full or partial settlement.
+              </p>
+            </div>
+
+            {(() => {
+              const isAll = statementSupplierFilter === "all";
+              const targetBills = purchases
+                .filter((p) => p.total_amount > p.paid_amount)
+                .filter((p) => (isAll ? true : p.supplier_id === statementSupplierFilter));
+
+              if (targetBills.length === 0) {
+                return (
+                  <Card className="rounded-2xl p-8 text-center border-dashed border-border/80">
+                    <CheckCircle2 className="size-8 text-emerald-500 mx-auto mb-2" />
+                    <p className="text-sm font-bold text-foreground">Zero Outstanding Balance!</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      All catch inward bills for this selection have been settled in full.
+                    </p>
+                  </Card>
+                );
+              }
+
+              return (
+                <div className="space-y-2.5">
+                  {targetBills.map((po) => {
+                    const balance = po.total_amount - po.paid_amount;
+                    const inwardTime = new Date(po.inward_date).getTime();
+                    const ageDays = Math.max(0, Math.floor((Date.now() - inwardTime) / (1000 * 60 * 60 * 24)));
+
+                    return (
+                      <Card key={po.id} className="rounded-2xl border-border/80 shadow-2xs hover:shadow-sm transition">
+                        <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono text-xs font-extrabold bg-muted px-2 py-0.5 rounded-lg text-foreground">
+                                #{po.reference_no}
+                              </span>
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-[10px] font-bold border ${
+                                  ageDays > 7
+                                    ? "bg-rose-500/10 text-rose-600 border-rose-500/20"
+                                    : ageDays > 3
+                                    ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                                    : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                }`}
+                              >
+                                {ageDays === 0 ? "Today" : `${ageDays} days overdue`}
+                              </span>
+                              <span className="text-xs text-muted-foreground">Inward: {po.inward_date}</span>
+                            </div>
+                            <h4 className="font-bold text-sm text-foreground">{po.supplier_name}</h4>
+                            <p className="text-xs text-muted-foreground">
+                              {po.items.map((i) => `${i.product_name} (${i.quantity} ${i.unit})`).join(", ")}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-col sm:items-end gap-2 shrink-0">
+                            <div className="text-left sm:text-right">
+                              <p className="text-xs text-muted-foreground">
+                                Bill: {formatINR(po.total_amount)} | Paid: {formatINR(po.paid_amount)}
+                              </p>
+                              <p className="text-base font-extrabold text-rose-600 dark:text-rose-400">
+                                Due: {formatINR(balance)}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="rounded-xl h-8 text-xs font-semibold gap-1 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/10"
+                                onClick={() => openPaymentModal(po, "partial")}
+                              >
+                                <CreditCard className="size-3.5" /> Pay Partial
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="rounded-xl h-8 text-xs font-bold gap-1 bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xs"
+                                onClick={() => openPaymentModal(po, "full")}
+                              >
+                                <CheckCircle2 className="size-3.5" /> Pay Full ({formatINR(balance)})
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="rounded-xl h-8 text-xs font-semibold gap-1 text-muted-foreground"
+                                onClick={() => handleGenerateStatementPdf(po.supplier_id)}
+                                title="Download statement for this supplier"
+                              >
+                                <FileText className="size-3.5" /> Statement
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Section: Recent Payment Disbursements History */}
+          <div className="space-y-3 pt-3 border-t border-border/80">
+            <div>
+              <h3 className="text-sm font-extrabold text-foreground flex items-center gap-1.5">
+                <Landmark className="size-4 text-emerald-500" /> Recent Payment Disbursements
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Audit trail of full & partial settlements disbursed to seafood suppliers.
+              </p>
+            </div>
+
+            {payments.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-4 text-center">No payment disbursements logged yet.</p>
+            ) : (
+              <div className="rounded-2xl border border-border/80 overflow-hidden bg-background">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/60 text-muted-foreground font-bold border-b border-border/80">
+                    <tr>
+                      <th className="text-left p-3">Date</th>
+                      <th className="text-left p-3">Supplier</th>
+                      <th className="text-left p-3">Against Bill</th>
+                      <th className="text-left p-3">Mode & Method</th>
+                      <th className="text-left p-3">UTR / Ref #</th>
+                      <th className="text-right p-3">Disbursed Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {payments.slice(0, 10).map((pay) => (
+                      <tr key={pay.id} className="hover:bg-muted/30">
+                        <td className="p-3 font-medium text-foreground">{pay.payment_date}</td>
+                        <td className="p-3 font-semibold text-foreground">{pay.supplier_name || "Supplier"}</td>
+                        <td className="p-3 font-mono text-muted-foreground">#{pay.po_reference || "-"}</td>
+                        <td className="p-3">
+                          <span
+                            className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold mr-1.5 uppercase ${
+                              pay.payment_mode === "full"
+                                ? "bg-emerald-500/10 text-emerald-600"
+                                : "bg-amber-500/10 text-amber-600"
+                            }`}
+                          >
+                            {pay.payment_mode}
+                          </span>
+                          <span className="uppercase text-[11px] font-mono text-muted-foreground">
+                            {pay.payment_method}
+                          </span>
+                        </td>
+                        <td className="p-3 font-mono text-[11px] text-muted-foreground">{pay.reference_no || "-"}</td>
+                        <td className="p-3 text-right font-extrabold text-emerald-600 dark:text-emerald-400">
+                          {formatINR(pay.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </TabsContent>
@@ -916,16 +1415,25 @@ function PurchasesAdmin() {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+                <div className="flex items-center gap-1.5 pt-2 border-t border-border/60">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="flex-1 rounded-xl h-8 text-xs font-semibold gap-1.5"
+                    className="flex-1 rounded-xl h-8 text-xs font-semibold gap-1"
                     asChild
                   >
                     <a href={`tel:${sup.phone}`}>
                       <Phone className="size-3" /> Call
                     </a>
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 rounded-xl h-8 text-xs font-semibold gap-1 text-cyan-700 dark:text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/10"
+                    onClick={() => handleGenerateStatementPdf(sup.id)}
+                  >
+                    <Download className="size-3 text-cyan-600" /> Statement PDF
                   </Button>
 
                   <Button
@@ -1042,45 +1550,144 @@ function PurchasesAdmin() {
       </Dialog>
 
       {/* Record Due Payment Modal */}
+      {/* Record Due Payment Modal (Full / Partial Settlement) */}
       <Dialog open={Boolean(recordPaymentOrder)} onOpenChange={(open) => !open && setRecordPaymentOrder(null)}>
         <DialogContent className="max-w-md rounded-3xl p-5">
-          {recordPaymentOrder && (
-            <div className="space-y-4">
-              <DialogHeader>
-                <DialogTitle className="text-base font-bold">
-                  Disburse Payment to {recordPaymentOrder.supplier_name}
-                </DialogTitle>
-              </DialogHeader>
+          {recordPaymentOrder && (() => {
+            const due = Math.max(0, recordPaymentOrder.total_amount - recordPaymentOrder.paid_amount);
+            return (
+              <div className="space-y-4">
+                <DialogHeader>
+                  <DialogTitle className="text-base font-bold flex items-center gap-1.5">
+                    <CreditCard className="size-4 text-primary" /> Disburse Payment to {recordPaymentOrder.supplier_name}
+                  </DialogTitle>
+                </DialogHeader>
 
-              <div className="rounded-2xl border p-3 bg-muted/30 text-xs space-y-1">
-                <p>Voucher: <strong>#{recordPaymentOrder.reference_no}</strong></p>
-                <p>Total Purchase: <strong>{formatINR(recordPaymentOrder.total_amount)}</strong></p>
-                <p>Already Paid: <strong>{formatINR(recordPaymentOrder.paid_amount)}</strong></p>
-                <p className="text-rose-600 font-bold text-sm pt-1 border-t">
-                  Remaining Due: {formatINR(recordPaymentOrder.total_amount - recordPaymentOrder.paid_amount)}
-                </p>
-              </div>
+                <div className="rounded-2xl border p-3.5 bg-muted/30 text-xs space-y-1.5">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Catch Voucher:</span>
+                    <span className="font-mono font-bold text-foreground">#{recordPaymentOrder.reference_no}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total Inward Value:</span>
+                    <span className="font-bold text-foreground">{formatINR(recordPaymentOrder.total_amount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Already Settled:</span>
+                    <span className="font-bold text-emerald-600">{formatINR(recordPaymentOrder.paid_amount)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-extrabold text-rose-600 dark:text-rose-400 pt-1 border-t border-border/60">
+                    <span>Remaining Balance Due:</span>
+                    <span>{formatINR(due)}</span>
+                  </div>
+                </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Payment Amount (₹)</Label>
-                <Input
-                  type="number"
-                  value={additionalPayment}
-                  onChange={(e) => setAdditionalPayment(e.target.value)}
-                  className="rounded-xl font-bold"
-                />
-              </div>
+                {/* Mode Selector: Full vs Partial */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold">Settlement Mode</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={paymentMode === "full" ? "default" : "outline"}
+                      className="rounded-xl h-9 text-xs font-bold"
+                      onClick={() => {
+                        setPaymentMode("full");
+                        setAdditionalPayment(due.toString());
+                      }}
+                    >
+                      <CheckCircle2 className="size-3.5 mr-1" /> Full ({formatINR(due)})
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={paymentMode === "partial" ? "default" : "outline"}
+                      className="rounded-xl h-9 text-xs font-bold"
+                      onClick={() => {
+                        setPaymentMode("partial");
+                        setAdditionalPayment("");
+                      }}
+                    >
+                      Partial Payment
+                    </Button>
+                  </div>
+                </div>
 
-              <div className="flex gap-2">
-                <Button variant="outline" className="w-1/3 rounded-xl" onClick={() => setRecordPaymentOrder(null)}>
-                  Cancel
-                </Button>
-                <Button className="flex-1 rounded-xl font-bold" onClick={handleRecordPayment}>
-                  Confirm Payment
-                </Button>
+                {/* Amount */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-bold">
+                    <Label>Amount to Disburse (₹) *</Label>
+                    <span className="text-muted-foreground">Max payable: {formatINR(due)}</span>
+                  </div>
+                  <Input
+                    type="number"
+                    value={additionalPayment}
+                    onChange={(e) => setAdditionalPayment(e.target.value)}
+                    placeholder={`e.g. ${due}`}
+                    className="rounded-xl font-bold h-9 text-sm"
+                  />
+                </div>
+
+                {/* Payment Method & Date */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold">Payment Method</Label>
+                    <select
+                      value={paymentDisburseMethod}
+                      onChange={(e) => setPaymentDisburseMethod(e.target.value as any)}
+                      className="flex h-9 w-full rounded-xl border border-input bg-background px-3 py-1 text-xs font-semibold shadow-2xs"
+                    >
+                      <option value="upi">Direct UPI Transfer</option>
+                      <option value="cash">Cash on Hand</option>
+                      <option value="bank">Bank IMPS / NEFT</option>
+                      <option value="cheque">Bank Cheque</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold">Payment Date</Label>
+                    <Input
+                      type="date"
+                      value={paymentDate}
+                      onChange={(e) => setPaymentDate(e.target.value)}
+                      className="rounded-xl h-9 text-xs font-semibold"
+                    />
+                  </div>
+                </div>
+
+                {/* Reference / UTR */}
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold">Transaction / UTR / Cheque Ref (Optional)</Label>
+                  <Input
+                    placeholder="e.g. UPI/429381028301 or CHQ-9901"
+                    value={paymentRefNumber}
+                    onChange={(e) => setPaymentRefNumber(e.target.value)}
+                    className="rounded-xl h-9 text-xs font-mono"
+                  />
+                </div>
+
+                {/* Notes */}
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold">Narration / Notes</Label>
+                  <Input
+                    placeholder="e.g. Paid from HDFC Current Account"
+                    value={paymentNotes}
+                    onChange={(e) => setPaymentNotes(e.target.value)}
+                    className="rounded-xl h-8 text-xs"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" className="w-1/3 rounded-xl h-9 text-xs" onClick={() => setRecordPaymentOrder(null)}>
+                    Cancel
+                  </Button>
+                  <Button className="flex-1 rounded-xl h-9 text-xs font-bold bg-primary" onClick={handleRecordPayment}>
+                    Confirm & Record Payment
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
 

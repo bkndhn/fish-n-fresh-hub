@@ -19,6 +19,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { toast } from "sonner";
+import { useLocation } from "@tanstack/react-router";
+import { useCart } from "@/lib/cart";
 
 interface Message {
   id: string;
@@ -39,6 +41,14 @@ export function CustomerSupportChatWidget() {
   const { user } = useSessionUser();
   const { data: settings } = useQuery(settingsQuery);
   const qc = useQueryClient();
+  const { items } = useCart();
+  const location = useLocation();
+
+  const isCartVisible =
+    items.length > 0 &&
+    location.pathname !== "/cart" &&
+    location.pathname !== "/checkout" &&
+    !location.pathname.startsWith("/admin");
 
   const isChatEnabled = (settings as any)?.feature_live_chat_enabled !== false;
 
@@ -199,7 +209,13 @@ export function CustomerSupportChatWidget() {
   return (
     <>
       {/* Floating Launcher Button */}
-      <div className="fixed bottom-20 right-4 z-40 sm:bottom-6 sm:right-6">
+      <div
+        className={`fixed z-40 transition-all duration-300 ${
+          isCartVisible
+            ? "bottom-38 right-4 sm:bottom-24 sm:right-6"
+            : "bottom-20 right-4 sm:bottom-6 sm:right-6"
+        }`}
+      >
         {!isOpen && (
           <button
             type="button"
@@ -221,7 +237,13 @@ export function CustomerSupportChatWidget() {
 
       {/* Slide-Up / Floating Chat Window */}
       {isOpen && (
-        <div className="fixed inset-x-3 bottom-4 z-50 mx-auto max-w-sm overflow-hidden rounded-3xl border border-border/80 bg-background shadow-2xl sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-96">
+        <div
+          className={`fixed z-50 mx-auto max-w-sm overflow-hidden rounded-3xl border border-border/80 bg-background shadow-2xl transition-all duration-300 ${
+            isCartVisible
+              ? "inset-x-3 bottom-38 sm:inset-x-auto sm:right-6 sm:bottom-24 sm:w-96"
+              : "inset-x-3 bottom-4 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-96"
+          }`}
+        >
           {/* Header */}
           <div className="flex items-center justify-between bg-primary p-4 text-primary-foreground">
             <div className="flex items-center gap-3">

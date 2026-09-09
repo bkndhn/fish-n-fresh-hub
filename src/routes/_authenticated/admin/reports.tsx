@@ -545,7 +545,7 @@ export function Reports() {
     let posCard = 0;
     for (const o of posOrders) {
       const tot = Number(o.total || 0);
-      const meth = (o.actual_payment_method || o.payment_method || "").toLowerCase();
+      const meth = ((o as any).actual_payment_method || o.payment_method || "").toLowerCase();
       if (meth === "cash") posCash += tot;
       else if (meth === "upi" || meth === "upi_qr") posUpi += tot;
       else posCard += tot;
@@ -556,7 +556,7 @@ export function Reports() {
     let onlinePrepaid = 0;
     for (const o of onlineOrders) {
       const tot = Number(o.total || 0);
-      const meth = (o.actual_payment_method || o.payment_method || "").toLowerCase();
+      const meth = ((o as any).actual_payment_method || o.payment_method || "").toLowerCase();
       if (meth === "cod" || meth === "cash") onlineCod += tot;
       else onlinePrepaid += tot;
     }

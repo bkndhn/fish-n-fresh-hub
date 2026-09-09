@@ -22,8 +22,10 @@ import {
   Split,
   TrendingUp,
   Gift,
+  Share2,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { SocialCampaignHub } from "@/components/admin/SocialCampaignHub";
 import { adminPromotionsQuery, type PromotionRow } from "@/lib/admin";
 import { formatINR, formatIST } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
@@ -101,7 +103,7 @@ function PromotionsAdmin() {
   const rows = promos.data ?? [];
 
   const [search, setSearch] = useState("");
-  const [mainTab, setMainTab] = useState<"coupons" | "campaigns">("coupons");
+  const [mainTab, setMainTab] = useState<"coupons" | "campaigns" | "social">("coupons");
   const [filterTab, setFilterTab] = useState<"all" | "active" | "scheduled" | "expired" | "paused">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formData, setFormData] = useState<PromoFormData>(INITIAL_FORM);
@@ -318,8 +320,8 @@ function PromotionsAdmin() {
         )}
       </div>
 
-      {/* View Switcher: Coupons vs Automated Campaigns */}
-      <div className="mb-4 flex items-center gap-2 border-b border-border pb-3">
+      {/* View Switcher: Coupons vs Automated Campaigns vs Social Media Hub */}
+      <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-border pb-3">
         <Button
           size="sm"
           variant={mainTab === "coupons" ? "default" : "outline"}
@@ -336,9 +338,17 @@ function PromotionsAdmin() {
         >
           <Sparkles className="mr-1.5 size-3.5 text-amber-500" /> Automated Campaigns & A/B Testing ({(campaigns.data || []).length})
         </Button>
+        <Button
+          size="sm"
+          variant={mainTab === "social" ? "default" : "outline"}
+          onClick={() => setMainTab("social")}
+          className="rounded-xl h-8 text-xs font-semibold"
+        >
+          <Share2 className="mr-1.5 size-3.5 text-sky-500" /> Social Media Hub (Omnichannel)
+        </Button>
       </div>
 
-      {mainTab === "coupons" ? (
+      {mainTab === "coupons" && (
         <>
           {/* Filter and Search Bar */}
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -489,7 +499,9 @@ function PromotionsAdmin() {
         )}
       </div>
     </>
-  ) : (
+  )}
+
+  {mainTab === "campaigns" && (
         /* Automated Campaigns & A/B Testing View */
         <div className="space-y-4">
           <div className="p-3.5 rounded-2xl border border-border/80 bg-muted/30 flex flex-wrap items-center justify-between gap-2">
@@ -648,6 +660,10 @@ function PromotionsAdmin() {
             })}
           </div>
         </div>
+      )}
+
+      {mainTab === "social" && (
+        <SocialCampaignHub />
       )}
 
       {/* Create / Edit Promotion Dialog */}

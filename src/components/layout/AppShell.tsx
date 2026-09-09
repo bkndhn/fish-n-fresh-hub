@@ -10,9 +10,20 @@ import { FloatingCart } from "../FloatingCart";
 import { PwaPrompt } from "../PwaPrompt";
 import { CustomerSupportChatWidget } from "../CustomerSupportChatWidget";
 import { Footer } from "./Footer";
+import { useLocation } from "@tanstack/react-router";
+import { useCart } from "@/lib/cart";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { data: settings } = useQuery(settingsQuery);
+  const { items } = useCart();
+  const location = useLocation();
+
+  const isCartVisible =
+    items.length > 0 &&
+    location.pathname !== "/cart" &&
+    location.pathname !== "/checkout" &&
+    !location.pathname.startsWith("/admin");
+
   const waNumber = settings?.whatsapp_number || settings?.support_phone;
   const waUrl = waNumber
     ? getWhatsAppUrl(
@@ -40,7 +51,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           target="_blank"
           rel="noreferrer"
           aria-label="Chat on WhatsApp"
-          className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 flex items-center gap-2 rounded-full bg-[#25D366] text-white p-3 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 group"
+          className={`fixed z-40 flex items-center gap-2 rounded-full bg-[#25D366] text-white p-3 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 group ${
+            isCartVisible
+              ? "bottom-38 right-4 sm:bottom-24 sm:right-6"
+              : "bottom-20 right-4 sm:bottom-6 sm:right-6"
+          }`}
           title="Chat with us on WhatsApp"
         >
           <WhatsAppIcon className="size-6 shrink-0" />

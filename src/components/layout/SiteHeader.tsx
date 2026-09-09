@@ -1,7 +1,9 @@
+import { useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
-import { Fish, Search, ShoppingCart, User, Shield } from "lucide-react";
+import { Fish, Search, ShoppingCart, User, Shield, Download } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { promptPwaInstall } from "@/components/PwaPrompt";
 
 import { useQuery } from "@tanstack/react-query";
 import { settingsQuery } from "@/lib/queries";
@@ -19,6 +21,16 @@ export function SiteHeader() {
   const { data: settings } = useQuery(settingsQuery);
   const { data: myRoles } = useQuery(myRolesQuery);
   const { lang, setLang } = useTranslation();
+  const [isStandalone, setIsStandalone] = useState(true);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const standalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        (window.navigator as any).standalone === true;
+      setIsStandalone(standalone);
+    }
+  }, []);
 
   const storeStatus = settings ? getStoreStatus(settings) : null;
   const waTarget = settings?.whatsapp_number || settings?.support_phone;
@@ -156,6 +168,19 @@ export function SiteHeader() {
 
 
             <ReferralModal />
+
+            {/* Install PWA button (hidden when already in standalone mode) */}
+            {!isStandalone && (
+              <button
+                type="button"
+                onClick={promptPwaInstall}
+                className="inline-flex items-center gap-1 rounded-lg sm:rounded-xl px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-all shadow-2xs"
+                title="Install Fish N Fresh App"
+              >
+                <Download className="size-3.5" />
+                <span className="hidden xs:inline">Install</span>
+              </button>
+            )}
 
             <ThemeToggle />
 

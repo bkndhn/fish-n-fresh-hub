@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Search, Edit, AlertTriangle, Zap, PackagePlus, CheckCircle2, X, CheckSquare, Square, Layers, ArrowUpCircle, Eye, EyeOff, Sparkles, Star, Flame } from "lucide-react";
+import { Plus, Trash2, Search, Edit, AlertTriangle, Zap, PackagePlus, CheckCircle2, X, CheckSquare, Square, Layers, ArrowUpCircle, Eye, EyeOff, Sparkles, Star, Flame, Camera, RefreshCw, Copy, Check } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminProductsQuery } from "@/lib/admin";
 import { categoriesQuery } from "@/lib/queries";
@@ -10,6 +10,11 @@ import type { Product } from "@/lib/types";
 import { formatINR, formatStockDisplay, formatStockUnitLabel } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { ProductAiBenefitsCard } from "@/components/ProductAiBenefitsCard";
+import {
+  matchSpeciesVisualProfile,
+  buildSpeciesAiPrompt,
+  type ProductVisualPerspective,
+} from "@/lib/productImageGenerator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +25,7 @@ import { ImageUpload } from "@/components/ImageUpload";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -75,6 +81,8 @@ function ProductsAdmin() {
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [aiProduct, setAiProduct] = useState<Product | null>(null);
+  const [aiVisualProduct, setAiVisualProduct] = useState<Product | null>(null);
+  const [copiedPrompt, setCopiedPrompt] = useState<string | null>(null);
 
   const [newProduct, setNewProduct] = useState({
     name: "",
@@ -1089,6 +1097,18 @@ function ProductsAdmin() {
                     <Sparkles className="size-3.5" />
                   </Button>
 
+                  {/* AI Species Visual Showcase & Daily Image Rotation */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl h-8 px-2.5 text-cyan-600 dark:text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/10 gap-1"
+                    title="100% Species Matched Visuals & Daily Image Perspectives"
+                    onClick={() => setAiVisualProduct(p)}
+                  >
+                    <Camera className="size-3.5 text-cyan-500" />
+                    <span className="text-[11px] font-bold hidden md:inline">Visuals</span>
+                  </Button>
+
                   {/* Delete Button */}
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -1472,6 +1492,146 @@ function ProductsAdmin() {
               <ProductAiBenefitsCard product={aiProduct} />
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Species Visual Showcase & Daily Image Rotation Dialog */}
+      <Dialog open={Boolean(aiVisualProduct)} onOpenChange={(open) => !open && setAiVisualProduct(null)}>
+        <DialogContent className="rounded-3xl max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Camera className="size-5 text-cyan-500" />
+              100% Species Matched Visual Studio: {aiVisualProduct?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Rotate between authentic studio angles (Dock Fresh, Master Cuts, Ready to Cook) to keep your catalog dynamic daily without manual photography.
+            </DialogDescription>
+          </DialogHeader>
+
+          {aiVisualProduct && (() => {
+            const profile = matchSpeciesVisualProfile(aiVisualProduct.name);
+            return (
+              <div className="space-y-6 mt-3">
+                {/* Active Image Banner */}
+                <div className="flex items-center gap-4 p-4 rounded-2xl bg-muted/40 border">
+                  <img
+                    src={aiVisualProduct.image_url || "/placeholder.svg"}
+                    alt={aiVisualProduct.name}
+                    className="size-16 rounded-xl object-cover border"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Current Active Catalog Image</p>
+                    <p className="text-sm font-bold truncate">{aiVisualProduct.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{aiVisualProduct.image_url || "Default placeholder"}</p>
+                  </div>
+                </div>
+
+                {/* Perspective Options */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {profile?.perspectives.map((persp) => {
+                    const isCurrent = aiVisualProduct.image_url === persp.imageUrl;
+                    return (
+                      <div
+                        key={persp.id}
+                        className={`rounded-2xl border p-3 flex flex-col justify-between transition-all ${
+                          isCurrent
+                            ? "ring-2 ring-primary border-primary bg-primary/5"
+                            : "hover:border-primary/50 bg-card"
+                        }`}
+                      >
+                        <div className="space-y-2">
+                          <div className="relative aspect-square rounded-xl overflow-hidden bg-muted">
+                            <img
+                              src={persp.imageUrl}
+                              alt={persp.title}
+                              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                            />
+                            <span className="absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-black/60 text-white backdrop-blur-sm uppercase">
+                              {persp.perspectiveType.replace("_", " ")}
+                            </span>
+                            {isCurrent && (
+                              <span className="absolute bottom-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-600 text-white flex items-center gap-1 shadow">
+                                <Check className="size-3" /> Active
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm leading-tight">{persp.title}</h4>
+                            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{persp.description}</p>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground/80 italic">
+                            📸 {persp.photographerNotes}
+                          </div>
+                        </div>
+
+                        <div className="mt-4 pt-3 border-t flex flex-col gap-2">
+                          <Button
+                            size="sm"
+                            disabled={isCurrent || update.isPending}
+                            className={`rounded-xl h-8 w-full text-xs font-semibold ${
+                              isCurrent
+                                ? "bg-muted text-muted-foreground hover:bg-muted"
+                                : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                            }`}
+                            onClick={async () => {
+                              try {
+                                await update.mutateAsync({
+                                  id: aiVisualProduct.id,
+                                  patch: { image_url: persp.imageUrl },
+                                });
+                                setAiVisualProduct({ ...aiVisualProduct, image_url: persp.imageUrl });
+                                toast.success(`Updated catalog image to "${persp.title}"!`);
+                              } catch (e: any) {
+                                toast.error(e.message || "Failed to update product image");
+                              }
+                            }}
+                          >
+                            <RefreshCw className={`size-3.5 mr-1.5 ${update.isPending ? "animate-spin" : ""}`} />
+                            {isCurrent ? "Active Image" : "Set as Catalog Image"}
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-xl h-7 w-full text-[11px] text-muted-foreground gap-1"
+                            onClick={() => {
+                              const prompt = buildSpeciesAiPrompt(aiVisualProduct.name, persp.perspectiveType);
+                              navigator.clipboard.writeText(prompt);
+                              setCopiedPrompt(persp.id);
+                              toast.success("Copied AI photography prompt to clipboard!");
+                              setTimeout(() => setCopiedPrompt(null), 2500);
+                            }}
+                          >
+                            {copiedPrompt === persp.id ? (
+                              <>
+                                <Check className="size-3 text-emerald-500" />
+                                Copied Prompt
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="size-3" />
+                                Copy AI Prompt
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-900 dark:text-cyan-200">
+                  <p className="font-semibold flex items-center gap-1.5 mb-1">
+                    <Sparkles className="size-4 text-cyan-500" />
+                    How to use Lovable AI Image Generation within free limits:
+                  </p>
+                  <p className="text-muted-foreground leading-relaxed">
+                    Click <strong>Copy AI Prompt</strong> above, paste into Lovable AI or your preferred image studio, and paste the generated URL back into the product edit modal. Each prompt is specifically engineered with authentic botanical/zoological species accuracy, depth of field, and lighting so images never look fake.
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </AdminShell>
