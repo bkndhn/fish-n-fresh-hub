@@ -37,6 +37,10 @@ import {
   ArrowUpDown,
   Camera,
   ScanLine,
+  Zap,
+  Activity,
+  Terminal,
+  Settings2,
 } from "lucide-react";
 import { hardwareScanner, type ParsedBarcode } from "@/lib/barcodeScanner";
 import { BarcodeCameraModal } from "@/components/BarcodeCameraModal";
@@ -72,8 +76,11 @@ import {
 } from "@/lib/thermalPrinter";
 import {
   weighingScaleDriver,
+  playScaleCaptureChime,
   type ScaleReading,
   type ScaleConnectionState,
+  type ScaleProtocol,
+  type ScaleSerialConfig,
 } from "@/lib/weighingScale";
 
 export const Route = createFileRoute("/_authenticated/admin/pos")({
@@ -360,22 +367,60 @@ export function RetailPosCounterPage() {
     weighingScaleDriver.getLastReading()
   );
   const [scaleModalOpen, setScaleModalOpen] = useState(false);
-  const [scaleBaudRate, setScaleBaudRate] = useState<number>(9600);
+  const [scaleConfig, setScaleConfig] = useState<ScaleSerialConfig>(() =>
+    weighingScaleDriver.loadSavedConfig()
+  );
   const [simWeightInput, setSimWeightInput] = useState<string>("0.350");
+  const [autoCapturedNotice, setAutoCapturedNotice] = useState<string | null>(null);
+  const [rawStreamLog, setRawStreamLog] = useState<string[]>([]);
   const isScaleSupported = weighingScaleDriver.isSerialSupported();
 
+  // Active item ref for zero-touch hands-free auto-capture
+  const activeItemModalRef = useRef<Product | null>(null);
+  activeItemModalRef.current = activeItemModal;
+
   useEffect(() => {
+    // 1. Subscribe to weight updates
     const unsubWeight = weighingScaleDriver.onWeight((reading) => {
       setScaleReading(reading);
     });
+
+    // 2. Subscribe to connection status updates
     const unsubStatus = weighingScaleDriver.onStatus((status) => {
       setScaleStatus(status);
     });
+
+    // 3. Subscribe to hands-free stable weight capture
+    const unsubStable = weighingScaleDriver.onStableWeight((weightKg) => {
+      if (activeItemModalRef.current) {
+        setModalWeightInput(weightKg.toFixed(3));
+        setAutoCapturedNotice(`${weightKg.toFixed(3)} kg`);
+        setTimeout(() => setAutoCapturedNotice(null), 3000);
+        toast.success(`⚡ Scale locked ${weightKg.toFixed(3)} kg hands-free!`);
+      }
+    });
+
+    // 4. Subscribe to raw serial data for diagnostic monitor
+    const unsubRaw = weighingScaleDriver.onRawData((raw) => {
+      setRawStreamLog((prev) => [raw.trim(), ...prev.slice(0, 14)]);
+    });
+
+    // 5. Attempt auto-reconnect to remembered serial port
+    if (scaleConfig.autoReconnect && isScaleSupported) {
+      weighingScaleDriver.autoConnect().then((connected) => {
+        if (connected) {
+          toast.success("Weighing scale auto-connected from remembered port!");
+        }
+      });
+    }
+
     return () => {
       unsubWeight();
       unsubStatus();
+      unsubStable();
+      unsubRaw();
     };
-  }, []);
+  }, [scaleConfig.autoReconnect, isScaleSupported]);
 
   // Omnichannel Low Stock Radar Detection (Omnichannel stock <= 5kg or custom threshold)
   const lowStockProducts = useMemo(() => {
@@ -713,9 +758,13 @@ export function RetailPosCounterPage() {
       return;
     }
     setActiveItemModal(prod);
-    // If electronic weighing scale has live weight on plate, auto-populate!
-    if (scaleStatus === "streaming" && scaleReading.weightKg > 0) {
+    // If electronic weighing scale has live weight on plate, auto-populate hands-free!
+    if (scaleStatus === "streaming" && scaleReading.weightKg >= (scaleConfig.minCaptureWeightKg || 0.02)) {
       setModalWeightInput(scaleReading.weightKg.toFixed(3));
+      if (scaleReading.isStable) {
+        setAutoCapturedNotice(`${scaleReading.weightKg.toFixed(3)} kg`);
+        setTimeout(() => setAutoCapturedNotice(null), 3000);
+      }
     } else {
       setModalWeightInput("1.0");
     }
@@ -1291,6 +1340,124 @@ export function RetailPosCounterPage() {
                   ? "Scale: Connecting..."
                   : "Weighing Scale"}
               </span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Real-Time Electronic Weighing Scale Plate HUD Ribbon */}
+        <div className="rounded-2xl border border-border/80 bg-card p-3 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+          {/* Left: Plate Weight & Status Readout */}
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl border border-primary/30 bg-zinc-950 px-3.5 py-1.5 font-mono text-white flex items-baseline gap-2 shadow-inner">
+              <span className="text-xs text-zinc-400 font-bold uppercase tracking-wider">SCALE</span>
+              <span className="text-2xl sm:text-3xl font-black text-emerald-400 tabular-nums">
+                {scaleReading.weightKg.toFixed(3)}
+              </span>
+              <span className="text-xs font-bold text-zinc-400">KG</span>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5">
+                <Badge
+                  className={`text-[10px] font-extrabold uppercase px-2 py-0.5 border ${
+                    scaleStatus === "streaming"
+                      ? scaleReading.isStable
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                        : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 animate-pulse"
+                      : scaleStatus === "connected"
+                      ? "bg-cyan-500/15 text-cyan-600 border-cyan-500/30"
+                      : "bg-zinc-500/15 text-zinc-600 border-zinc-500/30"
+                  }`}
+                >
+                  {scaleStatus === "streaming"
+                    ? scaleReading.isStable
+                      ? "● STABLE"
+                      : "○ MOTION"
+                    : scaleStatus === "connected"
+                    ? "READY"
+                    : "STANDBY"}
+                </Badge>
+
+                {scaleReading.tareKg > 0 && (
+                  <Badge variant="outline" className="text-[10px] font-mono text-muted-foreground">
+                    TARE: {scaleReading.tareKg.toFixed(3)} kg
+                  </Badge>
+                )}
+
+                {autoCapturedNotice && (
+                  <Badge className="bg-emerald-500 text-white text-[10px] font-bold animate-bounce gap-1">
+                    <Zap className="size-3" /> Auto-Captured {autoCapturedNotice}
+                  </Badge>
+                )}
+              </div>
+
+              <span className="text-[10px] text-muted-foreground font-medium">
+                {scaleStatus === "streaming"
+                  ? `Protocol: ${scaleReading.protocol.toUpperCase()} • ${scaleConfig.baudRate} Baud • Hands-Free ${scaleConfig.handsFreeMode ? "Active" : "Off"}`
+                  : "Connect physical RS-232 / USB scale or use simulator"}
+              </span>
+            </div>
+          </div>
+
+          {/* Right: Scale Controls */}
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-xl text-xs font-bold border-border/80 px-2.5"
+              onClick={() => {
+                weighingScaleDriver.zero();
+                toast.success("Zero command sent to scale");
+              }}
+              title="Zero the scale"
+            >
+              Zero (Z)
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-xl text-xs font-bold border-border/80 px-2.5"
+              onClick={() => {
+                weighingScaleDriver.tare();
+                toast.success("Tare command sent to scale");
+              }}
+              title="Tare container weight"
+            >
+              Tare (T)
+            </Button>
+
+            <Button
+              type="button"
+              variant={scaleConfig.handsFreeMode ? "default" : "outline"}
+              size="sm"
+              className={`h-8 rounded-xl text-xs font-bold gap-1 px-2.5 ${
+                scaleConfig.handsFreeMode ? "bg-emerald-600 hover:bg-emerald-500 text-white" : ""
+              }`}
+              onClick={() => {
+                const updated = !scaleConfig.handsFreeMode;
+                const newCfg = weighingScaleDriver.saveConfig({ handsFreeMode: updated });
+                setScaleConfig(newCfg);
+                toast.info(`Hands-Free Auto-Capture ${updated ? "Enabled" : "Disabled"}`);
+              }}
+              title="Automatically captures stable weight when seafood is placed on the plate"
+            >
+              <Zap className="size-3.5" />
+              <span>Hands-Free: {scaleConfig.handsFreeMode ? "ON" : "OFF"}</span>
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-xl text-xs font-bold border-border/80 px-2.5 gap-1"
+              onClick={() => setScaleModalOpen(true)}
+              title="Open scale configuration & diagnostics"
+            >
+              <Settings2 className="size-3.5 text-primary" />
+              <span>Setup</span>
             </Button>
           </div>
         </div>
@@ -2000,45 +2167,66 @@ export function RetailPosCounterPage() {
 
             <div className="p-5 space-y-4">
               {/* Electronic Weighing Scale Live Auto-Detect Bar */}
-              <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-3 flex items-center justify-between gap-2 shadow-2xs">
+              <div
+                className={`rounded-2xl border p-3 flex items-center justify-between gap-2 shadow-2xs transition-colors ${
+                  scaleStatus === "streaming"
+                    ? scaleReading.isStable
+                      ? "border-emerald-500/40 bg-emerald-500/10"
+                      : "border-amber-500/40 bg-amber-500/10"
+                    : "border-cyan-500/30 bg-cyan-500/10"
+                }`}
+              >
                 <div className="flex items-center gap-2.5">
                   <span
                     className={`size-2.5 rounded-full shrink-0 ${
-                      scaleStatus === "streaming" ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"
+                      scaleStatus === "streaming"
+                        ? scaleReading.isStable
+                          ? "bg-emerald-500 animate-pulse"
+                          : "bg-amber-500 animate-ping"
+                        : "bg-muted-foreground"
                     }`}
                   />
                   <div>
-                    <p className="text-xs font-extrabold text-foreground">
-                      {scaleStatus === "streaming"
-                        ? `Live Scale: ${scaleReading.weightKg.toFixed(3)} kg`
-                        : "Weighing Scale: Standby / Not Connected"}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-extrabold text-foreground">
+                        {scaleStatus === "streaming"
+                          ? `Live Scale: ${scaleReading.weightKg.toFixed(3)} kg`
+                          : "Weighing Scale: Standby / Not Connected"}
+                      </p>
+                      {scaleConfig.handsFreeMode && scaleStatus === "streaming" && (
+                        <Badge className="bg-emerald-600/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[9px] font-bold px-1.5 py-0">
+                          ⚡ Hands-Free Mode
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-[10px] text-muted-foreground">
                       {scaleStatus === "streaming"
                         ? scaleReading.isStable
-                          ? "● Stable reading locked"
+                          ? "● Stable reading locked to plate"
                           : "○ Weight reading in motion..."
-                        : "Connect scale for 1-click live weight capture"}
+                        : "Connect physical RS-232 / USB scale or simulator"}
                     </p>
                   </div>
                 </div>
 
                 {scaleStatus === "streaming" ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-8 rounded-xl text-xs font-bold bg-cyan-700 hover:bg-cyan-600 text-white gap-1 shrink-0"
-                    onClick={() => {
-                      if (scaleReading.weightKg <= 0) {
-                        toast.info("Please place seafood catch on the physical scale plate first.");
-                        return;
-                      }
-                      setModalWeightInput(scaleReading.weightKg.toFixed(3));
-                      toast.success(`Synced ${scaleReading.weightKg.toFixed(3)} kg from scale!`);
-                    }}
-                  >
-                    <Scale className="size-3.5" /> Auto-Detect ({scaleReading.weightKg.toFixed(3)} kg)
-                  </Button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-8 rounded-xl text-xs font-bold bg-cyan-700 hover:bg-cyan-600 text-white gap-1"
+                      onClick={() => {
+                        if (scaleReading.weightKg <= 0) {
+                          toast.info("Please place seafood catch on the physical scale plate first.");
+                          return;
+                        }
+                        setModalWeightInput(scaleReading.weightKg.toFixed(3));
+                        toast.success(`Synced ${scaleReading.weightKg.toFixed(3)} kg from scale!`);
+                      }}
+                    >
+                      <Scale className="size-3.5" /> Auto-Detect ({scaleReading.weightKg.toFixed(3)} kg)
+                    </Button>
+                  </div>
                 ) : (
                   <Button
                     type="button"
@@ -2473,13 +2661,13 @@ export function RetailPosCounterPage() {
 
       {/* Electronic Weighing Scale Hardware Hub Modal */}
       <Dialog open={scaleModalOpen} onOpenChange={setScaleModalOpen}>
-        <DialogContent className="max-w-md rounded-3xl p-5">
+        <DialogContent className="max-w-lg rounded-3xl p-5 max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-base font-bold flex items-center gap-2">
-              <Scale className="size-5 text-primary" /> Electronic Weighing Scale Hub
+              <Scale className="size-5 text-primary" /> Electronic Weighing Scale Hardware Hub
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Direct RS-232 / USB / Bluetooth scale streaming (CAS, Essae, Toledo, Avery, Rongta).
+              Direct RS-232 / USB / Bluetooth digital scale protocol driver (CAS, Essae, Toledo, Avery, NCI).
             </DialogDescription>
           </DialogHeader>
 
@@ -2487,11 +2675,22 @@ export function RetailPosCounterPage() {
             {/* Digital Weight Terminal Display */}
             <div className="rounded-2xl border-2 border-primary/40 bg-zinc-950 p-4 text-center text-white shadow-inner font-mono relative overflow-hidden">
               <div className="flex justify-between items-center text-[10px] text-zinc-400 uppercase tracking-widest pb-1 border-b border-zinc-800">
-                <span>{scaleStatus === "streaming" ? "● PORT ACTIVE" : "○ STANDBY"}</span>
-                <span className={scaleReading.isStable ? "text-emerald-400 font-bold" : "text-amber-400 animate-pulse"}>
-                  {scaleReading.isStable ? "STABLE" : "MOTION"}
+                <span className="flex items-center gap-1">
+                  <span
+                    className={`size-2 rounded-full ${
+                      scaleStatus === "streaming" ? "bg-emerald-500 animate-pulse" : "bg-zinc-600"
+                    }`}
+                  />
+                  {scaleStatus === "streaming" ? "PORT ACTIVE" : "STANDBY"}
                 </span>
-                <span>GROSS WEIGHT</span>
+                <span
+                  className={
+                    scaleReading.isStable ? "text-emerald-400 font-bold" : "text-amber-400 animate-pulse"
+                  }
+                >
+                  {scaleReading.isStable ? "● STABLE" : "○ MOTION"}
+                </span>
+                <span>NET WEIGHT</span>
               </div>
 
               <div className="py-3 flex items-baseline justify-center gap-2">
@@ -2501,120 +2700,307 @@ export function RetailPosCounterPage() {
                 <span className="text-xl font-bold text-zinc-400">KG</span>
               </div>
 
-              <div className="text-[10px] text-zinc-400 pt-1 border-t border-zinc-800 flex justify-between">
-                <span>Driver: Web Serial / BLE</span>
-                <span>Raw: {scaleReading.raw || "N/A"}</span>
+              <div className="text-[10px] text-zinc-400 pt-1.5 border-t border-zinc-800 flex flex-wrap justify-between gap-2">
+                <span>Protocol: <strong className="text-zinc-200">{scaleReading.protocol.toUpperCase()}</strong></span>
+                <span>Tare: <strong className="text-zinc-200">{scaleReading.tareKg.toFixed(3)} kg</strong></span>
+                <span>Gross: <strong className="text-zinc-200">{scaleReading.rawWeightKg.toFixed(3)} kg</strong></span>
               </div>
             </div>
 
-            {/* Hardware Port Connection Controls */}
-            <div className="space-y-2 rounded-2xl border border-border/80 p-3 bg-muted/20">
+            {/* Hardware Port Connection & Protocol Profiles */}
+            <div className="space-y-3 rounded-2xl border border-border/80 p-3.5 bg-muted/20">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-foreground">Hardware Port Connection</span>
-                <span
-                  className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Activity className="size-3.5 text-primary" /> RS-232 / USB Serial Configuration
+                </span>
+                <Badge
+                  className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${
                     scaleStatus === "streaming"
-                      ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
+                      ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30"
                       : scaleStatus === "connected"
-                      ? "bg-cyan-500/10 text-cyan-600 border border-cyan-500/20"
-                      : "bg-zinc-500/10 text-zinc-600"
+                      ? "bg-cyan-500/15 text-cyan-600 border-cyan-500/30"
+                      : "bg-zinc-500/15 text-zinc-600 border-zinc-500/30"
                   }`}
                 >
                   {scaleStatus}
-                </span>
+                </Badge>
               </div>
 
               {isScaleSupported ? (
-                <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {/* Protocol Profile Selector */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">
+                        Scale Model Profile
+                      </label>
+                      <select
+                        value={scaleConfig.protocol}
+                        onChange={(e) => {
+                          const proto = e.target.value as ScaleProtocol;
+                          const newCfg = weighingScaleDriver.saveConfig({ protocol: proto });
+                          setScaleConfig(newCfg);
+                        }}
+                        className="flex h-8.5 w-full rounded-xl border border-input bg-background px-2.5 py-1 text-xs font-medium"
+                      >
+                        <option value="auto">Auto-Detect / Generic ASCII</option>
+                        <option value="essae">Essae-Teraoka (India DS-852 / 215)</option>
+                        <option value="cas">CAS Corporation (PD-II / SW-1)</option>
+                        <option value="toledo">Mettler Toledo (Continuous / 8217)</option>
+                        <option value="nci">NCI / Fairbanks Standard</option>
+                        <option value="avery">Avery Berkel / Weigh-Tronix</option>
+                      </select>
+                    </div>
+
+                    {/* Baud Rate Selector */}
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-muted-foreground uppercase">Baud Rate</label>
                       <select
-                        value={scaleBaudRate}
-                        onChange={(e) => setScaleBaudRate(Number(e.target.value))}
+                        value={scaleConfig.baudRate}
+                        onChange={(e) => {
+                          const baud = Number(e.target.value);
+                          const newCfg = weighingScaleDriver.saveConfig({ baudRate: baud });
+                          setScaleConfig(newCfg);
+                        }}
+                        className="flex h-8.5 w-full rounded-xl border border-input bg-background px-2.5 py-1 text-xs font-mono"
+                      >
+                        <option value={9600}>9600 Baud (Standard CAS / Essae)</option>
+                        <option value={2400}>2400 Baud (Mettler Toledo)</option>
+                        <option value={4800}>4800 Baud (Avery Berkel)</option>
+                        <option value={19200}>19200 Baud (High Speed)</option>
+                        <option value={38400}>38400 Baud</option>
+                        <option value={115200}>115200 Baud (USB CDC)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Serial Parameters Row */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Data Bits</label>
+                      <select
+                        value={scaleConfig.dataBits}
+                        onChange={(e) => {
+                          const bits = Number(e.target.value) as 7 | 8;
+                          const newCfg = weighingScaleDriver.saveConfig({ dataBits: bits });
+                          setScaleConfig(newCfg);
+                        }}
                         className="flex h-8 w-full rounded-xl border border-input bg-background px-2 py-1 text-xs font-mono"
                       >
-                        <option value={9600}>9600 (CAS / Essae)</option>
-                        <option value={2400}>2400 (Toledo)</option>
-                        <option value={4800}>4800 (Avery)</option>
-                        <option value={19200}>19200 (High Speed)</option>
+                        <option value={8}>8 Bits (Standard)</option>
+                        <option value={7}>7 Bits (Toledo)</option>
                       </select>
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Action</label>
-                      {scaleStatus === "streaming" || scaleStatus === "connected" ? (
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          className="h-8 rounded-xl text-xs w-full font-bold"
-                          onClick={() => {
-                            weighingScaleDriver.disconnect();
-                            toast.info("Weighing scale disconnected");
-                          }}
-                        >
-                          Disconnect
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="h-8 rounded-xl text-xs w-full font-bold bg-primary text-primary-foreground"
-                          onClick={async () => {
-                            const ok = await weighingScaleDriver.connectSerial(scaleBaudRate);
-                            if (ok) {
-                              toast.success("Scale connected & streaming live weight!");
-                            }
-                          }}
-                        >
-                          Select Port & Connect
-                        </Button>
-                      )}
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Parity</label>
+                      <select
+                        value={scaleConfig.parity}
+                        onChange={(e) => {
+                          const p = e.target.value as "none" | "even" | "odd";
+                          const newCfg = weighingScaleDriver.saveConfig({ parity: p });
+                          setScaleConfig(newCfg);
+                        }}
+                        className="flex h-8 w-full rounded-xl border border-input bg-background px-2 py-1 text-xs font-mono"
+                      >
+                        <option value="none">None (8-N-1)</option>
+                        <option value="even">Even (7-E-1)</option>
+                        <option value="odd">Odd</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Stop Bits</label>
+                      <select
+                        value={scaleConfig.stopBits}
+                        onChange={(e) => {
+                          const sb = Number(e.target.value) as 1 | 2;
+                          const newCfg = weighingScaleDriver.saveConfig({ stopBits: sb });
+                          setScaleConfig(newCfg);
+                        }}
+                        className="flex h-8 w-full rounded-xl border border-input bg-background px-2 py-1 text-xs font-mono"
+                      >
+                        <option value={1}>1 Stop Bit</option>
+                        <option value={2}>2 Stop Bits</option>
+                      </select>
                     </div>
                   </div>
 
-                  {/* Tare & Zero Commands */}
-                  <div className="grid grid-cols-2 gap-2 pt-1">
+                  {/* Hardware Feature Switches */}
+                  <div className="space-y-2 pt-1 border-t border-border/50">
+                    <div className="flex items-center justify-between text-xs">
+                      <div>
+                        <p className="font-bold text-foreground">⚡ Hands-Free Zero-Keypress Auto-Capture</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Auto-locks weight & plays audio chime when platter stabilizes (≥ 20g)
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={scaleConfig.handsFreeMode}
+                        onChange={(e) => {
+                          const newCfg = weighingScaleDriver.saveConfig({ handsFreeMode: e.target.checked });
+                          setScaleConfig(newCfg);
+                        }}
+                        className="size-4.5 rounded accent-primary cursor-pointer"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs">
+                      <div>
+                        <p className="font-bold text-foreground">Active Auto-Polling Heartbeat</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Periodically queries command-mode scales (W\r\n / ENQ) every 250ms
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={scaleConfig.autoPoll}
+                        onChange={(e) => {
+                          const newCfg = weighingScaleDriver.saveConfig({ autoPoll: e.target.checked });
+                          setScaleConfig(newCfg);
+                        }}
+                        className="size-4.5 rounded accent-primary cursor-pointer"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs">
+                      <div>
+                        <p className="font-bold text-foreground">Persistent Auto-Connect</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Automatically opens remembered scale COM port when POS launches
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={scaleConfig.autoReconnect}
+                        onChange={(e) => {
+                          const newCfg = weighingScaleDriver.saveConfig({ autoReconnect: e.target.checked });
+                          setScaleConfig(newCfg);
+                        }}
+                        className="size-4.5 rounded accent-primary cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Connection Trigger Buttons */}
+                  <div className="grid grid-cols-3 gap-2 pt-1">
+                    {scaleStatus === "streaming" || scaleStatus === "connected" ? (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="h-8.5 rounded-xl text-xs font-bold w-full"
+                        onClick={() => {
+                          weighingScaleDriver.disconnect();
+                          toast.info("Weighing scale disconnected");
+                        }}
+                      >
+                        Disconnect Port
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-8.5 rounded-xl text-xs font-bold w-full bg-primary text-primary-foreground"
+                        onClick={async () => {
+                          const ok = await weighingScaleDriver.connectSerial(scaleConfig);
+                          if (ok) {
+                            toast.success("Scale connected & streaming live weight!");
+                          }
+                        }}
+                      >
+                        Select Port &amp; Connect
+                      </Button>
+                    )}
+
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="rounded-xl h-8 text-xs font-semibold"
+                      className="rounded-xl h-8.5 text-xs font-bold border-border/80"
                       onClick={() => {
                         weighingScaleDriver.tare();
                         toast.success("Tare command sent to scale");
                       }}
                     >
-                      Tare (T)
+                      Tare Platter (T)
                     </Button>
+
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="rounded-xl h-8 text-xs font-semibold"
+                      className="rounded-xl h-8.5 text-xs font-bold border-border/80"
                       onClick={() => {
                         weighingScaleDriver.zero();
                         toast.success("Zero command sent to scale");
                       }}
                     >
-                      Zero (Z)
+                      Zero Scale (Z)
                     </Button>
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl bg-amber-500/10 p-2.5 text-xs text-amber-800 dark:text-amber-300 border border-amber-500/20">
-                  <p className="font-bold">Web Serial not supported in this browser.</p>
-                  <p className="text-[11px] mt-0.5">Please open Fish N Fresh in Google Chrome or Microsoft Edge on Windows to connect physical serial/USB scales.</p>
+                <div className="rounded-xl bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300 border border-amber-500/20">
+                  <p className="font-bold">Web Serial API not supported in this browser.</p>
+                  <p className="text-[11px] mt-0.5">
+                    Please open Fish N Fresh in Google Chrome, Microsoft Edge, or Opera on Windows/macOS/Linux to communicate directly with physical RS-232 / USB scale COM ports.
+                  </p>
                 </div>
               )}
+            </div>
+
+            {/* Live Serial Packet Diagnostic Monitor */}
+            <div className="space-y-1.5 rounded-2xl border border-border/80 p-3 bg-muted/10">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-foreground flex items-center gap-1.5">
+                  <Terminal className="size-3.5 text-primary" /> Live Raw Packet Monitor (Hex/ASCII)
+                </span>
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  {rawStreamLog.length} packets logged
+                </span>
+              </div>
+
+              <div className="rounded-xl bg-zinc-950 p-2.5 font-mono text-[11px] text-emerald-400 max-h-24 overflow-y-auto space-y-0.5 border border-zinc-800">
+                {rawStreamLog.length > 0 ? (
+                  rawStreamLog.map((line, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <span className="text-zinc-600 select-none">{String(idx + 1).padStart(2, "0")}:</span>
+                      <span className="truncate">{line}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-zinc-600 text-center py-2">
+                    {scaleStatus === "streaming"
+                      ? "Awaiting scale packets on serial line..."
+                      : "Connect physical scale or use testing simulator below"}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Scale Testing & Simulator (Useful for testing without physical scale hardware) */}
             <div className="space-y-2 rounded-2xl border border-border/80 p-3 bg-muted/10">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-foreground">Hardware Simulation (Testing Mode)</span>
-                <span className="text-[10px] text-muted-foreground">Test live weight injection</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-[11px] font-bold text-primary hover:bg-primary/10 gap-1 px-2"
+                  onClick={() => {
+                    // Simulate motion then stabilization to test hands-free auto-capture
+                    weighingScaleDriver.simulateReading(0.85, false);
+                    toast.info("Simulating seafood moving on scale plate...");
+                    setTimeout(() => {
+                      weighingScaleDriver.simulateReading(0.85, true);
+                      toast.success("Platter stabilized! Hands-free auto-capture triggered!");
+                    }, 400);
+                  }}
+                >
+                  <Zap className="size-3" /> Simulate Motion → Stable
+                </Button>
               </div>
 
               <div className="grid grid-cols-4 gap-1.5">
