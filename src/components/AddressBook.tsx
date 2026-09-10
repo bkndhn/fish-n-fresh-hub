@@ -112,6 +112,7 @@ export function AddressBook({ selectedAddress, onSelect }: AddressBookProps) {
         const { data: rows, error } = await supabase
           .from("customer_addresses")
           .select("id, label, address, lat, lng, is_default")
+          .eq("user_id", session.user.id)
           .order("is_default", { ascending: false });
 
         if (error || !rows) return local;

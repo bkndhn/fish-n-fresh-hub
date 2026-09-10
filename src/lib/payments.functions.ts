@@ -62,3 +62,64 @@ export const createOrderCheckout = createServerFn({ method: "POST" })
       return { error: getStripeErrorMessage(err) };
     }
   });
+
+export const verifyOrderPaymentSession = createServerFn({ method: "POST" })
+  .inputValidator((data: { orderId: string; environment?: StripeEnv }) => {
+    if (!UUID.test(data?.orderId ?? "")) throw new Error("Invalid order");
+    return data;
+  })
+  .handler(async ({ data }): Promise<{ success: boolean; paid: boolean; error?: string; orderNumber?: string }> => {
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: order, error } = await supabaseAdmin
+        .from("orders")
+        .select("id, order_number, total, status, payment_status, stripe_session_id, customer_email, customer_name")
+        .eq("id", data.orderId)
+        .maybeSingle();
+
+      if (error || !order) {
+        return { success: false, paid: false, error: "Order not found" };
+      }
+
+      if (order.payment_status === "paid") {
+        return { success: true, paid: true, orderNumber: order.order_number ?? order.id.slice(0, 8) };
+      }
+
+      if (!order.stripe_session_id) {
+        return { success: true, paid: false };
+      }
+
+      const env = data.environment || "sandbox";
+      const stripe = createStripeClient(env);
+      const session = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
+
+      if (session.payment_status === "paid" || session.status === "complete") {
+        await supabaseAdmin
+          .from("orders")
+          .update({
+            payment_status: "paid",
+            actual_payment_method: "stripe_card",
+            payment_method: "card",
+            status: order.status === "pending" ? "confirmed" : order.status,
+            updated_at: new Date().toISOString(),
+          } as never)
+          .eq("id", order.id);
+
+        // Dispatch Order Confirmed Transactional Email
+        try {
+          const { sendOrderConfirmedEmail } = await import("@/lib/emails.server");
+          await sendOrderConfirmedEmail(order.id);
+        } catch (emailErr) {
+          console.warn("[Payments] Order confirmation email error:", emailErr);
+        }
+
+        return { success: true, paid: true, orderNumber: order.order_number ?? order.id.slice(0, 8) };
+      }
+
+      return { success: true, paid: false };
+    } catch (err) {
+      console.error("[Payments] Error verifying Stripe session:", err);
+      return { success: false, paid: false, error: getStripeErrorMessage(err) };
+    }
+  });
+

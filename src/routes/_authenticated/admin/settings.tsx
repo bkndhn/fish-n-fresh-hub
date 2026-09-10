@@ -269,6 +269,10 @@ function AdminSettings() {
         const { error: gErr } = await supabase.from("payment_gateway_credentials").insert(creds);
         if (gErr) throw gErr;
       }
+
+      if (gatewayForm.provider === "stripe" && gatewayForm.api_key) {
+        localStorage.setItem("fnf_stripe_publishable_key", gatewayForm.api_key);
+      }
     },
     onSuccess: () => {
       toast.success("Settings saved");
@@ -1044,6 +1048,7 @@ function AdminSettings() {
                 onChange={(e) => setGatewayForm({ ...gatewayForm, provider: e.target.value })}
               >
                 <option value="none">Manual UPI Only</option>
+                <option value="stripe">Stripe (Cards, Apple Pay, Global Checkout)</option>
                 <option value="razorpay">Razorpay</option>
                 <option value="phonepe">PhonePe</option>
                 <option value="cashfree">Cashfree</option>
@@ -1052,20 +1057,25 @@ function AdminSettings() {
             {gatewayForm.provider !== "none" && (
               <>
                 <div>
-                  <Label>API Key</Label>
+                  <Label>
+                    {gatewayForm.provider === "stripe" ? "Stripe Publishable Key *" : "API Key / Key ID *"}
+                  </Label>
                   <Input
                     type="password"
                     value={gatewayForm.api_key ?? ""}
                     onChange={(e) => setGatewayForm({ ...gatewayForm, api_key: e.target.value })}
-                    placeholder="rzp_live_..."
+                    placeholder={gatewayForm.provider === "stripe" ? "pk_test_... or pk_live_..." : "rzp_live_..."}
                   />
                 </div>
                 <div>
-                  <Label>Secret Key</Label>
+                  <Label>
+                    {gatewayForm.provider === "stripe" ? "Stripe Secret Key *" : "Secret Key *"}
+                  </Label>
                   <Input
                     type="password"
                     value={gatewayForm.secret_key ?? ""}
                     onChange={(e) => setGatewayForm({ ...gatewayForm, secret_key: e.target.value })}
+                    placeholder={gatewayForm.provider === "stripe" ? "sk_test_... or sk_live_..." : "Secret key"}
                   />
                 </div>
               </>

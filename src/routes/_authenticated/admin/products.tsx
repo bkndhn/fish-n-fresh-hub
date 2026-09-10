@@ -9,6 +9,7 @@ import { categoriesQuery } from "@/lib/queries";
 import type { Product } from "@/lib/types";
 import { formatINR, formatStockDisplay, formatStockUnitLabel } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
+import { applyRealProductsCatalog } from "@/lib/products.functions";
 import { ProductAiBenefitsCard } from "@/components/ProductAiBenefitsCard";
 import {
   matchSpeciesVisualProfile,
@@ -531,12 +532,40 @@ function ProductsAdmin() {
     };
   };
 
+  const [seedingCatalog, setSeedingCatalog] = useState(false);
+  const handleApplyRealCatalog = async () => {
+    if (!confirm("This will load 10 authentic dock-fresh coastal seafood & meat items (Vanjaram ₹950, Pomfret ₹880, Tiger Prawns ₹720, etc.) with real market prices, photos, and PLU codes into your store. Proceed?")) return;
+    try {
+      setSeedingCatalog(true);
+      const res = await applyRealProductsCatalog({ data: { archiveExisting: false } });
+      if (res.success) {
+        toast.success(`Successfully loaded ${res.inserted} authentic real seafood & meat products!`);
+        qc.invalidateQueries({ queryKey: ["admin", "products"] });
+        qc.invalidateQueries({ queryKey: ["products"] });
+      } else {
+        toast.error(res.error || "Failed to load real catalog");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Failed to load real catalog");
+    } finally {
+      setSeedingCatalog(false);
+    }
+  };
+
   return (
     <AdminShell
       title="Products & Inventory"
       allow={["admin", "manager", "inventory_manager", "staff"]}
       action={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="secondary"
+            className="rounded-xl h-9 font-bold text-xs gap-1.5 border border-primary/20 bg-primary/10 hover:bg-primary/20 text-primary"
+            onClick={handleApplyRealCatalog}
+            disabled={seedingCatalog}
+          >
+            <Sparkles className="size-3.5 text-primary" /> <span>{seedingCatalog ? "Loading Real Catch…" : "Apply Real Seafood Catalog"}</span>
+          </Button>
           <Button
             variant="outline"
             className="rounded-xl h-9 font-semibold text-xs gap-1.5 border-border/80 hover:bg-muted"

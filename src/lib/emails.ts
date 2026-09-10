@@ -12,33 +12,33 @@ import { formatINR } from "./format";
 export interface EmailOrderItem {
   name: string;
   qty: number;
-  unit?: string;
+  unit?: string | undefined;
   price: number;
   total: number;
-  cuttingStyle?: string;
+  cuttingStyle?: string | undefined;
 }
 
 export interface OrderEmailData {
   orderNumber: string;
   orderId: string;
   customerName: string;
-  customerEmail?: string;
+  customerEmail?: string | undefined;
   customerPhone: string;
-  deliveryAddress?: string;
-  deliverySlot?: string;
-  deliveryPin?: string;
-  driverName?: string;
-  driverPhone?: string;
+  deliveryAddress?: string | undefined;
+  deliverySlot?: string | undefined;
+  deliveryPin?: string | undefined;
+  driverName?: string | undefined;
+  driverPhone?: string | undefined;
   items: EmailOrderItem[];
   subtotal: number;
   discount: number;
   deliveryFee: number;
   gstAmount: number;
   total: number;
-  trackingUrl?: string;
-  storeName?: string;
-  storePhone?: string;
-  storeAddress?: string;
+  trackingUrl?: string | undefined;
+  storeName?: string | undefined;
+  storePhone?: string | undefined;
+  storeAddress?: string | undefined;
 }
 
 /**

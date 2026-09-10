@@ -36,6 +36,7 @@ import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { restoreOrderStock } from "@/lib/inventorySync";
+import { updateOrderStatusWithEmail } from "@/lib/orders.functions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -95,8 +96,7 @@ function OrdersAdmin() {
 
   const update = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase.from("orders").update({ status }).eq("id", id);
-      if (error) throw error;
+      await updateOrderStatusWithEmail({ data: { orderId: id, status } });
       if (status === "cancelled") {
         await restoreOrderStock(id);
       }

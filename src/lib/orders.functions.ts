@@ -40,3 +40,32 @@ export const lookupGuestOrder = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return ((rows?.[0] as unknown as GuestOrder) ?? null);
   });
+
+export const updateOrderStatusWithEmail = createServerFn({ method: "POST" })
+  .inputValidator((input: { orderId: string; status: string; driverInfo?: { name?: string; phone?: string } }) => {
+    return input;
+  })
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const patch: Record<string, any> = { status: data.status, updated_at: new Date().toISOString() };
+    if (data.status === "delivered") {
+      patch['delivered_at'] = new Date().toISOString();
+    }
+    const { error } = await (supabaseAdmin as any).from("orders").update(patch).eq("id", data.orderId);
+    if (error) throw new Error(error.message);
+
+    // Trigger transactional email
+    try {
+      const { sendOrderDeliveredEmail, sendOutForDeliveryEmail } = await import("@/lib/emails.server");
+      if (data.status === "delivered") {
+        await sendOrderDeliveredEmail(data.orderId);
+      } else if (data.status === "out_for_delivery") {
+        await sendOutForDeliveryEmail(data.orderId, data.driverInfo);
+      }
+    } catch (e) {
+      console.warn("[Orders] Transactional email notice:", e);
+    }
+
+    return { success: true };
+  });
+

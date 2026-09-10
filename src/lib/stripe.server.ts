@@ -11,17 +11,35 @@ export type StripeEnv = 'sandbox' | 'live';
 const GATEWAY_STRIPE_BASE = 'https://connector-gateway.lovable.dev/stripe';
 
 export function getConnectionApiKey(env: StripeEnv): string {
-  return env === 'sandbox'
-    ? getEnv('STRIPE_SANDBOX_API_KEY')
-    : getEnv('STRIPE_LIVE_API_KEY');
+  const secretKey = process.env['STRIPE_SECRET_KEY'];
+  if (secretKey) {
+    return secretKey;
+  }
+  const sandboxKey = process.env['STRIPE_SANDBOX_API_KEY'];
+  const liveKey = process.env['STRIPE_LIVE_API_KEY'];
+  const key = env === 'sandbox'
+    ? (sandboxKey || secretKey)
+    : (liveKey || secretKey);
+  if (!key) {
+    throw new Error(`Stripe API key is not configured for ${env} environment. Set STRIPE_SECRET_KEY in .env or environment.`);
+  }
+  return key;
 }
 
 export function createStripeClient(env: StripeEnv): Stripe {
   const connectionApiKey = getConnectionApiKey(env);
-  const lovableApiKey = getEnv('LOVABLE_API_KEY');
+  const lovableApiKey = process.env['LOVABLE_API_KEY'];
 
+  // If standard direct Stripe key or no Lovable API key, connect directly to Stripe API
+  if (!lovableApiKey || connectionApiKey.startsWith('sk_') || connectionApiKey.startsWith('rk_')) {
+    return new Stripe(connectionApiKey, {
+      apiVersion: '2026-03-25.dahlia' as any,
+    });
+  }
+
+  // Fallback to Lovable Gateway proxy if Lovable API key is present
   return new Stripe(connectionApiKey, {
-    apiVersion: '2026-03-25.dahlia',
+    apiVersion: '2026-03-25.dahlia' as any,
     httpClient: Stripe.createFetchHttpClient((input, init) => {
       const stripeUrl = input instanceof Request ? input.url : input.toString();
       const gatewayUrl = stripeUrl.replace('https://api.stripe.com', GATEWAY_STRIPE_BASE);
@@ -81,9 +99,14 @@ export async function verifyWebhook(
   const signature = req.headers.get('stripe-signature');
   const body = await req.text();
   const secret =
-    env === 'sandbox'
-      ? getEnv('PAYMENTS_SANDBOX_WEBHOOK_SECRET')
-      : getEnv('PAYMENTS_LIVE_WEBHOOK_SECRET');
+    process.env['STRIPE_WEBHOOK_SECRET'] ||
+    (env === 'sandbox'
+      ? (process.env['PAYMENTS_SANDBOX_WEBHOOK_SECRET'] || process.env['STRIPE_WEBHOOK_SECRET'])
+      : (process.env['PAYMENTS_LIVE_WEBHOOK_SECRET'] || process.env['STRIPE_WEBHOOK_SECRET']));
+
+  if (!secret) {
+    throw new Error('Stripe webhook secret is not configured');
+  }
 
   if (!signature || !body) {
     throw new Error('Missing signature or body');

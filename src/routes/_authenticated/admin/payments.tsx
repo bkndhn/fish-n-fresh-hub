@@ -8,6 +8,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ExportDropdown, type ExportColumn, type ExportOptions } from "@/lib/exportUtils";
+
+const PAYMENT_EXPORT_COLUMNS: ExportColumn[] = [
+  { key: "order_no", label: "Order #", width: 16 },
+  { key: "date", label: "Date & Time", width: 22 },
+  { key: "customer_name", label: "Customer Name", width: 22 },
+  { key: "customer_phone", label: "Customer Phone", width: 16 },
+  { key: "method", label: "Payment Method", width: 16 },
+  { key: "status", label: "Payment Status", width: 14 },
+  { key: "total", label: "Billed Total", width: 14, type: "currency" },
+  { key: "refunded", label: "Refunded", width: 14, type: "currency" },
+  { key: "net", label: "Net Collected", width: 14, type: "currency" },
+];
 
 export const Route = createFileRoute("/_authenticated/admin/payments")({
   head: () => ({
@@ -78,40 +91,23 @@ function PaymentsReport() {
     return { billed, collected, refunded, net: collected - refunded };
   }, [rows]);
 
-  function exportCsv() {
-    const header = [
-      "Order",
-      "Date",
-      "Customer",
-      "Phone",
-      "Method",
-      "Payment status",
-      "Total",
-      "Refunded",
-      "Balance",
-    ];
-    const lines = rows.map((o) => {
+  const exportData = useMemo(() => {
+    return rows.map((o) => {
       const refund = Number(o.refund_amount ?? 0);
-      return [
-        o.order_number ?? o.id.slice(0, 8),
-        formatIST(o.created_at),
-        o.customer_name,
-        o.customer_phone,
-        o.payment_method,
-        paymentState(o),
-        Number(o.total).toFixed(2),
-        refund.toFixed(2),
-        (o.payment_status === "paid" ? Number(o.total) - refund : 0).toFixed(2),
-      ].join(",");
+      const netCollected = o.payment_status === "paid" ? Number(o.total) - refund : 0;
+      return {
+        order_no: o.order_number ?? o.id.slice(0, 8),
+        date: formatIST(o.created_at),
+        customer_name: o.customer_name,
+        customer_phone: o.customer_phone,
+        method: o.payment_method?.toUpperCase() || "CASH",
+        status: paymentState(o).toUpperCase(),
+        total: Number(o.total) || 0,
+        refunded: refund,
+        net: netCollected,
+      };
     });
-    const blob = new Blob([[header.join(","), ...lines].join("\n")], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "payments.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+  }, [rows]);
 
   return (
     <AdminShell title="Payments & refunds" allow={["admin", "manager"]}>
@@ -148,9 +144,18 @@ function PaymentsReport() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <Button size="sm" variant="outline" className="ml-auto" onClick={exportCsv}>
-          Export CSV
-        </Button>
+        <div className="ml-auto">
+          <ExportDropdown
+            options={{
+              data: exportData,
+              columns: PAYMENT_EXPORT_COLUMNS,
+              filename: "payments-audit-ledger",
+              title: "Payments & Refunds Audit Ledger",
+              subtitle: `Total Collected: ${formatINR(totals.collected)} | Net: ${formatINR(totals.net)}`,
+            }}
+            buttonLabel="Export Payments"
+          />
+        </div>
       </div>
 
       {orders.isLoading ? (
@@ -170,9 +175,14 @@ function PaymentsReport() {
                     <p className="text-sm font-semibold">
                       {o.order_number ?? o.id.slice(0, 8)} · {o.customer_name}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(o.created_at).toLocaleString("en-IN")} · {o.payment_method.toUpperCase()}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(o.created_at).toLocaleString("en-IN")}
+                      </span>
+                      <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-foreground">
+                        {o.payment_method === "card" ? "💳 Card / Stripe" : o.payment_method === "upi" ? "📱 UPI" : o.payment_method === "cash" ? "💵 Cash / COD" : o.payment_method.toUpperCase()}
+                      </span>
+                    </div>
                   </div>
                   <Badge
                     variant={state === "paid" ? "default" : state === "refunded" ? "destructive" : "secondary"}

@@ -82,10 +82,28 @@ function MyOrders() {
   const { data: orders } = useQuery({
     queryKey: ["my-orders"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: authData } = await supabase.auth.getUser();
+      const currentUser = authData.user;
+      const storedPhone = typeof window !== "undefined" ? localStorage.getItem("fnf_phone") : null;
+
+      let query = supabase
         .from("orders")
-        .select("id, order_number, status, total, items, created_at, payment_status, complaint")
-        .order("created_at", { ascending: false });
+        .select("id, order_number, status, total, items, created_at, payment_status, complaint");
+
+      if (currentUser?.id) {
+        const conditions = [`user_id.eq.${currentUser.id}`, `created_by.eq.${currentUser.id}`];
+        if (currentUser.email) conditions.push(`customer_email.eq.${currentUser.email}`);
+        if (storedPhone && storedPhone.length >= 10) {
+          conditions.push(`customer_phone.eq.${storedPhone.replace(/\D/g, "")}`);
+        }
+        query = query.or(conditions.join(","));
+      } else if (storedPhone && storedPhone.length >= 10) {
+        query = query.eq("customer_phone", storedPhone.replace(/\D/g, ""));
+      } else {
+        return [];
+      }
+
+      const { data, error } = await query.order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
