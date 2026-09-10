@@ -1338,6 +1338,7 @@ export type Database = {
           max_wallet_burn_percent: number
           meta_pixel_id: string | null
           min_order_value: number
+          notification_sound_enabled: boolean | null
           online_enabled: boolean
           open_time: string | null
           payment_gateway: string | null
@@ -1355,6 +1356,9 @@ export type Database = {
           referral_reward_referrer: number
           refund_content: string | null
           require_online_payment: boolean | null
+          resend_api_key: string | null
+          sender_email: string | null
+          sender_name: string | null
           seo_default_description: string | null
           seo_keywords: string | null
           seo_og_image: string | null
@@ -1364,6 +1368,10 @@ export type Database = {
           shop_lng: number | null
           shop_logo: string | null
           show_stock_to_customers: boolean
+          smtp_host: string | null
+          smtp_pass: string | null
+          smtp_port: number | null
+          smtp_user: string | null
           social_facebook: string | null
           social_instagram: string | null
           social_whatsapp: string | null
@@ -1467,6 +1475,7 @@ export type Database = {
           max_wallet_burn_percent?: number
           meta_pixel_id?: string | null
           min_order_value?: number
+          notification_sound_enabled?: boolean | null
           online_enabled?: boolean
           open_time?: string | null
           payment_gateway?: string | null
@@ -1484,6 +1493,9 @@ export type Database = {
           referral_reward_referrer?: number
           refund_content?: string | null
           require_online_payment?: boolean | null
+          resend_api_key?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
           seo_default_description?: string | null
           seo_keywords?: string | null
           seo_og_image?: string | null
@@ -1493,6 +1505,10 @@ export type Database = {
           shop_lng?: number | null
           shop_logo?: string | null
           show_stock_to_customers?: boolean
+          smtp_host?: string | null
+          smtp_pass?: string | null
+          smtp_port?: number | null
+          smtp_user?: string | null
           social_facebook?: string | null
           social_instagram?: string | null
           social_whatsapp?: string | null
@@ -1596,6 +1612,7 @@ export type Database = {
           max_wallet_burn_percent?: number
           meta_pixel_id?: string | null
           min_order_value?: number
+          notification_sound_enabled?: boolean | null
           online_enabled?: boolean
           open_time?: string | null
           payment_gateway?: string | null
@@ -1613,6 +1630,9 @@ export type Database = {
           referral_reward_referrer?: number
           refund_content?: string | null
           require_online_payment?: boolean | null
+          resend_api_key?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
           seo_default_description?: string | null
           seo_keywords?: string | null
           seo_og_image?: string | null
@@ -1622,6 +1642,10 @@ export type Database = {
           shop_lng?: number | null
           shop_logo?: string | null
           show_stock_to_customers?: boolean
+          smtp_host?: string | null
+          smtp_pass?: string | null
+          smtp_port?: number | null
+          smtp_user?: string | null
           social_facebook?: string | null
           social_instagram?: string | null
           social_whatsapp?: string | null
