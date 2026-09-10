@@ -700,25 +700,27 @@ function PurchasesAdmin() {
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-          <TabsList className="rounded-2xl p-1 bg-muted/60">
-            <TabsTrigger value="ledger" className="rounded-xl text-xs font-bold">
-              <FileText className="mr-1.5 size-3.5" /> Catch Purchases
-            </TabsTrigger>
-            <TabsTrigger value="outstanding" className="rounded-xl text-xs font-bold">
-              <Receipt className="mr-1.5 size-3.5" /> Outstanding & Statements
-              {purchases.filter((p) => p.total_amount > p.paid_amount).length > 0 && (
-                <span className="ml-1.5 rounded-full bg-rose-500/20 text-rose-600 dark:text-rose-400 px-1.5 py-0.2 text-[10px] font-extrabold">
-                  {purchases.filter((p) => p.total_amount > p.paid_amount).length}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="new" className="rounded-xl text-xs font-bold">
-              <PackagePlus className="mr-1.5 size-3.5" /> Inward Catch (New)
-            </TabsTrigger>
-            <TabsTrigger value="suppliers" className="rounded-xl text-xs font-bold">
-              <Building2 className="mr-1.5 size-3.5" /> Suppliers Directory ({suppliers.length})
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto no-scrollbar max-w-full pb-0.5">
+            <TabsList className="rounded-2xl p-1 bg-muted/60 flex-nowrap">
+              <TabsTrigger value="ledger" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0">
+                <FileText className="mr-1.5 size-3.5" /> Catch Purchases
+              </TabsTrigger>
+              <TabsTrigger value="outstanding" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0">
+                <Receipt className="mr-1.5 size-3.5" /> Outstanding & Statements
+                {purchases.filter((p) => p.total_amount > p.paid_amount).length > 0 && (
+                  <span className="ml-1.5 rounded-full bg-rose-500/20 text-rose-600 dark:text-rose-400 px-1.5 py-0.2 text-[10px] font-extrabold">
+                    {purchases.filter((p) => p.total_amount > p.paid_amount).length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="new" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0">
+                <PackagePlus className="mr-1.5 size-3.5" /> Inward Catch (New)
+              </TabsTrigger>
+              <TabsTrigger value="suppliers" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0">
+                <Building2 className="mr-1.5 size-3.5" /> Suppliers Directory ({suppliers.length})
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {activeTab === "ledger" && (
             <div className="flex items-center gap-2 w-full sm:w-auto">

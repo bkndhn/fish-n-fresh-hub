@@ -46,13 +46,25 @@ export const Route = createFileRoute("/_authenticated/admin/staff")({
   component: StaffPage,
 });
 
-const ASSIGNABLE: AppRole[] = ["admin", "staff", "driver"];
+const ASSIGNABLE: AppRole[] = [
+  "admin",
+  "manager",
+  "cashier",
+  "driver",
+  "inventory_manager",
+  "support_staff",
+  "staff",
+];
 
 const ROLE_HINT: Record<AppRole, string> = {
-  admin: "Full access to every admin page",
-  staff: "Manage orders, products and customers",
-  driver: "Delivery map and assigned orders",
-  user: "Regular customer account",
+  admin: "Full Super Admin: Access to all settings, finances, and team management",
+  manager: "Store Manager: Daily operations, sales reports, orders, promotions, catalog",
+  cashier: "POS Cashier: In-Store POS counter billing and counter order management only",
+  driver: "Delivery Fleet Driver: Delivery dispatch, route navigation, COD cash handover",
+  inventory_manager: "Catch & Inventory Manager: Inward harbour catch, products, waste logging",
+  support_staff: "Customer Support: Live chat support, orders, customer complaints",
+  staff: "General Staff: Orders, catalog, and store support",
+  user: "Regular retail customer account",
 };
 
 function StaffPage() {

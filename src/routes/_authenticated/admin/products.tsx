@@ -1497,13 +1497,13 @@ function ProductsAdmin() {
 
       {/* AI Species Visual Showcase & Daily Image Rotation Dialog */}
       <Dialog open={Boolean(aiVisualProduct)} onOpenChange={(open) => !open && setAiVisualProduct(null)}>
-        <DialogContent className="rounded-3xl max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="rounded-3xl w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Camera className="size-5 text-cyan-500" />
-              100% Species Matched Visual Studio: {aiVisualProduct?.name}
+            <DialogTitle className="flex items-center gap-2 break-words">
+              <Camera className="size-5 text-cyan-500 shrink-0" />
+              <span>100% Species Matched Visual Studio: {aiVisualProduct?.name}</span>
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="break-words">
               Rotate between authentic studio angles (Dock Fresh, Master Cuts, Ready to Cook) to keep your catalog dynamic daily without manual photography.
             </DialogDescription>
           </DialogHeader>
@@ -1511,18 +1511,18 @@ function ProductsAdmin() {
           {aiVisualProduct && (() => {
             const profile = matchSpeciesVisualProfile(aiVisualProduct.name);
             return (
-              <div className="space-y-6 mt-3">
+              <div className="space-y-6 mt-3 max-w-full">
                 {/* Active Image Banner */}
-                <div className="flex items-center gap-4 p-4 rounded-2xl bg-muted/40 border">
+                <div className="flex items-center gap-4 p-4 rounded-2xl bg-muted/40 border min-w-0 overflow-hidden">
                   <img
                     src={aiVisualProduct.image_url || "/placeholder.svg"}
                     alt={aiVisualProduct.name}
-                    className="size-16 rounded-xl object-cover border"
+                    className="size-16 rounded-xl object-cover border shrink-0"
                   />
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 overflow-hidden">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Current Active Catalog Image</p>
                     <p className="text-sm font-bold truncate">{aiVisualProduct.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{aiVisualProduct.image_url || "Default placeholder"}</p>
+                    <p className="text-xs text-muted-foreground truncate max-w-full">{aiVisualProduct.image_url || "Default placeholder"}</p>
                   </div>
                 </div>
 

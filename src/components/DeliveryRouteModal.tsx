@@ -28,6 +28,9 @@ import {
   getAppleMapsDirUrl,
   getWazeDirUrl,
   createResilientTileLayer,
+  getOsrmRoadRoute,
+  forwardGeocodeAddress,
+  type RoadRouteResult,
 } from "@/lib/maps";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
@@ -72,39 +75,115 @@ export function DeliveryRouteModal({
   driverName,
   verticalEmoji = "🐟",
 }: DeliveryRouteModalProps) {
-  const destLat = propDestLat ?? destinationLat ?? null;
-  const destLng = propDestLng ?? destinationLng ?? null;
+  const initialDestLat = propDestLat ?? destinationLat ?? null;
+  const initialDestLng = propDestLng ?? destinationLng ?? null;
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const leafletMapRef = useRef<any>(null);
   const [copied, setCopied] = useState(false);
 
-  // Fallback to coordinates if missing (e.g. slight offset from store)
+  // Resolved destination coordinates (either provided or geocoded)
+  const [resolvedCoords, setResolvedCoords] = useState<{ lat: number; lng: number } | null>(() => {
+    if (initialDestLat && initialDestLng) return { lat: initialDestLat, lng: initialDestLng };
+    return null;
+  });
+
+  // Road route result from OSRM
+  const [roadRoute, setRoadRoute] = useState<RoadRouteResult | null>(null);
+  const [isResolvingRoute, setIsResolvingRoute] = useState(false);
+
   const effectiveStoreLat = storeLat || DEFAULT_STORE_LAT;
   const effectiveStoreLng = storeLng || DEFAULT_STORE_LNG;
-  const effectiveDestLat = destLat || effectiveStoreLat + 0.025;
-  const effectiveDestLng = destLng || effectiveStoreLng + 0.02;
 
-  const distanceKm = calculateDistanceKm(
+  // Resolve coordinates if missing but address is available
+  useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+
+    async function resolveDestination() {
+      if (initialDestLat && initialDestLng) {
+        setResolvedCoords({ lat: initialDestLat, lng: initialDestLng });
+        return;
+      }
+
+      if (customerAddress && customerAddress.trim().length >= 3) {
+        setIsResolvingRoute(true);
+        const geo = await forwardGeocodeAddress(customerAddress);
+        if (!cancelled && geo) {
+          setResolvedCoords({ lat: geo.lat, lng: geo.lng });
+          setIsResolvingRoute(false);
+          return;
+        }
+      }
+
+      // Safe city fallback
+      if (!cancelled) {
+        setResolvedCoords({
+          lat: effectiveStoreLat + 0.025,
+          lng: effectiveStoreLng + 0.02,
+        });
+        setIsResolvingRoute(false);
+      }
+    }
+
+    resolveDestination();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, initialDestLat, initialDestLng, customerAddress, effectiveStoreLat, effectiveStoreLng]);
+
+  // Fetch true road geometry when destination coordinates are ready
+  useEffect(() => {
+    if (!open || !resolvedCoords) return;
+
+    let cancelled = false;
+
+    async function fetchRoute() {
+      setIsResolvingRoute(true);
+      const res = await getOsrmRoadRoute(
+        effectiveStoreLat,
+        effectiveStoreLng,
+        resolvedCoords!.lat,
+        resolvedCoords!.lng
+      );
+      if (!cancelled) {
+        setRoadRoute(res);
+        setIsResolvingRoute(false);
+      }
+    }
+
+    fetchRoute();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, resolvedCoords, effectiveStoreLat, effectiveStoreLng]);
+
+  const targetLat = resolvedCoords?.lat ?? (effectiveStoreLat + 0.025);
+  const targetLng = resolvedCoords?.lng ?? (effectiveStoreLng + 0.02);
+
+  const distanceKm = roadRoute?.distanceKm ?? calculateDistanceKm(
     effectiveStoreLat,
     effectiveStoreLng,
-    effectiveDestLat,
-    effectiveDestLng
+    targetLat,
+    targetLng
   );
-  const etaMinutes = estimateBikeMinutes(distanceKm);
+  const etaMinutes = roadRoute?.durationMinutes ?? estimateBikeMinutes(distanceKm);
 
   const googleMapsUrl = getGoogleMapsDirUrl(
-    destLat,
-    destLng,
+    targetLat,
+    targetLng,
     customerAddress,
     effectiveStoreLat,
     effectiveStoreLng
   );
-  const appleMapsUrl = getAppleMapsDirUrl(destLat, destLng, customerAddress);
-  const wazeUrl = getWazeDirUrl(destLat, destLng);
+  const appleMapsUrl = getAppleMapsDirUrl(targetLat, targetLng, customerAddress);
+  const wazeUrl = getWazeDirUrl(targetLat, targetLng);
 
-  // Initialize Route Map
+  // Initialize Route Map with true road geometry
   useEffect(() => {
-    if (!open || typeof window === "undefined") return;
+    if (!open || typeof window === "undefined" || !roadRoute) return;
 
     let isMounted = true;
 
@@ -112,7 +191,7 @@ export function DeliveryRouteModal({
       try {
         const L = (await import("leaflet")).default;
 
-        if (!mapContainerRef.current || !isMounted) return;
+        if (!mapContainerRef.current || !isMounted || !roadRoute) return;
 
         if (leafletMapRef.current) {
           leafletMapRef.current.remove();
@@ -124,14 +203,13 @@ export function DeliveryRouteModal({
         });
 
         createResilientTileLayer(L, map).addTo(map);
-
         L.control.zoom({ position: "bottomright" }).addTo(map);
 
         // Custom HTML DivIcon for Store Origin
         const storeIcon = L.divIcon({
           className: "custom-div-icon",
           html: `
-            <div style="background-color: #0284c7; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 2px solid white;">
+            <div style="background-color: #0284c7; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(2,132,199,0.4); border: 2.5px solid white;">
               <span style="font-size: 16px;">${verticalEmoji || "🐟"}</span>
             </div>
           `,
@@ -143,7 +221,7 @@ export function DeliveryRouteModal({
         const customerIcon = L.divIcon({
           className: "custom-div-icon",
           html: `
-            <div style="background-color: #10b981; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 2px solid white;">
+            <div style="background-color: #10b981; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(16,185,129,0.4); border: 2.5px solid white;">
               <span style="font-size: 16px;">🏡</span>
             </div>
           `,
@@ -151,32 +229,40 @@ export function DeliveryRouteModal({
           iconAnchor: [18, 18],
         });
 
-        const storeMarker = L.marker([effectiveStoreLat, effectiveStoreLng], { icon: storeIcon })
+        L.marker([effectiveStoreLat, effectiveStoreLng], { icon: storeIcon })
           .addTo(map)
           .bindPopup(`<strong>${verticalEmoji || "🐟"} Store Hub</strong><br/>${storeAddress}`);
 
-        const destMarker = L.marker([effectiveDestLat, effectiveDestLng], { icon: customerIcon })
+        L.marker([targetLat, targetLng], { icon: customerIcon })
           .addTo(map)
           .bindPopup(`<strong>🏡 Customer Doorstep</strong><br/>${customerName || "Customer"}<br/>${customerAddress || ""}`);
 
-        // Polyline connecting store to customer
-        const routeCoords: [number, number][] = [
+        // Polyline connecting store to customer: dual-layer road polyline
+        const coords = roadRoute ? roadRoute.coordinates : [
           [effectiveStoreLat, effectiveStoreLng],
-          [effectiveDestLat, effectiveDestLng],
+          [targetLat, targetLng],
         ];
 
-        const polyline = L.polyline(routeCoords, {
-          color: "#0284c7",
-          weight: 4,
-          opacity: 0.85,
-          dashArray: "6, 8",
+        // Outer glow/casing for contrast
+        L.polyline(coords as any, {
+          color: "#38bdf8",
+          weight: 7,
+          opacity: 0.45,
+          lineCap: "round",
+          lineJoin: "round",
         }).addTo(map);
 
-        // Fit map bounds to show both pins comfortably
-        const bounds = L.latLngBounds([
-          [effectiveStoreLat, effectiveStoreLng],
-          [effectiveDestLat, effectiveDestLng],
-        ]);
+        // Core driving route polyline
+        L.polyline(coords as any, {
+          color: "#0284c7",
+          weight: 4.5,
+          opacity: 0.95,
+          lineCap: "round",
+          lineJoin: "round",
+        }).addTo(map);
+
+        // Fit map bounds to show complete turn-by-turn road route
+        const bounds = L.latLngBounds(coords as any);
         map.fitBounds(bounds, { padding: [50, 50] });
 
         leafletMapRef.current = map;
@@ -200,11 +286,22 @@ export function DeliveryRouteModal({
         leafletMapRef.current = null;
       }
     };
-  }, [open, effectiveStoreLat, effectiveStoreLng, effectiveDestLat, effectiveDestLng, storeAddress, customerName, customerAddress]);
+  }, [
+    open,
+    roadRoute,
+    effectiveStoreLat,
+    effectiveStoreLng,
+    targetLat,
+    targetLng,
+    storeAddress,
+    customerName,
+    customerAddress,
+    verticalEmoji,
+  ]);
 
   const handleCopyCoords = () => {
-    if (destLat && destLng) {
-      navigator.clipboard.writeText(`${destLat}, ${destLng}`);
+    if (targetLat && targetLng) {
+      navigator.clipboard.writeText(`${targetLat}, ${targetLng}`);
       setCopied(true);
       toast.success("Coordinates copied to clipboard");
       setTimeout(() => setCopied(false), 2000);
@@ -244,6 +341,11 @@ export function DeliveryRouteModal({
               <span>{etaMinutes} mins</span>
               <span className="opacity-40">•</span>
               <span>{distanceKm} km</span>
+              {roadRoute?.isRealRoad && (
+                <span className="hidden sm:inline text-[10px] font-medium bg-emerald-500/20 px-1.5 py-0.5 rounded-sm">
+                  Road
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -292,7 +394,7 @@ export function DeliveryRouteModal({
               </Button>
 
               {/* Waze */}
-              {destLat && destLng && (
+              {targetLat && targetLng && (
                 <Button asChild size="sm" variant="outline" className="rounded-xl h-9 text-xs font-medium gap-1.5">
                   <a href={wazeUrl} target="_blank" rel="noopener noreferrer">
                     <span>Waze</span>
@@ -323,7 +425,7 @@ export function DeliveryRouteModal({
               )}
 
               {/* Copy Coords */}
-              {destLat && destLng && (
+              {targetLat && targetLng && (
                 <Button
                   size="sm"
                   variant="ghost"

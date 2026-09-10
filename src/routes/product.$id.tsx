@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Minus, Plus, ShieldCheck, Star, MessageSquare, Fish } from "lucide-react";
@@ -23,6 +23,16 @@ import { productQuery, productsQuery, settingsQuery } from "@/lib/queries";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductAiBenefitsCard } from "@/components/ProductAiBenefitsCard";
 import { SeoStructuredData } from "@/components/SeoStructuredData";
+
+const PORTION_CHIPS = [
+  { label: "250g", val: 0.25 },
+  { label: "500g", val: 0.5 },
+  { label: "750g", val: 0.75 },
+  { label: "1 kg", val: 1.0 },
+  { label: "1.5 kg", val: 1.5 },
+  { label: "2 kg", val: 2.0 },
+  { label: "3 kg", val: 3.0 },
+];
 
 export const Route = createFileRoute("/product/$id")({
   loader: async ({ params, context }: any) => {
@@ -71,8 +81,10 @@ function ProductPage() {
   const { data: product, isLoading } = useQuery(productQuery(id));
   const { data: all } = useQuery(productsQuery);
   const { data: settings } = useQuery(settingsQuery);
-  const { add } = useCart();
+  const { add, items } = useCart();
   const [qty, setQty] = useState(1);
+  const [qtyInput, setQtyInput] = useState("1");
+  const cartItem = items.find((i) => i.product_id === product?.id);
 
   useEffect(() => {
     if (product) {
@@ -166,43 +178,128 @@ function ProductPage() {
 
           {product.description && <p className="mt-4 text-sm">{product.description}</p>}
 
-          <div className="mt-5 flex items-center gap-3">
-            <div className="flex items-center gap-3 rounded-xl border border-border px-3 py-2">
-              <button onClick={() => setQty((v) => Math.max(1, v - 1))} aria-label="Decrease" disabled={isOutOfStock}>
-                <Minus className="size-4" />
-              </button>
-              {product.allow_custom_qty ? (
+          <div className="mt-5 space-y-3">
+            {/* Quick Portion Chips for weight-based items */}
+            {(product.unit?.toLowerCase().includes("kg") || product.unit?.toLowerCase() === "g") && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted-foreground flex items-center justify-between">
+                  <span>Choose Portion / Weight:</span>
+                  <span className="text-xs font-mono text-primary font-bold">{qty} {product.unit}</span>
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {PORTION_CHIPS.map((chip) => (
+                    <button
+                      key={chip.val}
+                      type="button"
+                      disabled={isOutOfStock}
+                      onClick={() => {
+                        setQty(chip.val);
+                        setQtyInput(String(chip.val));
+                      }}
+                      className={`px-3 py-1 rounded-xl text-xs font-mono font-bold transition-all ${
+                        qty === chip.val
+                          ? "bg-primary text-primary-foreground shadow-xs scale-102"
+                          : "bg-muted/60 hover:bg-muted text-foreground border border-border/70"
+                      }`}
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 bg-card shadow-2xs">
+                <button
+                  onClick={() => {
+                    const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
+                    const step = isWeighted ? (qty <= 1 ? 0.25 : 0.5) : 1;
+                    const next = Math.max(isWeighted ? 0.25 : 1, Math.round((qty - step) * 100) / 100);
+                    setQty(next);
+                    setQtyInput(String(next));
+                  }}
+                  aria-label="Decrease"
+                  disabled={isOutOfStock || qty <= (product.unit?.toLowerCase().includes("kg") ? 0.25 : 1)}
+                  className="disabled:opacity-40"
+                >
+                  <Minus className="size-4" />
+                </button>
                 <input
-                  type="number"
-                  value={qty}
+                  type="text"
+                  inputMode="decimal"
+                  value={qtyInput}
                   disabled={isOutOfStock}
                   onChange={(e) => {
-                    const val = Number(e.target.value);
-                    if (!isNaN(val) && val >= 1) {
-                      setQty(val);
+                    const text = e.target.value;
+                    if (text === "" || /^\d*\.?\d*$/.test(text)) {
+                      setQtyInput(text);
+                      const val = parseFloat(text);
+                      if (!isNaN(val) && val > 0) {
+                        if (product.stock !== null && val > Number(product.stock)) {
+                          toast.error(`Only ${product.stock} ${product.unit} available in stock`);
+                          setQty(Number(product.stock));
+                        } else {
+                          setQty(val);
+                        }
+                      }
                     }
                   }}
-                  className="w-12 bg-transparent text-center font-semibold outline-none tabular-nums disabled:opacity-50"
-                  min="1"
-                  step="0.5"
+                  onBlur={() => {
+                    const val = parseFloat(qtyInput);
+                    if (isNaN(val) || val <= 0) {
+                      setQtyInput(String(qty));
+                    } else if (product.stock !== null && val > Number(product.stock)) {
+                      setQty(Number(product.stock));
+                      setQtyInput(String(product.stock));
+                    }
+                  }}
+                  className="w-14 bg-transparent text-center font-bold font-mono outline-none tabular-nums disabled:opacity-50 text-foreground"
+                  placeholder="1.0"
                 />
-              ) : (
-                <span className="w-6 text-center font-semibold">{qty}</span>
-              )}
-              <button onClick={() => setQty((v) => v + 1)} aria-label="Increase" disabled={isOutOfStock}>
-                <Plus className="size-4" />
-              </button>
+                <span className="text-xs font-bold text-muted-foreground font-mono">{product.unit || "kg"}</span>
+                <button
+                  onClick={() => {
+                    const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
+                    const step = isWeighted ? 0.5 : 1;
+                    if (product.stock !== null && qty + step > Number(product.stock)) {
+                      toast.error(`Only ${product.stock} ${product.unit} available in stock`);
+                      return;
+                    }
+                    const next = Math.round((qty + step) * 100) / 100;
+                    setQty(next);
+                    setQtyInput(String(next));
+                  }}
+                  aria-label="Increase"
+                  disabled={isOutOfStock || (product.stock !== null && qty >= Number(product.stock))}
+                  className="disabled:opacity-40"
+                >
+                  <Plus className="size-4" />
+                </button>
+              </div>
+
+              <Button
+                className="flex-1 rounded-xl h-11 text-sm font-bold shadow-sm"
+                disabled={isOutOfStock}
+                onClick={() => {
+                  add(product, qty);
+                  toast.success(`Added ${qty} ${product.unit || "kg"} ${product.name} to cart!`);
+                }}
+              >
+                {isOutOfStock ? "Out of Stock" : `Add to cart · ${inr(Number(product.price) * qty)}`}
+              </Button>
             </div>
-            <Button
-              className="flex-1 rounded-xl"
-              disabled={isOutOfStock}
-              onClick={() => {
-                add(product, qty);
-                toast.success("Added to cart");
-              }}
-            >
-              {isOutOfStock ? "Out of Stock" : `Add to cart · ${inr(Number(product.price) * qty)}`}
-            </Button>
+
+            {cartItem && (
+              <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-between text-xs animate-in fade-in duration-200">
+                <span className="font-semibold text-foreground">
+                  ✓ In your cart: <strong>{cartItem.qty} {product.unit}</strong> ({inr(cartItem.price * cartItem.qty)})
+                </span>
+                <Button asChild size="sm" variant="ghost" className="h-6 text-xs text-primary font-bold">
+                  <Link to="/cart">View Cart →</Link>
+                </Button>
+              </div>
+            )}
           </div>
 
           <dl className="mt-6 grid grid-cols-2 gap-3 text-sm">

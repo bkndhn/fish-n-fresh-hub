@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Minus, Plus, Trash2, AlertTriangle, Zap } from "lucide-react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -164,19 +165,59 @@ function CartPage() {
             </div>
 
             <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-0 border-border">
-              <div className="flex items-center gap-3 rounded-lg border border-border px-2 py-1">
-                <button onClick={() => setQty(item.product_id, item.qty - 1)} aria-label="Decrease">
-                  <Minus className="size-4" />
+              <div className="flex items-center gap-1.5 rounded-xl border border-border px-2 py-1 bg-background/80">
+                <button
+                  onClick={() => {
+                    const isWeighted = (item.unit || "").toLowerCase().includes("kg") || (item.unit || "").toLowerCase() === "g";
+                    const step = isWeighted ? (item.qty <= 1 ? 0.25 : 0.5) : 1;
+                    const next = Math.max(0, Math.round((item.qty - step) * 100) / 100);
+                    setQty(item.product_id, next);
+                  }}
+                  aria-label="Decrease"
+                  className="p-1 hover:text-primary transition-colors"
+                >
+                  <Minus className="size-3.5" />
                 </button>
-                <span className="w-5 text-center text-sm font-semibold">{item.qty}</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  defaultValue={item.qty}
+                  key={`${item.product_id}-${item.qty}`}
+                  onBlur={(e) => {
+                    const val = parseFloat(e.target.value);
+                    if (isNaN(val) || val <= 0) {
+                      e.target.value = String(item.qty);
+                    } else if (val > item.availableStock) {
+                      toast.error(`Only ${item.availableStock} ${item.unit} available in stock`);
+                      setQty(item.product_id, item.availableStock);
+                    } else {
+                      setQty(item.product_id, Math.round(val * 100) / 100);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      (e.target as HTMLInputElement).blur();
+                    }
+                  }}
+                  className="w-12 bg-transparent text-center text-xs font-mono font-bold outline-none text-foreground"
+                  title="Type custom quantity or weight"
+                />
                 <button
                   disabled={item.isSoldOut || item.qty >= item.availableStock}
-                  onClick={() => setQty(item.product_id, item.qty + 1)}
-                  className="disabled:opacity-30 disabled:cursor-not-allowed"
+                  onClick={() => {
+                    const isWeighted = (item.unit || "").toLowerCase().includes("kg") || (item.unit || "").toLowerCase() === "g";
+                    const step = isWeighted ? 0.5 : 1;
+                    if (item.qty + step > item.availableStock) {
+                      toast.error(`Only ${item.availableStock} ${item.unit} available in stock`);
+                      return;
+                    }
+                    setQty(item.product_id, Math.round((item.qty + step) * 100) / 100);
+                  }}
+                  className="p-1 disabled:opacity-30 disabled:cursor-not-allowed hover:text-primary transition-colors"
                   aria-label="Increase"
                   title={item.isSoldOut ? "Item is sold out" : item.qty >= item.availableStock ? "Max stock reached" : "Increase quantity"}
                 >
-                  <Plus className="size-4" />
+                  <Plus className="size-3.5" />
                 </button>
               </div>
               <p className="font-display font-bold">{inr(item.price * item.qty)}</p>

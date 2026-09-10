@@ -1,8 +1,25 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-export type AppRole = "admin" | "staff" | "driver" | "user";
-const ROLES: AppRole[] = ["admin", "staff", "driver", "user"];
+export type AppRole =
+  | "admin"
+  | "staff"
+  | "driver"
+  | "user"
+  | "cashier"
+  | "inventory_manager"
+  | "support_staff"
+  | "manager";
+const ROLES: AppRole[] = [
+  "admin",
+  "manager",
+  "cashier",
+  "driver",
+  "inventory_manager",
+  "support_staff",
+  "staff",
+  "user",
+];
 
 export type StaffMember = {
   id: string;
@@ -143,7 +160,7 @@ export const inviteStaff = createServerFn({ method: "POST" })
 
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
-      .upsert({ user_id: user.id, role: data.role }, { onConflict: "user_id,role" });
+      .upsert({ user_id: user.id, role: data.role as any }, { onConflict: "user_id,role" });
     if (roleError) throw new Error(roleError.message);
 
     return { userId: user.id, email: data.email, role: data.role, invited, tempPassword };
@@ -166,14 +183,14 @@ export const setStaffRole = createServerFn({ method: "POST" })
       if (data.enabled) {
         const { error } = await supabaseAdmin
           .from("user_roles")
-          .upsert({ user_id: data.userId, role: data.role }, { onConflict: "user_id,role" });
+          .upsert({ user_id: data.userId, role: data.role as any }, { onConflict: "user_id,role" });
         if (error) throw new Error(error.message);
       } else {
         const { error } = await supabaseAdmin
           .from("user_roles")
           .delete()
           .eq("user_id", data.userId)
-          .eq("role", data.role);
+          .eq("role", data.role as any);
         if (error) throw new Error(error.message);
       }
       return { ok: true };
@@ -183,14 +200,14 @@ export const setStaffRole = createServerFn({ method: "POST" })
       if (data.enabled) {
         const { error } = await ctx.supabase
           .from("user_roles")
-          .upsert({ user_id: data.userId, role: data.role }, { onConflict: "user_id,role" });
+          .upsert({ user_id: data.userId, role: data.role as any }, { onConflict: "user_id,role" });
         if (error) throw new Error(error.message);
       } else {
         const { error } = await ctx.supabase
           .from("user_roles")
           .delete()
           .eq("user_id", data.userId)
-          .eq("role", data.role);
+          .eq("role", data.role as any);
         if (error) throw new Error(error.message);
       }
       return { ok: true };
@@ -291,7 +308,7 @@ export const createStaffAccount = createServerFn({ method: "POST" })
 
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
-      .upsert({ user_id: userId, role: data.role }, { onConflict: "user_id,role" });
+      .upsert({ user_id: userId, role: data.role as any }, { onConflict: "user_id,role" });
     if (roleError) throw new Error(roleError.message);
 
     return { userId, email: data.email, role: data.role, updatedExisting };

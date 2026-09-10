@@ -14,7 +14,7 @@ import { useCart } from "@/lib/cart";
 import { inr } from "@/lib/format";
 import { AddressBook } from "@/components/AddressBook";
 import { MapPinPickerModal } from "@/components/MapPinPickerModal";
-import { calculateDistanceKm, getGoogleMapsDirUrl } from "@/lib/maps";
+import { calculateDistanceKm, getGoogleMapsDirUrl, forwardGeocodeAddress, getOsrmRoadRoute } from "@/lib/maps";
 import { settingsQuery, productsQuery } from "@/lib/queries";
 import { deliveryWindowsQuery, windowText } from "@/lib/delivery";
 import { isPaymentsConfigured } from "@/lib/stripe";
@@ -342,14 +342,31 @@ function Checkout() {
       .filter(Boolean)
       .join(" | ");
 
+    // Ensure doorstep GPS coordinates are accurate: auto-geocode if not manually pinned
+    let finalLat = customerLat;
+    let finalLng = customerLng;
+    if (fulfillment === "delivery" && (!finalLat || !finalLng) && address.trim().length >= 4) {
+      try {
+        const geo = await forwardGeocodeAddress(address);
+        if (geo) {
+          finalLat = geo.lat;
+          finalLng = geo.lng;
+          setCustomerLat(geo.lat);
+          setCustomerLng(geo.lng);
+        }
+      } catch {
+        // Continue with null if offline
+      }
+    }
+
     const { data, error } = await supabase
       .from("orders")
       .insert({
         customer_name: cleanName,
         customer_phone: cleanPhone,
         customer_address: fulfillment === "delivery" ? address : null,
-        location_lat: fulfillment === "delivery" ? customerLat : null,
-        location_lng: fulfillment === "delivery" ? customerLng : null,
+        location_lat: fulfillment === "delivery" ? finalLat : null,
+        location_lng: fulfillment === "delivery" ? finalLng : null,
         items: items as unknown as never,
         subtotal,
         delivery_fee: deliveryFee,
@@ -637,13 +654,27 @@ function Checkout() {
 
             <AddressBook 
               selectedAddress={address} 
-              onSelect={(addr, lat, lng) => {
+              onSelect={async (addr, lat, lng) => {
                 setAddress(addr);
-                setCustomerLat(lat ?? null);
-                setCustomerLng(lng ?? null);
-                if (settings?.shop_lat && settings?.shop_lng && lat && lng) {
-                  const d = calculateDistanceKm(settings.shop_lat, settings.shop_lng, lat, lng);
-                  setDistanceKm(d);
+                let finalLat = lat ?? null;
+                let finalLng = lng ?? null;
+                if (!finalLat || !finalLng) {
+                  setFetchingLocation(true);
+                  try {
+                    const geo = await forwardGeocodeAddress(addr);
+                    if (geo) {
+                      finalLat = geo.lat;
+                      finalLng = geo.lng;
+                    }
+                  } finally {
+                    setFetchingLocation(false);
+                  }
+                }
+                setCustomerLat(finalLat);
+                setCustomerLng(finalLng);
+                if (settings?.shop_lat && settings?.shop_lng && finalLat && finalLng) {
+                  const road = await getOsrmRoadRoute(settings.shop_lat, settings.shop_lng, finalLat, finalLng);
+                  setDistanceKm(road.distanceKm);
                 }
               }} 
             />
@@ -657,7 +688,7 @@ function Checkout() {
                 className="rounded-xl text-xs font-bold gap-1.5 h-8 border-primary/40 text-primary hover:bg-primary/10 bg-primary/5 shadow-2xs"
               >
                 <MapPin className="size-3.5 text-primary" />
-                <span>{customerLat && customerLng ? "Adjust Doorstep Pin on Map" : "📍 Move Pin on Map"}</span>
+                <span>{customerLat && customerLng ? "Adjust Doorstep Pin on Map" : "📍 Pin Exact Doorstep on Map"}</span>
               </Button>
 
               {customerLat && customerLng && (
@@ -673,8 +704,33 @@ function Checkout() {
               placeholder="Full address with flat/house no, street, landmark, and 6-digit pincode…"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
+              onBlur={async () => {
+                if (!customerLat && !customerLng && address.trim().length >= 6) {
+                  setFetchingLocation(true);
+                  try {
+                    const geo = await forwardGeocodeAddress(address);
+                    if (geo) {
+                      setCustomerLat(geo.lat);
+                      setCustomerLng(geo.lng);
+                      if (settings?.shop_lat && settings?.shop_lng) {
+                        const road = await getOsrmRoadRoute(settings.shop_lat, settings.shop_lng, geo.lat, geo.lng);
+                        setDistanceKm(road.distanceKm);
+                      }
+                      toast.info(`📍 Doorstep located near ${geo.displayName.slice(0, 35)}…`);
+                    }
+                  } finally {
+                    setFetchingLocation(false);
+                  }
+                }
+              }}
               className="mt-1 rounded-xl text-xs sm:text-sm resize-none"
             />
+            {fetchingLocation && (
+              <p className="text-[11px] text-primary animate-pulse flex items-center gap-1.5 pt-0.5 font-medium">
+                <span className="size-1.5 rounded-full bg-primary animate-ping" />
+                Auto-detecting exact doorstep GPS coordinates from address…
+              </p>
+            )}
           </div>
         )}
 
@@ -1105,18 +1161,18 @@ function Checkout() {
         initialLng={customerLng}
         initialAddress={address}
         title="Pin Your Delivery Doorstep"
-        onConfirm={(geocoded) => {
+        onConfirm={async (geocoded) => {
           setAddress(geocoded.address);
           setCustomerLat(geocoded.lat);
           setCustomerLng(geocoded.lng);
           if (settings?.shop_lat && settings?.shop_lng) {
-            const d = calculateDistanceKm(
+            const road = await getOsrmRoadRoute(
               settings.shop_lat,
               settings.shop_lng,
               geocoded.lat,
               geocoded.lng
             );
-            setDistanceKm(d);
+            setDistanceKm(road.distanceKm);
           }
         }}
       />

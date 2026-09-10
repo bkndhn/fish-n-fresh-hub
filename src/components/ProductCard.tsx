@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Minus, Plus, Star, Fish, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -12,6 +13,14 @@ export function ProductCard({ product }: { product: Product }) {
   const { items, add, setQty } = useCart();
   const cartItem = items.find((i) => i.product_id === product.id);
   const { data: settings } = useQuery(settingsQuery);
+
+  const [localQtyStr, setLocalQtyStr] = useState<string>(() => (cartItem ? String(cartItem.qty) : "1"));
+
+  useEffect(() => {
+    if (cartItem) {
+      setLocalQtyStr(String(cartItem.qty));
+    }
+  }, [cartItem?.qty]);
 
   const hasDiscount = product.old_price && Number(product.old_price) > Number(product.price);
   const discountPercent = hasDiscount
@@ -30,8 +39,12 @@ export function ProductCard({ product }: { product: Product }) {
   return (
     <div
       className={cn(
-        "group overflow-hidden rounded-2xl border shadow-sm transition-colors",
-        isOutOfStock ? "opacity-75 bg-muted/20 border-border" : cartItem ? "border-primary/50 bg-primary/5" : "border-border bg-card"
+        "group overflow-hidden rounded-2xl border shadow-sm transition-all duration-200 relative",
+        isOutOfStock
+          ? "opacity-75 bg-muted/20 border-border"
+          : cartItem
+          ? "border-primary ring-2 ring-primary/50 bg-primary/5 dark:bg-primary/10 shadow-md"
+          : "border-border bg-card hover:border-primary/40 hover:shadow-md"
       )}
     >
       <div className="block relative">
@@ -76,15 +89,21 @@ export function ProductCard({ product }: { product: Product }) {
           )}
         </div>
 
-        {/* Top Right: Express Turnaround SLA Badge */}
-        {!isOutOfStock && ((settings as any)?.express_delivery_enabled ?? true) && (
+        {/* Top Right: In-Cart Badge or Express SLA */}
+        {cartItem ? (
+          <div className="absolute top-2 right-2 z-10">
+            <span className="rounded-lg bg-primary text-primary-foreground px-2 py-0.5 text-[10px] font-bold shadow-md flex items-center gap-1 border border-white/20 animate-in fade-in">
+              ✓ In Cart: {cartItem.qty} {product.unit || "kg"}
+            </span>
+          </div>
+        ) : !isOutOfStock && ((settings as any)?.express_delivery_enabled ?? true) ? (
           <div className="absolute top-2 right-2">
             <span className="rounded-md bg-black/65 backdrop-blur-md px-1.5 py-0.5 text-[9px] font-mono font-bold text-amber-300 flex items-center gap-0.5 shadow-xs border border-white/10">
               <Zap className="size-2.5 fill-amber-400 text-amber-400" />
               {(settings as any)?.express_sla_mins || 35}m
             </span>
           </div>
-        )}
+        ) : null}
       </div>
       <div className="space-y-1 p-3">
         <div className="block">
@@ -128,50 +147,67 @@ export function ProductCard({ product }: { product: Product }) {
                 Sold Out
               </Button>
             ) : cartItem ? (
-              <div className="flex items-center gap-1.5 rounded-xl border border-primary/20 bg-background/50 p-1">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="size-6 rounded-lg hover:bg-primary hover:text-primary-foreground"
-                  onClick={() => setQty(product.id, Math.max(0, cartItem.qty - 1))}
-                >
-                  <Minus className="size-3" />
-                </Button>
-                {product.allow_custom_qty ? (
-                  <input
-                    type="number"
-                    value={cartItem.qty}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-                      if (!isNaN(val) && val >= 0) {
-                        if (product.stock !== null && val > Number(product.stock)) {
-                          toast.error(`Only ${product.stock} ${product.unit} available in stock`);
-                          setQty(product.id, Number(product.stock));
-                        } else {
-                          setQty(product.id, val);
-                        }
-                      }
-                    }}
-                    className="w-8 bg-transparent text-center text-xs font-medium tabular-nums outline-none"
-                    min="1"
-                    step="0.5"
-                  />
-                ) : (
-                  <span className="w-6 text-center text-xs font-medium tabular-nums">
-                    {cartItem.qty}
-                  </span>
-                )}
+              <div className="flex items-center gap-1 rounded-xl border border-primary/30 bg-background/90 p-0.5 shadow-2xs">
                 <Button
                   size="icon"
                   variant="ghost"
                   className="size-6 rounded-lg hover:bg-primary hover:text-primary-foreground"
                   onClick={() => {
-                    if (product.stock !== null && cartItem.qty >= Number(product.stock)) {
+                    const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
+                    const step = isWeighted ? (cartItem.qty <= 1 ? 0.25 : 0.5) : 1;
+                    const next = Math.max(0, Math.round((cartItem.qty - step) * 100) / 100);
+                    setQty(product.id, next);
+                  }}
+                  title="Decrease quantity"
+                >
+                  <Minus className="size-3" />
+                </Button>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={localQtyStr}
+                  onChange={(e) => {
+                    const text = e.target.value;
+                    if (text === "" || /^\d*\.?\d*$/.test(text)) {
+                      setLocalQtyStr(text);
+                      const val = parseFloat(text);
+                      if (!isNaN(val) && val > 0) {
+                        if (product.stock !== null && val > Number(product.stock)) {
+                          toast.error(`Only ${product.stock} ${product.unit} available in stock`);
+                          setQty(product.id, Number(product.stock));
+                          setLocalQtyStr(String(product.stock));
+                        } else {
+                          setQty(product.id, val);
+                        }
+                      }
+                    }
+                  }}
+                  onBlur={() => {
+                    const val = parseFloat(localQtyStr);
+                    if (isNaN(val) || val <= 0) {
+                      setLocalQtyStr(String(cartItem.qty));
+                    } else if (product.stock !== null && val > Number(product.stock)) {
+                      setQty(product.id, Number(product.stock));
+                      setLocalQtyStr(String(product.stock));
+                    }
+                  }}
+                  className="w-10 bg-transparent text-center text-xs font-bold font-mono outline-none text-foreground"
+                  title="Type custom quantity"
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-6 rounded-lg hover:bg-primary hover:text-primary-foreground"
+                  onClick={() => {
+                    const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
+                    const step = isWeighted ? 0.5 : 1;
+                    if (product.stock !== null && cartItem.qty + step > Number(product.stock)) {
                       toast.error(`Only ${product.stock} ${product.unit} available in stock`);
                       return;
                     }
-                    setQty(product.id, cartItem.qty + 1);
+                    setQty(product.id, Math.round((cartItem.qty + step) * 100) / 100);
                   }}
+                  title="Increase quantity"
                 >
                   <Plus className="size-3" />
                 </Button>

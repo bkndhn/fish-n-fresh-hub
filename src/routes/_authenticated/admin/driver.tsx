@@ -416,22 +416,24 @@ export function DriverDispatchPage() {
       {/* Tab Controls & Auto-Assign Header */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
-          <TabsList className="h-9 rounded-xl p-1 bg-muted/60">
-            <TabsTrigger value="dispatch" className="rounded-lg text-xs font-semibold flex items-center gap-1.5">
-              <Truck className="size-3.5" /> Live Dispatch ({activeDeliveries.length})
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="rounded-lg text-xs font-semibold flex items-center gap-1.5">
-              <Award className="size-3.5 text-amber-500" /> Driver Performance
-            </TabsTrigger>
-            <TabsTrigger value="settlements" className="rounded-lg text-xs font-semibold flex items-center gap-1.5">
-              <Receipt className="size-3.5 text-emerald-500" /> Cash Handover & Reports
-              {totalFleetCodPending > 0 && (
-                <span className="ml-1 rounded-full bg-amber-500 text-white font-bold px-1.5 py-0.2 text-[10px]">
-                  {formatINR(totalFleetCodPending)}
-                </span>
-              )}
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto no-scrollbar max-w-full pb-0.5">
+            <TabsList className="h-9 rounded-xl p-1 bg-muted/60 flex-nowrap">
+              <TabsTrigger value="dispatch" className="rounded-lg text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <Truck className="size-3.5" /> Live Dispatch ({activeDeliveries.length})
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="rounded-lg text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <Award className="size-3.5 text-amber-500" /> Driver Performance
+              </TabsTrigger>
+              <TabsTrigger value="settlements" className="rounded-lg text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <Receipt className="size-3.5 text-emerald-500" /> Cash Handover & Reports
+                {totalFleetCodPending > 0 && (
+                  <span className="ml-1 rounded-full bg-amber-500 text-white font-bold px-1.5 py-0.2 text-[10px]">
+                    {formatINR(totalFleetCodPending)}
+                  </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <Button

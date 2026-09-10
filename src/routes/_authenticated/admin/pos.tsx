@@ -39,7 +39,7 @@ import {
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminProductsQuery } from "@/lib/admin";
 import { categoriesQuery, settingsQuery } from "@/lib/queries";
-import { formatINR, formatStockDisplay, formatStockUnitLabel } from "@/lib/format";
+import { formatINR, formatStockDisplay, formatStockUnitLabel, formatStockBadge } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { deductOrderStock } from "@/lib/inventorySync";
 import type { Product } from "@/lib/types";
@@ -119,7 +119,38 @@ const CUTTING_STYLES = [
   "No Cleaning (Whole)",
 ];
 
-const QUICK_WEIGHTS = [0.1, 0.25, 0.35, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 5.0];
+export interface QuickChipItem {
+  label: string;
+  val: number;
+}
+
+const DEFAULT_QUICK_CHIPS: QuickChipItem[] = [
+  { label: "100g", val: 0.1 },
+  { label: "250g", val: 0.25 },
+  { label: "350g", val: 0.35 },
+  { label: "500g", val: 0.5 },
+  { label: "750g", val: 0.75 },
+  { label: "1 kg", val: 1.0 },
+  { label: "1.5 kg", val: 1.5 },
+  { label: "2 kg", val: 2.0 },
+  { label: "3 kg", val: 3.0 },
+  { label: "5 kg", val: 5.0 },
+];
+
+function getStoredQuickChips(productId?: string): QuickChipItem[] {
+  if (typeof window === "undefined") return DEFAULT_QUICK_CHIPS;
+  try {
+    if (productId) {
+      const prodStored = localStorage.getItem(`fnf_pos_chips_${productId}`);
+      if (prodStored) return JSON.parse(prodStored);
+    }
+    const globalStored = localStorage.getItem("fnf_pos_global_chips");
+    if (globalStored) return JSON.parse(globalStored);
+  } catch {
+    /* fallback */
+  }
+  return DEFAULT_QUICK_CHIPS;
+}
 
 function getNextPosReceiptNo(prefix = "POS-", dailyReset = true): string {
   try {
@@ -170,6 +201,63 @@ export function RetailPosCounterPage() {
   const [activeItemModal, setActiveItemModal] = useState<Product | null>(null);
   const [modalWeightInput, setModalWeightInput] = useState<string>("1.0");
   const [modalCutting, setModalCutting] = useState<string>("Curry Cut");
+
+  // Custom Quick Chips state
+  const [activeChips, setActiveChips] = useState<QuickChipItem[]>(DEFAULT_QUICK_CHIPS);
+  const [showChipEditor, setShowChipEditor] = useState(false);
+  const [chipInputVal, setChipInputVal] = useState("");
+  const [chipInputLabel, setChipInputLabel] = useState("");
+  const [chipScope, setChipScope] = useState<"product" | "global">("global");
+
+  useEffect(() => {
+    if (activeItemModal) {
+      setActiveChips(getStoredQuickChips(activeItemModal.id));
+      setShowChipEditor(false);
+      setChipInputVal("");
+      setChipInputLabel("");
+    }
+  }, [activeItemModal]);
+
+  const handleAddCustomChip = () => {
+    const val = parseFloat(chipInputVal);
+    if (isNaN(val) || val <= 0) {
+      toast.error("Please enter a valid weight number (e.g. 0.4 or 1.25)");
+      return;
+    }
+    const label = chipInputLabel.trim() || (val < 1 ? `${Math.round(val * 1000)}g` : `${val} kg`);
+    const updated = [...activeChips.filter((c) => c.val !== val), { label, val }].sort((a, b) => a.val - b.val);
+    setActiveChips(updated);
+
+    if (chipScope === "product" && activeItemModal) {
+      localStorage.setItem(`fnf_pos_chips_${activeItemModal.id}`, JSON.stringify(updated));
+      toast.success(`Quick chip saved for ${activeItemModal.name}!`);
+    } else {
+      localStorage.setItem("fnf_pos_global_chips", JSON.stringify(updated));
+      toast.success("Quick chip added to all products (Global)!");
+    }
+    setChipInputVal("");
+    setChipInputLabel("");
+  };
+
+  const handleDeleteCustomChip = (valToDelete: number) => {
+    const updated = activeChips.filter((c) => c.val !== valToDelete);
+    setActiveChips(updated);
+    if (chipScope === "product" && activeItemModal) {
+      localStorage.setItem(`fnf_pos_chips_${activeItemModal.id}`, JSON.stringify(updated));
+    } else {
+      localStorage.setItem("fnf_pos_global_chips", JSON.stringify(updated));
+    }
+    toast.success("Quick chip removed");
+  };
+
+  const handleResetDefaultChips = () => {
+    setActiveChips(DEFAULT_QUICK_CHIPS);
+    if (activeItemModal) {
+      localStorage.removeItem(`fnf_pos_chips_${activeItemModal.id}`);
+    }
+    localStorage.removeItem("fnf_pos_global_chips");
+    toast.success("Quick chips reset to standard presets");
+  };
 
   // Payment states (Single or Multi-payment / Split)
   const [paymentMode, setPaymentMode] = useState<"cash" | "upi" | "card" | "split">("cash");
@@ -846,7 +934,7 @@ export function RetailPosCounterPage() {
   };
 
   return (
-    <AdminShell title="In-Store Retail POS Counter" allow={["admin", "staff"]}>
+    <AdminShell title="In-Store Retail POS Counter" allow={["admin", "cashier", "manager", "staff"]}>
       <div className="space-y-4 max-w-7xl mx-auto pb-12">
         {/* Top Control Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 bg-card p-4 rounded-2xl border border-border/80 shadow-xs">
@@ -1137,7 +1225,7 @@ export function RetailPosCounterPage() {
                                 : "bg-emerald-600 text-white"
                             }`}
                           >
-                            {isOutOfStock ? "Out of Stock" : `${prod.stock} ${prod.unit || "kg"}`}
+                            {isOutOfStock ? "Out of Stock" : formatStockBadge(prod.stock, prod.unit)}
                           </span>
                         </div>
                       </div>
@@ -1616,7 +1704,7 @@ export function RetailPosCounterPage() {
       {/* Item Weighing Scale & Cutting Style Customizer Modal (Fixed Decimal Weight Input < 1kg) */}
       {activeItemModal && (
         <Dialog open={!!activeItemModal} onOpenChange={(open) => !open && setActiveItemModal(null)}>
-          <DialogContent className="max-w-md p-0 overflow-hidden rounded-3xl border-border/80 shadow-2xl">
+          <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md p-0 overflow-hidden rounded-3xl border-border/80 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="bg-gradient-to-r from-primary/15 via-primary/5 to-transparent p-4 pb-3 border-b border-border/60">
               <div className="flex items-center gap-3">
                 <div className="size-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-bold shadow-xs">
@@ -1627,7 +1715,7 @@ export function RetailPosCounterPage() {
                     {activeItemModal.name}
                   </DialogTitle>
                   <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                    Rate: {formatINR(Number(activeItemModal.price))}/{activeItemModal.unit || "kg"} · Live Stock: {activeItemModal.stock} {activeItemModal.unit || "kg"}
+                    Rate: {formatINR(Number(activeItemModal.price))}/{activeItemModal.unit || "kg"} · Live Stock: {formatStockDisplay(activeItemModal.stock, activeItemModal.unit)}
                   </DialogDescription>
                 </div>
               </div>
@@ -1755,33 +1843,107 @@ export function RetailPosCounterPage() {
                   </Button>
                 </div>
 
-                {/* Quick Weight Preset Chips */}
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {[
-                    { label: "100g", val: 0.1 },
-                    { label: "250g", val: 0.25 },
-                    { label: "350g", val: 0.35 },
-                    { label: "500g", val: 0.5 },
-                    { label: "750g", val: 0.75 },
-                    { label: "1 kg", val: 1.0 },
-                    { label: "1.5 kg", val: 1.5 },
-                    { label: "2 kg", val: 2.0 },
-                    { label: "3 kg", val: 3.0 },
-                    { label: "5 kg", val: 5.0 },
-                  ].map((chip) => (
+                {/* Quick Weight Preset Chips with Custom Chips Manager */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-muted-foreground">Quick Portion Chips:</span>
                     <button
-                      key={chip.val}
                       type="button"
-                      onClick={() => setModalWeightInput(chip.val.toString())}
-                      className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold transition-all ${
-                        modalWeight === chip.val
-                          ? "bg-primary text-primary-foreground shadow-2xs"
-                          : "bg-muted/50 hover:bg-muted text-foreground border border-border/60"
-                      }`}
+                      onClick={() => setShowChipEditor(!showChipEditor)}
+                      className="text-[11px] text-primary font-semibold hover:underline flex items-center gap-1"
                     >
-                      {chip.label}
+                      <Sliders className="size-3" />
+                      {showChipEditor ? "Done" : "Custom Chips"}
                     </button>
-                  ))}
+                  </div>
+
+                  {/* Inline Custom Chip Editor */}
+                  {showChipEditor && (
+                    <div className="p-2.5 rounded-2xl bg-muted/60 border border-border/80 space-y-2 animate-in fade-in-50 duration-150">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-foreground">
+                        <span>Add Custom Portion Chip:</span>
+                        <div className="flex items-center gap-1 text-[10px]">
+                          <button
+                            type="button"
+                            onClick={() => setChipScope("global")}
+                            className={`px-1.5 py-0.5 rounded ${chipScope === "global" ? "bg-primary text-primary-foreground font-bold" : "text-muted-foreground hover:text-foreground"}`}
+                          >
+                            All Products
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setChipScope("product")}
+                            className={`px-1.5 py-0.5 rounded ${chipScope === "product" ? "bg-primary text-primary-foreground font-bold" : "text-muted-foreground hover:text-foreground"}`}
+                          >
+                            This Fish Only
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="Weight (e.g. 0.4, 1.25)"
+                          value={chipInputVal}
+                          onChange={(e) => setChipInputVal(e.target.value)}
+                          className="h-7 text-xs font-mono bg-background rounded-lg flex-1"
+                        />
+                        <Input
+                          placeholder="Label (e.g. 400g)"
+                          value={chipInputLabel}
+                          onChange={(e) => setChipInputLabel(e.target.value)}
+                          className="h-7 text-xs bg-background rounded-lg flex-1"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleAddCustomChip}
+                          className="h-7 px-2.5 text-xs font-bold rounded-lg"
+                        >
+                          <Plus className="size-3 mr-0.5" /> Add
+                        </Button>
+                      </div>
+                      <div className="flex justify-between items-center pt-1 border-t border-border/40 text-[10px]">
+                        <span className="text-muted-foreground">Click (×) on any chip to remove</span>
+                        <button
+                          type="button"
+                          onClick={handleResetDefaultChips}
+                          className="text-amber-600 hover:underline font-medium"
+                        >
+                          Reset Defaults
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Render Quick Chips */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {activeChips.map((chip) => (
+                      <div key={`${chip.val}-${chip.label}`} className="inline-flex items-center">
+                        <button
+                          type="button"
+                          onClick={() => setModalWeightInput(chip.val.toString())}
+                          className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold transition-all ${
+                            modalWeight === chip.val
+                              ? "bg-primary text-primary-foreground shadow-2xs"
+                              : "bg-muted/50 hover:bg-muted text-foreground border border-border/60"
+                          } ${showChipEditor ? "rounded-r-none border-r-0" : ""}`}
+                        >
+                          {chip.label}
+                        </button>
+                        {showChipEditor && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCustomChip(chip.val)}
+                            className="h-[27px] px-1 bg-destructive/10 text-destructive hover:bg-destructive hover:text-white rounded-r-xl border border-l-0 border-border/60 text-xs transition-colors flex items-center justify-center"
+                            title="Remove chip"
+                          >
+                            <X className="size-3" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 

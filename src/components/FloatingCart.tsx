@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/lib/cart";
 import { inr } from "@/lib/format";
@@ -18,22 +18,33 @@ export function FloatingCart() {
     return null;
   }
 
+  const roundedCount = Math.round(count * 100) / 100;
+
   return (
-    <div className="fixed inset-x-0 bottom-20 z-30 mx-auto max-w-5xl px-3 sm:px-4 md:bottom-6 pointer-events-none">
-      <div className="flex items-center justify-between rounded-2xl bg-primary px-4 py-3 text-primary-foreground shadow-2xl pointer-events-auto border border-white/15 animate-in slide-in-from-bottom-3 duration-300">
+    <div className="fixed inset-x-0 bottom-20 z-40 mx-auto max-w-5xl px-3 sm:px-4 md:bottom-6 pointer-events-none">
+      <div className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-primary via-primary to-primary/95 px-4 py-3 text-primary-foreground shadow-2xl pointer-events-auto border border-white/20 animate-in slide-in-from-bottom-3 duration-300">
         <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-full bg-primary-foreground/20 shrink-0">
+          <div className="relative flex size-10 items-center justify-center rounded-2xl bg-white/20 shrink-0 shadow-inner">
             <ShoppingCart className="size-5" />
+            <span className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-accent text-accent-foreground font-mono text-[10px] font-black shadow-xs">
+              {items.length}
+            </span>
           </div>
           <div>
-            <p className="font-semibold text-xs sm:text-sm">
-              {count} {count === 1 ? "Item" : "Items"}
+            <div className="flex items-baseline gap-2">
+              <span className="font-extrabold text-base sm:text-lg font-mono tracking-tight">{inr(subtotal)}</span>
+              <span className="text-xs text-primary-foreground/80 font-medium">({roundedCount} {items.length === 1 ? "unit/kg" : "units/kg"})</span>
+            </div>
+            <p className="text-[11px] text-primary-foreground/75 line-clamp-1">
+              {items.slice(0, 2).map((i) => i.name).join(", ")}{items.length > 2 ? ` +${items.length - 2} more` : ""}
             </p>
-            <p className="font-display font-bold text-sm sm:text-base">{inr(subtotal)}</p>
           </div>
         </div>
-        <Button asChild variant="secondary" className="rounded-xl px-5 sm:px-6 shadow-sm text-xs sm:text-sm font-bold">
-          <Link to="/cart">Go to Cart</Link>
+        <Button asChild variant="secondary" className="rounded-xl px-4 sm:px-6 shadow-md text-xs sm:text-sm font-bold gap-1.5 hover:scale-102 transition-transform">
+          <Link to="/cart">
+            <span>Go to Cart</span>
+            <ArrowRight className="size-4" />
+          </Link>
         </Button>
       </div>
     </div>

@@ -47,24 +47,24 @@ import {
 } from "@/components/ui/sheet";
 
 const NAV = [
-  { to: "/admin", label: "Dashboard", icon: BarChart3, exact: true, roles: ["admin", "staff"] },
-  { to: "/admin/pos", label: "POS Counter", icon: Store, roles: ["admin", "staff"] },
-  { to: "/admin/products", label: "Products", icon: Package, roles: ["admin", "staff"] },
-  { to: "/admin/broadcasts", label: "Catch Alerts", icon: Bell, roles: ["admin", "staff"] },
-  { to: "/admin/purchases", label: "Purchases", icon: Anchor, roles: ["admin", "staff"] },
-  { to: "/admin/waste", label: "Waste mgmt", icon: Trash2, roles: ["admin", "staff"] },
-  { to: "/admin/banners", label: "Banners", icon: Sparkles, roles: ["admin"] },
-  { to: "/admin/orders", label: "Orders", icon: ReceiptText, roles: ["admin", "staff"] },
-  { to: "/admin/customers", label: "Customers", icon: Users, roles: ["admin"] },
-  { to: "/admin/promotions", label: "Promotions", icon: Tag, roles: ["admin"] },
-  { to: "/admin/badges", label: "Home cards", icon: Sparkles, roles: ["admin"] },
-  { to: "/admin/reports", label: "Reports", icon: BarChart3, roles: ["admin"] },
-  { to: "/admin/payments", label: "Payments", icon: ReceiptText, roles: ["admin"] },
-  { to: "/admin/delivery", label: "Delivery", icon: Truck, roles: ["admin", "staff", "driver"] },
-  { to: "/admin/support", label: "Live Support", icon: MessageCircle, roles: ["admin", "staff"] },
-  { to: "/admin/complaints", label: "Complaints", icon: MessageSquareWarning, roles: ["admin", "staff"] },
-  { to: "/admin/schedule", label: "Schedule", icon: CalendarClock, roles: ["admin", "staff"] },
-  { to: "/admin/driver", label: "Driver map", icon: MapPin, roles: ["admin", "driver"] },
+  { to: "/admin", label: "Dashboard", icon: BarChart3, exact: true, roles: ["admin", "manager", "staff"] },
+  { to: "/admin/pos", label: "POS Counter", icon: Store, roles: ["admin", "manager", "cashier", "staff"] },
+  { to: "/admin/products", label: "Products", icon: Package, roles: ["admin", "manager", "inventory_manager", "staff"] },
+  { to: "/admin/broadcasts", label: "Catch Alerts", icon: Bell, roles: ["admin", "manager", "inventory_manager", "staff"] },
+  { to: "/admin/purchases", label: "Purchases", icon: Anchor, roles: ["admin", "manager", "inventory_manager", "staff"] },
+  { to: "/admin/waste", label: "Waste mgmt", icon: Trash2, roles: ["admin", "manager", "inventory_manager", "staff"] },
+  { to: "/admin/banners", label: "Banners", icon: Sparkles, roles: ["admin", "manager"] },
+  { to: "/admin/orders", label: "Orders", icon: ReceiptText, roles: ["admin", "manager", "cashier", "support_staff", "staff"] },
+  { to: "/admin/customers", label: "Customers", icon: Users, roles: ["admin", "manager", "support_staff"] },
+  { to: "/admin/promotions", label: "Promotions", icon: Tag, roles: ["admin", "manager"] },
+  { to: "/admin/badges", label: "Home cards", icon: Sparkles, roles: ["admin", "manager"] },
+  { to: "/admin/reports", label: "Reports", icon: BarChart3, roles: ["admin", "manager"] },
+  { to: "/admin/payments", label: "Payments", icon: ReceiptText, roles: ["admin", "manager"] },
+  { to: "/admin/delivery", label: "Delivery", icon: Truck, roles: ["admin", "manager", "driver", "staff"] },
+  { to: "/admin/support", label: "Live Support", icon: MessageCircle, roles: ["admin", "manager", "support_staff", "staff"] },
+  { to: "/admin/complaints", label: "Complaints", icon: MessageSquareWarning, roles: ["admin", "manager", "support_staff", "staff"] },
+  { to: "/admin/schedule", label: "Schedule", icon: CalendarClock, roles: ["admin", "manager", "staff"] },
+  { to: "/admin/driver", label: "Driver map", icon: MapPin, roles: ["admin", "manager", "driver"] },
   { to: "/admin/staff", label: "Team", icon: UserCog, roles: ["admin"] },
   { to: "/admin/onboarding", label: "Setup Wizard", icon: Sparkles, roles: ["admin"] },
   { to: "/admin/settings", label: "Settings", icon: Settings, roles: ["admin"] },
@@ -97,15 +97,38 @@ export function AdminShell({
   }
 
   if (!allowed) {
+    const fallbackRoute = nav[0]?.to || "/";
     return (
-      <div className="flex h-screen items-center justify-center">
-        <p className="text-muted-foreground">Access denied. You do not have permission to view this page.</p>
+      <div className="flex min-h-screen items-center justify-center p-4 bg-muted/30">
+        <div className="max-w-md w-full p-6 rounded-3xl bg-card border border-border/80 shadow-xl text-center space-y-4">
+          <div className="size-12 rounded-2xl bg-destructive/10 text-destructive mx-auto flex items-center justify-center font-bold">
+            <LogOut className="size-6 rotate-180" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-foreground">Access Restricted</h2>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              Your staff role (<span className="font-mono font-semibold text-foreground">{myRoles.join(", ") || "unassigned"}</span>) does not have permission to view <span className="font-semibold text-foreground">"{title}"</span>.
+            </p>
+          </div>
+          <div className="pt-2 flex flex-col gap-2">
+            <Button asChild className="rounded-xl">
+              <Link to={fallbackRoute}>Go to Authorized Section</Link>
+            </Button>
+            <Button
+              variant="outline"
+              className="rounded-xl text-xs"
+              onClick={() => supabase.auth.signOut().then(() => navigate({ to: "/auth" }))}
+            >
+              Sign out / Switch Account
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen bg-muted/30 overflow-x-hidden w-full">
       <header className="glass sticky top-0 z-50 border-b border-border">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4">
           <Link to="/" className="flex items-center gap-2 font-display font-bold">
@@ -148,7 +171,7 @@ export function AdminShell({
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-7xl gap-6 px-3 py-3 sm:px-6 sm:py-6">
+      <div className="mx-auto flex max-w-7xl gap-6 px-3 py-3 sm:px-6 sm:py-6 overflow-x-hidden w-full">
         <aside className="hidden w-56 shrink-0 md:block">
           <nav className="sticky top-20 space-y-1">
             {nav.map((item) => (
@@ -166,7 +189,7 @@ export function AdminShell({
           </nav>
         </aside>
 
-        <main className="min-w-0 flex-1 pb-24 md:pb-6">
+        <main className="min-w-0 flex-1 max-w-full overflow-x-hidden pb-24 md:pb-6">
           <h1 className="mb-3 font-display text-xl font-bold text-foreground sm:text-2xl sm:mb-4">{title}</h1>
           {children}
         </main>

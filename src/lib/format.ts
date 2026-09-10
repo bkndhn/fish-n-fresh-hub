@@ -47,3 +47,21 @@ export function formatStockUnitLabel(unit: string | null | undefined): string {
   if (lower === "pc" || lower === "piece") return "pcs";
   return u;
 }
+
+export function formatStockBadge(stock: number | null | undefined, unit: string | null | undefined): string {
+  const s = stock ?? 0;
+  const u = (unit || "kg").trim();
+  const lower = u.toLowerCase();
+
+  if (lower === "kg") return `${s} kg`;
+  if (lower === "g" || lower === "gram" || lower === "grams") return `${s} g`;
+  if (lower === "250g") return `${s} pkts (250g)`;
+  if (lower === "500g") return `${s} pkts (500g)`;
+  if (lower === "100g") return `${s} pkts (100g)`;
+  if (lower === "pc" || lower === "piece" || lower === "pcs" || lower === "pieces") return `${s} pcs`;
+  if (lower === "pack" || lower === "packs") return `${s} pkts`;
+  if (lower === "tray" || lower === "trays") return `${s} trays`;
+  if (lower === "dozen") return `${s} doz`;
+  if (lower.endsWith("g") && !lower.includes(" ")) return `${s} pkts (${u})`;
+  return `${s} ${u}`;
+}

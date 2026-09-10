@@ -166,7 +166,15 @@ export const adminSuspensionsQuery = queryOptions({
   },
 });
 
-export type AppRole = "admin" | "staff" | "driver" | "user";
+export type AppRole =
+  | "admin"
+  | "staff"
+  | "driver"
+  | "user"
+  | "cashier"
+  | "inventory_manager"
+  | "support_staff"
+  | "manager";
 
 export const myRolesQuery = queryOptions({
   queryKey: ["admin", "my-roles"],

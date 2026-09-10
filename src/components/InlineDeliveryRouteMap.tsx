@@ -15,6 +15,9 @@ import {
   getGoogleMapsDirUrl,
   getAppleMapsDirUrl,
   createResilientTileLayer,
+  getOsrmRoadRoute,
+  forwardGeocodeAddress,
+  type RoadRouteResult,
 } from "@/lib/maps";
 
 interface InlineDeliveryRouteMapProps {
@@ -58,29 +61,97 @@ export function InlineDeliveryRouteMap({
 
   const effectiveStoreLat = storeLat || DEFAULT_STORE_LAT;
   const effectiveStoreLng = storeLng || DEFAULT_STORE_LNG;
-  const effectiveDestLat = destLat || effectiveStoreLat + 0.022;
-  const effectiveDestLng = destLng || effectiveStoreLng + 0.018;
 
-  const distanceKm = calculateDistanceKm(
+  // Resolved destination coordinates (either provided or geocoded)
+  const [resolvedCoords, setResolvedCoords] = useState<{ lat: number; lng: number } | null>(() => {
+    if (destLat && destLng) return { lat: destLat, lng: destLng };
+    return null;
+  });
+
+  // Road route result from OSRM
+  const [roadRoute, setRoadRoute] = useState<RoadRouteResult | null>(null);
+
+  // Resolve coordinates if missing but address is present
+  useEffect(() => {
+    let cancelled = false;
+
+    async function resolveDestination() {
+      if (destLat && destLng) {
+        setResolvedCoords({ lat: destLat, lng: destLng });
+        return;
+      }
+
+      if (destAddress && destAddress.trim().length >= 3) {
+        const geo = await forwardGeocodeAddress(destAddress);
+        if (!cancelled && geo) {
+          setResolvedCoords({ lat: geo.lat, lng: geo.lng });
+          return;
+        }
+      }
+
+      if (!cancelled) {
+        setResolvedCoords({
+          lat: effectiveStoreLat + 0.022,
+          lng: effectiveStoreLng + 0.018,
+        });
+      }
+    }
+
+    resolveDestination();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [destLat, destLng, destAddress, effectiveStoreLat, effectiveStoreLng]);
+
+  // Fetch true road route geometry
+  useEffect(() => {
+    if (!resolvedCoords) return;
+
+    let cancelled = false;
+
+    async function fetchRoute() {
+      const res = await getOsrmRoadRoute(
+        effectiveStoreLat,
+        effectiveStoreLng,
+        resolvedCoords!.lat,
+        resolvedCoords!.lng
+      );
+      if (!cancelled) {
+        setRoadRoute(res);
+      }
+    }
+
+    fetchRoute();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedCoords, effectiveStoreLat, effectiveStoreLng]);
+
+  const targetLat = resolvedCoords?.lat ?? (effectiveStoreLat + 0.022);
+  const targetLng = resolvedCoords?.lng ?? (effectiveStoreLng + 0.018);
+
+  const distanceKm = roadRoute?.distanceKm ?? calculateDistanceKm(
     effectiveStoreLat,
     effectiveStoreLng,
-    effectiveDestLat,
-    effectiveDestLng
+    targetLat,
+    targetLng
   );
-  const calculatedEta = estimateBikeMinutes(distanceKm);
+  const calculatedEta = roadRoute?.durationMinutes ?? estimateBikeMinutes(distanceKm);
   const displayEta = propEta ?? calculatedEta;
 
   const googleMapsUrl = getGoogleMapsDirUrl(
-    destLat,
-    destLng,
+    targetLat,
+    targetLng,
     destAddress,
     effectiveStoreLat,
     effectiveStoreLng
   );
-  const appleMapsUrl = getAppleMapsDirUrl(destLat, destLng, destAddress);
+  const appleMapsUrl = getAppleMapsDirUrl(targetLat, targetLng, destAddress);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !roadRoute) return;
 
     let isMounted = true;
 
@@ -88,7 +159,7 @@ export function InlineDeliveryRouteMap({
       try {
         const L = (await import("leaflet")).default;
 
-        if (!mapContainerRef.current || !isMounted) return;
+        if (!mapContainerRef.current || !isMounted || !roadRoute) return;
 
         if (leafletMapRef.current) {
           leafletMapRef.current.remove();
@@ -109,7 +180,7 @@ export function InlineDeliveryRouteMap({
         const storeIcon = L.divIcon({
           className: "custom-store-pin",
           html: `
-            <div style="background-color: #0284c7; color: white; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.35); border: 2.5px solid white;">
+            <div style="background-color: #0284c7; color: white; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(2,132,199,0.35); border: 2.5px solid white;">
               <span style="font-size: 15px;">${verticalEmoji}</span>
             </div>
           `,
@@ -121,7 +192,7 @@ export function InlineDeliveryRouteMap({
         const customerIcon = L.divIcon({
           className: "custom-customer-pin",
           html: `
-            <div style="background-color: #10b981; color: white; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.35); border: 2.5px solid white;">
+            <div style="background-color: #10b981; color: white; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(16,185,129,0.35); border: 2.5px solid white;">
               <span style="font-size: 15px;">🏡</span>
             </div>
           `,
@@ -133,27 +204,35 @@ export function InlineDeliveryRouteMap({
           .addTo(map)
           .bindPopup(`<strong>${verticalEmoji} Store Origin</strong><br/>${storeAddress}`);
 
-        L.marker([effectiveDestLat, effectiveDestLng], { icon: customerIcon })
+        L.marker([targetLat, targetLng], { icon: customerIcon })
           .addTo(map)
           .bindPopup(`<strong>🏡 Delivery Destination</strong><br/>${customerName || "Customer"}<br/>${destAddress || ""}`);
 
-        // Route Polyline
-        const routePoints: [number, number][] = [
+        // Route Polyline: dual-layer road route
+        const coords = roadRoute ? roadRoute.coordinates : [
           [effectiveStoreLat, effectiveStoreLng],
-          [effectiveDestLat, effectiveDestLng],
+          [targetLat, targetLng],
         ];
 
-        L.polyline(routePoints, {
-          color: "#0284c7",
-          weight: 4.5,
-          opacity: 0.9,
-          dashArray: "7, 9",
+        // Outer glow/casing
+        L.polyline(coords as any, {
+          color: "#38bdf8",
+          weight: 6.5,
+          opacity: 0.45,
+          lineCap: "round",
+          lineJoin: "round",
         }).addTo(map);
 
-        const bounds = L.latLngBounds([
-          [effectiveStoreLat, effectiveStoreLng],
-          [effectiveDestLat, effectiveDestLng],
-        ]);
+        // Core driving line
+        L.polyline(coords as any, {
+          color: "#0284c7",
+          weight: 4,
+          opacity: 0.95,
+          lineCap: "round",
+          lineJoin: "round",
+        }).addTo(map);
+
+        const bounds = L.latLngBounds(coords as any);
         map.fitBounds(bounds, { padding: [40, 40] });
 
         leafletMapRef.current = map;
@@ -178,10 +257,11 @@ export function InlineDeliveryRouteMap({
       }
     };
   }, [
+    roadRoute,
     effectiveStoreLat,
     effectiveStoreLng,
-    effectiveDestLat,
-    effectiveDestLng,
+    targetLat,
+    targetLng,
     storeAddress,
     customerName,
     destAddress,
@@ -200,6 +280,11 @@ export function InlineDeliveryRouteMap({
           <span>~{displayEta} mins</span>
           <span className="opacity-40">•</span>
           <span className="text-muted-foreground font-semibold">{distanceKm} km</span>
+          {roadRoute?.isRealRoad && (
+            <span className="hidden sm:inline text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded-sm">
+              Road
+            </span>
+          )}
         </div>
 
         {onExpand && (

@@ -232,3 +232,171 @@ export function createResilientTileLayer(L: any, map?: any) {
   return layer;
 }
 
+export interface RoadRouteResult {
+  coordinates: [number, number][]; // [lat, lng] array suitable for Leaflet
+  distanceKm: number;
+  durationMinutes: number;
+  isRealRoad: boolean;
+}
+
+/**
+ * Fetch true road route geometry and driving distance from OpenStreetMap OSRM.
+ * Falls back to straight-line interpolation with 1.35x Indian city road factor if OSRM is unreachable.
+ */
+export async function getOsrmRoadRoute(
+  originLat: number,
+  originLng: number,
+  destLat: number,
+  destLng: number
+): Promise<RoadRouteResult> {
+  const straightDistance = calculateDistanceKm(originLat, originLng, destLat, destLng);
+  const fallbackEta = estimateBikeMinutes(straightDistance * 1.35);
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4500);
+
+    // OSRM expects {lng},{lat} in URL
+    const url = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=full&geometries=geojson`;
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) throw new Error(`OSRM status ${res.status}`);
+    const data = await res.json();
+
+    if (data.code === "Ok" && data.routes && data.routes.length > 0) {
+      const primaryRoute = data.routes[0];
+      // GeoJSON coordinates are [lng, lat] -> convert to Leaflet [lat, lng]
+      const coords: [number, number][] = primaryRoute.geometry.coordinates.map(
+        ([lon, lat]: [number, number]) => [lat, lon]
+      );
+      const roadDistanceKm = Math.round((primaryRoute.distance / 1000) * 10) / 10;
+      const roadDurationMinutes = Math.max(8, Math.round(primaryRoute.duration / 60));
+
+      return {
+        coordinates: coords,
+        distanceKm: roadDistanceKm,
+        durationMinutes: roadDurationMinutes,
+        isRealRoad: true,
+      };
+    }
+  } catch {
+    // Graceful fallback
+  }
+
+  // Generate intermediate waypoint for smooth curvature
+  const midLat = (originLat + destLat) / 2 + (destLng - originLng) * 0.08;
+  const midLng = (originLng + destLng) / 2 - (destLat - originLat) * 0.08;
+
+  return {
+    coordinates: [
+      [originLat, originLng],
+      [midLat, midLng],
+      [destLat, destLng],
+    ],
+    distanceKm: Math.round(straightDistance * 1.35 * 10) / 10,
+    durationMinutes: fallbackEta,
+    isRealRoad: false,
+  };
+}
+
+/**
+ * Forward geocode a free-form address string to exact coordinates.
+ * Queries Nominatim with tiered query refinement (full address -> pincode -> area/city).
+ */
+export async function forwardGeocodeAddress(
+  address: string
+): Promise<{ lat: number; lng: number; displayName: string } | null> {
+  if (!address || address.trim().length < 3) return null;
+
+  const clean = address.trim();
+
+  // Tier 1: Try full address
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(clean)}&countrycodes=in&limit=1`,
+      {
+        headers: { "Accept-Language": "en-IN,en;q=0.9" },
+        signal: controller.signal,
+      }
+    );
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.length > 0) {
+        return {
+          lat: Number(data[0].lat),
+          lng: Number(data[0].lon),
+          displayName: data[0].display_name,
+        };
+      }
+    }
+  } catch {
+    // Continue to tier 2
+  }
+
+  // Tier 2: Extract 6-digit Indian pincode if available (e.g. 600040)
+  const pinMatch = clean.match(/\b(60\d{4}|5\d{5}|[1-9]\d{5})\b/);
+  if (pinMatch) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=jsonv2&postalcode=${pinMatch[0]}&countrycodes=in&limit=1`,
+        {
+          headers: { "Accept-Language": "en-IN,en;q=0.9" },
+          signal: controller.signal,
+        }
+      );
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.length > 0) {
+          return {
+            lat: Number(data[0].lat),
+            lng: Number(data[0].lon),
+            displayName: data[0].display_name,
+          };
+        }
+      }
+    } catch {
+      // Continue to tier 3
+    }
+  }
+
+  // Tier 3: Strip street numbers and search for locality/area + city
+  const parts = clean.split(/[,;\n]/).map((p) => p.trim()).filter(Boolean);
+  if (parts.length > 1) {
+    const broaderQuery = parts.slice(Math.max(0, parts.length - 2)).join(", ");
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(broaderQuery)}&countrycodes=in&limit=1`,
+        {
+          headers: { "Accept-Language": "en-IN,en;q=0.9" },
+          signal: controller.signal,
+        }
+      );
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.length > 0) {
+          return {
+            lat: Number(data[0].lat),
+            lng: Number(data[0].lon),
+            displayName: data[0].display_name,
+          };
+        }
+      }
+    } catch {
+      // Fallback exhausted
+    }
+  }
+
+  return null;
+}
+
+
