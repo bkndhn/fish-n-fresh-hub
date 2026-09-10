@@ -41,6 +41,44 @@ export const lookupGuestOrder = createServerFn({ method: "POST" })
     return ((rows?.[0] as unknown as GuestOrder) ?? null);
   });
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Subtract stock for an order. Safe to call twice: the database only deducts once. */
+export const deductOrderStockServerFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { orderId: string; items?: unknown }) => {
+    if (!UUID_RE.test(String(input?.orderId ?? ""))) throw new Error("Invalid order");
+    return { orderId: input.orderId };
+  })
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await (supabaseAdmin as any).rpc("deduct_order_stock_atomic", {
+      p_order_id: data.orderId,
+    });
+    if (error) {
+      console.error("[Orders] Stock deduction failed:", error.message);
+      return { success: false, message: error.message };
+    }
+    return { success: Boolean(result?.success), message: result?.message ?? "" };
+  });
+
+/** Add stock back for a cancelled/refunded order. Only restores if it was deducted. */
+export const restoreOrderStockServerFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { orderId: string; items?: unknown }) => {
+    if (!UUID_RE.test(String(input?.orderId ?? ""))) throw new Error("Invalid order");
+    return { orderId: input.orderId };
+  })
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await (supabaseAdmin as any).rpc("restore_order_stock_atomic", {
+      p_order_id: data.orderId,
+    });
+    if (error) {
+      console.error("[Orders] Stock restoral failed:", error.message);
+      return { success: false, message: error.message };
+    }
+    return { success: Boolean(result?.success), message: result?.message ?? "" };
+  });
+
 export const updateOrderStatusWithEmail = createServerFn({ method: "POST" })
   .inputValidator((input: { orderId: string; status: string; driverInfo?: { name?: string; phone?: string } }) => {
     return input;
