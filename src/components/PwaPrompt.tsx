@@ -18,7 +18,8 @@ if (typeof window !== "undefined") {
   });
 }
 
-// Global helper to trigger PWA install modal from any button in the app
+// Global helper to trigger PWA install from any button in the app.
+// Reads window.__pwaInstallPrompt at call time — never a stale closure.
 export function promptPwaInstall() {
   if (typeof window !== "undefined") {
     const prompt = (window as any).__pwaInstallPrompt;
@@ -31,6 +32,7 @@ export function promptPwaInstall() {
       });
       return;
     }
+    // No native prompt available — let PwaPrompt component decide (iOS guide / desktop guide)
     window.dispatchEvent(new CustomEvent("open-pwa-install"));
   }
 }
@@ -49,7 +51,7 @@ export function PwaPrompt() {
       navigator.serviceWorker.register("/sw.js").catch(console.error);
     }
 
-    // 2. Check if already installed / standalone
+    // 2. Already installed / standalone — hide everything
     const standaloneCheck =
       window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as any).standalone === true ||
@@ -57,16 +59,36 @@ export function PwaPrompt() {
     setIsStandalone(standaloneCheck);
     if (standaloneCheck) return;
 
-    // 3. Check iOS
+    // 3. Detect iOS (Safari never fires beforeinstallprompt)
     const ua = window.navigator.userAgent.toLowerCase();
     const isIosDevice = /iphone|ipad|ipod/.test(ua);
     setIsIos(isIosDevice);
 
-    // 4. Check for existing prompt
+    const dismissed = sessionStorage.getItem("pwa_banner_dismissed");
+
+    // 4. Pick up prompt that already fired before this component mounted
     if ((window as any).__pwaInstallPrompt) {
       setDeferredPrompt((window as any).__pwaInstallPrompt);
+      if (!dismissed) setShowBanner(true);
     }
 
+    // 5. iOS — show banner immediately (user taps → iOS guide sheet)
+    if (isIosDevice && !dismissed) {
+      setShowBanner(true);
+    }
+
+    // 6. beforeinstallprompt arrives AFTER mount (most common on Android / Desktop)
+    const installHandler = (e: Event) => {
+      e.preventDefault();
+      (window as any).__pwaInstallPrompt = e;
+      setDeferredPrompt(e);
+      if (!sessionStorage.getItem("pwa_banner_dismissed")) {
+        setShowBanner(true);
+      }
+    };
+    window.addEventListener("beforeinstallprompt", installHandler);
+
+    // 7. Sync state when global store is updated
     const onPromptReady = () => {
       if ((window as any).__pwaInstallPrompt) {
         setDeferredPrompt((window as any).__pwaInstallPrompt);
@@ -74,27 +96,10 @@ export function PwaPrompt() {
     };
     window.addEventListener("pwa-prompt-ready", onPromptReady);
 
-    // 5. Listen for beforeinstallprompt (Android / Desktop Chrome / Edge)
-    const installHandler = (e: Event) => {
-      e.preventDefault();
-      (window as any).__pwaInstallPrompt = e;
-      setDeferredPrompt(e);
-      const dismissed = sessionStorage.getItem("pwa_banner_dismissed");
-      if (!dismissed) {
-        setShowBanner(true);
-      }
-    };
-    window.addEventListener("beforeinstallprompt", installHandler);
-
-    // Show banner on iOS or Android if not dismissed in this session
-    const dismissed = sessionStorage.getItem("pwa_banner_dismissed");
-    if (!dismissed) {
-      setShowBanner(true);
-    }
-
-    // 6. Global trigger handler
+    // 8. Global trigger from promptPwaInstall() helper.
+    //    KEY FIX: read window.__pwaInstallPrompt at call time, NOT the stale closure variable.
     const manualOpenHandler = () => {
-      const activePrompt = deferredPrompt || (window as any).__pwaInstallPrompt;
+      const activePrompt = (window as any).__pwaInstallPrompt;
       if (activePrompt) {
         activePrompt.prompt();
         activePrompt.userChoice.then((choice: any) => {
@@ -119,8 +124,12 @@ export function PwaPrompt() {
     };
   }, []);
 
+  // Always pull the freshest prompt — avoids any residual stale-state issues
+  const getActivePrompt = () =>
+    (typeof window !== "undefined" && (window as any).__pwaInstallPrompt) || deferredPrompt;
+
   const handleNativeInstall = async () => {
-    const activePrompt = deferredPrompt || (typeof window !== "undefined" && (window as any).__pwaInstallPrompt);
+    const activePrompt = getActivePrompt();
     if (!activePrompt) {
       if (isIos) setShowIosGuide(true);
       else setShowDesktopGuide(true);
@@ -136,7 +145,7 @@ export function PwaPrompt() {
   };
 
   const handleBannerInstallClick = () => {
-    const activePrompt = deferredPrompt || (typeof window !== "undefined" && (window as any).__pwaInstallPrompt);
+    const activePrompt = getActivePrompt();
     if (activePrompt) {
       handleNativeInstall();
     } else if (isIos) {
@@ -189,7 +198,7 @@ export function PwaPrompt() {
         </div>
       )}
 
-      {/* iOS Step-by-Step Install Guide */}
+      {/* iOS Step-by-Step Install Guide (shown only on iOS Safari) */}
       <Dialog open={showIosGuide} onOpenChange={setShowIosGuide}>
         <DialogContent className="rounded-3xl max-w-sm p-5 sm:p-6">
           <DialogHeader>
@@ -255,7 +264,7 @@ export function PwaPrompt() {
         </DialogContent>
       </Dialog>
 
-      {/* Desktop / Browser Install Instructions Modal */}
+      {/* Desktop instructions — fallback when beforeinstallprompt never fired */}
       <Dialog open={showDesktopGuide} onOpenChange={setShowDesktopGuide}>
         <DialogContent className="rounded-3xl max-w-sm p-5 sm:p-6">
           <DialogHeader>
