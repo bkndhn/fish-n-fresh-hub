@@ -29,6 +29,7 @@ export type Product = {
   gst_included: boolean;
   allow_custom_qty: boolean;
   low_stock_threshold?: number | null;
+  pos_code?: number | null;
 };
 
 export type Category = {

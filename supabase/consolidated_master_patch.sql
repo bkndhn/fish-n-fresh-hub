@@ -281,3 +281,19 @@ BEGIN
         CREATE POLICY "Public select customer_suspensions" ON public.customer_suspensions FOR SELECT USING (true);
     END IF;
 END $$;
+
+-- 15. POS Quick Code (PLU) for Counter High-Speed Billing
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS pos_code INTEGER;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_products_pos_code ON public.products(pos_code) WHERE pos_code IS NOT NULL;
+
+-- Seed unassigned products sequentially based on creation date
+WITH ordered_products AS (
+  SELECT id, ROW_NUMBER() OVER (ORDER BY created_at ASC NULLS LAST, name ASC) AS seq
+  FROM public.products
+  WHERE pos_code IS NULL
+)
+UPDATE public.products p
+SET pos_code = op.seq
+FROM ordered_products op
+WHERE p.id = op.id;
+

@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Search, Edit, AlertTriangle, Zap, PackagePlus, CheckCircle2, X, CheckSquare, Square, Layers, ArrowUpCircle, Eye, EyeOff, Sparkles, Star, Flame, Camera, RefreshCw, Copy, Check } from "lucide-react";
+import { Plus, Trash2, Search, Edit, AlertTriangle, Zap, PackagePlus, CheckCircle2, X, CheckSquare, Square, Layers, ArrowUpCircle, Eye, EyeOff, Sparkles, Star, Flame, Camera, RefreshCw, Copy, Check, Printer, Hash } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminProductsQuery } from "@/lib/admin";
 import { categoriesQuery } from "@/lib/queries";
@@ -70,6 +70,14 @@ function ProductsAdmin() {
   const qc = useQueryClient();
   const products = useQuery(adminProductsQuery);
   const { data: categories } = useQuery(categoriesQuery);
+  const allProducts = products.data ?? [];
+
+  const nextSuggestedPosCode = useMemo(() => {
+    const codes = (allProducts || [])
+      .map((p) => p.pos_code)
+      .filter((c): c is number => typeof c === "number" && !isNaN(c));
+    return codes.length > 0 ? Math.max(...codes) + 1 : 1;
+  }, [allProducts]);
 
   const [search, setSearch] = useState("");
   const [openAdd, setOpenAdd] = useState(false);
@@ -88,6 +96,7 @@ function ProductsAdmin() {
   const [newProduct, setNewProduct] = useState({
     name: "",
     name_tamil: "",
+    pos_code: "",
     category: "",
     customCategory: "",
     price: "",
@@ -163,9 +172,18 @@ function ProductsAdmin() {
         ? newProduct.customUnit.trim() || "kg" 
         : newProduct.unit;
 
+      const parsedPosCode = newProduct.pos_code ? parseInt(newProduct.pos_code, 10) : nextSuggestedPosCode;
+      if (!isNaN(parsedPosCode)) {
+        const conflict = allProducts.find((p) => p.pos_code === parsedPosCode && p.is_available !== false);
+        if (conflict) {
+          throw new Error(`POS Quick Code #${parsedPosCode} is already assigned to "${conflict.name}". Please choose another code.`);
+        }
+      }
+
       const { error } = await supabase.from("products").insert({
         name: newProduct.name.trim(),
         name_tamil: newProduct.name_tamil.trim() || null,
+        pos_code: isNaN(parsedPosCode) ? null : parsedPosCode,
         category: resolvedCat,
         price: priceNum,
         old_price: newProduct.old_price ? Number(newProduct.old_price) : null,
@@ -187,6 +205,7 @@ function ProductsAdmin() {
       setNewProduct({
         name: "",
         name_tamil: "",
+        pos_code: "",
         category: "",
         customCategory: "",
         price: "",
@@ -225,9 +244,21 @@ function ProductsAdmin() {
         ? (editingProduct.customUnit?.trim() || "kg") 
         : editingProduct.unit;
 
+      const editPosCode = editingProduct.pos_code !== undefined && editingProduct.pos_code !== null && editingProduct.pos_code !== ""
+        ? parseInt(String(editingProduct.pos_code), 10)
+        : null;
+
+      if (editPosCode !== null && !isNaN(editPosCode)) {
+        const conflict = allProducts.find((p) => p.id !== editingProduct.id && p.pos_code === editPosCode && p.is_available !== false);
+        if (conflict) {
+          throw new Error(`POS Quick Code #${editPosCode} is already assigned to "${conflict.name}". Please choose another code.`);
+        }
+      }
+
       const { error } = await supabase.from("products").update({
         name: editingProduct.name.trim(),
         name_tamil: editingProduct.name_tamil?.trim() || null,
+        pos_code: editPosCode,
         category: resolvedCat,
         price: priceNum,
         old_price: editingProduct.old_price ? Number(editingProduct.old_price) : null,
@@ -264,8 +295,6 @@ function ProductsAdmin() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
-
-  const allProducts = products.data ?? [];
 
   const getThreshold = (p: Product) => {
     if (typeof p.low_stock_threshold === "number" && !isNaN(p.low_stock_threshold)) {
@@ -412,17 +441,119 @@ function ProductsAdmin() {
     }
   };
 
+  const handlePrintCheatSheet = () => {
+    const activeItems = [...allProducts]
+      .filter((p) => p.is_available !== false)
+      .sort((a, b) => (a.pos_code || 9999) - (b.pos_code || 9999));
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>POS Counter Quick PLU Reference Sheet - Fish N Fresh Hub</title>
+  <style>
+    @page { size: A4 portrait; margin: 12mm 10mm; }
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { margin: 0; padding: 10px; color: #0f172a; font-size: 11px; }
+    .header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px; }
+    .title { font-size: 18px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
+    .subtitle { font-size: 11px; color: #475569; margin-top: 2px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+    th { background: #0f172a; color: #ffffff; padding: 6px 8px; font-size: 10px; text-transform: uppercase; text-align: left; }
+    td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-size: 11px; vertical-align: middle; }
+    tr:nth-child(even) td { background-color: #f8fafc; }
+    .code-badge { display: inline-block; font-family: monospace; font-size: 13px; font-weight: 900; background: #0284c7; color: #ffffff; padding: 2px 8px; border-radius: 4px; min-width: 32px; text-align: center; }
+    .price { font-weight: 800; font-size: 12px; text-align: right; }
+    .tamil { color: #64748b; font-size: 10px; margin-top: 1px; }
+    .footer { margin-top: 15px; border-top: 1px dashed #cbd5e1; padding-top: 6px; font-size: 9px; color: #64748b; display: flex; justify-content: space-between; }
+    @media print {
+      body { padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">⚡ Fish N Fresh Hub — POS Counter Quick Code Sheet</div>
+    <div class="subtitle">Quick Numpad Entry Cheat Sheet • Generated ${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })} • Total Items: ${activeItems.length}</div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 55px; text-align: center;">PLU #</th>
+        <th>Product Name (English / Tamil)</th>
+        <th style="width: 110px;">Category</th>
+        <th style="width: 90px; text-align: right;">Selling Price</th>
+        <th style="width: 90px; text-align: right;">Stock Balance</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${activeItems.map((p, idx) => `
+        <tr>
+          <td style="text-align: center;">
+            <span class="code-badge">#${String(p.pos_code ?? idx + 1).padStart(2, "0")}</span>
+          </td>
+          <td>
+            <div style="font-weight: 700; font-size: 12px; color: #0f172a;">${p.name}</div>
+            ${p.name_tamil ? `<div class="tamil">${p.name_tamil}</div>` : ""}
+          </td>
+          <td style="color: #475569; font-weight: 500;">${p.category || "Seafood"}</td>
+          <td class="price">₹${Number(p.price).toFixed(2)} / ${p.unit}</td>
+          <td style="text-align: right; font-weight: 600; color: ${(p.stock ?? 0) <= 5 ? "#dc2626" : "#059669"};">
+            ${p.stock} ${p.unit}
+          </td>
+        </tr>
+      `).join("")}
+    </tbody>
+  </table>
+
+  <div class="footer">
+    <div>Tip: Cashiers can type the PLU code into the POS counter [F2] and press Enter for instant 1-second billing.</div>
+    <div>Fish N Fresh Retail Point of Sale</div>
+  </div>
+</body>
+</html>
+    `;
+
+    const printWin = window.open("", "_blank", "width=850,height=750");
+    if (!printWin) {
+      toast.error("Please allow popups to print the POS Cheat Sheet.");
+      return;
+    }
+    printWin.document.open();
+    printWin.document.write(html);
+    printWin.document.close();
+    printWin.onload = () => {
+      setTimeout(() => {
+        printWin.focus();
+        printWin.print();
+      }, 250);
+    };
+  };
+
   return (
     <AdminShell
       title="Products & Inventory"
       allow={["admin", "manager", "inventory_manager", "staff"]}
       action={
-        <Button
-          className="rounded-xl h-9 font-bold shadow-xs"
-          onClick={() => setOpenAdd(true)}
-        >
-          <Plus className="mr-1.5 size-4" /> Add Product
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="rounded-xl h-9 font-semibold text-xs gap-1.5 border-border/80 hover:bg-muted"
+            onClick={handlePrintCheatSheet}
+          >
+            <Printer className="size-3.5" /> <span>Print POS Cheat Sheet</span>
+          </Button>
+          <Button
+            className="rounded-xl h-9 font-bold shadow-xs"
+            onClick={() => {
+              setNewProduct((prev) => ({ ...prev, pos_code: String(nextSuggestedPosCode) }));
+              setOpenAdd(true);
+            }}
+          >
+            <Plus className="mr-1.5 size-4" /> Add Product
+          </Button>
+        </div>
       }
     >
       {/* Low Stock Warning Banner */}
@@ -695,7 +826,19 @@ function ProductsAdmin() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="prod-pos-code" className="text-primary font-bold flex items-center gap-1">
+                    <Hash className="size-3" /> PLU Code
+                  </Label>
+                  <Input
+                    id="prod-pos-code"
+                    type="number"
+                    placeholder={`#${nextSuggestedPosCode}`}
+                    value={newProduct.pos_code}
+                    onChange={(e) => setNewProduct({ ...newProduct, pos_code: e.target.value })}
+                  />
+                </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="prod-price">Selling Price (₹) *</Label>
                   <Input
@@ -987,13 +1130,18 @@ function ProductsAdmin() {
 
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex flex-wrap items-start justify-between gap-1.5">
-                      <div className="min-w-0 pr-1">
-                        <h4 className="font-bold text-sm sm:text-base text-foreground leading-snug break-words">
-                          {p.name}
-                        </h4>
-                        {p.name_tamil && (
-                          <p className="text-xs text-muted-foreground font-medium">{p.name_tamil}</p>
-                        )}
+                      <div className="min-w-0 pr-1 flex items-start gap-2">
+                        <span className="mt-0.5 px-1.5 py-0.5 rounded-lg bg-primary/10 text-primary text-[11px] font-black font-mono border border-primary/25 shrink-0" title="POS Quick PLU Code">
+                          #{String(p.pos_code ?? "—").padStart(2, "0")}
+                        </span>
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-sm sm:text-base text-foreground leading-snug break-words">
+                            {p.name}
+                          </h4>
+                          {p.name_tamil && (
+                            <p className="text-xs text-muted-foreground font-medium">{p.name_tamil}</p>
+                          )}
+                        </div>
                       </div>
 
                       {/* Stock Status Badge with proper unit formatting */}
@@ -1320,7 +1468,19 @@ function ProductsAdmin() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-pos-code" className="text-primary font-bold flex items-center gap-1">
+                    <Hash className="size-3" /> PLU Code
+                  </Label>
+                  <Input
+                    id="edit-pos-code"
+                    type="number"
+                    placeholder="e.g. 1"
+                    value={editingProduct.pos_code ?? ""}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, pos_code: e.target.value ? parseInt(e.target.value, 10) : null })}
+                  />
+                </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="edit-price">Selling Price (₹) *</Label>
                   <Input

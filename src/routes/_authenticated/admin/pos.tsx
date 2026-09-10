@@ -180,6 +180,8 @@ function getNextPosReceiptNo(prefix = "POS-", dailyReset = true): string {
 export function RetailPosCounterPage() {
   const qc = useQueryClient();
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const quickCodeInputRef = useRef<HTMLInputElement>(null);
+  const [quickCodeInput, setQuickCodeInput] = useState("");
   const { data: rawProducts = [], isLoading: productsLoading } = useQuery(adminProductsQuery);
   const { data: categories = [] } = useQuery(categoriesQuery);
   const { data: settings } = useQuery(settingsQuery);
@@ -411,17 +413,78 @@ export function RetailPosCounterPage() {
     });
   }, []);
 
-  // Filtered Products
+  // Quick Mode Keydown Handler (F1: Search, F2 or /: Quick PLU entry)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "F1") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      } else if (e.key === "F2") {
+        e.preventDefault();
+        quickCodeInputRef.current?.focus();
+      } else if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
+        e.preventDefault();
+        quickCodeInputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Fast PLU Code Selector
+  const handleQuickCodeSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const raw = quickCodeInput.trim();
+    if (!raw) return;
+    const codeNum = parseInt(raw, 10);
+    if (isNaN(codeNum)) {
+      toast.error("Please enter a valid numeric PLU code (e.g. 1 or 14)");
+      return;
+    }
+
+    // 1. Check in available products first
+    const found = products.find((p, idx) => p.pos_code === codeNum || (!p.pos_code && (idx + 1) === codeNum));
+    if (found) {
+      handleOpenItem(found);
+      setQuickCodeInput("");
+      toast.info(`Selected PLU #${String(codeNum).padStart(2, "0")}: ${found.name}`);
+      return;
+    }
+
+    // 2. Check if code belongs to an inactive or sold-out product
+    const inactiveMatch = (rawProducts as Product[]).find(
+      (p, idx) => p.pos_code === codeNum || (!p.pos_code && (idx + 1) === codeNum)
+    );
+    if (inactiveMatch) {
+      toast.warning(`PLU Code #${codeNum} (${inactiveMatch.name}) is currently INACTIVE or OUT OF STOCK.`);
+      setQuickCodeInput("");
+      return;
+    }
+
+    toast.error(`No product found with PLU Code #${codeNum}`);
+  };
+
+  // Filtered Products with PLU Code Priority Matching
   const displayedProducts = useMemo(() => {
-    return products.filter((p) => {
+    return products.filter((p, idx) => {
       if (selectedCategory !== "all" && p.category !== selectedCategory) {
         return false;
       }
       if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase();
+      const q = searchQuery.toLowerCase().trim();
+      const effectiveCode = p.pos_code ?? (idx + 1);
+
+      // Numeric search (e.g. typing "1" or "01" matches PLU #1)
+      if (/^\d+$/.test(q) && effectiveCode === parseInt(q, 10)) {
+        return true;
+      }
+
       return (
         p.name.toLowerCase().includes(q) ||
-        (p.name_tamil ? p.name_tamil.toLowerCase().includes(q) : false)
+        (p.name_tamil ? p.name_tamil.toLowerCase().includes(q) : false) ||
+        `#${effectiveCode}` === q ||
+        `#${String(effectiveCode).padStart(2, "0")}` === q
       );
     });
   }, [products, selectedCategory, searchQuery]);
@@ -1208,6 +1271,45 @@ export function RetailPosCounterPage() {
               </div>
             )}
 
+            {/* Quick Mode PLU Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-3 bg-gradient-to-r from-primary/10 via-card to-card rounded-2xl border border-primary/25 shadow-2xs">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="flex size-8 items-center justify-center rounded-xl bg-primary text-primary-foreground font-black text-sm shrink-0 shadow-2xs">
+                  ⚡
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <span>Quick Mode Billing</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-primary/20 text-primary font-mono font-bold">F2 / /</span>
+                  </p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    Type item PLU number &amp; press Enter to ring up instantly
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleQuickCodeSubmit} className="flex items-center gap-2 shrink-0">
+                <div className="relative w-full sm:w-44">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono font-black text-xs text-primary">#</span>
+                  <Input
+                    ref={quickCodeInputRef}
+                    type="number"
+                    placeholder="PLU (e.g. 01)"
+                    value={quickCodeInput}
+                    onChange={(e) => setQuickCodeInput(e.target.value)}
+                    className="pl-7 pr-2 h-9 text-xs font-mono font-bold rounded-xl bg-background border-primary/30 focus-visible:ring-primary text-foreground"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="h-9 rounded-xl font-bold text-xs bg-primary hover:bg-primary/90 text-primary-foreground shrink-0 shadow-2xs px-3"
+                >
+                  Select Item
+                </Button>
+              </form>
+            </div>
+
             {/* Search & Category Filter */}
             <div className="space-y-2 bg-card p-3 rounded-2xl border border-border/80 shadow-2xs">
               <div className="relative">
@@ -1250,9 +1352,11 @@ export function RetailPosCounterPage() {
 
             {/* Product Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-              {displayedProducts.map((prod) => {
+              {displayedProducts.map((prod, index) => {
                 const isOutOfStock =
                   (typeof prod.stock === "number" && prod.stock <= 0) || prod.is_available === false;
+                const effectiveCode = prod.pos_code ?? (index + 1);
+
                 return (
                   <button
                     key={prod.id}
@@ -1273,6 +1377,12 @@ export function RetailPosCounterPage() {
                   >
                     <div className="space-y-1.5">
                       <div className="aspect-4/3 w-full rounded-xl overflow-hidden bg-muted/40 relative">
+                        {/* High-Contrast Permanent PLU Code Badge */}
+                        <div className="absolute top-1.5 left-1.5 z-10">
+                          <span className="font-mono font-black text-[11px] px-2 py-0.5 rounded-lg bg-slate-900/90 text-white dark:bg-sky-500/90 dark:text-slate-950 shadow-sm border border-white/20">
+                            #{String(effectiveCode).padStart(2, "0")}
+                          </span>
+                        </div>
                         {prod.image_url ? (
                           <img
                             src={prod.image_url}
