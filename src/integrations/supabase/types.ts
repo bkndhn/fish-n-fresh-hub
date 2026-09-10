@@ -476,6 +476,60 @@ export type Database = {
         }
         Relationships: []
       }
+      marketing_campaigns: {
+        Row: {
+          banner_text: string | null
+          campaign_type: string
+          countdown_end: string | null
+          created_at: string | null
+          description: string | null
+          discount_amount: number | null
+          id: string
+          is_active: boolean | null
+          min_cart_amount: number | null
+          title: string
+          updated_at: string | null
+          variant_a_code: string | null
+          variant_a_orders: number | null
+          variant_b_code: string | null
+          variant_b_orders: number | null
+        }
+        Insert: {
+          banner_text?: string | null
+          campaign_type?: string
+          countdown_end?: string | null
+          created_at?: string | null
+          description?: string | null
+          discount_amount?: number | null
+          id?: string
+          is_active?: boolean | null
+          min_cart_amount?: number | null
+          title: string
+          updated_at?: string | null
+          variant_a_code?: string | null
+          variant_a_orders?: number | null
+          variant_b_code?: string | null
+          variant_b_orders?: number | null
+        }
+        Update: {
+          banner_text?: string | null
+          campaign_type?: string
+          countdown_end?: string | null
+          created_at?: string | null
+          description?: string | null
+          discount_amount?: number | null
+          id?: string
+          is_active?: boolean | null
+          min_cart_amount?: number | null
+          title?: string
+          updated_at?: string | null
+          variant_a_code?: string | null
+          variant_a_orders?: number | null
+          variant_b_code?: string | null
+          variant_b_orders?: number | null
+        }
+        Relationships: []
+      }
       order_delivery_pins: {
         Row: {
           attempts: number
@@ -866,10 +920,12 @@ export type Database = {
           calories: number | null
           catch_date: string | null
           category: string | null
+          cost_price: number | null
           created_at: string
           description: string | null
           gst_included: boolean
           gst_percent: number
+          hsn_code: string | null
           id: string
           image_url: string | null
           is_available: boolean
@@ -881,6 +937,7 @@ export type Database = {
           name_tamil: string | null
           old_price: number | null
           origin: string | null
+          pos_code: number | null
           price: number
           protein: string | null
           rating: number
@@ -902,10 +959,12 @@ export type Database = {
           calories?: number | null
           catch_date?: string | null
           category?: string | null
+          cost_price?: number | null
           created_at?: string
           description?: string | null
           gst_included?: boolean
           gst_percent?: number
+          hsn_code?: string | null
           id?: string
           image_url?: string | null
           is_available?: boolean
@@ -917,6 +976,7 @@ export type Database = {
           name_tamil?: string | null
           old_price?: number | null
           origin?: string | null
+          pos_code?: number | null
           price: number
           protein?: string | null
           rating?: number
@@ -938,10 +998,12 @@ export type Database = {
           calories?: number | null
           catch_date?: string | null
           category?: string | null
+          cost_price?: number | null
           created_at?: string
           description?: string | null
           gst_included?: boolean
           gst_percent?: number
+          hsn_code?: string | null
           id?: string
           image_url?: string | null
           is_available?: boolean
@@ -953,6 +1015,7 @@ export type Database = {
           name_tamil?: string | null
           old_price?: number | null
           origin?: string | null
+          pos_code?: number | null
           price?: number
           protein?: string | null
           rating?: number
@@ -1176,6 +1239,30 @@ export type Database = {
         }
         Relationships: []
       }
+      schema_version: {
+        Row: {
+          applied_at: string
+          description: string | null
+          id: number
+          migration_hash: string
+          version: string
+        }
+        Insert: {
+          applied_at?: string
+          description?: string | null
+          id?: number
+          migration_hash: string
+          version: string
+        }
+        Update: {
+          applied_at?: string
+          description?: string | null
+          id?: number
+          migration_hash?: string
+          version?: string
+        }
+        Relationships: []
+      }
       store_settings: {
         Row: {
           accent_color: string
@@ -1185,6 +1272,7 @@ export type Database = {
           allow_preorders_when_closed: boolean | null
           announcement: string | null
           base_delivery_fee: number
+          bing_site_verification: string | null
           block_during_lunch: boolean
           block_on_holidays: boolean
           business_vertical: string
@@ -1196,22 +1284,34 @@ export type Database = {
           contact_email: string | null
           contact_phone: string | null
           created_at: string
+          custom_domain: string | null
           custom_holidays: Json | null
           default_gst_percent: number
           delivery_enabled: boolean
           delivery_fee: number
           delivery_radius_km: number
+          email_notifications_enabled: boolean | null
           express_delivery_enabled: boolean
           express_delivery_fee: number
           express_sla_mins: number
           facebook_url: string | null
           fcm_project_id: string | null
           fcm_server_key: string | null
+          feature_ai_benefits_enabled: boolean | null
+          feature_fcm_enabled: boolean | null
+          feature_live_chat_enabled: boolean | null
+          feature_pos_enabled: boolean | null
+          feature_route_optimization_enabled: boolean | null
+          feature_wallet_enabled: boolean | null
           footer_about: string | null
           free_delivery_over: number
+          fssai_license_no: string | null
           fssai_number: string | null
+          ga4_measurement_id: string | null
           google_review_link: string | null
+          google_site_verification: string | null
           gst_enabled: boolean
+          gst_legal_name: string | null
           gst_percent: number
           gstin: string | null
           harbour_alert_message: string | null
@@ -1236,6 +1336,7 @@ export type Database = {
           lunch_start: string | null
           max_delivery_radius_km: number
           max_wallet_burn_percent: number
+          meta_pixel_id: string | null
           min_order_value: number
           online_enabled: boolean
           open_time: string | null
@@ -1254,6 +1355,10 @@ export type Database = {
           referral_reward_referrer: number
           refund_content: string | null
           require_online_payment: boolean | null
+          seo_default_description: string | null
+          seo_keywords: string | null
+          seo_og_image: string | null
+          seo_title_template: string | null
           serviceable_pincodes: string[]
           shop_lat: number | null
           shop_lng: number | null
@@ -1296,6 +1401,7 @@ export type Database = {
           allow_preorders_when_closed?: boolean | null
           announcement?: string | null
           base_delivery_fee?: number
+          bing_site_verification?: string | null
           block_during_lunch?: boolean
           block_on_holidays?: boolean
           business_vertical?: string
@@ -1307,22 +1413,34 @@ export type Database = {
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
+          custom_domain?: string | null
           custom_holidays?: Json | null
           default_gst_percent?: number
           delivery_enabled?: boolean
           delivery_fee?: number
           delivery_radius_km?: number
+          email_notifications_enabled?: boolean | null
           express_delivery_enabled?: boolean
           express_delivery_fee?: number
           express_sla_mins?: number
           facebook_url?: string | null
           fcm_project_id?: string | null
           fcm_server_key?: string | null
+          feature_ai_benefits_enabled?: boolean | null
+          feature_fcm_enabled?: boolean | null
+          feature_live_chat_enabled?: boolean | null
+          feature_pos_enabled?: boolean | null
+          feature_route_optimization_enabled?: boolean | null
+          feature_wallet_enabled?: boolean | null
           footer_about?: string | null
           free_delivery_over?: number
+          fssai_license_no?: string | null
           fssai_number?: string | null
+          ga4_measurement_id?: string | null
           google_review_link?: string | null
+          google_site_verification?: string | null
           gst_enabled?: boolean
+          gst_legal_name?: string | null
           gst_percent?: number
           gstin?: string | null
           harbour_alert_message?: string | null
@@ -1347,6 +1465,7 @@ export type Database = {
           lunch_start?: string | null
           max_delivery_radius_km?: number
           max_wallet_burn_percent?: number
+          meta_pixel_id?: string | null
           min_order_value?: number
           online_enabled?: boolean
           open_time?: string | null
@@ -1365,6 +1484,10 @@ export type Database = {
           referral_reward_referrer?: number
           refund_content?: string | null
           require_online_payment?: boolean | null
+          seo_default_description?: string | null
+          seo_keywords?: string | null
+          seo_og_image?: string | null
+          seo_title_template?: string | null
           serviceable_pincodes?: string[]
           shop_lat?: number | null
           shop_lng?: number | null
@@ -1407,6 +1530,7 @@ export type Database = {
           allow_preorders_when_closed?: boolean | null
           announcement?: string | null
           base_delivery_fee?: number
+          bing_site_verification?: string | null
           block_during_lunch?: boolean
           block_on_holidays?: boolean
           business_vertical?: string
@@ -1418,22 +1542,34 @@ export type Database = {
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
+          custom_domain?: string | null
           custom_holidays?: Json | null
           default_gst_percent?: number
           delivery_enabled?: boolean
           delivery_fee?: number
           delivery_radius_km?: number
+          email_notifications_enabled?: boolean | null
           express_delivery_enabled?: boolean
           express_delivery_fee?: number
           express_sla_mins?: number
           facebook_url?: string | null
           fcm_project_id?: string | null
           fcm_server_key?: string | null
+          feature_ai_benefits_enabled?: boolean | null
+          feature_fcm_enabled?: boolean | null
+          feature_live_chat_enabled?: boolean | null
+          feature_pos_enabled?: boolean | null
+          feature_route_optimization_enabled?: boolean | null
+          feature_wallet_enabled?: boolean | null
           footer_about?: string | null
           free_delivery_over?: number
+          fssai_license_no?: string | null
           fssai_number?: string | null
+          ga4_measurement_id?: string | null
           google_review_link?: string | null
+          google_site_verification?: string | null
           gst_enabled?: boolean
+          gst_legal_name?: string | null
           gst_percent?: number
           gstin?: string | null
           harbour_alert_message?: string | null
@@ -1458,6 +1594,7 @@ export type Database = {
           lunch_start?: string | null
           max_delivery_radius_km?: number
           max_wallet_burn_percent?: number
+          meta_pixel_id?: string | null
           min_order_value?: number
           online_enabled?: boolean
           open_time?: string | null
@@ -1476,6 +1613,10 @@ export type Database = {
           referral_reward_referrer?: number
           refund_content?: string | null
           require_online_payment?: boolean | null
+          seo_default_description?: string | null
+          seo_keywords?: string | null
+          seo_og_image?: string | null
+          seo_title_template?: string | null
           serviceable_pincodes?: string[]
           shop_lat?: number | null
           shop_lng?: number | null
@@ -1610,6 +1751,83 @@ export type Database = {
           whatsapp?: string | null
         }
         Relationships: []
+      }
+      support_conversations: {
+        Row: {
+          assigned_staff_id: string | null
+          created_at: string | null
+          customer_id: string | null
+          customer_name: string
+          customer_phone: string | null
+          id: string
+          last_message_at: string | null
+          status: string
+          subject: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_staff_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          id?: string
+          last_message_at?: string | null
+          status?: string
+          subject?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_staff_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          id?: string
+          last_message_at?: string | null
+          status?: string
+          subject?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      support_messages: {
+        Row: {
+          conversation_id: string
+          created_at: string | null
+          id: string
+          message: string
+          sender_id: string | null
+          sender_name: string
+          sender_type: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          message: string
+          sender_id?: string | null
+          sender_name: string
+          sender_type: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          message?: string
+          sender_id?: string | null
+          sender_name?: string
+          sender_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "support_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trust_badges: {
         Row: {
@@ -1765,6 +1983,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      deduct_order_stock_atomic: { Args: { p_order_id: string }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1774,6 +1993,10 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
+      restore_order_stock_atomic: {
+        Args: { p_order_id: string }
+        Returns: Json
+      }
       settle_driver_cod_orders_atomic: {
         Args: {
           p_amount_collected: number
