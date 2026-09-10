@@ -815,6 +815,7 @@ export type Database = {
           settlement_id: string | null
           status: string
           status_history: Json
+          stock_deducted: boolean
           stripe_refund_id: string | null
           stripe_session_id: string | null
           subtotal: number
@@ -877,6 +878,7 @@ export type Database = {
           settlement_id?: string | null
           status?: string
           status_history?: Json
+          stock_deducted?: boolean
           stripe_refund_id?: string | null
           stripe_session_id?: string | null
           subtotal?: number
@@ -939,6 +941,7 @@ export type Database = {
           settlement_id?: string | null
           status?: string
           status_history?: Json
+          stock_deducted?: boolean
           stripe_refund_id?: string | null
           stripe_session_id?: string | null
           subtotal?: number
