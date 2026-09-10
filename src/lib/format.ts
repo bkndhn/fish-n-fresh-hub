@@ -22,6 +22,28 @@ export function formatIST(dateStr: string | null | undefined | Date): string {
   }).format(d);
 }
 
+/**
+ * Format date & exact time with 12-hour AM/PM for tax invoices, POS receipts, and order bills.
+ * e.g., "10 Sep 2026, 11:15 AM" or "10 Sep 2026, 11:15:30 AM"
+ */
+export function formatInvoiceDateTime(
+  dateStr: string | null | undefined | Date,
+  includeSeconds = false
+): string {
+  if (!dateStr) return "-";
+  const d = typeof dateStr === "string" ? new Date(dateStr) : dateStr;
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: includeSeconds ? "2-digit" : undefined,
+    hour12: true,
+  }).format(d);
+}
+
 export function formatStockDisplay(stock: number | null | undefined, unit: string | null | undefined): string {
   const s = stock ?? 0;
   const u = (unit || "kg").trim();

@@ -39,7 +39,7 @@ import {
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminProductsQuery } from "@/lib/admin";
 import { categoriesQuery, settingsQuery } from "@/lib/queries";
-import { formatINR, formatStockDisplay, formatStockUnitLabel, formatStockBadge } from "@/lib/format";
+import { formatINR, formatStockDisplay, formatStockUnitLabel, formatStockBadge, formatInvoiceDateTime } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { deductOrderStock } from "@/lib/inventorySync";
 import type { Product } from "@/lib/types";
@@ -757,10 +757,7 @@ export function RetailPosCounterPage() {
       printerConfig.billSequenceDailyReset !== false
     );
     const nowIso = new Date().toISOString();
-    const dateFormatted = new Date().toLocaleString("en-IN", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
+    const dateFormatted = formatInvoiceDateTime(new Date(), true);
 
     const receiptItems: PosReceiptItem[] = cart.map((it) => ({
       name: it.name,

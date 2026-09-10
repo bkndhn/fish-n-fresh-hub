@@ -21,13 +21,14 @@ export function SiteHeader() {
   const { data: settings } = useQuery(settingsQuery);
   const { data: myRoles } = useQuery(myRolesQuery);
   const { lang, setLang } = useTranslation();
-  const [isStandalone, setIsStandalone] = useState(true);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const standalone =
         window.matchMedia("(display-mode: standalone)").matches ||
-        (window.navigator as any).standalone === true;
+        (window.navigator as any).standalone === true ||
+        document.referrer.includes("android-app://");
       setIsStandalone(standalone);
     }
   }, []);

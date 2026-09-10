@@ -97,6 +97,7 @@ function Catalog() {
   };
 
   const filtered = (products ?? [])
+    .filter((p) => p.is_available !== false)
     .filter((p) => (category ? p.category === category : true))
     .filter((p) =>
       q

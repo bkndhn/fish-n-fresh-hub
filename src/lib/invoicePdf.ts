@@ -365,7 +365,7 @@ export function generateTaxInvoiceHtml(data: TaxInvoiceData): string {
       </div>
       <div style="text-align: right;">
         <div style="font-size: 15px; font-weight: 800; color: #0369a1;">${data.invoiceNumber}</div>
-        <div style="font-size: 11px; color: #64748b; margin-top: 3px;">Date: <strong>${data.invoiceDate}</strong></div>
+        <div style="font-size: 11px; color: #64748b; margin-top: 3px;">Date &amp; Time: <strong>${data.invoiceDate}</strong></div>
         <div style="font-size: 11px; color: #64748b;">Order Ref: <strong>#${data.orderNumber}</strong></div>
       </div>
     </div>

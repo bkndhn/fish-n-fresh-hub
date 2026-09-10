@@ -414,9 +414,9 @@ export function DriverDispatchPage() {
   return (
     <AdminShell title="Driver Dispatch & Fleet Management" allow={["admin", "driver", "staff"]}>
       {/* Tab Controls & Auto-Assign Header */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
-          <div className="overflow-x-auto no-scrollbar max-w-full pb-0.5">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4 w-full min-w-0 max-w-full">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3 w-full min-w-0">
+          <div className="w-full min-w-0 overflow-x-auto no-scrollbar pb-0.5">
             <TabsList className="h-9 rounded-xl p-1 bg-muted/60 flex-nowrap">
               <TabsTrigger value="dispatch" className="rounded-lg text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap shrink-0">
                 <Truck className="size-3.5" /> Live Dispatch ({activeDeliveries.length})

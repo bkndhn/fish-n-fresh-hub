@@ -74,10 +74,12 @@ const PRIMARY_MOBILE_PATHS = ["/admin", "/admin/orders", "/admin/products", "/ad
 
 export function AdminShell({
   title,
+  action,
   children,
   allow = ["admin"],
 }: {
   title: string;
+  action?: ReactNode;
   children: ReactNode;
   allow?: readonly AppRole[];
 }) {
@@ -190,7 +192,10 @@ export function AdminShell({
         </aside>
 
         <main className="min-w-0 flex-1 max-w-full overflow-x-hidden pb-24 md:pb-6">
-          <h1 className="mb-3 font-display text-xl font-bold text-foreground sm:text-2xl sm:mb-4">{title}</h1>
+          <div className="mb-3 sm:mb-4 flex flex-wrap items-center justify-between gap-2.5">
+            <h1 className="font-display text-xl font-bold text-foreground sm:text-2xl">{title}</h1>
+            {action && <div className="flex items-center gap-2 shrink-0">{action}</div>}
+          </div>
           {children}
         </main>
       </div>

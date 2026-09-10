@@ -53,7 +53,7 @@ export async function registerPushNotification(
     if (perm !== "granted") return null;
 
     // Register service worker if not already registered
-    const reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+    const reg = await navigator.serviceWorker.register("/sw.js");
     await navigator.serviceWorker.ready;
 
     // Generate or fetch push subscription
@@ -98,8 +98,8 @@ export function showLocalNotification(
 
   try {
     const notif = new Notification(title, {
-      icon: "/icons/icon-192x192.png",
-      badge: "/icons/icon-72x72.png",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
       ...options,
     });
 
@@ -114,8 +114,8 @@ export function showLocalNotification(
     // If constructor fails on Android Chrome, try service worker
     navigator.serviceWorker?.ready.then((reg) => {
       reg.showNotification(title, {
-        icon: "/icons/icon-192x192.png",
-        badge: "/icons/icon-72x72.png",
+        icon: "/icons/icon-192.png",
+        badge: "/icons/icon-192.png",
         ...options,
       });
     });

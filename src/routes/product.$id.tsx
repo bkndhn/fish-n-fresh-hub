@@ -164,8 +164,13 @@ function ProductPage() {
           </div>
           <p className="text-sm text-muted-foreground">per {product.unit}</p>
 
-          {/* Real-time Urgency / Out of Stock Banner */}
-          {isOutOfStock ? (
+          {/* Real-time Urgency / Out of Stock / Inactive Banner */}
+          {product.is_available === false ? (
+            <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400">
+              <span className="size-2 rounded-full bg-rose-500" />
+              Item Currently Inactive — Not Available for Ordering
+            </div>
+          ) : isOutOfStock ? (
             <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400">
               <span className="size-2 rounded-full bg-rose-500" />
               Sold out for today — daily fresh catch arrives tomorrow morning

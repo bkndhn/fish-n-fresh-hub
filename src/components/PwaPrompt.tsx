@@ -9,9 +9,28 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
+// Global listener to capture beforeinstallprompt as early as script execution
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", (e: any) => {
+    e.preventDefault();
+    (window as any).__pwaInstallPrompt = e;
+    window.dispatchEvent(new CustomEvent("pwa-prompt-ready"));
+  });
+}
+
 // Global helper to trigger PWA install modal from any button in the app
 export function promptPwaInstall() {
   if (typeof window !== "undefined") {
+    const prompt = (window as any).__pwaInstallPrompt;
+    if (prompt) {
+      prompt.prompt();
+      prompt.userChoice.then((choice: any) => {
+        if (choice.outcome === "accepted") {
+          (window as any).__pwaInstallPrompt = null;
+        }
+      });
+      return;
+    }
     window.dispatchEvent(new CustomEvent("open-pwa-install"));
   }
 }
@@ -33,7 +52,8 @@ export function PwaPrompt() {
     // 2. Check if already installed / standalone
     const standaloneCheck =
       window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as any).standalone === true;
+      (window.navigator as any).standalone === true ||
+      document.referrer.includes("android-app://");
     setIsStandalone(standaloneCheck);
     if (standaloneCheck) return;
 
@@ -42,34 +62,50 @@ export function PwaPrompt() {
     const isIosDevice = /iphone|ipad|ipod/.test(ua);
     setIsIos(isIosDevice);
 
-    // 4. Listen for beforeinstallprompt (Android / Desktop Chrome / Edge)
+    // 4. Check for existing prompt
+    if ((window as any).__pwaInstallPrompt) {
+      setDeferredPrompt((window as any).__pwaInstallPrompt);
+    }
+
+    const onPromptReady = () => {
+      if ((window as any).__pwaInstallPrompt) {
+        setDeferredPrompt((window as any).__pwaInstallPrompt);
+      }
+    };
+    window.addEventListener("pwa-prompt-ready", onPromptReady);
+
+    // 5. Listen for beforeinstallprompt (Android / Desktop Chrome / Edge)
     const installHandler = (e: Event) => {
       e.preventDefault();
+      (window as any).__pwaInstallPrompt = e;
       setDeferredPrompt(e);
-      // Cooldown check (show again after 24h if dismissed)
-      const dismissedAt = localStorage.getItem("pwa_dismissed_at");
-      const isCool = !dismissedAt || Date.now() - Number(dismissedAt) > 24 * 60 * 60 * 1000;
-      if (isCool) {
+      const dismissed = sessionStorage.getItem("pwa_banner_dismissed");
+      if (!dismissed) {
         setShowBanner(true);
       }
     };
     window.addEventListener("beforeinstallprompt", installHandler);
 
-    // Show banner on iOS if not dismissed in 24h
-    if (isIosDevice) {
-      const dismissedAt = localStorage.getItem("pwa_dismissed_at");
-      const isCool = !dismissedAt || Date.now() - Number(dismissedAt) > 24 * 60 * 60 * 1000;
-      if (isCool) {
-        setShowBanner(true);
-      }
+    // Show banner on iOS or Android if not dismissed in this session
+    const dismissed = sessionStorage.getItem("pwa_banner_dismissed");
+    if (!dismissed) {
+      setShowBanner(true);
     }
 
-    // 5. Global trigger handler
+    // 6. Global trigger handler
     const manualOpenHandler = () => {
-      if (isIosDevice) {
+      const activePrompt = deferredPrompt || (window as any).__pwaInstallPrompt;
+      if (activePrompt) {
+        activePrompt.prompt();
+        activePrompt.userChoice.then((choice: any) => {
+          if (choice.outcome === "accepted") {
+            setShowBanner(false);
+            (window as any).__pwaInstallPrompt = null;
+            setDeferredPrompt(null);
+          }
+        });
+      } else if (isIosDevice) {
         setShowIosGuide(true);
-      } else if (deferredPrompt) {
-        handleNativeInstall();
       } else {
         setShowDesktopGuide(true);
       }
@@ -78,29 +114,33 @@ export function PwaPrompt() {
 
     return () => {
       window.removeEventListener("beforeinstallprompt", installHandler);
+      window.removeEventListener("pwa-prompt-ready", onPromptReady);
       window.removeEventListener("open-pwa-install", manualOpenHandler);
     };
-  }, [deferredPrompt]);
+  }, []);
 
   const handleNativeInstall = async () => {
-    if (!deferredPrompt) {
+    const activePrompt = deferredPrompt || (typeof window !== "undefined" && (window as any).__pwaInstallPrompt);
+    if (!activePrompt) {
       if (isIos) setShowIosGuide(true);
       else setShowDesktopGuide(true);
       return;
     }
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
+    activePrompt.prompt();
+    const { outcome } = await activePrompt.userChoice;
     if (outcome === "accepted") {
       setShowBanner(false);
+      (window as any).__pwaInstallPrompt = null;
+      setDeferredPrompt(null);
     }
-    setDeferredPrompt(null);
   };
 
   const handleBannerInstallClick = () => {
-    if (isIos) {
-      setShowIosGuide(true);
-    } else if (deferredPrompt) {
+    const activePrompt = deferredPrompt || (typeof window !== "undefined" && (window as any).__pwaInstallPrompt);
+    if (activePrompt) {
       handleNativeInstall();
+    } else if (isIos) {
+      setShowIosGuide(true);
     } else {
       setShowDesktopGuide(true);
     }
@@ -108,7 +148,7 @@ export function PwaPrompt() {
 
   const handleDismiss = () => {
     setShowBanner(false);
-    localStorage.setItem("pwa_dismissed_at", Date.now().toString());
+    sessionStorage.setItem("pwa_banner_dismissed", "1");
   };
 
   if (isStandalone) return null;

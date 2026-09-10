@@ -44,7 +44,7 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { formatINR } from "@/lib/format";
+import { formatINR, formatInvoiceDateTime } from "@/lib/format";
 import { restoreOrderStock } from "@/lib/inventorySync";
 import {
   getSavedPrinterConfig,
@@ -216,10 +216,7 @@ export function PosPastBillsModal({
         cuttingStyle: it.cutting_style || undefined,
       }));
 
-      const dateStr = new Date(order.created_at).toLocaleString("en-IN", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      });
+      const dateStr = formatInvoiceDateTime(order.created_at, true);
 
       const receiptData: PosReceiptData = {
         receiptNo: order.order_number || order.id.slice(0, 8),
@@ -278,7 +275,7 @@ export function PosPastBillsModal({
 
     const receiptData: PosReceiptData = {
       receiptNo: order.order_number || order.id.slice(0, 8),
-      date: new Date(order.created_at).toLocaleString("en-IN"),
+      date: formatInvoiceDateTime(order.created_at, true),
       cashierName: order.pos_cashier_name || "Counter Staff",
       customerName: order.customer_name,
       customerPhone: phone,

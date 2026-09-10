@@ -7,7 +7,7 @@ import {
   numberToIndianWords,
   printOrDownloadTaxInvoice,
 } from "@/lib/invoicePdf";
-import { formatINR } from "@/lib/format";
+import { formatINR, formatInvoiceDateTime } from "@/lib/format";
 
 interface TaxInvoiceModalProps {
   isOpen: boolean;
@@ -20,11 +20,7 @@ export function TaxInvoiceModal({ isOpen, onClose, order, settings }: TaxInvoice
   if (!order) return null;
 
   const invoiceNumber = `INV-${order.order_number || order.id.slice(0, 8).toUpperCase()}`;
-  const invoiceDate = new Date(order.created_at || Date.now()).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  const invoiceDate = formatInvoiceDateTime(order.created_at || Date.now(), true);
 
   const parsedItems: InvoiceItem[] = Array.isArray(order.items)
     ? order.items.map((it: any) => ({
@@ -115,7 +111,7 @@ export function TaxInvoiceModal({ isOpen, onClose, order, settings }: TaxInvoice
             </div>
             <div className="text-right">
               <div className="text-sm font-bold text-primary">{invoiceNumber}</div>
-              <div className="text-muted-foreground text-[11px] mt-0.5">Date: {invoiceDate}</div>
+              <div className="text-muted-foreground text-[11px] mt-0.5">Date &amp; Time: <span className="font-semibold text-foreground">{invoiceDate}</span></div>
               <div className="text-muted-foreground text-[11px]">Ref: #{invoiceData.orderNumber}</div>
             </div>
           </div>

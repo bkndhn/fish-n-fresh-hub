@@ -1933,13 +1933,13 @@ export function Reports() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="pt-3 pb-5 space-y-4">
-          <div className="grid gap-4 lg:grid-cols-3">
+        <CardContent className="pt-3 pb-5 space-y-4 min-w-0 max-w-full">
+          <div className="grid gap-4 lg:grid-cols-3 min-w-0 max-w-full">
             {/* Cohort Heatmap Grid */}
-            <div className="lg:col-span-2 space-y-2">
+            <div className="lg:col-span-2 min-w-0 max-w-full space-y-2">
               <p className="text-xs font-bold text-foreground">Monthly Retention Heatmap Grid</p>
-              <div className="overflow-x-auto rounded-2xl border border-border/60">
-                <table className="w-full text-left text-xs">
+              <div className="w-full min-w-0 overflow-x-auto no-scrollbar rounded-2xl border border-border/60">
+                <table className="w-full min-w-[540px] text-left text-xs">
                   <thead>
                     <tr className="border-b border-border/60 bg-muted/30 text-muted-foreground">
                       <th className="py-2 px-3 font-semibold">Acquisition Month</th>

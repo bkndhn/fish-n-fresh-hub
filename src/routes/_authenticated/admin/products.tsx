@@ -77,7 +77,8 @@ function ProductsAdmin() {
   const [refillProduct, setRefillProduct] = useState<Product | null>(null);
   const [refillQty, setRefillQty] = useState<string>("10");
   const [makeLiveOnRefill, setMakeLiveOnRefill] = useState<boolean>(true);
-  const [stockFilter, setStockFilter] = useState<"all" | "low" | "featured" | "bestseller">("all");
+  const [filterType, setFilterType] = useState<"all" | "active" | "inactive" | "featured" | "bestseller" | "low">("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [aiProduct, setAiProduct] = useState<Product | null>(null);
@@ -269,14 +270,19 @@ function ProductsAdmin() {
     return 5;
   };
 
-  const lowStockProducts = allProducts.filter((p) => (p.stock ?? 0) <= getThreshold(p) || !p.is_available);
+  const activeProducts = allProducts.filter((p) => p.is_available !== false);
+  const inactiveProducts = allProducts.filter((p) => p.is_available === false);
+  const lowStockProducts = allProducts.filter((p) => (p.stock ?? 0) <= getThreshold(p));
   const featuredProducts = allProducts.filter((p) => p.is_featured);
   const bestSellerProducts = allProducts.filter((p) => p.is_bestseller);
 
   const list = allProducts.filter((p) => {
-    if (stockFilter === "low" && !((p.stock ?? 0) <= getThreshold(p) || !p.is_available)) return false;
-    if (stockFilter === "featured" && !p.is_featured) return false;
-    if (stockFilter === "bestseller" && !p.is_bestseller) return false;
+    if (filterType === "active" && p.is_available === false) return false;
+    if (filterType === "inactive" && p.is_available !== false) return false;
+    if (filterType === "low" && !((p.stock ?? 0) <= getThreshold(p))) return false;
+    if (filterType === "featured" && !p.is_featured) return false;
+    if (filterType === "bestseller" && !p.is_bestseller) return false;
+    if (selectedCategory !== "all" && p.category !== selectedCategory) return false;
     if (!search.trim()) return true;
     const term = search.toLowerCase();
     return (
@@ -401,7 +407,18 @@ function ProductsAdmin() {
   };
 
   return (
-    <AdminShell title="Products & Inventory" allow={["admin", "staff"]}>
+    <AdminShell
+      title="Products & Inventory"
+      allow={["admin", "staff"]}
+      action={
+        <Button
+          className="rounded-xl h-9 font-bold shadow-xs"
+          onClick={() => setOpenAdd(true)}
+        >
+          <Plus className="mr-1.5 size-4" /> Add Product
+        </Button>
+      }
+    >
       {/* Low Stock Warning Banner */}
       {lowStockProducts.length > 0 && (
         <div className="mb-4 rounded-3xl border border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-card to-card p-3.5 sm:p-4 shadow-sm">
@@ -424,11 +441,11 @@ function ProductsAdmin() {
             </div>
             <Button
               size="sm"
-              variant={stockFilter === "low" ? "default" : "outline"}
+              variant={filterType === "low" ? "default" : "outline"}
               className="rounded-xl h-7.5 text-xs font-bold self-start sm:self-auto border-amber-500/40 text-amber-700 dark:text-amber-300"
-              onClick={() => setStockFilter(stockFilter === "low" ? "all" : "low")}
+              onClick={() => setFilterType(filterType === "low" ? "all" : "low")}
             >
-              {stockFilter === "low" ? "Show All Items" : "View Depleted Only"}
+              {filterType === "low" ? "Show All Items" : "View Depleted Only"}
             </Button>
           </div>
 
@@ -465,85 +482,135 @@ function ProductsAdmin() {
         </div>
       )}
 
-      {/* Search, Filter Pills, and Add Product */}
-      <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            placeholder="Search products by name or category..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 pr-8 rounded-xl h-10 bg-card text-sm"
-          />
-          {search && (
+      {/* Search Bar */}
+      <div className="mb-3 relative w-full">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+        <Input
+          placeholder="Search products by name, tamil name, or category..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9 pr-8 rounded-xl h-10 bg-card text-sm w-full"
+        />
+        {search && (
+          <button
+            type="button"
+            onClick={() => setSearch("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="size-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Primary Filter Tabs - Full-width horizontally scrollable row */}
+      <div className="mb-2 w-full min-w-0 overflow-x-auto no-scrollbar flex items-center gap-1.5 pb-1">
+        <Button
+          size="sm"
+          variant={filterType === "all" ? "default" : "outline"}
+          className="rounded-xl h-8.5 text-xs font-semibold shrink-0"
+          onClick={() => setFilterType("all")}
+        >
+          All ({allProducts.length})
+        </Button>
+        <Button
+          size="sm"
+          variant={filterType === "active" ? "default" : "outline"}
+          className={`rounded-xl h-8.5 text-xs font-semibold shrink-0 ${
+            filterType === "active"
+              ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+              : "border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
+          }`}
+          onClick={() => setFilterType("active")}
+        >
+          <Eye className="mr-1.5 size-3.5" /> Active ({activeProducts.length})
+        </Button>
+        <Button
+          size="sm"
+          variant={filterType === "inactive" ? "default" : "outline"}
+          className={`rounded-xl h-8.5 text-xs font-semibold shrink-0 ${
+            filterType === "inactive"
+              ? "bg-rose-600 hover:bg-rose-700 text-white"
+              : "border-rose-500/40 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10"
+          }`}
+          onClick={() => setFilterType("inactive")}
+        >
+          <EyeOff className="mr-1.5 size-3.5" /> Inactive / Hidden ({inactiveProducts.length})
+        </Button>
+        <Button
+          size="sm"
+          variant={filterType === "featured" ? "default" : "outline"}
+          className={`rounded-xl h-8.5 text-xs font-semibold shrink-0 ${
+            filterType === "featured"
+              ? "bg-amber-500 hover:bg-amber-600 text-white"
+              : "border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10"
+          }`}
+          onClick={() => setFilterType("featured")}
+        >
+          ⭐ Featured ({featuredProducts.length})
+        </Button>
+        <Button
+          size="sm"
+          variant={filterType === "bestseller" ? "default" : "outline"}
+          className={`rounded-xl h-8.5 text-xs font-semibold shrink-0 ${
+            filterType === "bestseller"
+              ? "bg-rose-500 hover:bg-rose-600 text-white"
+              : "border-rose-500/40 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10"
+          }`}
+          onClick={() => setFilterType("bestseller")}
+        >
+          🔥 Best Sellers ({bestSellerProducts.length})
+        </Button>
+        <Button
+          size="sm"
+          variant={filterType === "low" ? "default" : "outline"}
+          className={`rounded-xl h-8.5 text-xs font-semibold shrink-0 ${
+            lowStockProducts.length > 0 && filterType !== "low"
+              ? "border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/5"
+              : ""
+          }`}
+          onClick={() => setFilterType("low")}
+        >
+          ⚠️ Low Stock ({lowStockProducts.length})
+        </Button>
+      </div>
+
+      {/* Category Chips - Full-width horizontally scrollable row */}
+      <div className="mb-3.5 w-full min-w-0 overflow-x-auto no-scrollbar flex items-center gap-1.5 pb-1">
+        <button
+          type="button"
+          onClick={() => setSelectedCategory("all")}
+          className={`rounded-full px-3 py-1 text-xs font-semibold shrink-0 transition-all border ${
+            selectedCategory === "all"
+              ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+              : "bg-muted/60 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
+          }`}
+        >
+          All Categories ({allProducts.length})
+        </button>
+        {(categories ?? []).map((cat) => {
+          const count = allProducts.filter((p) => p.category === cat.name).length;
+          return (
             <button
+              key={cat.id}
               type="button"
-              onClick={() => setSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              onClick={() => setSelectedCategory(selectedCategory === cat.name ? "all" : cat.name)}
+              className={`rounded-full px-3 py-1 text-xs font-semibold shrink-0 transition-all border ${
+                selectedCategory === cat.name
+                  ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+                  : "bg-muted/60 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
+              }`}
             >
-              <X className="size-4" />
+              {cat.name} ({count})
             </button>
-          )}
-        </div>
+          );
+        })}
+      </div>
 
-        <div className="flex items-center justify-between sm:justify-end gap-2">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-            <Button
-              size="sm"
-              variant={stockFilter === "all" ? "default" : "outline"}
-              className="rounded-xl h-9 text-xs font-semibold shrink-0"
-              onClick={() => setStockFilter("all")}
-            >
-              All ({allProducts.length})
-            </Button>
-            <Button
-              size="sm"
-              variant={stockFilter === "featured" ? "default" : "outline"}
-              className={`rounded-xl h-9 text-xs font-semibold shrink-0 ${
-                stockFilter === "featured"
-                  ? "bg-amber-500 hover:bg-amber-600 text-white"
-                  : "border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10"
-              }`}
-              onClick={() => setStockFilter("featured")}
-            >
-              ⭐ Featured ({featuredProducts.length})
-            </Button>
-            <Button
-              size="sm"
-              variant={stockFilter === "bestseller" ? "default" : "outline"}
-              className={`rounded-xl h-9 text-xs font-semibold shrink-0 ${
-                stockFilter === "bestseller"
-                  ? "bg-rose-500 hover:bg-rose-600 text-white"
-                  : "border-rose-500/40 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10"
-              }`}
-              onClick={() => setStockFilter("bestseller")}
-            >
-              🔥 Best Sellers ({bestSellerProducts.length})
-            </Button>
-            <Button
-              size="sm"
-              variant={stockFilter === "low" ? "default" : "outline"}
-              className={`rounded-xl h-9 text-xs font-semibold shrink-0 ${
-                lowStockProducts.length > 0 && stockFilter !== "low"
-                  ? "border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/5"
-                  : ""
-              }`}
-              onClick={() => setStockFilter("low")}
-            >
-              ⚠️ Low Stock ({lowStockProducts.length})
-            </Button>
-          </div>
-
-          <Dialog open={openAdd} onOpenChange={setOpenAdd}>
-            <DialogTrigger asChild>
-              <Button className="rounded-xl shrink-0 h-9 font-bold shadow-xs">
-                <Plus className="mr-1.5 size-4" /> Add Product
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Add New Seafood Product</DialogTitle>
-              </DialogHeader>
+      <Dialog open={openAdd} onOpenChange={setOpenAdd}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add New Seafood Product</DialogTitle>
+          </DialogHeader>
             <div className="space-y-4 pt-2">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
@@ -710,7 +777,9 @@ function ProductsAdmin() {
                     checked={newProduct.is_available}
                     onCheckedChange={(is_available) => setNewProduct({ ...newProduct, is_available })}
                   />
-                  <span>Store Live</span>
+                  <span className={newProduct.is_available ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-rose-600 dark:text-rose-400 font-bold"}>
+                    {newProduct.is_available ? "Active (Live in Store & POS)" : "Inactive (Hidden)"}
+                  </span>
                 </label>
                 <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-amber-700 dark:text-amber-300">
                   <Switch
@@ -752,8 +821,6 @@ function ProductsAdmin() {
             </div>
           </DialogContent>
         </Dialog>
-        </div>
-      </div>
 
       {/* Bulk Action Toolbar & Multi-Select Bar */}
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 bg-card p-2.5 shadow-2xs">
@@ -926,7 +993,9 @@ function ProductsAdmin() {
                       {/* Stock Status Badge with proper unit formatting */}
                       <span
                         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold border shrink-0 ${
-                          isOut || !p.is_available
+                          !p.is_available
+                            ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/40"
+                            : isOut
                             ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
                             : isLow
                             ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
@@ -935,17 +1004,19 @@ function ProductsAdmin() {
                       >
                         <span
                           className={`size-1.5 rounded-full ${
-                            isOut || !p.is_available
+                            !p.is_available
+                              ? "bg-rose-600"
+                              : isOut
                               ? "bg-rose-500"
                               : isLow
                               ? "bg-amber-500 animate-pulse"
                               : "bg-emerald-500"
                           }`}
                         />
-                        {isOut
+                        {!p.is_available
+                          ? "Inactive (Hidden)"
+                          : isOut
                           ? "Out of Stock"
-                          : !p.is_available
-                          ? `Paused (${formatStockDisplay(p.stock, p.unit)})`
                           : isLow
                           ? `Low: ${formatStockDisplay(p.stock, p.unit)}`
                           : formatStockDisplay(p.stock, p.unit)}
@@ -1034,11 +1105,26 @@ function ProductsAdmin() {
                   <div className="flex items-center justify-between px-2 sm:justify-center sm:gap-2">
                     <div className="space-y-0.5">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Store Live</p>
-                      <p className="text-[10px] text-muted-foreground">{p.is_available ? "Active" : "Hidden"}</p>
+                      <p className={`text-[10px] font-bold ${p.is_available ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                        {p.is_available ? "Active" : "Inactive / Hidden"}
+                      </p>
                     </div>
                     <Switch
                       checked={p.is_available}
-                      onCheckedChange={(is_available) => update.mutate({ id: p.id, patch: { is_available } })}
+                      onCheckedChange={(is_available) => {
+                        update.mutate(
+                          { id: p.id, patch: { is_available } },
+                          {
+                            onSuccess: () => {
+                              toast.success(
+                                is_available
+                                  ? `"${p.name}" is now Active (visible online & POS)`
+                                  : `"${p.name}" is now Inactive (hidden from online & POS)`
+                              );
+                            },
+                          }
+                        );
+                      }}
                     />
                   </div>
 
@@ -1311,7 +1397,9 @@ function ProductsAdmin() {
                     checked={editingProduct.is_available}
                     onCheckedChange={(is_available) => setEditingProduct({ ...editingProduct, is_available })}
                   />
-                  <span>Store Live</span>
+                  <span className={editingProduct.is_available ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-rose-600 dark:text-rose-400 font-bold"}>
+                    {editingProduct.is_available ? "Active (Live in Store & POS)" : "Inactive (Hidden)"}
+                  </span>
                 </label>
                 <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-amber-700 dark:text-amber-300">
                   <Switch

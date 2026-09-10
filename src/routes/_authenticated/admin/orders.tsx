@@ -30,7 +30,7 @@ import { DeliveryPinVerificationModal } from "@/components/DeliveryPinVerificati
 import { TaxInvoiceModal } from "@/components/TaxInvoiceModal";
 import { getGoogleMapsDirUrl } from "@/lib/maps";
 import { settingsQuery } from "@/lib/queries";
-import { formatINR, formatIST } from "@/lib/format";
+import { formatINR, formatIST, formatInvoiceDateTime } from "@/lib/format";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { supabase } from "@/integrations/supabase/client";
@@ -691,7 +691,7 @@ function OrdersAdmin() {
               <div className="flex justify-between border-b pb-2">
                 <div>
                   <p><strong>Order:</strong> #{printOrder.order_number ?? printOrder.id.slice(0, 8)}</p>
-                  <p><strong>Date:</strong> {formatIST(printOrder.created_at)}</p>
+                  <p><strong>Date &amp; Time:</strong> {formatInvoiceDateTime(printOrder.created_at)}</p>
                 </div>
                 <div className="text-right">
                   <p className="uppercase"><strong>{printOrder.payment_method}</strong></p>

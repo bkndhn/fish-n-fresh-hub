@@ -242,14 +242,14 @@ export function SeoSettingsManager({ form, setForm }: SeoSettingsManagerProps) {
 
         {/* Live Search & Social Graph Preview */}
         <div className="space-y-3 pt-2">
-          <div className="flex items-center justify-between border-b pb-2">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b pb-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Live Search &amp; Social Simulator
               </span>
               <Badge variant="outline" className="text-[10px]">Real-Time Render</Badge>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <Button
                 size="sm"
                 variant={previewMode === "google" ? "default" : "outline"}
