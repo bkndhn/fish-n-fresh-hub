@@ -186,6 +186,66 @@ function PromotionsAdmin() {
     onError: () => toast.error("Could not update campaign"),
   });
 
+  const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
+  const [campaignForm, setCampaignForm] = useState({
+    name: "",
+    type: "flash_sale" as "flash_sale" | "cart_rule" | "ab_test",
+    banner_headline: "",
+    banner_subtext: "",
+    variant_a_code: "",
+    variant_b_code: "",
+    min_cart_value: 499,
+    discount_amount: 50,
+    hours: 4,
+  });
+
+  const createCampaign = useMutation({
+    mutationFn: async (payload: typeof campaignForm) => {
+      const record = {
+        name: payload.name.trim(),
+        title: payload.name.trim(),
+        type: payload.type,
+        campaign_type: payload.type,
+        banner_headline: payload.banner_headline.trim() || payload.name.trim(),
+        banner_subtext: payload.banner_subtext.trim(),
+        variant_a_code: payload.variant_a_code.trim().toUpperCase() || null,
+        variant_b_code: payload.type === "ab_test" ? payload.variant_b_code.trim().toUpperCase() : null,
+        min_cart_value: Number(payload.min_cart_value || 0),
+        min_cart_amount: Number(payload.min_cart_value || 0),
+        discount_amount: Number(payload.discount_amount || 0),
+        starts_at: new Date().toISOString(),
+        ends_at: payload.type === "flash_sale" ? new Date(Date.now() + payload.hours * 3600000).toISOString() : null,
+        is_active: true,
+        impressions_a: 0,
+        conversions_a: 0,
+        impressions_b: 0,
+        conversions_b: 0,
+      };
+
+      const { error } = await (supabase as any).from("marketing_campaigns").insert([record]);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Marketing Campaign launched successfully!");
+      setCampaignDialogOpen(false);
+      qc.invalidateQueries({ queryKey: ["admin", "marketing-campaigns"] });
+      setCampaignForm({
+        name: "",
+        type: "flash_sale",
+        banner_headline: "",
+        banner_subtext: "",
+        variant_a_code: "",
+        variant_b_code: "",
+        min_cart_value: 499,
+        discount_amount: 50,
+        hours: 4,
+      });
+    },
+    onError: (err: any) => {
+      toast.error("Failed to launch campaign: " + (err.message || err));
+    },
+  });
+
   // Toggle quick active status
   const toggle = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
@@ -516,9 +576,18 @@ function PromotionsAdmin() {
                 </p>
               </div>
             </div>
-            <Badge className="bg-primary text-primary-foreground font-semibold text-xs">
-              Autonomous Growth Engine Active
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge className="bg-primary text-primary-foreground font-semibold text-xs">
+                Autonomous Growth Engine Active
+              </Badge>
+              <Button
+                size="sm"
+                className="rounded-xl h-8 text-xs font-semibold gap-1.5 shadow-xs"
+                onClick={() => setCampaignDialogOpen(true)}
+              >
+                <Plus className="size-3.5" /> Launch Campaign
+              </Button>
+            </div>
           </div>
 
           <div className="grid gap-4">
@@ -840,6 +909,177 @@ function PromotionsAdmin() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Launch Marketing Campaign Dialog */}
+      <Dialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen}>
+        <DialogContent className="max-w-md rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <Flame className="size-5 text-amber-500" /> Launch Growth Campaign
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Configure flash sales, automated basket reward rules, or A/B split conversion experiments.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!campaignForm.name.trim()) {
+                toast.error("Please enter a campaign name");
+                return;
+              }
+              createCampaign.mutate(campaignForm);
+            }}
+            className="space-y-4 pt-2"
+          >
+            <div>
+              <Label className="text-xs">Campaign Format</Label>
+              <Select
+                value={campaignForm.type}
+                onValueChange={(val: any) => setCampaignForm({ ...campaignForm, type: val })}
+              >
+                <SelectTrigger className="mt-1 rounded-xl text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="flash_sale">⚡ Flash Deal (Countdown + Top Bar)</SelectItem>
+                  <SelectItem value="cart_rule">🎁 Auto Cart Reward (Zero Code Required)</SelectItem>
+                  <SelectItem value="ab_test">⚖️ A/B Promotional Split Test</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-xs">Campaign Name</Label>
+              <Input
+                placeholder="e.g. Sunday Morning Catch Rush"
+                value={campaignForm.name}
+                onChange={(e) => setCampaignForm({ ...campaignForm, name: e.target.value })}
+                className="mt-1 rounded-xl text-xs"
+                required
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs">Top Bar Banner Headline</Label>
+              <Input
+                placeholder="e.g. ⚡ Harbour Fresh Flash Deal: 15% Off Until 11:30 AM"
+                value={campaignForm.banner_headline}
+                onChange={(e) => setCampaignForm({ ...campaignForm, banner_headline: e.target.value })}
+                className="mt-1 rounded-xl text-xs"
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs">Subtext / Instructions</Label>
+              <Input
+                placeholder="e.g. Use code MORNING15 at checkout for freshly landed Seer Fish."
+                value={campaignForm.banner_subtext}
+                onChange={(e) => setCampaignForm({ ...campaignForm, banner_subtext: e.target.value })}
+                className="mt-1 rounded-xl text-xs"
+              />
+            </div>
+
+            {campaignForm.type === "ab_test" ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Variant A Promo Code</Label>
+                  <Input
+                    placeholder="e.g. FLAT100"
+                    value={campaignForm.variant_a_code}
+                    onChange={(e) => setCampaignForm({ ...campaignForm, variant_a_code: e.target.value.toUpperCase() })}
+                    className="mt-1 rounded-xl text-xs font-mono"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Variant B Promo Code</Label>
+                  <Input
+                    placeholder="e.g. SEAFOOD15"
+                    value={campaignForm.variant_b_code}
+                    onChange={(e) => setCampaignForm({ ...campaignForm, variant_b_code: e.target.value.toUpperCase() })}
+                    className="mt-1 rounded-xl text-xs font-mono"
+                    required
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">
+                    {campaignForm.type === "cart_rule" ? "Optional Promo Code" : "Flash Coupon Code"}
+                  </Label>
+                  <Input
+                    placeholder={campaignForm.type === "cart_rule" ? "None (Auto Applied)" : "e.g. FLASH20"}
+                    value={campaignForm.variant_a_code}
+                    onChange={(e) => setCampaignForm({ ...campaignForm, variant_a_code: e.target.value.toUpperCase() })}
+                    className="mt-1 rounded-xl text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Minimum Spend (₹)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={campaignForm.min_cart_value}
+                    onChange={(e) => setCampaignForm({ ...campaignForm, min_cart_value: Number(e.target.value) })}
+                    className="mt-1 rounded-xl text-xs"
+                  />
+                </div>
+              </div>
+            )}
+
+            {campaignForm.type === "cart_rule" && (
+              <div>
+                <Label className="text-xs">Automatic Reward Discount (₹)</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={campaignForm.discount_amount}
+                  onChange={(e) => setCampaignForm({ ...campaignForm, discount_amount: Number(e.target.value) })}
+                  className="mt-1 rounded-xl text-xs"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Orders exceeding ₹{campaignForm.min_cart_value} will automatically receive this flat deduction.
+                </p>
+              </div>
+            )}
+
+            {campaignForm.type === "flash_sale" && (
+              <div>
+                <Label className="text-xs">Flash Sale Duration (Hours)</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="48"
+                  value={campaignForm.hours}
+                  onChange={(e) => setCampaignForm({ ...campaignForm, hours: Number(e.target.value) })}
+                  className="mt-1 rounded-xl text-xs"
+                />
+              </div>
+            )}
+
+            <DialogFooter className="mt-4 flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl text-xs"
+                onClick={() => setCampaignDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="rounded-xl text-xs font-semibold"
+                disabled={createCampaign.isPending}
+              >
+                {createCampaign.isPending ? "Launching..." : "Launch Campaign"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </AdminShell>
   );
 }

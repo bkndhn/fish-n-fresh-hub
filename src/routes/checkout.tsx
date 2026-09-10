@@ -29,6 +29,8 @@ import { CustomerDeliveryPinCard } from "@/components/CustomerDeliveryPinCard";
 import { getOrCreateUserWallet, calculateMaxRedeemable, redeemWalletBalance, validateReferralCode } from "@/lib/wallet";
 import { notifyOrderStatusChange } from "@/lib/fcm";
 import { checkCartStockAvailability, deductOrderStock } from "@/lib/inventorySync";
+import { sendOrderConfirmedEmailServer } from "@/lib/emails.functions";
+import { evaluateCartRewardRule, recordCampaignConversion, type MarketingCampaign } from "@/lib/campaigns";
 
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371; // Radius of the earth in km
@@ -67,12 +69,16 @@ function Checkout() {
   const { user } = useSessionUser();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   
   useEffect(() => {
+    const savedEmail = localStorage.getItem("fnf_email") || "";
+    if (savedEmail && !email) setEmail(savedEmail);
     if (user) {
       if (!name) setName((user.user_metadata?.['full_name'] as string) || "");
       if (!phone) setPhone((user.user_metadata?.['phone'] as string) || "");
+      if (!email && user.email) setEmail(user.email);
     }
   }, [user]);
 
@@ -164,6 +170,28 @@ function Checkout() {
   });
   gstAmount = Math.round(gstAmount);
 
+  // Automated Marketing Campaigns & Cart Rules
+  const { data: activeCampaigns = [] } = useQuery({
+    queryKey: ["checkout-active-campaigns"],
+    queryFn: async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .from("marketing_campaigns")
+          .select("*")
+          .eq("is_active", true);
+        if (error || !data) return [];
+        return data as MarketingCampaign[];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const autoCartReward = !appliedPromo
+    ? evaluateCartRewardRule(subtotal, activeCampaigns)
+    : { eligible: false, discountAmount: 0, title: "" };
+  const autoRewardDiscount = autoCartReward.eligible ? autoCartReward.discountAmount : 0;
+
   // FreshCash Wallet calculations
   const walletEnabled = (settings as any)?.wallet_enabled ?? true;
   const maxBurnPercent = Number((settings as any)?.max_wallet_burn_percent ?? 50);
@@ -172,7 +200,7 @@ function Checkout() {
   const walletDiscount = useWalletBalance && walletEnabled ? maxRedeemableFreshCash : 0;
   const referralDiscount = appliedReferral ? appliedReferral.bonus : 0;
 
-  const discount = (appliedPromo?.discount ?? 0) + referralDiscount;
+  const discount = (appliedPromo?.discount ?? 0) + autoRewardDiscount + referralDiscount;
   const total = Math.max(0, subtotal - discount - walletDiscount + deliveryFee + gstAmount);
 
   async function applyReferralCode() {
@@ -364,6 +392,7 @@ function Checkout() {
       .insert({
         customer_name: cleanName,
         customer_phone: cleanPhone,
+        customer_email: email.trim() || null,
         customer_address: fulfillment === "delivery" ? address : null,
         location_lat: fulfillment === "delivery" ? finalLat : null,
         location_lng: fulfillment === "delivery" ? finalLng : null,
@@ -372,7 +401,7 @@ function Checkout() {
         delivery_fee: deliveryFee,
         gst_amount: gstAmount,
         discount,
-        coupon_code: appliedPromo?.code ?? (appliedReferral?.code || null),
+        coupon_code: appliedPromo?.code ?? (autoCartReward.eligible ? "AUTO_CART_REWARD" : (appliedReferral?.code || null)),
         total,
         status: "pending",
         payment_method: payment,
@@ -390,6 +419,22 @@ function Checkout() {
     if (error || !data) {
       toast.error("Could not place order. Please try again.");
       return;
+    }
+
+    // Record campaign conversion if applicable
+    if (autoCartReward.eligible && autoCartReward.campaignId) {
+      void recordCampaignConversion(autoCartReward.campaignId, "A");
+    } else if (appliedPromo?.code) {
+      const codeUpper = appliedPromo.code.toUpperCase();
+      const matchedCamp = activeCampaigns.find(
+        (c) =>
+          c.variant_a_code?.toUpperCase() === codeUpper ||
+          c.variant_b_code?.toUpperCase() === codeUpper
+      );
+      if (matchedCamp) {
+        const variant = matchedCamp.variant_b_code?.toUpperCase() === codeUpper ? "B" : "A";
+        void recordCampaignConversion(matchedCamp.id, variant);
+      }
     }
 
     // Deduct redeemed FreshCash from customer wallet
@@ -417,9 +462,22 @@ function Checkout() {
       console.warn("FCM push notice:", fcmErr);
     }
 
-    // Atomically reduce product stock
+    // Atomically reduce product stock (Server Function + RPC)
     const snapshotItems = [...items];
     await deductOrderStock(data.id, snapshotItems);
+
+    // Trigger Transactional Order Confirmation Email with GST Invoice attachment
+    const cleanEmail = email.trim();
+    if (cleanEmail) {
+      localStorage.setItem("fnf_email", cleanEmail);
+      try {
+        void sendOrderConfirmedEmailServer({
+          data: { orderId: data.id, customerEmail: cleanEmail },
+        });
+      } catch (emailErr) {
+        console.warn("Order confirmation email notice:", emailErr);
+      }
+    }
 
     localStorage.setItem("fnf_phone", phone);
     clear();
@@ -623,13 +681,28 @@ function Checkout() {
           <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 rounded-xl" />
         </div>
         <div>
-          <Label htmlFor="phone">Phone</Label>
+          <Label htmlFor="phone">Phone *</Label>
           <Input
             id="phone"
             inputMode="numeric"
             value={phone}
             onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
             className="mt-1 rounded-xl"
+            placeholder="10-digit mobile number"
+          />
+        </div>
+        <div>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="email">Email Address</Label>
+            <span className="text-[11px] text-muted-foreground">For GST Tax Invoice &amp; Live Tracking</span>
+          </div>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="mt-1 rounded-xl"
+            placeholder="e.g. yourname@gmail.com"
           />
         </div>
         {fulfillment === "delivery" && (
@@ -1103,6 +1176,14 @@ function Checkout() {
           <div className="flex justify-between text-green-600 dark:text-green-400 font-medium text-xs sm:text-sm">
             <span>Coupon Discount ({appliedPromo.code})</span>
             <span>-{inr(appliedPromo.discount)}</span>
+          </div>
+        )}
+        {autoCartReward.eligible && autoRewardDiscount > 0 && !appliedPromo && (
+          <div className="flex justify-between text-amber-600 dark:text-amber-400 font-medium text-xs sm:text-sm">
+            <span className="flex items-center gap-1">
+              <Gift className="size-3.5" /> {autoCartReward.title}
+            </span>
+            <span>-{inr(autoRewardDiscount)}</span>
           </div>
         )}
         {appliedReferral && appliedReferral.bonus > 0 && (

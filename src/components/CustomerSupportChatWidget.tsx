@@ -168,7 +168,35 @@ export function CustomerSupportChatWidget() {
       )
       .subscribe();
 
+    // Reliable background poll heartbeat (every 3s when chat is open)
+    const interval = setInterval(async () => {
+      if (!conversationId || !isOpen) return;
+      try {
+        const { data: latestMsgs } = await (supabase as any)
+          .from("support_messages")
+          .select("*")
+          .eq("conversation_id", conversationId)
+          .order("created_at", { ascending: true });
+
+        if (latestMsgs && latestMsgs.length > 0) {
+          setMessages((prev) => {
+            if (latestMsgs.length > prev.length) {
+              const last = latestMsgs[latestMsgs.length - 1];
+              if (last && last.sender_type !== "customer" && !prev.some((m) => m.id === last.id)) {
+                playOrderNotificationSound("status");
+              }
+              return latestMsgs;
+            }
+            return prev;
+          });
+        }
+      } catch {
+        // silent heartbeat ignore
+      }
+    }, 3000);
+
     return () => {
+      clearInterval(interval);
       void supabase.removeChannel(channel);
     };
   }, [conversationId, isOpen]);

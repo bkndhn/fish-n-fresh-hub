@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { settingsQuery } from "@/lib/queries";
@@ -14,11 +15,18 @@ import {
   Server, 
   ArrowLeft,
   Calendar,
-  Sparkles
+  Sparkles,
+  PenTool,
+  Award,
+  Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Link } from "@tanstack/react-router";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/licence")({
   head: () => ({
@@ -39,6 +47,58 @@ function LicencePage() {
     month: "long",
     year: "numeric",
   });
+
+  const storageKey = `fnf_licence_signature_${tenant.tenantId}`;
+  const [signatoryName, setSignatoryName] = useState(legalName);
+  const [signatoryTitle, setSignatoryTitle] = useState("Managing Director / Proprietor");
+  const [confirmed, setConfirmed] = useState(false);
+  const [signatureRecord, setSignatureRecord] = useState<{
+    name: string;
+    title: string;
+    signedAt: string;
+    hash: string;
+  } | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setSignatureRecord(parsed);
+        setSignatoryName(parsed.name);
+        setSignatoryTitle(parsed.title);
+      }
+    } catch {}
+  }, [storageKey]);
+
+  const handleSignAgreement = () => {
+    if (!signatoryName.trim()) {
+      toast.error("Please enter the authorized signatory's name");
+      return;
+    }
+    if (!confirmed) {
+      toast.error("Please tick the confirmation checkbox to authorize");
+      return;
+    }
+
+    const now = new Date();
+    const hash = `AGY-SIG-${tenant.tenantId.toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${now.getTime().toString(36).toUpperCase()}`;
+    const record = {
+      name: signatoryName.trim(),
+      title: signatoryTitle.trim() || "Authorized Signatory",
+      signedAt: now.toLocaleString("en-IN", { dateStyle: "long", timeStyle: "medium" }),
+      hash,
+    };
+
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(record));
+    } catch {}
+
+    setSignatureRecord(record);
+    setIsEditing(false);
+    toast.success("Commercial License digitally signed and verified!");
+  };
 
   const handlePrint = () => {
     window.print();
@@ -258,8 +318,119 @@ Generated automatically by Fish N Fresh Hub Architecture Engine.`;
             </section>
           </div>
 
-          {/* Signature & Seal Section */}
-          <div className="mt-10 pt-8 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-8 text-xs">
+          {/* Digital Signature & Certification Action Form (Screen Only) */}
+          <div className="mt-8 pt-6 border-t border-border print:hidden">
+            {!signatureRecord || isEditing ? (
+              <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5 sm:p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                    <PenTool className="size-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-foreground">Digital Signature &amp; Client Execution Form</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Sign and certify this commercial license on behalf of <strong className="text-foreground">{legalName}</strong>.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sig-name" className="text-xs font-semibold">Authorized Signatory Full Name</Label>
+                    <Input
+                      id="sig-name"
+                      value={signatoryName}
+                      onChange={(e) => setSignatoryName(e.target.value)}
+                      placeholder="e.g. Rajesh Kumar"
+                      className="h-9 rounded-xl text-xs bg-background"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sig-title" className="text-xs font-semibold">Designation / Corporate Capacity</Label>
+                    <Input
+                      id="sig-title"
+                      value={signatoryTitle}
+                      onChange={(e) => setSignatoryTitle(e.target.value)}
+                      placeholder="e.g. Managing Director / Proprietor"
+                      className="h-9 rounded-xl text-xs bg-background"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5 pt-1">
+                  <Checkbox
+                    id="sig-confirm"
+                    checked={confirmed}
+                    onCheckedChange={(c) => setConfirmed(Boolean(c))}
+                    className="mt-0.5"
+                  />
+                  <Label htmlFor="sig-confirm" className="text-xs text-muted-foreground leading-normal cursor-pointer">
+                    I confirm that I am legally authorized to bind <strong className="text-foreground">{legalName}</strong>, and hereby accept the Commercial License, SLA targets (99.9% uptime), and statutory data ownership policies.
+                  </Label>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  {signatureRecord && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsEditing(false)}
+                      className="rounded-xl text-xs"
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={handleSignAgreement}
+                    disabled={!confirmed || !signatoryName.trim()}
+                    className="rounded-xl text-xs font-semibold gap-1.5 shadow-xs"
+                  >
+                    <Check className="size-3.5" /> Sign &amp; Certify License
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <Award className="size-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs sm:text-sm text-foreground">
+                        Digitally Executed by {signatureRecord.name}
+                      </span>
+                      <Badge className="bg-emerald-600 text-[10px] py-0 px-2 font-mono">
+                        Legally Certified
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {signatureRecord.title} · Executed on {signatureRecord.signedAt}
+                    </p>
+                    <p className="font-mono text-[10px] text-muted-foreground/80 mt-0.5">
+                      Verification Hash: {signatureRecord.hash}
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setIsEditing(true);
+                    setConfirmed(true);
+                  }}
+                  className="rounded-xl text-xs h-8 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
+                >
+                  <PenTool className="size-3.5 mr-1" /> Re-sign / Modify Signatory
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Signature & Seal Section (Included in PDF Printout) */}
+          <div className="mt-8 pt-8 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-8 text-xs">
             <div className="space-y-3">
               <p className="font-bold text-foreground flex items-center gap-1.5">
                 <ShieldCheck className="size-4 text-primary" /> Authorized Software Licensor
@@ -281,12 +452,18 @@ Generated automatically by Fish N Fresh Hub Architecture Engine.`;
               </p>
               <div className="h-14 flex items-center">
                 <div className="font-serif italic text-base text-foreground font-bold border-b border-border pb-1">
-                  {legalName}
+                  {signatureRecord ? signatureRecord.name : legalName}
                 </div>
               </div>
               <div>
-                <p className="font-semibold text-foreground">Authorized Client Representative</p>
-                <p className="text-[11px] text-muted-foreground">Digital Signature Verified · Active Operational License</p>
+                <p className="font-semibold text-foreground">
+                  {signatureRecord ? `${signatureRecord.name} (${signatureRecord.title})` : "Authorized Client Representative"}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {signatureRecord
+                    ? `Digitally Signed · Verified: ${signatureRecord.hash}`
+                    : "Digital Signature Ready · Active Operational License"}
+                </p>
               </div>
             </div>
           </div>

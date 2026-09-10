@@ -1,6 +1,6 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Anchor, Bell, BellRing, Sparkles, X, Compass, ExternalLink } from "lucide-react";
+import { Anchor, Bell, BellRing, Sparkles, X, Compass, ExternalLink, Zap, Tag, Gift } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { registerPushNotificationToken } from "@/lib/fcm";
 import { useSessionUser } from "@/lib/session";
 import { settingsQuery } from "@/lib/queries";
 import { getVerticalConfig } from "@/lib/verticals";
+import { getVisitorVariant } from "@/lib/campaigns";
 
 export function CatchAlertBanner() {
   const { user } = useSessionUser();
@@ -23,6 +24,25 @@ export function CatchAlertBanner() {
       }
     }
   }, []);
+
+  const { data: activeCampaign } = useQuery({
+    queryKey: ["active-marketing-campaign-banner"],
+    queryFn: async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .from("marketing_campaigns")
+          .select("*")
+          .eq("is_active", true)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (error) return null;
+        return data;
+      } catch {
+        return null;
+      }
+    },
+  });
 
   const { data: latestBroadcast } = useQuery({
     queryKey: ["latest-catch-broadcast"],
@@ -48,35 +68,58 @@ export function CatchAlertBanner() {
   const isAlertsEnabled = (settings as any)?.live_alerts_enabled ?? true;
   if (!isAlertsEnabled || dismissed) return null;
 
-  // If there is no active broadcast and settings don't explicitly configure one, don't show hardcoded kasimedu harbour if not seafood!
+  // Determine if active marketing campaign takes precedence
   const vertical = getVerticalConfig((settings as any)?.business_vertical);
 
-  const title =
-    latestBroadcast?.title ||
-    (settings as any)?.harbour_alert_title ||
-    (vertical.id === "chicken_meat"
-      ? "🍗 Morning Fresh Farm Harvest Arrival"
-      : vertical.id === "all_meat"
-      ? "🥩 Fresh Daily Farm & Harbour Arrival"
-      : "🌅 Kasimedu Harbour Boat Landing Alert");
+  let title = "";
+  let message = "";
+  let badgeLabel = "";
+  let promoCode: string | null = null;
+  let isCampaign = false;
 
-  const message =
-    latestBroadcast?.message ||
-    (settings as any)?.harbour_alert_message ||
-    (vertical.id === "chicken_meat"
-      ? "Daily morning harvest of antibiotic-free broiler & country chicken just arrived fresh at our counter."
-      : vertical.id === "all_meat"
-      ? "Fresh day-catch seafood, tender poultry and fresh cuts arrived for express home delivery."
-      : "Morning 06:30 AM & 02:00 PM boats arriving with fresh Vanjaram (Seer), White Prawns, and Red Snapper.");
+  if (activeCampaign) {
+    isCampaign = true;
+    const variant = getVisitorVariant(activeCampaign.id);
+    const assignedCode = variant === "B" && activeCampaign.variant_b_code
+      ? activeCampaign.variant_b_code
+      : (activeCampaign.variant_a_code || null);
 
-  const harbour =
-    latestBroadcast?.harbour_source ||
-    (settings as any)?.harbour_source_name ||
-    (vertical.id === "chicken_meat"
-      ? "Bio-Secure Farm Hub"
-      : vertical.id === "all_meat"
-      ? "Daily Central Hub"
-      : "Kasimedu Harbour, Chennai");
+    title = activeCampaign.banner_headline || activeCampaign.title;
+    message = activeCampaign.banner_subtext || activeCampaign.description || "Limited-time fresh seafood promotional offer.";
+    promoCode = assignedCode;
+    badgeLabel = activeCampaign.type === "flash_sale"
+      ? "⚡ Flash Catch Deal"
+      : activeCampaign.type === "cart_rule"
+      ? "🎁 Cart Reward"
+      : `🏷️ Promo (Variant ${variant})`;
+  } else {
+    title =
+      latestBroadcast?.title ||
+      (settings as any)?.harbour_alert_title ||
+      (vertical.id === "chicken_meat"
+        ? "🍗 Morning Fresh Farm Harvest Arrival"
+        : vertical.id === "all_meat"
+        ? "🥩 Fresh Daily Farm & Harbour Arrival"
+        : "🌅 Kasimedu Harbour Boat Landing Alert");
+
+    message =
+      latestBroadcast?.message ||
+      (settings as any)?.harbour_alert_message ||
+      (vertical.id === "chicken_meat"
+        ? "Daily morning harvest of antibiotic-free broiler & country chicken just arrived fresh at our counter."
+        : vertical.id === "all_meat"
+        ? "Fresh day-catch seafood, tender poultry and fresh cuts arrived for express home delivery."
+        : "Morning 06:30 AM & 02:00 PM boats arriving with fresh Vanjaram (Seer), White Prawns, and Red Snapper.");
+
+    badgeLabel =
+      latestBroadcast?.harbour_source ||
+      (settings as any)?.harbour_source_name ||
+      (vertical.id === "chicken_meat"
+        ? "Bio-Secure Farm Hub"
+        : vertical.id === "all_meat"
+        ? "Daily Central Hub"
+        : "Kasimedu Harbour, Chennai");
+  }
 
   const handleSubscribePush = async () => {
     const token = await registerPushNotificationToken(user?.id || null, "customer");
@@ -104,8 +147,21 @@ export function CatchAlertBanner() {
                 {title}
               </span>
               <Badge className="bg-sky-400/25 hover:bg-sky-400/30 text-sky-200 border-sky-400/40 text-[10px] py-0 px-1.5 font-mono">
-                <Compass className="size-2.5 mr-0.5" /> {harbour}
+                {isCampaign ? <Sparkles className="size-2.5 mr-0.5" /> : <Compass className="size-2.5 mr-0.5" />} {badgeLabel}
               </Badge>
+              {promoCode && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(promoCode!);
+                    toast.success(`Coupon code ${promoCode} copied!`);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-md bg-white/20 hover:bg-white/30 text-white font-mono font-bold text-[10px] px-1.5 py-0.5 transition cursor-pointer"
+                  title="Click to copy code"
+                >
+                  <Tag className="size-2.5" /> {promoCode}
+                </button>
+              )}
             </div>
             <p className="text-[11px] sm:text-xs text-sky-100/90 line-clamp-1 mt-0.5">
               {message}

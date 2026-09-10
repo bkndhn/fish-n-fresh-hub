@@ -37,6 +37,17 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
   return await Notification.requestPermission();
 }
 
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 /**
  * Register push notification service worker and record token in Supabase fcm_tokens.
  */
@@ -59,8 +70,17 @@ export async function registerPushNotification(
     // Generate or fetch push subscription
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
-      // In production with VAPID key:
-      // sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: ... });
+      const vapidKey = (import.meta as any).env?.VITE_VAPID_PUBLIC_KEY || null;
+      if (vapidKey) {
+        try {
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(vapidKey) as unknown as BufferSource,
+          });
+        } catch (subErr) {
+          console.warn("[FCM] PushManager subscribe note:", subErr);
+        }
+      }
     }
 
     const tokenStr = sub

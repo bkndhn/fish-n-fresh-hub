@@ -27,8 +27,8 @@ export interface EmailDispatchResult {
   error?: string;
 }
 
-export async function sendOrderConfirmedEmail(orderId: string): Promise<EmailDispatchResult> {
-  return dispatchOrderEmail(orderId, "confirmed");
+export async function sendOrderConfirmedEmail(orderId: string, customerEmail?: string): Promise<EmailDispatchResult> {
+  return dispatchOrderEmail(orderId, "confirmed", undefined, customerEmail);
 }
 
 export async function sendOrderDeliveredEmail(orderId: string): Promise<EmailDispatchResult> {
@@ -45,7 +45,8 @@ export async function sendOutForDeliveryEmail(
 async function dispatchOrderEmail(
   orderId: string,
   type: "confirmed" | "out_for_delivery" | "delivered",
-  driver?: { name?: string; phone?: string }
+  driver?: { name?: string; phone?: string },
+  overrideRecipient?: string
 ): Promise<EmailDispatchResult> {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -62,7 +63,7 @@ async function dispatchOrderEmail(
       return { success: false, error: "Order not found", mode: "simulated" };
     }
 
-    const recipient = order.customer_email || (order as any).user_email || "";
+    const recipient = overrideRecipient || order.customer_email || (order as any).user_email || "";
     const orderNumber = order.order_number || order.id.slice(0, 8);
 
     // 2. Fetch Store Settings (Real store details)

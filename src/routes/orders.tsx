@@ -143,6 +143,18 @@ function MyOrders() {
   const [complaintText, setComplaintText] = useState("");
   const [invoiceOrder, setInvoiceOrder] = useState<any>(null);
 
+  const cancelOrder = useMutation({
+    mutationFn: async (id: string) => {
+      const { updateOrderStatusWithEmail } = await import("@/lib/orders.functions");
+      await updateOrderStatusWithEmail({ data: { orderId: id, status: "cancelled" } });
+    },
+    onSuccess: () => {
+      toast.success("Order cancelled successfully");
+      qc.invalidateQueries({ queryKey: ["my-orders"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Could not cancel order"),
+  });
+
   if (!orders?.length) {
     return (
       <div className="py-16 text-center">
@@ -198,6 +210,21 @@ function MyOrders() {
                 >
                   <FileText className="mr-1 size-3.5 text-sky-600" /> Invoice
                 </Button>
+                {o.status === "pending" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl border-destructive/40 text-destructive hover:bg-destructive/10 h-8 px-2.5 sm:px-3 text-xs"
+                    disabled={cancelOrder.isPending}
+                    onClick={() => {
+                      if (window.confirm("Are you sure you want to cancel this order? Any deducted inventory will be automatically restored.")) {
+                        cancelOrder.mutate(o.id);
+                      }
+                    }}
+                  >
+                    Cancel Order
+                  </Button>
+                )}
                 <Button asChild size="sm" variant="outline" className="rounded-xl h-8 px-2.5 sm:px-3 text-xs">
                   <Link to="/track/$id" params={{ id: o.id }}>
                     Track
@@ -205,6 +232,7 @@ function MyOrders() {
                 </Button>
               </div>
             </div>
+
 
             {/* Secret Handover PIN for Active Orders */}
             {o.status !== "delivered" && o.status !== "cancelled" && (

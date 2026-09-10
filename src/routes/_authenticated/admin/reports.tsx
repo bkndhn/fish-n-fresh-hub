@@ -864,6 +864,43 @@ export function Reports() {
         })}
       </div>
 
+      {/* Quick Jump Bar for Profit & Cohort Views */}
+      <div className="mt-3 flex flex-wrap items-center gap-2 p-2 rounded-2xl bg-card border border-border/70 text-xs">
+        <span className="text-[11px] font-bold text-muted-foreground px-1">Quick Views:</span>
+        <Button
+          size="sm"
+          variant="outline"
+          className="rounded-xl h-7 text-xs font-semibold"
+          onClick={() => document.getElementById("profit-margin-analysis")?.scrollIntoView({ behavior: "smooth" })}
+        >
+          <TrendingUp className="size-3.5 mr-1 text-emerald-600" /> Profit Per Product &amp; Margins
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="rounded-xl h-7 text-xs font-semibold"
+          onClick={() => document.getElementById("customer-cohorts-retention")?.scrollIntoView({ behavior: "smooth" })}
+        >
+          <Users className="size-3.5 mr-1 text-violet-600" /> Customer Cohorts &amp; Repeat Rates
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="rounded-xl h-7 text-xs font-semibold"
+          onClick={() => document.getElementById("omnichannel-split")?.scrollIntoView({ behavior: "smooth" })}
+        >
+          <Store className="size-3.5 mr-1 text-primary" /> POS vs Online Split
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="rounded-xl h-7 text-xs font-semibold"
+          onClick={() => document.getElementById("delivery-sla-section")?.scrollIntoView({ behavior: "smooth" })}
+        >
+          <Timer className="size-3.5 mr-1 text-cyan-600" /> Delivery SLA Speeds
+        </Button>
+      </div>
+
       {/* Peak Time & Sales Analytics, Date Range Comparison & Smart Harbour Purchasing Suite */}
       <AnalyticsIntelligence
         allOrders={allOrders}
@@ -875,7 +912,7 @@ export function Reports() {
       />
 
       {/* Omnichannel Performance: In-Store Counter POS vs Online App Delivery */}
-      <Card className="mt-4 border-border/70 shadow-sm overflow-hidden">
+      <Card id="omnichannel-split" className="mt-4 border-border/70 shadow-sm overflow-hidden scroll-mt-20">
         <CardHeader className="bg-muted/30 pb-3 pt-4 border-b border-border/60">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
@@ -1294,7 +1331,7 @@ export function Reports() {
       </div>
 
       {/* Delivery Turnaround & On-Time SLA Reports */}
-      <Card className="mt-4 border-border/60 shadow-sm">
+      <Card id="delivery-sla-section" className="mt-4 border-border/60 shadow-sm scroll-mt-20">
         <CardHeader className="pb-2 pt-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -1543,8 +1580,8 @@ export function Reports() {
         </Card>
       </div>
 
-      {/* Product Sales Velocity & Movement Analysis */}
-      <Card className="mt-4 border-border/60 shadow-sm">
+      {/* Product Sales Velocity & Movement Analysis (Profit Per Product & Margins) */}
+      <Card id="profit-margin-analysis" className="mt-4 border-border/60 shadow-sm scroll-mt-20">
         <CardHeader className="pb-3 pt-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -1944,7 +1981,7 @@ export function Reports() {
       </Card>
 
       {/* Customer Cohort Retention Matrix & Lifetime Value (LTV) Card */}
-      <Card className="mt-4 border-border/60 shadow-sm">
+      <Card id="customer-cohorts-retention" className="mt-4 border-border/60 shadow-sm scroll-mt-20">
         <CardHeader className="pb-2 pt-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>

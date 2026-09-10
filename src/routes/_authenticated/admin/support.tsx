@@ -12,11 +12,15 @@ import {
   Sparkles,
   RefreshCw,
   Zap,
+  ShoppingBag,
+  Package,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useSessionUser } from "@/lib/session";
 import { settingsQuery } from "@/lib/queries";
+import { playOrderNotificationSound } from "@/lib/realtime";
+import { formatINR } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -125,6 +129,54 @@ export function AdminSupportPage() {
     },
     enabled: Boolean(activeConvId),
     refetchInterval: 3000,
+  });
+
+  // Real-time WebSocket subscription for live desk updates
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-live-support-channel")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "support_messages" },
+        (payload: any) => {
+          qc.invalidateQueries({ queryKey: ["admin", "support-messages"] });
+          qc.invalidateQueries({ queryKey: ["admin", "support-conversations"] });
+          if (payload?.new?.sender_type === "customer") {
+            playOrderNotificationSound("order");
+            toast.info(`New message from ${payload?.new?.sender_name || "Customer"}: "${payload?.new?.message?.slice(0, 35)}..."`);
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "support_conversations" },
+        () => {
+          qc.invalidateQueries({ queryKey: ["admin", "support-conversations"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [qc]);
+
+  // Customer recent orders for instant support resolution context
+  const { data: customerRecentOrders = [] } = useQuery({
+    queryKey: ["admin", "customer-orders-for-support", activeConv?.customer_phone],
+    queryFn: async () => {
+      if (!activeConv?.customer_phone) return [];
+      const clean = activeConv.customer_phone.replace(/\D/g, "");
+      if (clean.length < 10) return [];
+      const { data } = await supabase
+        .from("orders")
+        .select("id, order_number, status, total, created_at, items, customer_address")
+        .eq("customer_phone", clean)
+        .order("created_at", { ascending: false })
+        .limit(3);
+      return data || [];
+    },
+    enabled: Boolean(activeConv?.customer_phone),
   });
 
   // Scroll to bottom on message update
@@ -365,6 +417,27 @@ export function AdminSupportPage() {
                   )}
                 </div>
               </div>
+
+              {/* Customer Recent Orders Context Bar */}
+              {customerRecentOrders.length > 0 && (
+                <div className="bg-muted/30 border-b border-border/70 px-3 py-2 text-xs flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-bold text-muted-foreground flex items-center gap-1">
+                    <ShoppingBag className="size-3.5 text-primary" /> Customer Orders:
+                  </span>
+                  {customerRecentOrders.map((ord: any) => (
+                    <div
+                      key={ord.id}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-card px-2 py-0.5 text-[11px]"
+                    >
+                      <span className="font-mono font-bold">#{ord.order_number || ord.id.slice(0, 6)}</span>
+                      <span className="font-semibold text-foreground">{formatINR(Number(ord.total || 0))}</span>
+                      <Badge variant="outline" className="text-[9px] py-0 px-1 capitalize">
+                        {String(ord.status).replace(/_/g, " ")}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Message Thread */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/10 text-xs">

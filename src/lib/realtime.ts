@@ -118,7 +118,7 @@ class SoundEngine {
 
 export const soundEngine = new SoundEngine();
 
-export function playOrderNotificationSound(type: "status" | "scanner" | "error" = "status") {
+export function playOrderNotificationSound(type: "status" | "scanner" | "error" | "order" = "status") {
   if (type === "scanner") {
     soundEngine.playScannerBeep();
   } else if (type === "error") {
