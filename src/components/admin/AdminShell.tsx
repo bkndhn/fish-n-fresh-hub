@@ -200,56 +200,69 @@ export function AdminShell({
         </main>
       </div>
 
-      {/* Native Mobile Bottom Navigation Bar */}
-      <nav className="glass fixed inset-x-0 bottom-0 z-50 flex items-center justify-around border-t border-border/80 bg-background/95 backdrop-blur-lg px-2 py-1 pb-[env(safe-area-inset-bottom,4px)] md:hidden shadow-lg">
-        {primaryNav.map((item) => (
-          <Link
-            key={item.to}
-            to={item.to}
-            activeOptions={{ exact: Boolean((item as { exact?: boolean }).exact) }}
-            activeProps={{ className: "text-primary font-bold scale-105" }}
-            className="flex flex-1 flex-col items-center justify-center gap-0.5 py-1 text-[10px] font-medium text-muted-foreground transition-all active:scale-95"
-          >
-            <item.icon className="size-5" />
-            <span className="truncate max-w-[64px]">{item.label}</span>
-          </Link>
-        ))}
+      {/* Floating Premium Mobile Bottom Navigation Bar */}
+      <nav
+        aria-label="Admin Mobile Navigation"
+        className="fixed bottom-3 inset-x-0 mx-auto z-50 flex justify-center px-3.5 md:hidden pointer-events-none safe-bottom"
+      >
+        <div className="pointer-events-auto flex items-center justify-between w-full max-w-[420px] rounded-3xl bg-card/90 dark:bg-card/95 backdrop-blur-2xl border border-border/80 shadow-[0_10px_35px_rgba(0,0,0,0.14)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.5)] p-1.5 ring-1 ring-black/5 dark:ring-white/10 transition-all duration-300">
+          <ul className="flex items-center justify-around w-full gap-1 m-0 p-0 list-none">
+            {primaryNav.map((item) => (
+              <li key={item.to} className="flex-1 flex justify-center">
+                <Link
+                  to={item.to}
+                  activeOptions={{ exact: Boolean((item as { exact?: boolean }).exact) }}
+                  className="group relative flex flex-col items-center justify-center gap-0.5 py-1.5 px-2 rounded-2xl w-full text-[10px] font-medium text-muted-foreground hover:text-foreground transition-all duration-200 active:scale-90 [&.active]:bg-primary/15 [&.active]:text-primary [&.active]:font-bold [&.active]:shadow-2xs"
+                >
+                  <div className="relative flex items-center justify-center">
+                    <item.icon className="size-4.5 transition-transform duration-200 group-hover:scale-110 group-active:scale-95" />
+                  </div>
+                  <span className="truncate max-w-[62px] tracking-tight leading-tight">{item.label}</span>
+                </Link>
+              </li>
+            ))}
 
-        {moreNav.length > 0 && (
-          <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-            <SheetTrigger asChild>
-              <button
-                type="button"
-                className="flex flex-1 flex-col items-center justify-center gap-0.5 py-1 text-[10px] font-medium text-muted-foreground transition-all active:scale-95 hover:text-foreground"
-              >
-                <MoreHorizontal className="size-5" />
-                <span>More</span>
-              </button>
-            </SheetTrigger>
-            <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto p-5 border-t border-border/80 bg-background shadow-2xl">
-              <SheetHeader className="mb-4 text-left">
-                <SheetTitle className="text-base font-bold">Admin Console Menu</SheetTitle>
-              </SheetHeader>
-              <div className="grid grid-cols-3 gap-2.5 pb-6">
-                {moreNav.map((item) => (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    onClick={() => setMoreOpen(false)}
-                    activeOptions={{ exact: Boolean((item as { exact?: boolean }).exact) }}
-                    activeProps={{ className: "bg-primary/10 text-primary border-primary/40 font-bold shadow-xs" }}
-                    className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-border/70 bg-card p-3 text-center text-xs font-medium text-foreground transition active:scale-95 hover:bg-muted"
-                  >
-                    <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-2xs">
-                      <item.icon className="size-5" />
+            {moreNav.length > 0 && (
+              <li className="flex-1 flex justify-center">
+                <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+                  <SheetTrigger asChild>
+                    <button
+                      type="button"
+                      className="group relative flex flex-col items-center justify-center gap-0.5 py-1.5 px-2 rounded-2xl w-full text-[10px] font-medium text-muted-foreground hover:text-foreground transition-all duration-200 active:scale-90"
+                    >
+                      <div className="relative flex items-center justify-center">
+                        <MoreHorizontal className="size-4.5 transition-transform duration-200 group-hover:scale-110 group-active:scale-95" />
+                      </div>
+                      <span className="truncate max-w-[62px] tracking-tight leading-tight">More</span>
+                    </button>
+                  </SheetTrigger>
+                  <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto p-5 border-t border-border/80 bg-background shadow-2xl">
+                    <SheetHeader className="mb-4 text-left">
+                      <SheetTitle className="text-base font-bold">Admin Console Menu</SheetTitle>
+                    </SheetHeader>
+                    <div className="grid grid-cols-3 gap-2.5 pb-6">
+                      {moreNav.map((item) => (
+                        <Link
+                          key={item.to}
+                          to={item.to}
+                          onClick={() => setMoreOpen(false)}
+                          activeOptions={{ exact: Boolean((item as { exact?: boolean }).exact) }}
+                          activeProps={{ className: "bg-primary/10 text-primary border-primary/40 font-bold shadow-xs" }}
+                          className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-border/70 bg-card p-3 text-center text-xs font-medium text-foreground transition active:scale-95 hover:bg-muted"
+                        >
+                          <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-2xs">
+                            <item.icon className="size-5" />
+                          </div>
+                          <span className="leading-tight line-clamp-1">{item.label}</span>
+                        </Link>
+                      ))}
                     </div>
-                    <span className="leading-tight line-clamp-1">{item.label}</span>
-                  </Link>
-                ))}
-              </div>
-            </SheetContent>
-          </Sheet>
-        )}
+                  </SheetContent>
+                </Sheet>
+              </li>
+            )}
+          </ul>
+        </div>
       </nav>
     </div>
   );

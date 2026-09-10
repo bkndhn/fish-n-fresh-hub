@@ -117,20 +117,20 @@ export function ProductCard({ product }: { product: Product }) {
           {Number(product.rating).toFixed(1)}
           <span>· {product.unit}</span>
         </div>
-        <div className="mt-1.5 flex items-end justify-between gap-1.5">
+        <div className="mt-1.5 flex items-center justify-between gap-1.5">
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-1.5 flex-wrap">
-              <span className="font-display text-base font-bold text-foreground">
+              <span className="font-display text-sm sm:text-base font-bold text-foreground">
                 {inr(Number(product.price))}
               </span>
-              {hasDiscount && (
-                <span className="text-[11px] font-medium text-muted-foreground line-through whitespace-nowrap">
+              {!cartItem && hasDiscount && (
+                <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground line-through whitespace-nowrap">
                   {inr(Number(product.old_price))}
                 </span>
               )}
             </div>
-            {hasDiscount && (
-              <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap leading-tight mt-0.5">
+            {!cartItem && hasDiscount && (
+              <div className="text-[9px] sm:text-[10px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap leading-tight mt-0.5">
                 Save {inr(Number(product.old_price) - Number(product.price))}
               </div>
             )}
@@ -142,16 +142,15 @@ export function ProductCard({ product }: { product: Product }) {
                 size="sm"
                 variant="secondary"
                 disabled
-                className="h-8 rounded-xl px-2.5 text-xs opacity-60 cursor-not-allowed"
+                className="h-7 rounded-full px-2.5 text-[11px] font-bold opacity-60 cursor-not-allowed"
               >
                 Sold Out
               </Button>
             ) : cartItem ? (
-              <div className="flex items-center gap-1 rounded-xl border border-primary/30 bg-background/90 p-0.5 shadow-2xs">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="size-6 rounded-lg hover:bg-primary hover:text-primary-foreground"
+              <div className="flex items-center gap-0.5 rounded-full border border-primary/40 bg-primary/10 dark:bg-primary/20 p-0.5 shadow-2xs">
+                <button
+                  type="button"
+                  className="size-5.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center transition-all active:scale-85 shadow-2xs cursor-pointer"
                   onClick={() => {
                     const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
                     const step = isWeighted ? (cartItem.qty <= 1 ? 0.25 : 0.5) : 1;
@@ -160,8 +159,8 @@ export function ProductCard({ product }: { product: Product }) {
                   }}
                   title="Decrease quantity"
                 >
-                  <Minus className="size-3" />
-                </Button>
+                  <Minus className="size-3 stroke-[2.5]" />
+                </button>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -191,13 +190,12 @@ export function ProductCard({ product }: { product: Product }) {
                       setLocalQtyStr(String(product.stock));
                     }
                   }}
-                  className="w-10 bg-transparent text-center text-xs font-bold font-mono outline-none text-foreground"
+                  className="w-6.5 sm:w-7 bg-transparent text-center text-[11px] sm:text-xs font-black font-mono outline-none text-primary dark:text-primary-foreground select-all p-0 leading-none"
                   title="Type custom quantity"
                 />
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="size-6 rounded-lg hover:bg-primary hover:text-primary-foreground"
+                <button
+                  type="button"
+                  className="size-5.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center transition-all active:scale-85 shadow-2xs cursor-pointer"
                   onClick={() => {
                     const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
                     const step = isWeighted ? 0.5 : 1;
@@ -209,13 +207,13 @@ export function ProductCard({ product }: { product: Product }) {
                   }}
                   title="Increase quantity"
                 >
-                  <Plus className="size-3" />
-                </Button>
+                  <Plus className="size-3 stroke-[2.5]" />
+                </button>
               </div>
             ) : (
               <Button
                 size="sm"
-                className="h-8 rounded-xl px-3 text-xs"
+                className="h-7 sm:h-7.5 rounded-full px-3 text-xs font-bold shadow-2xs hover:shadow-xs active:scale-95 transition-all"
                 onClick={() => {
                   if (product.stock !== null && Number(product.stock) <= 0) {
                     toast.error("This product is currently out of stock");
@@ -225,7 +223,7 @@ export function ProductCard({ product }: { product: Product }) {
                   toast.success(`${product.name} added to cart`);
                 }}
               >
-                <Plus className="mr-1 size-3" /> Add
+                <Plus className="mr-1 size-3 stroke-[2.5]" /> Add
               </Button>
             )}
           </div>
