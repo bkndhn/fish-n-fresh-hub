@@ -206,6 +206,89 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_subscriptions: {
+        Row: {
+          created_at: string
+          customer_address: string
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string
+          cutting_style: string
+          day_of_week: string
+          discount_percent: number
+          frequency: string
+          id: string
+          next_delivery_date: string
+          payment_method: string
+          preferred_slot: string
+          price_per_unit: number
+          product_id: string
+          product_name: string
+          quantity: number
+          status: string
+          total_price: number
+          unit: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_address: string
+          customer_email?: string | null
+          customer_name: string
+          customer_phone: string
+          cutting_style?: string
+          day_of_week?: string
+          discount_percent?: number
+          frequency?: string
+          id?: string
+          next_delivery_date?: string
+          payment_method?: string
+          preferred_slot?: string
+          price_per_unit?: number
+          product_id: string
+          product_name: string
+          quantity?: number
+          status?: string
+          total_price?: number
+          unit?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_address?: string
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string
+          cutting_style?: string
+          day_of_week?: string
+          discount_percent?: number
+          frequency?: string
+          id?: string
+          next_delivery_date?: string
+          payment_method?: string
+          preferred_slot?: string
+          price_per_unit?: number
+          product_id?: string
+          product_name?: string
+          quantity?: number
+          status?: string
+          total_price?: number
+          unit?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_subscriptions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_suspensions: {
         Row: {
           phone: string
@@ -433,6 +516,83 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      inventory_batches: {
+        Row: {
+          batch_number: string
+          boat_number: string | null
+          catch_date: string
+          catch_harbour: string
+          cold_chain_temp_celsius: number
+          created_at: string
+          current_quantity: number
+          expiry_date: string
+          id: string
+          initial_quantity: number
+          notes: string | null
+          product_id: string
+          product_name: string
+          quality_grade: string
+          shelf_life_hours: number
+          status: string
+          supplier_id: string | null
+          supplier_name: string | null
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          batch_number: string
+          boat_number?: string | null
+          catch_date?: string
+          catch_harbour?: string
+          cold_chain_temp_celsius?: number
+          created_at?: string
+          current_quantity?: number
+          expiry_date?: string
+          id?: string
+          initial_quantity?: number
+          notes?: string | null
+          product_id: string
+          product_name: string
+          quality_grade?: string
+          shelf_life_hours?: number
+          status?: string
+          supplier_id?: string | null
+          supplier_name?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          batch_number?: string
+          boat_number?: string | null
+          catch_date?: string
+          catch_harbour?: string
+          cold_chain_temp_celsius?: number
+          created_at?: string
+          current_quantity?: number
+          expiry_date?: string
+          id?: string
+          initial_quantity?: number
+          notes?: string | null
+          product_id?: string
+          product_name?: string
+          quality_grade?: string
+          shelf_life_hours?: number
+          status?: string
+          supplier_id?: string | null
+          supplier_name?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_batches_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       loyalty_accounts: {
         Row: {
