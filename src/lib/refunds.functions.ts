@@ -93,5 +93,11 @@ export const cancelAndRefundOrder = createServerFn({ method: "POST" })
       .eq("id", order.id);
     if (updateError) return { error: updateError.message };
 
+    // Put the stock back for the cancelled order (safe if it was never deducted)
+    const { error: stockErr } = await (supabaseAdmin as any).rpc("restore_order_stock_atomic", {
+      p_order_id: order.id,
+    });
+    if (stockErr) console.warn("[Refunds] Stock restoral notice:", stockErr.message);
+
     return { ok: true, refunded, refundId, note };
   });
