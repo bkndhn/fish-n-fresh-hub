@@ -106,8 +106,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
-      { rel: "apple-touch-icon", href: "/icons/icon-192.png" },
+      // favicon — real logo PNG (browsers accept PNG as .ico)
+      { rel: "icon", href: "/favicon.ico", type: "image/png", sizes: "32x32" },
+      { rel: "icon", href: "/icons/icon-192.png", type: "image/png", sizes: "192x192" },
+      { rel: "icon", href: "/icons/icon-512.png", type: "image/png", sizes: "512x512" },
+      // iOS Safari home screen icon — dedicated 180x180 file (no letter, real logo)
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
       { rel: "manifest", href: "/manifest.json" },
       { rel: "preconnect", href: "https://images.unsplash.com" },
       { rel: "dns-prefetch", href: "https://images.unsplash.com" },
