@@ -134,9 +134,38 @@ export class EscPosBuilder {
   }
 
   row(left: string, right: string) {
-    const totalSpaces = Math.max(1, this.charsPerLine - (left.length + right.length));
-    const spaces = " ".repeat(totalSpaces);
-    this.textLine(left + spaces + right);
+    const rightLen = right.length;
+    const maxLeftLen = this.charsPerLine - rightLen - 1;
+    if (left.length <= maxLeftLen) {
+      const spaces = " ".repeat(Math.max(1, this.charsPerLine - (left.length + rightLen)));
+      this.textLine(left + spaces + right);
+    } else {
+      const words = left.split(" ");
+      let current = "";
+      const lines: string[] = [];
+      for (const w of words) {
+        if ((current + (current ? " " : "") + w).length <= this.charsPerLine) {
+          current = current + (current ? " " : "") + w;
+        } else {
+          if (current) lines.push(current);
+          current = w;
+        }
+      }
+      if (current) lines.push(current);
+
+      for (let i = 0; i < lines.length - 1; i++) {
+        this.textLine(lines[i]!);
+      }
+      const last = lines[lines.length - 1] || "";
+      if (last.length <= maxLeftLen) {
+        const spaces = " ".repeat(Math.max(1, this.charsPerLine - (last.length + rightLen)));
+        this.textLine(last + spaces + right);
+      } else {
+        this.textLine(last);
+        const spaces = " ".repeat(Math.max(1, this.charsPerLine - rightLen));
+        this.textLine(spaces + right);
+      }
+    }
     return this;
   }
 
@@ -278,7 +307,15 @@ export async function sendEscPosToPrinter(
  * without disturbing current page layout or app state.
  */
 export function printThermalHtmlRoll(htmlContent: string, paperWidth: PaperWidth = "58mm") {
-  const widthMm = paperWidth === "58mm" ? "58mm" : "80mm";
+  const is58 = paperWidth === "58mm";
+  const rollWidth = is58 ? "58mm" : "80mm";
+  // The printable area of thermal roll is narrower than the total physical paper roll:
+  // 58mm roll -> 48mm printable area (384 dots @ 203 DPI)
+  // 80mm roll -> 72mm printable area (576 dots @ 203 DPI)
+  const printableWidth = is58 ? "48mm" : "72mm";
+  const fontSize = is58 ? "10px" : "12px";
+  const titleFontSize = is58 ? "13px" : "15px";
+
   const iframe = document.createElement("iframe");
   iframe.style.position = "fixed";
   iframe.style.right = "0";
@@ -303,30 +340,70 @@ export function printThermalHtmlRoll(htmlContent: string, paperWidth: PaperWidth
         <title>Thermal Receipt</title>
         <style>
           @page {
-            size: ${widthMm} auto;
+            size: ${rollWidth} auto;
             margin: 0;
           }
-          body {
-            font-family: 'Courier New', Courier, monospace;
-            width: ${widthMm};
+          *, *:before, *:after {
+            box-sizing: border-box;
+          }
+          html, body {
             margin: 0;
-            padding: 6px;
-            color: #000;
+            padding: 0;
+            width: 100%;
+            max-width: ${rollWidth};
             background: #fff;
-            font-size: ${paperWidth === "58mm" ? "11px" : "13px"};
-            line-height: 1.25;
+            color: #000;
             -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .thermal-bill-container {
+            width: ${printableWidth};
+            max-width: ${printableWidth};
+            margin: 0 auto;
+            padding: ${is58 ? "2mm 1mm" : "3mm 2mm"};
+            font-family: 'Courier New', Courier, monospace;
+            font-size: ${fontSize};
+            line-height: 1.25;
+            word-break: break-word;
+            overflow: hidden;
           }
           .center { text-align: center; }
           .bold { font-weight: bold; }
-          .hr { border-bottom: 1px dashed #000; margin: 5px 0; }
-          .row { display: flex; justify-content: space-between; margin: 2px 0; }
-          .title { font-size: 15px; font-weight: bold; margin-bottom: 2px; }
-          .total-row { font-size: 14px; font-weight: bold; border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 4px 0; margin: 4px 0; }
+          .hr { border-bottom: 1px dashed #000; margin: 4px 0; }
+          .row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 4px;
+            margin: 2px 0;
+          }
+          .row > span:first-child, .row > div:first-child {
+            flex: 1;
+            min-width: 0;
+            word-break: break-word;
+          }
+          .row > span:last-child, .row > div:last-child {
+            flex-shrink: 0;
+            text-align: right;
+            white-space: nowrap;
+          }
+          .title { font-size: ${titleFontSize}; font-weight: bold; margin-bottom: 2px; }
+          .total {
+            font-size: ${is58 ? "12px" : "14px"};
+            font-weight: bold;
+            border-top: 1px solid #000;
+            border-bottom: 1px solid #000;
+            padding: 3px 0;
+            margin: 3px 0;
+          }
+          .muted { opacity: 0.85; }
+          .font-mono { font-family: 'Courier New', Courier, monospace; }
         </style>
       </head>
       <body>
-        ${htmlContent}
+        <div class="thermal-bill-container">
+          ${htmlContent}
+        </div>
       </body>
     </html>
   `);
@@ -573,9 +650,9 @@ export function buildPosReceiptHtml(
         (it) => `
       <div class="row">
         <span>${it.name}${it.cuttingStyle ? ` [${it.cuttingStyle}]` : ""}</span>
-        <span>₹${it.totalPrice.toFixed(0)}</span>
+        <span class="bold">₹${it.totalPrice.toFixed(0)}</span>
       </div>
-      <div class="row muted font-mono" style="padding-left: 8px;">
+      <div class="row muted font-mono" style="padding-left: 6px; font-size: 0.9em;">
         <span>${it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} pcs`} × ₹${it.unitPrice.toFixed(0)}</span>
       </div>
     `
@@ -604,8 +681,8 @@ export function buildPosReceiptHtml(
     ${typeof data.changeDue === "number" ? `<div class="row"><span>Change Returned:</span><span>₹${data.changeDue.toFixed(0)}</span></div>` : ""}
     ${data.upiRef ? `<div class="row muted font-mono"><span>UPI Ref:</span><span>${data.upiRef}</span></div>` : ""}
     <div class="hr"></div>
-    <div class="center bold footer">${config.footerLine1}</div>
-    <div class="center muted">${config.footerLine2}</div>
+    <div class="center bold footer">${config.footerLine1 || config.footerText || "Fresh Catch Guaranteed · No Returns After Cutting"}</div>
+    ${config.footerLine2 ? `<div class="center muted">${config.footerLine2}</div>` : ""}
   `;
 }
 

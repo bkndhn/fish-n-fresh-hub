@@ -1,5 +1,6 @@
 // Fish N Fresh Unified PWA Service Worker
-const CACHE_NAME = 'fnf-pwa-v2';
+const CACHE_NAME = 'fnf-pwa-v3';
+const IMAGE_CACHE_NAME = 'fnf-images-v1';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -36,7 +37,7 @@ self.addEventListener('activate', (e) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name !== CACHE_NAME)
+          .filter((name) => name !== CACHE_NAME && name !== IMAGE_CACHE_NAME)
           .map((name) => caches.delete(name))
       );
     })
@@ -44,24 +45,63 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
-// Fetch Event: Meets Chrome PWA installability requirements
+// Fetch Event: Meets Chrome PWA installability requirements & delivers 0ms instant loading
 self.addEventListener('fetch', (e) => {
-  // Skip cross-origin requests, like Supabase APIs or images from external CDNs
+  // 1. High-speed Cache-First Image Strategy (Catalog images, Unsplash CDN, Supabase Storage)
+  const isImage =
+    e.request.destination === 'image' ||
+    /\.(png|jpg|jpeg|webp|svg|gif|ico)(\?.*)?$/i.test(e.request.url) ||
+    e.request.url.includes('images.unsplash.com') ||
+    e.request.url.includes('/storage/v1/object/public/');
+
+  if (isImage && e.request.method === 'GET') {
+    e.respondWith(
+      caches.open(IMAGE_CACHE_NAME).then((cache) => {
+        return cache.match(e.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            // Revalidate in background if online
+            fetch(e.request)
+              .then((fresh) => {
+                if (fresh && (fresh.ok || fresh.type === 'opaque')) {
+                  cache.put(e.request, fresh);
+                }
+              })
+              .catch(() => {});
+            return cachedResponse;
+          }
+          return fetch(e.request)
+            .then((networkResponse) => {
+              if (networkResponse && (networkResponse.ok || networkResponse.type === 'opaque')) {
+                cache.put(e.request, networkResponse.clone());
+              }
+              return networkResponse;
+            })
+            .catch(() => cachedResponse || Response.error());
+        });
+      })
+    );
+    return;
+  }
+
+  // Skip other non-origin requests (e.g. Supabase REST writes/auth)
   if (!e.request.url.startsWith(self.location.origin)) {
     return;
   }
 
-  // Handle page navigations: try network first, fallback to cached root shell
+  // 2. Handle page navigations: try network with quick 1.2s timeout, fallback to cached root shell
   if (e.request.mode === 'navigate') {
     e.respondWith(
-      fetch(e.request).catch(() => {
+      Promise.race([
+        fetch(e.request),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Navigation timeout')), 1200)),
+      ]).catch(() => {
         return caches.match('/').then((cached) => cached || Response.error());
       })
     );
     return;
   }
 
-  // Static assets: Stale-while-revalidate strategy for GET requests
+  // 3. Static assets: Stale-while-revalidate strategy for instant 0ms local response
   if (e.request.method === 'GET') {
     e.respondWith(
       caches.match(e.request).then((cachedResponse) => {

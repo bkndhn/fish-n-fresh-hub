@@ -109,7 +109,13 @@ function ProductsAdmin() {
   const update = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: any }) => {
       const { error } = await supabase.from("products").update(patch).eq("id", id);
-      if (error) throw error;
+      if (error) {
+        if (error.message && error.message.toLowerCase().includes("column")) {
+          console.warn("Schema mismatch note:", error.message);
+          throw new Error(`Database note: Please run 'supabase/consolidated_master_patch.sql' in your Supabase SQL editor (${error.message})`);
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       toast.success("Saved");
@@ -1234,9 +1240,9 @@ function ProductsAdmin() {
 
       {/* Full Edit Product Dialog */}
       <Dialog open={Boolean(editingProduct)} onOpenChange={(open) => !open && setEditingProduct(null)}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl w-[calc(100vw-1.5rem)] sm:max-w-lg p-4 sm:p-6 mx-auto">
           <DialogHeader>
-            <DialogTitle>Edit Product: {editingProduct?.name}</DialogTitle>
+            <DialogTitle className="break-words">Edit Product: {editingProduct?.name}</DialogTitle>
           </DialogHeader>
           {editingProduct && (
             <div className="space-y-4 pt-2">
@@ -1450,12 +1456,12 @@ function ProductsAdmin() {
 
       {/* Quick Refill Modal */}
       <Dialog open={Boolean(refillProduct)} onOpenChange={(open) => !open && setRefillProduct(null)}>
-        <DialogContent className="rounded-2xl sm:max-w-md">
+        <DialogContent className="rounded-2xl w-[calc(100vw-1.5rem)] sm:max-w-md p-4 sm:p-6 mx-auto">
           {refillProduct && (
             <>
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <PackagePlus className="size-5 text-amber-500" /> Quick Stock Refill
+                <DialogTitle className="flex items-center gap-2 break-words text-base">
+                  <PackagePlus className="size-5 text-amber-500 shrink-0" /> Quick Stock Refill
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4 pt-2">
@@ -1568,15 +1574,15 @@ function ProductsAdmin() {
 
       {/* AI Profile Inspector Dialog */}
       <Dialog open={Boolean(aiProduct)} onOpenChange={(open) => !open && setAiProduct(null)}>
-        <DialogContent className="rounded-3xl max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="rounded-3xl w-[calc(100vw-1.5rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 mx-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="size-5 text-primary" />
-              AI Marine Nutrition & Culinary Intelligence: {aiProduct?.name}
+            <DialogTitle className="flex items-center gap-2 break-words text-sm sm:text-base">
+              <Sparkles className="size-5 text-primary shrink-0" />
+              <span className="min-w-0 flex-1 break-words">AI Marine Nutrition & Culinary Intelligence: {aiProduct?.name}</span>
             </DialogTitle>
           </DialogHeader>
           {aiProduct && (
-            <div className="mt-2">
+            <div className="mt-2 min-w-0 max-w-full">
               <ProductAiBenefitsCard product={aiProduct} />
             </div>
           )}
@@ -1585,13 +1591,13 @@ function ProductsAdmin() {
 
       {/* AI Species Visual Showcase & Daily Image Rotation Dialog */}
       <Dialog open={Boolean(aiVisualProduct)} onOpenChange={(open) => !open && setAiVisualProduct(null)}>
-        <DialogContent className="rounded-3xl w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 break-words">
+        <DialogContent className="rounded-3xl w-[calc(100vw-1.25rem)] sm:w-full max-w-3xl max-h-[88vh] overflow-y-auto overflow-x-hidden p-3.5 sm:p-6 mx-auto">
+          <DialogHeader className="pr-6 text-left">
+            <DialogTitle className="flex items-center gap-2 break-words text-sm sm:text-base font-bold leading-snug">
               <Camera className="size-5 text-cyan-500 shrink-0" />
-              <span>100% Species Matched Visual Studio: {aiVisualProduct?.name}</span>
+              <span className="min-w-0 flex-1 break-words">Species Matched Visual Studio: {aiVisualProduct?.name}</span>
             </DialogTitle>
-            <DialogDescription className="break-words">
+            <DialogDescription className="break-words text-xs sm:text-sm mt-1">
               Rotate between authentic studio angles (Dock Fresh, Master Cuts, Ready to Cook) to keep your catalog dynamic daily without manual photography.
             </DialogDescription>
           </DialogHeader>
@@ -1599,36 +1605,36 @@ function ProductsAdmin() {
           {aiVisualProduct && (() => {
             const profile = matchSpeciesVisualProfile(aiVisualProduct.name);
             return (
-              <div className="space-y-6 mt-3 max-w-full">
+              <div className="space-y-4 sm:space-y-6 mt-2 max-w-full min-w-0">
                 {/* Active Image Banner */}
-                <div className="flex items-center gap-4 p-4 rounded-2xl bg-muted/40 border min-w-0 overflow-hidden">
+                <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-2xl bg-muted/40 border min-w-0 overflow-hidden">
                   <img
                     src={aiVisualProduct.image_url || "/placeholder.svg"}
                     alt={aiVisualProduct.name}
-                    className="size-16 rounded-xl object-cover border shrink-0"
+                    className="size-14 sm:size-16 rounded-xl object-cover border shrink-0"
                   />
                   <div className="flex-1 min-w-0 overflow-hidden">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Current Active Catalog Image</p>
-                    <p className="text-sm font-bold truncate">{aiVisualProduct.name}</p>
-                    <p className="text-xs text-muted-foreground truncate max-w-full">{aiVisualProduct.image_url || "Default placeholder"}</p>
+                    <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">Current Active Catalog Image</p>
+                    <p className="text-xs sm:text-sm font-bold truncate">{aiVisualProduct.name}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{aiVisualProduct.image_url || "Default placeholder"}</p>
                   </div>
                 </div>
 
                 {/* Perspective Options */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 max-w-full">
                   {profile?.perspectives.map((persp) => {
                     const isCurrent = aiVisualProduct.image_url === persp.imageUrl;
                     return (
                       <div
                         key={persp.id}
-                        className={`rounded-2xl border p-3 flex flex-col justify-between transition-all ${
+                        className={`rounded-2xl border p-3 flex flex-col justify-between transition-all min-w-0 max-w-full overflow-hidden ${
                           isCurrent
                             ? "ring-2 ring-primary border-primary bg-primary/5"
                             : "hover:border-primary/50 bg-card"
                         }`}
                       >
-                        <div className="space-y-2">
-                          <div className="relative aspect-square rounded-xl overflow-hidden bg-muted">
+                        <div className="space-y-2 min-w-0">
+                          <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-muted">
                             <img
                               src={persp.imageUrl}
                               alt={persp.title}
@@ -1643,16 +1649,16 @@ function ProductsAdmin() {
                               </span>
                             )}
                           </div>
-                          <div>
-                            <h4 className="font-bold text-sm leading-tight">{persp.title}</h4>
-                            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{persp.description}</p>
+                          <div className="min-w-0">
+                            <h4 className="font-bold text-xs sm:text-sm leading-tight break-words">{persp.title}</h4>
+                            <p className="text-xs text-muted-foreground line-clamp-2 mt-1 break-words">{persp.description}</p>
                           </div>
-                          <div className="text-[11px] text-muted-foreground/80 italic">
+                          <div className="text-[11px] text-muted-foreground/80 italic break-words">
                             📸 {persp.photographerNotes}
                           </div>
                         </div>
 
-                        <div className="mt-4 pt-3 border-t flex flex-col gap-2">
+                        <div className="mt-3 pt-2.5 border-t flex flex-col gap-1.5">
                           <Button
                             size="sm"
                             disabled={isCurrent || update.isPending}
@@ -1708,12 +1714,12 @@ function ProductsAdmin() {
                   })}
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-900 dark:text-cyan-200">
+                <div className="p-3 sm:p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-900 dark:text-cyan-200 break-words">
                   <p className="font-semibold flex items-center gap-1.5 mb-1">
-                    <Sparkles className="size-4 text-cyan-500" />
+                    <Sparkles className="size-4 text-cyan-500 shrink-0" />
                     How to use Lovable AI Image Generation within free limits:
                   </p>
-                  <p className="text-muted-foreground leading-relaxed">
+                  <p className="text-muted-foreground leading-relaxed break-words">
                     Click <strong>Copy AI Prompt</strong> above, paste into Lovable AI or your preferred image studio, and paste the generated URL back into the product edit modal. Each prompt is specifically engineered with authentic botanical/zoological species accuracy, depth of field, and lighting so images never look fake.
                   </p>
                 </div>
