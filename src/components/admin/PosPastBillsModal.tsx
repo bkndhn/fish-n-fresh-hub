@@ -57,6 +57,7 @@ import {
   type PosReceiptItem,
 } from "@/lib/thermalPrinter";
 import { TaxInvoiceModal } from "@/components/TaxInvoiceModal";
+import { ExportDropdown, type ExportColumn } from "@/lib/exportUtils";
 
 interface PosPastBillsModalProps {
   open: boolean;
@@ -295,29 +296,24 @@ export function PosPastBillsModal({
     window.open(url, "_blank");
   };
 
-  // Export Filtered Register to CSV
-  const handleExportCsv = () => {
-    if (filteredOrders.length === 0) {
-      toast.info("No bills to export in current filter.");
-      return;
-    }
+  // Universal Export columns for POS sales register
+  const posExportColumns: ExportColumn[] = [
+    { label: "Bill No", key: "order_number", width: 16 },
+    { label: "Date & Time", key: "dateTime", width: 22 },
+    { label: "Customer Name", key: "customer_name", width: 20 },
+    { label: "Customer Phone", key: "customer_phone", width: 16 },
+    { label: "Status", key: "status", width: 12 },
+    { label: "Payment Mode", key: "paymentMode", width: 15 },
+    { label: "Total Amount (₹)", key: "total", width: 16, type: "currency" },
+    { label: "Cash (₹)", key: "cash", width: 14, type: "currency" },
+    { label: "UPI (₹)", key: "upi", width: 14, type: "currency" },
+    { label: "Card (₹)", key: "card", width: 14, type: "currency" },
+    { label: "Cashier", key: "cashier", width: 18 },
+    { label: "Reprint Count", key: "reprints", width: 12, type: "number" },
+  ];
 
-    const headers = [
-      "Bill No",
-      "Date & Time",
-      "Customer Name",
-      "Customer Phone",
-      "Status",
-      "Payment Mode",
-      "Total (INR)",
-      "Cash (INR)",
-      "UPI (INR)",
-      "Card (INR)",
-      "Cashier",
-      "Reprint Count",
-    ];
-
-    const rows = filteredOrders.map((o) => {
+  const posExportRows = useMemo(() => {
+    return filteredOrders.map((o) => {
       const split = o.pos_split_payments || {};
       const method = (o.actual_payment_method || o.payment_method || "").toLowerCase();
       let cashAmt = 0;
@@ -333,43 +329,33 @@ export function PosPastBillsModal({
         cardAmt = Number(split.card || 0);
       }
 
-      return [
-        `"${o.order_number || o.id}"`,
-        `"${new Date(o.created_at).toLocaleString("en-IN")}"`,
-        `"${(o.customer_name || "").replace(/"/g, '""')}"`,
-        `"${(o.customer_phone || "").replace(/"/g, '""')}"`,
-        o.status,
-        method.toUpperCase(),
-        o.total || 0,
-        cashAmt,
-        upiAmt,
-        cardAmt,
-        `"${(o.pos_cashier_name || "").replace(/"/g, '""')}"`,
-        o.reprint_count || 0,
-      ];
+      return {
+        order_number: o.order_number || o.id.slice(0, 8),
+        dateTime: formatInvoiceDateTime(o.created_at, true),
+        customer_name: o.customer_name || "Counter Customer",
+        customer_phone: o.customer_phone || "-",
+        status: o.status || "completed",
+        paymentMode: method.toUpperCase(),
+        total: Number(o.total || 0),
+        cash: cashAmt,
+        upi: upiAmt,
+        card: cardAmt,
+        cashier: o.pos_cashier_name || "Counter Staff",
+        reprints: Number(o.reprint_count || 0),
+      };
     });
-
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `pos-sales-register-${dateFilter}-${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success(`Exported ${filteredOrders.length} POS bills to CSV`);
-  };
+  }, [filteredOrders]);
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-3xl border-border shadow-2xl max-h-[92vh] flex flex-col">
+        <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-4xl p-0 overflow-hidden rounded-3xl border-border shadow-2xl max-h-[92vh] flex flex-col">
           {/* Header */}
-          <DialogHeader className="bg-gradient-to-r from-primary/15 via-primary/5 to-transparent p-5 pb-4 border-b border-border shrink-0">
+          <DialogHeader className="bg-gradient-to-r from-primary/15 via-primary/5 to-transparent p-4 sm:p-5 pb-4 border-b border-border shrink-0 pr-8 sm:pr-10">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                  <FileText className="size-5 text-primary" />
+                <DialogTitle className="text-base sm:text-lg font-bold flex items-center gap-2">
+                  <FileText className="size-4 sm:size-5 text-primary" />
                   POS Counter Sales Register &amp; Past Bills
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground mt-0.5">
@@ -377,15 +363,16 @@ export function PosPastBillsModal({
                 </DialogDescription>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="rounded-xl text-xs h-8"
-                  onClick={handleExportCsv}
-                >
-                  <Download className="mr-1.5 size-3.5" /> Export Register (.csv)
-                </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                <ExportDropdown
+                  options={{
+                    filename: `pos-sales-register-${dateFilter}`,
+                    title: "POS Counter Sales Register",
+                    columns: posExportColumns,
+                    data: posExportRows,
+                  }}
+                  buttonLabel="Export Register"
+                />
               </div>
             </div>
 

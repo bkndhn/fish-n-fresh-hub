@@ -138,18 +138,18 @@ function MyOrders() {
               {formatIST(o.created_at)} ·{" "}
               {Array.isArray(o.items) ? o.items.length : 0} items · {o.payment_status}
             </p>
-            <div className="mt-2 flex items-center justify-between">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/40">
               <p className="font-display text-lg font-bold">{inr(Number(o.total))}</p>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                 {canComplain && !o.complaint && complainingId !== o.id && (
-                  <Button size="sm" variant="ghost" className="rounded-xl text-destructive" onClick={() => setComplainingId(o.id)}>
+                  <Button size="sm" variant="ghost" className="rounded-xl text-destructive h-8 px-2 text-xs" onClick={() => setComplainingId(o.id)}>
                     Issue with order?
                   </Button>
                 )}
                 <Button
                   size="sm"
                   variant="outline"
-                  className="rounded-xl"
+                  className="rounded-xl h-8 px-2.5 sm:px-3 text-xs"
                   onClick={() => handleReorder(o.items as any[])}
                 >
                   <RotateCcw className="mr-1 size-3.5" /> Reorder
@@ -157,12 +157,12 @@ function MyOrders() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="rounded-xl border-sky-500/30 text-sky-700 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40"
+                  className="rounded-xl border-sky-500/30 text-sky-700 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40 h-8 px-2.5 sm:px-3 text-xs"
                   onClick={() => setInvoiceOrder(o)}
                 >
                   <FileText className="mr-1 size-3.5 text-sky-600" /> Invoice
                 </Button>
-                <Button asChild size="sm" variant="outline" className="rounded-xl">
+                <Button asChild size="sm" variant="outline" className="rounded-xl h-8 px-2.5 sm:px-3 text-xs">
                   <Link to="/track/$id" params={{ id: o.id }}>
                     Track
                   </Link>
