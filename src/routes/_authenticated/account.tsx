@@ -412,59 +412,106 @@ function PaymentsTab({
     return <p className="text-sm text-muted-foreground">No payments yet.</p>;
   }
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border bg-card">
-      <table className="w-full text-left text-xs">
-        <thead className="bg-muted/60 text-muted-foreground">
-          <tr>
-            <th className="p-3 font-semibold">Order</th>
-            <th className="p-3 font-semibold">Date</th>
-            <th className="p-3 font-semibold">Method</th>
-            <th className="p-3 font-semibold">Status</th>
-            <th className="p-3 text-right font-semibold">Amount</th>
-            <th className="p-3 text-right font-semibold">Refunded</th>
-            <th className="p-3 text-center font-semibold">Invoice</th>
-          </tr>
-        </thead>
-        <tbody>
-          {orders.map((o) => (
-            <tr key={o.id} className="border-t border-border">
-              <td className="p-3 font-medium">#{o.order_number ?? o.id.slice(0, 8)}</td>
-              <td className="p-3 text-muted-foreground">{formatIST(o.created_at)}</td>
-              <td className="p-3 uppercase">
-                {o.payment_method === "card" ? "💳 Card / Stripe" : o.payment_method === "upi" ? "📱 UPI" : "💵 COD"}
-              </td>
-              <td className="p-3">
-                <Badge
-                  className={`rounded-full border-0 ${
-                    o.payment_status === "paid"
-                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                      : o.payment_status === "failed"
-                        ? "bg-destructive/15 text-destructive"
-                        : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {statusLabel(o.payment_status)}
-                </Badge>
-              </td>
-              <td className="p-3 text-right font-semibold">{inr(Number(o.total))}</td>
-              <td className="p-3 text-right text-muted-foreground">
-                {Number(o.refund_amount ?? 0) > 0 ? inr(Number(o.refund_amount)) : "—"}
-              </td>
-              <td className="p-3 text-center">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs px-2"
-                  onClick={() => onOpenInvoice(o)}
-                >
-                  <FileText className="size-3.5 mr-1" /> View
-                </Button>
-              </td>
+    <>
+      {/* Desktop Table (hidden on mobile) */}
+      <div className="hidden sm:block overflow-x-auto rounded-2xl border border-border bg-card">
+        <table className="w-full text-left text-xs">
+          <thead className="bg-muted/60 text-muted-foreground">
+            <tr>
+              <th className="p-3 font-semibold">Order</th>
+              <th className="p-3 font-semibold">Date</th>
+              <th className="p-3 font-semibold">Method</th>
+              <th className="p-3 font-semibold">Status</th>
+              <th className="p-3 text-right font-semibold">Amount</th>
+              <th className="p-3 text-right font-semibold">Refunded</th>
+              <th className="p-3 text-center font-semibold">Invoice</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {orders.map((o) => (
+              <tr key={o.id} className="border-t border-border">
+                <td className="p-3 font-medium">#{o.order_number ?? o.id.slice(0, 8)}</td>
+                <td className="p-3 text-muted-foreground">{formatIST(o.created_at)}</td>
+                <td className="p-3 uppercase">
+                  {o.payment_method === "card" ? "💳 Card / Stripe" : o.payment_method === "upi" ? "📱 UPI" : "💵 COD"}
+                </td>
+                <td className="p-3">
+                  <Badge
+                    className={`rounded-full border-0 ${
+                      o.payment_status === "paid"
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                        : o.payment_status === "failed"
+                          ? "bg-destructive/15 text-destructive"
+                          : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {statusLabel(o.payment_status)}
+                  </Badge>
+                </td>
+                <td className="p-3 text-right font-semibold">{inr(Number(o.total))}</td>
+                <td className="p-3 text-right text-muted-foreground">
+                  {Number(o.refund_amount ?? 0) > 0 ? inr(Number(o.refund_amount)) : "—"}
+                </td>
+                <td className="p-3 text-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs px-2"
+                    onClick={() => onOpenInvoice(o)}
+                  >
+                    <FileText className="size-3.5 mr-1" /> View
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile Payment Cards (shown only on mobile) */}
+      <div className="sm:hidden space-y-2">
+        {orders.map((o) => (
+          <div key={o.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-semibold text-sm text-foreground">#{o.order_number ?? o.id.slice(0, 8)}</span>
+              <Badge
+                className={`rounded-full border-0 text-[10px] ${
+                  o.payment_status === "paid"
+                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    : o.payment_status === "failed"
+                      ? "bg-destructive/15 text-destructive"
+                      : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {statusLabel(o.payment_status)}
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{formatIST(o.created_at)}</span>
+              <span className="uppercase text-[11px]">
+                {o.payment_method === "card" ? "💳 Card" : o.payment_method === "upi" ? "📱 UPI" : "💵 COD"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between border-t border-border/40 pt-2">
+              <div>
+                <span className="text-sm font-bold text-foreground">{inr(Number(o.total))}</span>
+                {Number(o.refund_amount ?? 0) > 0 && (
+                  <span className="text-xs text-muted-foreground ml-2">Refund: {inr(Number(o.refund_amount))}</span>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs px-2.5 rounded-xl"
+                onClick={() => onOpenInvoice(o)}
+              >
+                <FileText className="size-3 mr-1" /> Invoice
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
