@@ -5,11 +5,22 @@
   "description": "Kasimedu Dock Fresh Seafood & Premium Meat Delivered in 35 Mins",
   "start_url": "/?source=pwa",
   "scope": "/",
+
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+
   "orientation": "portrait-primary",
-  "background_color": "#ffffff",
+  "background_color": "#0284c7",
   "theme_color": "#0284c7",
+
+  "prefer_related_applications": false,
+
+  "launch_handler": {
+    "client_mode": ["navigate-existing", "auto"]
+  },
+
   "categories": ["shopping", "food", "lifestyle"],
+
   "icons": [
     {
       "src": "/icons/icon-192.png",
@@ -36,6 +47,24 @@
       "purpose": "maskable"
     }
   ],
+
+  "screenshots": [
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Fish N Fresh — Fresh Catch Delivered in 35 Mins"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Fish N Fresh Hub — Seafood & Meat Admin Dashboard"
+    }
+  ],
+
   "shortcuts": [
     {
       "name": "Fresh Catch Catalog",
@@ -60,3 +89,4 @@
     }
   ]
 }
+
