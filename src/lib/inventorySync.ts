@@ -61,58 +61,18 @@ export async function checkCartStockAvailability(
 
 /**
  * Deduct inventory for an order atomically.
+ * The database guarantees a single deduction per order, so retries are safe.
  */
 export async function deductOrderStock(
   orderId: string,
   items: { product_id?: string; productId?: string; qty: number }[]
 ): Promise<boolean> {
-  // 1. Primary: Server Function with service role (bypasses customer RLS)
   try {
     const { deductOrderStockServerFn } = await import("@/lib/orders.functions");
     const res = await deductOrderStockServerFn({ data: { orderId, items } });
-    if (res?.success) {
-      return true;
-    }
-  } catch (srvErr) {
-    console.warn("[InventorySync] Server function deduction failed, trying direct RPC/client:", srvErr);
-  }
-
-  // 2. Direct PostgreSQL RPC
-  try {
-    const { data, error } = await supabase.rpc("deduct_order_stock_atomic" as any, {
-      p_order_id: orderId,
-    });
-    if (!error && (data as any)?.success) {
-      return true;
-    }
-  } catch (rpcErr) {
-    console.warn("RPC deduct_order_stock_atomic not deployed yet, falling back:", rpcErr);
-  }
-
-  // 3. Reliable direct fallback
-  try {
-    for (const item of items) {
-      const pid = item.product_id || item.productId;
-      if (!pid) continue;
-
-      const { data: prod } = await supabase
-        .from("products")
-        .select("stock")
-        .eq("id", pid)
-        .maybeSingle();
-
-      if (prod && typeof prod.stock === "number") {
-        const deductQty = Number(item.qty || 1);
-        const newStock = Math.max(0, Math.round((prod.stock - deductQty) * 100) / 100);
-        await supabase
-          .from("products")
-          .update({ stock: newStock } as any)
-          .eq("id", pid);
-      }
-    }
-    return true;
+    return Boolean(res?.success);
   } catch (err) {
-    console.error("Failed to deduct inventory fallback:", err);
+    console.error("[InventorySync] Stock deduction failed:", err);
     return false;
   }
 }
