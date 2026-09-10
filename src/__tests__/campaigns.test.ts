@@ -44,7 +44,7 @@ describe("Marketing Campaigns & A/B Engine", () => {
   });
 
   it("ignores inactive cart rules even if spend threshold is met", () => {
-    const onlyInactive: MarketingCampaign[] = [mockCampaigns[1]];
+    const onlyInactive: MarketingCampaign[] = [mockCampaigns[1] as MarketingCampaign];
     const res = evaluateCartRewardRule(750, onlyInactive);
     expect(res.eligible).toBe(false);
   });
