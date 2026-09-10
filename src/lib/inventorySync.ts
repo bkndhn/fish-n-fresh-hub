@@ -94,14 +94,4 @@ export async function restoreOrderStock(
     return false;
   }
 }
-          .update({ stock: newStock } as any)
-          .eq("id", pid);
-      }
-    }
-    return true;
-  } catch (err) {
-    console.error("Failed to restore inventory fallback:", err);
-    return false;
-  }
-}
 
