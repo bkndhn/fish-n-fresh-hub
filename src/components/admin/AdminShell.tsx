@@ -22,7 +22,9 @@ import {
   Bell,
   Store,
   MessageCircle,
+  Rocket,
 } from "lucide-react";
+import { GoLiveChecklistModal } from "@/components/admin/GoLiveChecklistModal";
 import { supabase } from "@/integrations/supabase/client";
 import { myRolesQuery, type AppRole } from "@/lib/admin";
 import { settingsQuery } from "@/lib/queries";
@@ -85,6 +87,7 @@ export function AdminShell({
 }) {
   const navigate = useNavigate();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [goLiveOpen, setGoLiveOpen] = useState(false);
   const { data: roles, isLoading } = useQuery(myRolesQuery);
   const { data: settings } = useQuery(settingsQuery);
   const myRoles = roles ?? [];
@@ -143,13 +146,23 @@ export function AdminShell({
             )}
             {!settings?.logo_url && "Fish N Fresh"}
           </Link>
-          <span className="hidden text-sm text-muted-foreground sm:inline">Admin</span>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="ml-auto">
-                <LogOut className="mr-1.5 size-4" /> Sign out
-              </Button>
-            </AlertDialogTrigger>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setGoLiveOpen(true)}
+              className="h-8 rounded-xl text-xs font-bold gap-1.5 border-primary/40 bg-primary/5 hover:bg-primary/10 text-primary shadow-2xs"
+            >
+              <Rocket className="size-3.5" />
+              <span className="hidden sm:inline">Go-Live Readiness</span>
+            </Button>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  <LogOut className="mr-1.5 size-4" /> Sign out
+                </Button>
+              </AlertDialogTrigger>
             <AlertDialogContent className="rounded-2xl">
               <AlertDialogHeader>
                 <AlertDialogTitle>Sign out</AlertDialogTitle>
@@ -169,7 +182,8 @@ export function AdminShell({
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
-          </AlertDialog>
+            </AlertDialog>
+          </div>
         </div>
       </header>
 
@@ -264,6 +278,9 @@ export function AdminShell({
           </ul>
         </div>
       </nav>
+
+      {/* Interactive Store Go-Live Readiness Modal */}
+      <GoLiveChecklistModal open={goLiveOpen} onOpenChange={setGoLiveOpen} />
     </div>
   );
 }

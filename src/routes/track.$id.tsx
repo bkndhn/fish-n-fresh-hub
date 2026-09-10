@@ -34,6 +34,7 @@ import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
 import { getGoogleMapsDirUrl } from "@/lib/maps";
 import { CustomerDeliveryPinCard } from "@/components/CustomerDeliveryPinCard";
 import { InlineDeliveryRouteMap } from "@/components/InlineDeliveryRouteMap";
+import { NotificationPromptCard } from "@/components/NotificationPromptCard";
 import { getVerticalConfig } from "@/lib/verticals";
 
 export const Route = createFileRoute("/track/$id")({
@@ -217,6 +218,9 @@ function TrackPage() {
             </Button>
           </div>
         </div>
+
+        {/* Live Notification Prompt Card */}
+        <NotificationPromptCard userId={order.user_id} />
 
         {/* Customer Secret Delivery & Handover PIN Card (Visible ONLY to Customer) */}
         {!isCancelled && (

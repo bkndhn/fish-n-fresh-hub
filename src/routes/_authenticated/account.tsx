@@ -38,6 +38,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { TaxInvoiceModal } from "@/components/TaxInvoiceModal";
+import { NotificationPromptCard } from "@/components/NotificationPromptCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useSessionUser } from "@/lib/session";
 import { useCart } from "@/lib/cart";
@@ -358,19 +359,26 @@ function OrdersTab({
     navigate({ to: "/cart" });
   }
 
+  const { user } = useSessionUser();
+
   if (!orders.length) {
     return (
-      <div className="rounded-2xl border border-dashed border-border py-14 text-center">
-        <p className="text-sm text-muted-foreground">You have not placed an order yet.</p>
-        <Button asChild className="mt-4 rounded-xl">
-          <Link to="/catalog">Browse today's catch</Link>
-        </Button>
+      <div className="space-y-4">
+        <NotificationPromptCard userId={user?.id} />
+        <div className="rounded-2xl border border-dashed border-border py-14 text-center">
+          <p className="text-sm text-muted-foreground">You have not placed an order yet.</p>
+          <Button asChild className="mt-4 rounded-xl">
+            <Link to="/catalog">Browse today's catch</Link>
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <ul className="space-y-3">
+    <div className="space-y-3">
+      <NotificationPromptCard userId={user?.id} />
+      <ul className="space-y-3">
       {orders.map((o) => {
         const step = STATUS_STEPS.indexOf(o.status);
         return (
@@ -443,7 +451,8 @@ function OrdersTab({
           </li>
         );
       })}
-    </ul>
+      </ul>
+    </div>
   );
 }
 

@@ -118,6 +118,16 @@ class SoundEngine {
 
 export const soundEngine = new SoundEngine();
 
+export function playOrderNotificationSound(type: "status" | "scanner" | "error" = "status") {
+  if (type === "scanner") {
+    soundEngine.playScannerBeep();
+  } else if (type === "error") {
+    soundEngine.playScannerError();
+  } else {
+    soundEngine.playStatusChime();
+  }
+}
+
 /**
  * Subscribe to a single order's real-time events.
  * Listens for status changes, delivery notes, and driver location updates.

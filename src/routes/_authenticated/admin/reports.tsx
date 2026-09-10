@@ -299,6 +299,31 @@ export function Reports() {
     return list;
   }, [productVelocity.all, velocityTierFilter, velocitySearch]);
 
+  const profitExportOptions: ExportOptions = useMemo(() => {
+    const columns: ExportColumn[] = [
+      { key: "name", label: "Product SKU", type: "string" },
+      { key: "category", label: "Category", type: "string" },
+      { key: "tier", label: "Velocity Tier", type: "string", format: (v) => v === "top" ? "Top Selling 🔥" : v === "medium" ? "Steady Mover ⚖️" : "Slow Mover ❄️" },
+      { key: "price", label: "Selling Rate (₹)", type: "currency", format: (v, r) => `${formatINR(v)} / ${r.unit}` },
+      { key: "costPrice", label: "Inward Cost (₹)", type: "currency", format: (v) => formatINR(v) },
+      { key: "qtySold", label: "Units Sold", type: "number", format: (v, r) => `${v} ${r.unit}` },
+      { key: "revenue", label: "Gross Revenue (₹)", type: "currency", format: (v) => formatINR(v) },
+      { key: "cogs", label: "COGS (₹)", type: "currency", format: (v) => formatINR(v) },
+      { key: "grossProfit", label: "Gross Profit (₹)", type: "currency", format: (v) => formatINR(v) },
+      { key: "marginPct", label: "Margin (%)", type: "string", format: (v) => `${v}%` },
+      { key: "stock", label: "Current Stock", type: "number", format: (v, r) => `${v} ${r.unit}` },
+      { key: "recommendation", label: "Inventory Strategy", type: "string" },
+    ];
+    return {
+      filename: `fishnfresh-profitability-report-${new Date().toISOString().slice(0, 10)}`,
+      title: "Seafood SKU Profitability & Margin Analysis",
+      subtitle: `Exported on ${new Date().toLocaleDateString("en-IN")} | ${filteredVelocityProducts.length} items | Total Profit: ${formatINR(productVelocity.totalGrossProfit)} (${productVelocity.overallMarginPct}% margin)`,
+      columns,
+      data: filteredVelocityProducts,
+      orientation: "landscape",
+    };
+  }, [filteredVelocityProducts, productVelocity]);
+
   // Daily revenue for trend
   const daily = useMemo(() => {
     const m = new Map<string, number>();
@@ -1543,6 +1568,7 @@ export function Reports() {
                   <ExternalLink className="mr-1.5 size-3.5" /> Edit Products
                 </Button>
               </Link>
+              <ExportDropdown options={profitExportOptions} buttonLabel="Export Margin Sheet" />
             </div>
           </div>
         </CardHeader>

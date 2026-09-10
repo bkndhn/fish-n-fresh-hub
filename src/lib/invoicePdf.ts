@@ -11,13 +11,13 @@
 
 export interface InvoiceItem {
   name: string;
-  hsnCode?: string;
+  hsnCode?: string | undefined;
   qty: number;
-  unit?: string;
+  unit?: string | undefined;
   unitPrice: number;
   totalPrice: number;
-  gstPercent?: number;
-  cuttingStyle?: string;
+  gstPercent?: number | undefined;
+  cuttingStyle?: string | undefined;
 }
 
 export interface TaxInvoiceData {
@@ -36,13 +36,13 @@ export interface TaxInvoiceData {
   sellerFssai: string;
   sellerAddress: string;
   sellerPhone: string;
-  sellerEmail?: string;
+  sellerEmail?: string | undefined;
 
   // Buyer details
   buyerName: string;
   buyerPhone: string;
-  buyerAddress?: string;
-  buyerGstin?: string;
+  buyerAddress?: string | undefined;
+  buyerGstin?: string | undefined;
 
   // Items & Financials
   items: InvoiceItem[];
@@ -54,7 +54,7 @@ export interface TaxInvoiceData {
 
   paymentMethod: string;
   paymentStatus: string;
-  paymentRef?: string;
+  paymentRef?: string | undefined;
 }
 
 /**

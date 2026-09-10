@@ -1,395 +1,385 @@
 import { useState, useEffect, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  MessageCircle,
-  X,
-  Send,
-  Sparkles,
-  Phone,
-  HelpCircle,
-  CheckCircle2,
-  Clock,
-  ShieldCheck,
-} from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useSessionUser } from "@/lib/session";
-import { settingsQuery } from "@/lib/queries";
+import { MessageSquare, X, Send, Bot, User, Sparkles, Phone, ShieldCheck, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { WhatsAppIcon } from "@/components/WhatsAppIcon";
+import { supabase } from "@/integrations/supabase/client";
+import { useSessionUser } from "@/lib/session";
+import { playOrderNotificationSound } from "@/lib/realtime";
 import { toast } from "sonner";
-import { useLocation } from "@tanstack/react-router";
-import { useCart } from "@/lib/cart";
 
-interface Message {
+interface ChatMessage {
   id: string;
-  sender_type: "customer" | "admin" | "staff" | "bot";
+  conversation_id: string;
+  sender_type: "customer" | "staff" | "system" | "bot";
   sender_name: string;
   message: string;
   created_at: string;
 }
 
-const FAQ_PROMPTS = [
-  "When will today's fresh sea catch arrive?",
-  "How do I choose custom fish cutting style?",
-  "Where is my active delivery order?",
-  "Can I pay via UPI QR upon delivery?",
+const INSTANT_FAQS = [
+  {
+    q: "How fresh is today's seafood?",
+    a: "All our seafood is morning dock catch procured directly from Kasimedu & coastal harbours at 6:00 AM, stored strictly on chemical-free crushed ice at 0–4°C.",
+  },
+  {
+    q: "Can I choose my cutting style?",
+    a: "Yes! For every fish, you can choose Curry Cut, Fry Slices (Steaks), Whole Cleaned with Head, or Boneless Fillets at zero extra charge.",
+  },
+  {
+    q: "How does delivery tracking work?",
+    a: "You can track your rider in real time with our live GPS WebSocket radar and secure 4-digit Delivery PIN verification upon arrival.",
+  },
 ];
 
 export function CustomerSupportChatWidget() {
   const { user } = useSessionUser();
-  const { data: settings } = useQuery(settingsQuery);
-  const qc = useQueryClient();
-  const { items } = useCart();
-  const location = useLocation();
-
-  const isCartVisible =
-    items.length > 0 &&
-    location.pathname !== "/cart" &&
-    location.pathname !== "/checkout" &&
-    !location.pathname.startsWith("/admin");
-
-  const isChatEnabled = (settings as any)?.feature_live_chat_enabled !== false;
-
   const [isOpen, setIsOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [newMessage, setNewMessage] = useState("");
-  const [hasUnread, setHasUnread] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [inputText, setInputText] = useState("");
+  const [guestName, setGuestName] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [isStarted, setIsStarted] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto populate user details
+  // Auto-fill customer info if logged in or stored locally
   useEffect(() => {
-    if (user) {
-      if (!customerName) setCustomerName((user.user_metadata?.["full_name"] as string) || "Customer");
-      if (!customerPhone) setCustomerPhone((user.user_metadata?.["phone"] as string) || (user.phone as string) || "");
-    } else {
-      const savedPhone = localStorage.getItem("fnf_phone");
-      if (savedPhone && !customerPhone) setCustomerPhone(savedPhone);
+    const savedName = localStorage.getItem("fnf_name") || user?.user_metadata?.["name"] || "";
+    const savedPhone = localStorage.getItem("fnf_phone") || "";
+    if (savedName) setGuestName(savedName);
+    if (savedPhone) setGuestPhone(savedPhone);
+    if (user?.id || savedName) {
+      setIsStarted(true);
     }
   }, [user]);
 
-  // Find or init conversation for this user/phone
+  // Scroll to bottom on message updates
   useEffect(() => {
-    if (!isOpen) return;
+    if (isOpen) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      setUnreadCount(0);
+    }
+  }, [messages, isOpen]);
+
+  // Initialize or fetch conversation
+  useEffect(() => {
+    if (!isStarted) return;
+
+    let active = true;
 
     async function initConversation() {
-      const phone = customerPhone || user?.phone || localStorage.getItem("fnf_phone") || "Guest";
-      const name = customerName || (user?.user_metadata?.["full_name"] as string) || "Guest Shopper";
-
       try {
-        // Try finding existing open or in-progress conversation
-        const query = supabase
-          .from("support_conversations" as any)
+        const phone = guestPhone.trim() || user?.email || "9843061919";
+        const name = guestName.trim() || (user?.user_metadata?.["name"] as string) || "Guest Shopper";
+
+        // Find existing open conversation
+        const { data: convs } = await (supabase as any)
+          .from("support_conversations")
           .select("id")
-          .order("created_at", { ascending: false })
+          .eq("customer_phone", phone)
+          .eq("status", "open")
+          .order("last_message_at", { ascending: false })
           .limit(1);
 
-        if (user?.id) {
-          query.eq("customer_id", user.id);
-        } else if (phone !== "Guest") {
-          query.eq("customer_phone", phone);
-        }
+        let convId = convs?.[0]?.id;
 
-        const { data: existing } = await query;
-
-        if (existing && existing.length > 0) {
-          setConversationId((existing[0] as any).id);
-        } else {
-          // Create new conversation
-          const { data: created, error } = await supabase
-            .from("support_conversations" as any)
+        if (!convId) {
+          const { data: newConv, error: createErr } = await (supabase as any)
+            .from("support_conversations")
             .insert({
               customer_id: user?.id || null,
               customer_name: name,
               customer_phone: phone,
+              subject: "Storefront Live In-App Chat",
               status: "open",
-            } as any)
-            .select("id")
+              last_message_at: new Date().toISOString(),
+            })
+            .select()
             .single();
 
-          if (!error && created) {
-            setConversationId((created as any).id);
-
-            // Send initial bot greeting
-            await supabase.from("support_messages" as any).insert({
-              conversation_id: (created as any).id,
-              sender_type: "bot",
-              sender_name: "Fish N Fresh Assistant",
-              message:
-                "Hello! Welcome to Fish N Fresh Hub. How can we help you today? Ask any questions about today's fresh harbor catches, cutting styles, or active deliveries.",
-            } as any);
+          if (!createErr && newConv) {
+            convId = newConv.id;
+            // Welcome system message
+            await (supabase as any).from("support_messages").insert({
+              conversation_id: convId,
+              sender_type: "staff",
+              sender_name: "Fish N Fresh Support",
+              message: `Vanakkam ${name}! 👋 How can we assist you with your fresh seafood order today?`,
+            });
           }
         }
+
+        if (active && convId) {
+          setConversationId(convId);
+
+          // Fetch messages
+          const { data: msgs } = await (supabase as any)
+            .from("support_messages")
+            .select("*")
+            .eq("conversation_id", convId)
+            .order("created_at", { ascending: true });
+
+          if (msgs) setMessages(msgs);
+        }
       } catch (err) {
-        console.warn("Support conversation init exception:", err);
+        console.warn("Support chat initialization notice:", err);
       }
     }
 
     initConversation();
-  }, [isOpen, customerPhone, customerName, user]);
 
-  // Query messages for active conversation
-  const { data: messages = [] } = useQuery<Message[]>({
-    queryKey: ["support-messages", conversationId],
-    queryFn: async () => {
-      if (!conversationId) return [];
-      const { data, error } = await supabase
-        .from("support_messages" as any)
-        .select("*")
-        .eq("conversation_id", conversationId)
-        .order("created_at", { ascending: true });
+    return () => {
+      active = false;
+    };
+  }, [isStarted, user?.id]);
 
-      if (error) return [];
-      return (data as any) || [];
-    },
-    enabled: Boolean(conversationId && isOpen),
-    refetchInterval: isOpen ? 3500 : false,
-  });
-
-  // Scroll to bottom on new messages
+  // Real-time WebSocket subscription to support_messages
   useEffect(() => {
-    if (isOpen) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, isOpen]);
+    if (!conversationId) return;
 
-  // Send message mutation
-  const sendMutation = useMutation({
-    mutationFn: async (text: string) => {
-      if (!conversationId || !text.trim()) return;
+    const channel = supabase
+      .channel(`support-chat-${conversationId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "support_messages",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          const newMsg = payload.new as ChatMessage;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
 
-      const userDisplayName = customerName || (user?.user_metadata?.["full_name"] as string) || "Customer";
+          if (newMsg.sender_type !== "customer") {
+            playOrderNotificationSound("status");
+            if (!isOpen) {
+              setUnreadCount((c) => c + 1);
+              toast.info(`New message from ${newMsg.sender_name}: "${newMsg.message.slice(0, 40)}..."`);
+            }
+          }
+        }
+      )
+      .subscribe();
 
-      const { error } = await supabase.from("support_messages" as any).insert({
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [conversationId, isOpen]);
+
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!inputText.trim() || !conversationId) return;
+
+    const text = inputText.trim();
+    setInputText("");
+    setSending(true);
+
+    const clientMsg: ChatMessage = {
+      id: `tmp_${Date.now()}`,
+      conversation_id: conversationId,
+      sender_type: "customer",
+      sender_name: guestName || "You",
+      message: text,
+      created_at: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, clientMsg]);
+
+    try {
+      await (supabase as any).from("support_messages").insert({
         conversation_id: conversationId,
         sender_type: "customer",
+        sender_name: guestName || "Customer",
         sender_id: user?.id || null,
-        sender_name: userDisplayName,
-        message: text.trim(),
-      } as any);
+        message: text,
+      });
 
-      if (error) throw error;
-
-      // Update conversation timestamp
-      await supabase
-        .from("support_conversations" as any)
-        .update({
-          last_message_at: new Date().toISOString(),
-          status: "open",
-        } as any)
+      await (supabase as any)
+        .from("support_conversations")
+        .update({ last_message_at: new Date().toISOString() })
         .eq("id", conversationId);
-    },
-    onSuccess: () => {
-      setNewMessage("");
-      qc.invalidateQueries({ queryKey: ["support-messages", conversationId] });
-    },
-    onError: () => toast.error("Could not send message. Please try WhatsApp support."),
-  });
-
-  const handleSend = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!newMessage.trim() || sendMutation.isPending) return;
-    sendMutation.mutate(newMessage);
+    } catch (err) {
+      console.warn("Failed to send support message:", err);
+    } finally {
+      setSending(false);
+    }
   };
 
-  const handleQuickPrompt = (prompt: string) => {
-    sendMutation.mutate(prompt);
+  const handleStartChat = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!guestName.trim() || !guestPhone.trim()) {
+      toast.error("Please enter your name and phone number to begin.");
+      return;
+    }
+    localStorage.setItem("fnf_name", guestName.trim());
+    localStorage.setItem("fnf_phone", guestPhone.trim());
+    setIsStarted(true);
   };
-
-  if (!isChatEnabled) return null;
-
-  const supportPhone = (settings?.support_phone || settings?.whatsapp_number || "919843061919").replace(/\D/g, "");
-  const waUrl = `https://wa.me/${supportPhone}?text=${encodeURIComponent(
-    `Hi Fish N Fresh, I have a question about my order/seafood.`
-  )}`;
 
   return (
     <>
-      {/* Floating Launcher Button */}
-      <div
-        className={`fixed z-40 transition-all duration-300 ${
-          isCartVisible
-            ? "bottom-38 right-4 sm:bottom-24 sm:right-6"
-            : "bottom-20 right-4 sm:bottom-6 sm:right-6"
-        }`}
-      >
+      {/* Floating Trigger Button */}
+      <div className="fixed bottom-20 sm:bottom-6 right-5 z-40">
         {!isOpen && (
           <button
-            type="button"
-            onClick={() => {
-              setIsOpen(true);
-              setHasUnread(false);
-            }}
-            className="group relative flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl transition-all duration-300 hover:scale-105 hover:bg-primary/95 focus:outline-hidden focus:ring-4 focus:ring-primary/20"
-            aria-label="Open Live Customer Support"
+            onClick={() => setIsOpen(true)}
+            className="relative flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-primary-foreground shadow-lg hover:bg-primary/90 transition-all active:scale-95 group"
+            title="Chat with Customer Support"
           >
-            <MessageCircle className="size-6 transition-transform group-hover:scale-110" />
-            <span className="absolute -top-1 -right-1 flex size-3.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex size-3.5 rounded-full bg-emerald-500 border-2 border-background" />
-            </span>
+            <MessageSquare className="size-5" />
+            <span className="hidden sm:inline font-bold text-xs">Live Support</span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-extrabold text-white animate-bounce">
+                {unreadCount}
+              </span>
+            )}
           </button>
         )}
       </div>
 
-      {/* Slide-Up / Floating Chat Window */}
+      {/* Floating Chat Modal */}
       {isOpen && (
-        <div
-          className={`fixed z-50 mx-auto max-w-sm overflow-hidden rounded-3xl border border-border/80 bg-background shadow-2xl transition-all duration-300 ${
-            isCartVisible
-              ? "inset-x-3 bottom-38 sm:inset-x-auto sm:right-6 sm:bottom-24 sm:w-96"
-              : "inset-x-3 bottom-4 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-96"
-          }`}
-        >
+        <div className="fixed bottom-20 sm:bottom-6 right-3 sm:right-6 z-50 w-[calc(100vw-24px)] sm:w-96 rounded-3xl border border-border/80 bg-card shadow-2xl overflow-hidden flex flex-col h-[520px] max-h-[82vh] animate-in slide-in-from-bottom-5">
           {/* Header */}
-          <div className="flex items-center justify-between bg-primary p-4 text-primary-foreground">
-            <div className="flex items-center gap-3">
-              <div className="relative flex size-10 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-xs">
-                <Sparkles className="size-5" />
-                <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-emerald-400 border border-primary" />
+          <div className="bg-primary px-4 py-3.5 text-primary-foreground flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <div className="size-8 rounded-full bg-primary-foreground/20 flex items-center justify-center">
+                <Bot className="size-4.5" />
               </div>
               <div>
-                <div className="text-sm font-bold leading-tight flex items-center gap-1.5">
-                  Live Customer Desk
-                </div>
-                <div className="text-[11px] text-primary-foreground/80 flex items-center gap-1">
-                  <span className="size-1.5 rounded-full bg-emerald-400 inline-block" />
-                  Harbour Store Manager Online
-                </div>
+                <p className="font-bold text-sm leading-tight flex items-center gap-1.5">
+                  Fish N Fresh Desk
+                  <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+                </p>
+                <p className="text-[10px] text-primary-foreground/80">Typical reply in &lt; 2 minutes</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1">
-              <a
-                href={waUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-xl p-2 text-primary-foreground/80 hover:bg-white/10 hover:text-white transition"
-                title="Chat directly on WhatsApp"
-              >
-                <WhatsAppIcon className="size-4" />
-              </a>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="rounded-xl p-2 text-primary-foreground/80 hover:bg-white/10 hover:text-white transition"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-7 text-primary-foreground hover:bg-primary-foreground/20 rounded-full"
+              onClick={() => setIsOpen(false)}
+            >
+              <X className="size-4" />
+            </Button>
           </div>
 
-          {/* Quick Actions / Store Guarantee Header */}
-          <div className="flex items-center justify-between bg-muted/40 px-4 py-2 border-b border-border/50 text-[11px] text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <ShieldCheck className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-              100% Sea-Fresh Guarantee
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock className="size-3.5 text-primary" /> Avg Reply: ~2 mins
-            </span>
-          </div>
-
-          {/* Message Stream */}
-          <div className="h-80 overflow-y-auto p-4 space-y-3 bg-muted/10 text-xs">
-            {messages.length === 0 ? (
-              <div className="py-8 text-center space-y-2">
-                <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <MessageCircle className="size-5" />
+          {/* Body */}
+          {!isStarted ? (
+            <form onSubmit={handleStartChat} className="p-5 space-y-4 flex-1 flex flex-col justify-center">
+              <div className="text-center space-y-1">
+                <div className="mx-auto size-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-2">
+                  <MessageSquare className="size-6" />
                 </div>
-                <p className="font-semibold text-foreground">Starting conversation...</p>
-                <p className="text-[11px] text-muted-foreground px-4">
-                  Send a message below or pick a quick question.
+                <h3 className="font-bold text-base text-foreground">Welcome to Fish N Fresh Support</h3>
+                <p className="text-xs text-muted-foreground">
+                  Enter your contact details to connect with our counter team in real time.
                 </p>
               </div>
-            ) : (
-              messages.map((m) => {
-                const isCustomer = m.sender_type === "customer";
-                const isBot = m.sender_type === "bot";
 
-                return (
-                  <div
-                    key={m.id}
-                    className={`flex flex-col ${isCustomer ? "items-end" : "items-start"}`}
-                  >
-                    <div className="text-[10px] text-muted-foreground mb-0.5 px-1">
-                      {isCustomer ? "You" : isBot ? "Fish N Fresh Assistant" : `${m.sender_name} (Store Team)`}
-                    </div>
+              <div className="space-y-3 pt-2">
+                <div>
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase">Your Name</label>
+                  <Input
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    placeholder="e.g. Ramesh Kumar"
+                    className="h-9 text-xs rounded-xl mt-1"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase">Phone Number</label>
+                  <Input
+                    type="tel"
+                    value={guestPhone}
+                    onChange={(e) => setGuestPhone(e.target.value)}
+                    placeholder="e.g. 9843061919"
+                    className="h-9 text-xs rounded-xl mt-1"
+                    required
+                  />
+                </div>
+
+                <Button type="submit" className="w-full rounded-xl h-9 text-xs font-bold shadow-xs">
+                  Start Live Chat
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <>
+              {/* Message List */}
+              <div className="flex-1 overflow-y-auto p-3.5 space-y-3 bg-muted/15 text-xs">
+                {messages.map((m) => {
+                  const isUser = m.sender_type === "customer";
+                  return (
                     <div
-                      className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed ${
-                        isCustomer
-                          ? "bg-primary text-primary-foreground rounded-tr-xs"
-                          : isBot
-                          ? "bg-sky-500/10 text-sky-950 dark:text-sky-100 border border-sky-500/20 rounded-tl-xs"
-                          : "bg-card text-foreground border border-border/70 shadow-2xs rounded-tl-xs"
-                      }`}
+                      key={m.id}
+                      className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}
                     >
-                      {m.message}
+                      <span className="text-[10px] text-muted-foreground mb-0.5 px-1 font-medium">
+                        {isUser ? "You" : m.sender_name}
+                      </span>
+                      <div
+                        className={`rounded-2xl px-3.5 py-2 max-w-[85%] text-xs shadow-2xs leading-relaxed ${
+                          isUser
+                            ? "bg-primary text-primary-foreground rounded-br-none"
+                            : "bg-card border border-border text-foreground rounded-bl-none"
+                        }`}
+                      >
+                        {m.message}
+                      </div>
                     </div>
-                    <span className="text-[9px] text-muted-foreground mt-0.5 px-1">
-                      {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                  </div>
-                );
-              })
-            )}
-
-            {/* Quick Prompt Suggestions */}
-            {messages.length <= 2 && (
-              <div className="pt-2 space-y-1.5">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                  Quick Questions
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {FAQ_PROMPTS.map((prompt) => (
-                    <button
-                      key={prompt}
-                      type="button"
-                      onClick={() => handleQuickPrompt(prompt)}
-                      className="rounded-xl border border-primary/20 bg-background/80 px-2.5 py-1 text-[11px] text-foreground hover:border-primary hover:bg-primary/5 transition text-left"
-                    >
-                      {prompt}
-                    </button>
-                  ))}
-                </div>
+                  );
+                })}
+                <div ref={messagesEndRef} />
               </div>
-            )}
 
-            <div ref={messagesEndRef} />
-          </div>
+              {/* Instant Questions Pills */}
+              <div className="border-t border-border/40 px-3 py-1.5 bg-card overflow-x-auto flex gap-1.5 no-scrollbar shrink-0">
+                {INSTANT_FAQS.map((faq, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      setInputText(faq.q);
+                    }}
+                    className="shrink-0 text-[10px] rounded-full border border-border bg-muted/40 px-2.5 py-1 text-muted-foreground hover:bg-primary/10 hover:text-primary transition"
+                  >
+                    {faq.q}
+                  </button>
+                ))}
+              </div>
 
-          {/* Reply Form */}
-          <form onSubmit={handleSend} className="p-3 border-t border-border bg-background">
-            <div className="flex items-center gap-2">
-              <Input
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Ask our fishmongers anything..."
-                className="rounded-2xl h-10 text-xs pl-3 pr-2 bg-muted/30 focus-visible:ring-primary"
-              />
-              <Button
-                type="submit"
-                size="icon"
-                disabled={!newMessage.trim() || sendMutation.isPending}
-                className="size-10 rounded-2xl shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+              {/* Input Bar */}
+              <form
+                onSubmit={handleSendMessage}
+                className="p-2.5 border-t border-border/70 bg-card flex items-center gap-2"
               >
-                <Send className="size-4" />
-              </Button>
-            </div>
-
-            <div className="flex items-center justify-between pt-2 px-1 text-[10px] text-muted-foreground">
-              <span>Need urgent voice call?</span>
-              <a
-                href={`tel:${supportPhone}`}
-                className="font-bold text-primary hover:underline inline-flex items-center gap-1"
-              >
-                <Phone className="size-3" /> Call Manager ({supportPhone})
-              </a>
-            </div>
-          </form>
+                <Input
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  placeholder="Type a message or question..."
+                  className="h-9 text-xs rounded-xl flex-1"
+                />
+                <Button
+                  type="submit"
+                  size="icon"
+                  disabled={!inputText.trim() || sending}
+                  className="size-9 rounded-xl shrink-0"
+                >
+                  <Send className="size-4" />
+                </Button>
+              </form>
+            </>
+          )}
         </div>
       )}
     </>

@@ -54,6 +54,43 @@ export const updateOrderStatusWithEmail = createServerFn({ method: "POST" })
     const { error } = await (supabaseAdmin as any).from("orders").update(patch).eq("id", data.orderId);
     if (error) throw new Error(error.message);
 
+    // Automatically restore stock if order is cancelled or rejected
+    if (data.status === "cancelled" || data.status === "rejected") {
+      try {
+        const { error: rpcErr } = await (supabaseAdmin as any).rpc("restore_order_stock_atomic", {
+          p_order_id: data.orderId,
+        });
+        if (rpcErr) {
+          // Direct fallback if RPC is not present
+          const { data: orderData } = await supabaseAdmin
+            .from("orders")
+            .select("items")
+            .eq("id", data.orderId)
+            .maybeSingle();
+          if (orderData?.items && Array.isArray(orderData.items)) {
+            for (const item of orderData.items as any[]) {
+              const pid = item.product_id || item.productId;
+              if (!pid) continue;
+              const { data: prod } = await supabaseAdmin
+                .from("products")
+                .select("stock")
+                .eq("id", pid)
+                .maybeSingle();
+              if (prod && typeof prod.stock === "number") {
+                const qty = Number(item.qty || 1);
+                await supabaseAdmin
+                  .from("products")
+                  .update({ stock: Math.round((prod.stock + qty) * 100) / 100 } as any)
+                  .eq("id", pid);
+              }
+            }
+          }
+        }
+      } catch (stockErr) {
+        console.warn("[Orders] Stock restoral notice:", stockErr);
+      }
+    }
+
     // Trigger transactional email
     try {
       const { sendOrderDeliveredEmail, sendOutForDeliveryEmail } = await import("@/lib/emails.server");

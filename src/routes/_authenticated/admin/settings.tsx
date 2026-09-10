@@ -25,8 +25,11 @@ import {
   ArrowUpRight,
   ShoppingBag,
   MessageSquare,
-  Bot
+  Bot,
+  Mail,
+  Send
 } from "lucide-react";
+import { testEmailDispatch } from "@/lib/emails.functions";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { settingsQuery } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,6 +61,28 @@ function AdminSettings() {
   const [gatewayForm, setGatewayForm] = useState<GatewayCreds>({ provider: "none", api_key: "", secret_key: "" });
   const [shopPinModalOpen, setShopPinModalOpen] = useState(false);
   const [exportingBackup, setExportingBackup] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [testEmailAddress, setTestEmailAddress] = useState("");
+
+  const handleTestEmail = async () => {
+    if (!testEmailAddress.trim() || !testEmailAddress.includes("@")) {
+      toast.error("Please enter a valid recipient email address");
+      return;
+    }
+    setTestingEmail(true);
+    try {
+      const res = await testEmailDispatch({ data: { email: testEmailAddress.trim() } });
+      if (res.success) {
+        toast.success(res.message);
+      } else {
+        toast.error(res.message);
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to dispatch test email");
+    } finally {
+      setTestingEmail(false);
+    }
+  };
 
   const { data: schemaVersion } = useQuery<{ version: string }>({
     queryKey: ["schema_version_current"],
@@ -1085,6 +1110,96 @@ function AdminSettings() {
             </p>
           </div>
 
+        </CardContent>
+      </Card>
+
+      {/* Transactional Email & Tax Invoice Notifications Settings */}
+      <Card className="mt-6 rounded-2xl shadow-xs border-sky-500/20">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Mail className="size-4 text-sky-600" />
+              📧 Transactional Emails & GSTIN Invoice Attachments
+            </span>
+            <Badge variant="outline" className="text-xs border-sky-500/40 text-sky-600 dark:text-sky-400">
+              Resend & SMTP Ready
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 text-xs">
+          <p className="text-muted-foreground">
+            Configure the verified sender domain and API key. When orders are placed, confirmed, or delivered, branded HTML receipts with attached GSTIN Tax Invoices will be dispatched to customers automatically.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="resend_api_key">Resend API Key (re_...)</Label>
+              <Input
+                id="resend_api_key"
+                type="password"
+                value={form.resend_api_key ?? ""}
+                onChange={(e) => setForm({ ...form, resend_api_key: e.target.value })}
+                placeholder="re_123456789_..."
+                className="mt-1"
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Get your key from <a href="https://resend.com/api-keys" target="_blank" rel="noreferrer" className="text-primary underline">resend.com</a>. If blank, falls back to simulated/env mode.
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="sender_email">Verified Sender Email *</Label>
+              <Input
+                id="sender_email"
+                type="email"
+                value={form.sender_email ?? ""}
+                onChange={(e) => setForm({ ...form, sender_email: e.target.value })}
+                placeholder="orders@yourdomain.in"
+                className="mt-1"
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Domain must be verified in your email provider console.
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="sender_name">Sender Brand Name</Label>
+              <Input
+                id="sender_name"
+                value={form.sender_name ?? ""}
+                onChange={(e) => setForm({ ...form, sender_name: e.target.value })}
+                placeholder="Fish N Fresh Hub"
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="test_recipient">Test Email Dispatch</Label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  id="test_recipient"
+                  type="email"
+                  value={testEmailAddress}
+                  onChange={(e) => setTestEmailAddress(e.target.value)}
+                  placeholder="your-email@gmail.com"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={testingEmail}
+                  onClick={handleTestEmail}
+                  className="rounded-xl shrink-0 gap-1"
+                >
+                  <Send className="size-3.5" />
+                  {testingEmail ? "Sending..." : "Send Test"}
+                </Button>
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Verify that transactional emails reach your inbox immediately.
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

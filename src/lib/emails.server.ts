@@ -123,23 +123,82 @@ async function dispatchOrderEmail(
       subject = `Delivered Fresh! #${orderNumber} — Thank you from ${storeName}`;
     }
 
-    // 5. Send via Resend if API key is provided
-    const resendApiKey = process.env['RESEND_API_KEY'];
+    // 5. Generate Tax Invoice HTML for Attachment
+    let invoiceHtml = "";
+    try {
+      const { generateTaxInvoiceHtml } = await import("./invoicePdf");
+      const invoiceData = {
+        invoiceNumber: `INV-${orderNumber}`,
+        orderNumber,
+        invoiceDate: new Date().toISOString(),
+        orderDate: order.created_at,
+        placeOfSupply: "Tamil Nadu (33)",
+        stateCode: "33",
+        reverseCharge: false,
+        sellerTradeName: storeName,
+        sellerLegalName: (settings as any)?.gst_legal_name || storeName,
+        sellerGstin: (settings as any)?.gstin || "33AAAAA0000A1Z5",
+        sellerFssai: (settings as any)?.fssai_license_no || "12423008000123",
+        sellerAddress: storeAddress,
+        sellerPhone: storePhone,
+        sellerEmail: (settings as any)?.contact_email || (settings as any)?.sender_email || "orders@fishnfresh.in",
+        buyerName: order.customer_name || "Valued Customer",
+        buyerPhone: order.customer_phone || "",
+        buyerAddress: order.customer_address || "Pickup from Store",
+        items: items.map((it) => ({
+          name: it.name,
+          hsnCode: "0302",
+          qty: it.qty,
+          unit: it.unit,
+          unitPrice: it.price,
+          totalPrice: it.total,
+          gstPercent: 0,
+          cuttingStyle: it.cuttingStyle,
+        })),
+        subtotal: emailData.subtotal,
+        discount: emailData.discount,
+        deliveryFee: emailData.deliveryFee,
+        gstAmount: emailData.gstAmount,
+        total: emailData.total,
+        paymentMethod: order.payment_method || "COD",
+        paymentStatus: order.payment_status || "confirmed",
+        paymentRef: order.stripe_session_id || (order as any).razorpay_payment_id || undefined,
+      };
+      invoiceHtml = generateTaxInvoiceHtml(invoiceData);
+    } catch (invErr) {
+      console.warn("[Email Engine] Failed to generate invoice attachment:", invErr);
+    }
+
+    // 6. Dynamic Sender & Resend API Key resolution (Database store_settings > Process.env)
+    const resendApiKey = (settings as any)?.resend_api_key || process.env['RESEND_API_KEY'];
+    const fromEmail = (settings as any)?.sender_email || process.env['MAIL_FROM'] || `orders@${process.env['RESEND_DOMAIN'] || "resend.dev"}`;
+    const fromName = (settings as any)?.sender_name || storeName;
+
     if (resendApiKey && recipient) {
       try {
-        const fromEmail = process.env['MAIL_FROM'] || `orders@${process.env['RESEND_DOMAIN'] || "resend.dev"}`;
+        const payload: any = {
+          from: `${fromName} <${fromEmail}>`,
+          to: [recipient],
+          subject,
+          html,
+        };
+
+        if (invoiceHtml) {
+          payload.attachments = [
+            {
+              filename: `Tax_Invoice_${orderNumber}.html`,
+              content: Buffer.from(invoiceHtml, "utf-8").toString("base64"),
+            },
+          ];
+        }
+
         const res = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${resendApiKey}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            from: `${storeName} <${fromEmail}>`,
-            to: [recipient],
-            subject,
-            html,
-          }),
+          body: JSON.stringify(payload),
         });
 
         if (res.ok) {
@@ -162,7 +221,7 @@ async function dispatchOrderEmail(
     }
 
     // Fallback: Safe simulated dispatch log with complete store details
-    console.log(`[Email Engine: ${type.toUpperCase()}] To: ${recipient || "Customer (No Email Given)"} | Subject: "${subject}" | Store: ${storeName} (${storePhone})`);
+    console.log(`[Email Engine: ${type.toUpperCase()}] To: ${recipient || "Customer (No Email Given)"} | Subject: "${subject}" | From: ${fromName} <${fromEmail}>`);
     return {
       success: true,
       recipient: recipient || "customer",
@@ -174,3 +233,51 @@ async function dispatchOrderEmail(
     return { success: false, error: err?.message || String(err), mode: "simulated" };
   }
 }
+
+export async function sendTestStoreEmail(targetEmail: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: settings } = await supabaseAdmin.from("store_settings").select("*").maybeSingle();
+
+    const resendApiKey = (settings as any)?.resend_api_key || process.env['RESEND_API_KEY'];
+    const fromEmail = (settings as any)?.sender_email || process.env['MAIL_FROM'] || "orders@resend.dev";
+    const fromName = (settings as any)?.sender_name || (settings as any)?.store_name || "Fish N Fresh Hub";
+
+    if (!resendApiKey) {
+      return {
+        success: false,
+        message: "No Resend API Key configured. Please enter your Resend API Key in Settings.",
+      };
+    }
+
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: `${fromName} <${fromEmail}>`,
+        to: [targetEmail],
+        subject: `Test Transactional Email from ${fromName}`,
+        html: `
+          <div style="font-family: sans-serif; padding: 20px; color: #111;">
+            <h2>🎉 Transactional Email Verified!</h2>
+            <p>Your transactional email sender <strong>${fromEmail}</strong> is successfully connected to <strong>${fromName}</strong>.</p>
+            <p>Customer order confirmations and status updates will be delivered from this address.</p>
+          </div>
+        `,
+      }),
+    });
+
+    if (res.ok) {
+      return { success: true, message: `Test email dispatched to ${targetEmail}` };
+    } else {
+      const errText = await res.text();
+      return { success: false, message: `Resend error: ${errText}` };
+    }
+  } catch (e: any) {
+    return { success: false, message: e?.message || "Failed to send test email" };
+  }
+}
+
