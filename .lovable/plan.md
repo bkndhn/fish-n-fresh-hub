@@ -19,17 +19,16 @@ Three further problems inside those two scripts, which must be fixed before runn
 2. Access rules are wide open (`USING (true)` for everything), so any visitor could edit or delete subscriptions and batches. Customer subscriptions must be limited to the signed-in owner plus staff/admin; batches should be publicly readable but staff/admin-writable only.
 3. Their sample rows point at product IDs (`a0000000-…`) that do not exist here. Your live catalogue has 14 real seeded products with different IDs. The sample rows will be re-pointed at real products (Seer Fish, Pomfret, Tiger Prawns, Blue Swimmer Crab) so the screens show something meaningful.
 
-Also noted (not broken, just unfinished): the stock-subtract routine exists in the database and there is a helper in the code, but nothing calls it when an order is placed — stock still only drops manually. That is listed as an optional follow-up below, not part of this fix.
+Also noted: the stock subtract/restore routines exist in the database and a helper exists in the code, but nothing calls them when an order is placed — stock only drops manually today. This is included in the work below.
 
 ## Part 2 — Work to do
 
 1. Run one corrected migration that creates both missing tables with proper grants, owner-scoped access rules, and indexes.
 2. Seed a small set of batch lots and two subscriptions tied to your existing real products.
 3. Re-generate the database type definitions so the code stops using loose `any` casts for these two tables.
-4. Verify end to end: product page shows batch/catch info, account page lists subscriptions, admin purchases/orders batch views load, and no permission errors appear.
-5. Sweep the remaining screens against the live database so nothing else references a table or column that is not there.
-
-Optional (say the word and I add it): wire automatic stock subtraction on order placement and restore on cancel.
+4. Automatic stock: subtract stock the moment an order is placed (checkout and counter billing), and put it back when an order is cancelled, rejected or refunded — using the safe locking routines already in the database, so two customers cannot buy the same last kilo. Guard against double-subtracting if the same order is processed twice.
+5. Verify end to end: place a test order against a seeded product and confirm the stock number drops, cancel it and confirm the stock returns; product page shows batch/catch info; account page lists subscriptions; admin purchases/orders batch views load; no permission errors.
+6. Sweep the remaining screens against the live database so nothing else references a table or column that is not there.
 
 ## Part 3 — Is this a dummy app or a real one?
 
