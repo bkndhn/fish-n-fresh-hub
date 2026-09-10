@@ -41,6 +41,44 @@ export const lookupGuestOrder = createServerFn({ method: "POST" })
     return ((rows?.[0] as unknown as GuestOrder) ?? null);
   });
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Subtract stock for an order. Safe to call twice: the database only deducts once. */
+export const deductOrderStockServerFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { orderId: string; items?: unknown }) => {
+    if (!UUID_RE.test(String(input?.orderId ?? ""))) throw new Error("Invalid order");
+    return { orderId: input.orderId };
+  })
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await (supabaseAdmin as any).rpc("deduct_order_stock_atomic", {
+      p_order_id: data.orderId,
+    });
+    if (error) {
+      console.error("[Orders] Stock deduction failed:", error.message);
+      return { success: false, message: error.message };
+    }
+    return { success: Boolean(result?.success), message: result?.message ?? "" };
+  });
+
+/** Add stock back for a cancelled/refunded order. Only restores if it was deducted. */
+export const restoreOrderStockServerFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { orderId: string; items?: unknown }) => {
+    if (!UUID_RE.test(String(input?.orderId ?? ""))) throw new Error("Invalid order");
+    return { orderId: input.orderId };
+  })
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await (supabaseAdmin as any).rpc("restore_order_stock_atomic", {
+      p_order_id: data.orderId,
+    });
+    if (error) {
+      console.error("[Orders] Stock restoral failed:", error.message);
+      return { success: false, message: error.message };
+    }
+    return { success: Boolean(result?.success), message: result?.message ?? "" };
+  });
+
 export const updateOrderStatusWithEmail = createServerFn({ method: "POST" })
   .inputValidator((input: { orderId: string; status: string; driverInfo?: { name?: string; phone?: string } }) => {
     return input;
@@ -54,41 +92,12 @@ export const updateOrderStatusWithEmail = createServerFn({ method: "POST" })
     const { error } = await (supabaseAdmin as any).from("orders").update(patch).eq("id", data.orderId);
     if (error) throw new Error(error.message);
 
-    // Automatically restore stock if order is cancelled or rejected
+    // Automatically restore stock if order is cancelled or rejected (idempotent in SQL)
     if (data.status === "cancelled" || data.status === "rejected") {
-      try {
-        const { error: rpcErr } = await (supabaseAdmin as any).rpc("restore_order_stock_atomic", {
-          p_order_id: data.orderId,
-        });
-        if (rpcErr) {
-          // Direct fallback if RPC is not present
-          const { data: orderData } = await supabaseAdmin
-            .from("orders")
-            .select("items")
-            .eq("id", data.orderId)
-            .maybeSingle();
-          if (orderData?.items && Array.isArray(orderData.items)) {
-            for (const item of orderData.items as any[]) {
-              const pid = item.product_id || item.productId;
-              if (!pid) continue;
-              const { data: prod } = await supabaseAdmin
-                .from("products")
-                .select("stock")
-                .eq("id", pid)
-                .maybeSingle();
-              if (prod && typeof prod.stock === "number") {
-                const qty = Number(item.qty || 1);
-                await supabaseAdmin
-                  .from("products")
-                  .update({ stock: Math.round((prod.stock + qty) * 100) / 100 } as any)
-                  .eq("id", pid);
-              }
-            }
-          }
-        }
-      } catch (stockErr) {
-        console.warn("[Orders] Stock restoral notice:", stockErr);
-      }
+      const { error: rpcErr } = await (supabaseAdmin as any).rpc("restore_order_stock_atomic", {
+        p_order_id: data.orderId,
+      });
+      if (rpcErr) console.warn("[Orders] Stock restoral notice:", rpcErr.message);
     }
 
     // Trigger transactional email
@@ -104,118 +113,6 @@ export const updateOrderStatusWithEmail = createServerFn({ method: "POST" })
     }
 
     return { success: true };
-  });
-
-export const deductOrderStockServerFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { orderId: string; items?: { product_id?: string; productId?: string; qty: number }[] }) => input)
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // 1. Try PostgreSQL RPC
-    try {
-      const { data: rpcRes, error: rpcErr } = await (supabaseAdmin as any).rpc("deduct_order_stock_atomic", {
-        p_order_id: data.orderId,
-      });
-      if (!rpcErr && (rpcRes as any)?.success) {
-        return { success: true, method: "rpc" };
-      }
-    } catch (e) {
-      console.warn("RPC deduct_order_stock_atomic fallback to admin direct:", e);
-    }
-
-    // 2. Fetch order items if not provided
-    let itemsToDeduct = data.items;
-    if (!itemsToDeduct || itemsToDeduct.length === 0) {
-      const { data: orderData } = await supabaseAdmin
-        .from("orders")
-        .select("items")
-        .eq("id", data.orderId)
-        .maybeSingle();
-      if (orderData?.items && Array.isArray(orderData.items)) {
-        itemsToDeduct = orderData.items as any;
-      }
-    }
-
-    if (!itemsToDeduct || !itemsToDeduct.length) {
-      return { success: false, message: "No items found" };
-    }
-
-    for (const item of itemsToDeduct) {
-      const pid = item.product_id || item.productId;
-      if (!pid) continue;
-
-      const { data: prod } = await supabaseAdmin
-        .from("products")
-        .select("stock")
-        .eq("id", pid)
-        .maybeSingle();
-
-      if (prod && typeof prod.stock === "number") {
-        const deductQty = Number(item.qty || 1);
-        const newStock = Math.max(0, Math.round((prod.stock - deductQty) * 100) / 100);
-        await supabaseAdmin
-          .from("products")
-          .update({ stock: newStock } as any)
-          .eq("id", pid);
-      }
-    }
-
-    return { success: true, method: "direct_admin" };
-  });
-
-export const restoreOrderStockServerFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { orderId: string; items?: { product_id?: string; productId?: string; qty: number }[] }) => input)
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // 1. Try PostgreSQL RPC
-    try {
-      const { data: rpcRes, error: rpcErr } = await (supabaseAdmin as any).rpc("restore_order_stock_atomic", {
-        p_order_id: data.orderId,
-      });
-      if (!rpcErr && (rpcRes as any)?.success) {
-        return { success: true, method: "rpc" };
-      }
-    } catch (e) {
-      console.warn("RPC restore_order_stock_atomic fallback to admin direct:", e);
-    }
-
-    // 2. Direct fallback
-    let itemsToRestore = data.items;
-    if (!itemsToRestore || itemsToRestore.length === 0) {
-      const { data: orderData } = await supabaseAdmin
-        .from("orders")
-        .select("items")
-        .eq("id", data.orderId)
-        .maybeSingle();
-      if (orderData?.items && Array.isArray(orderData.items)) {
-        itemsToRestore = orderData.items as any;
-      }
-    }
-
-    if (!itemsToRestore || !itemsToRestore.length) {
-      return { success: false, message: "No items found to restore" };
-    }
-
-    for (const item of itemsToRestore) {
-      const pid = item.product_id || item.productId;
-      if (!pid) continue;
-
-      const { data: prod } = await supabaseAdmin
-        .from("products")
-        .select("stock")
-        .eq("id", pid)
-        .maybeSingle();
-
-      if (prod && typeof prod.stock === "number") {
-        const restoreQty = Number(item.qty || 1);
-        const newStock = Math.round((prod.stock + restoreQty) * 100) / 100;
-        await supabaseAdmin
-          .from("products")
-          .update({ stock: newStock } as any)
-          .eq("id", pid);
-      }
-    }
-
-    return { success: true, method: "direct_admin" };
   });
 
 
