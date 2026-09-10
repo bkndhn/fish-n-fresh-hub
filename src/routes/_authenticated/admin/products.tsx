@@ -415,7 +415,7 @@ function ProductsAdmin() {
   return (
     <AdminShell
       title="Products & Inventory"
-      allow={["admin", "staff"]}
+      allow={["admin", "manager", "inventory_manager", "staff"]}
       action={
         <Button
           className="rounded-xl h-9 font-bold shadow-xs"

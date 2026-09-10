@@ -186,7 +186,7 @@ export function AdminSupportPage() {
   const openCount = conversations.filter((c) => c.status === "open").length;
 
   return (
-    <AdminShell title="Live Customer Support Desk" allow={["admin", "staff"]}>
+    <AdminShell title="Live Customer Support Desk" allow={["admin", "manager", "support_staff", "staff"]}>
       {/* Top Banner / Stats */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-muted/30 p-3">
         <div className="flex items-center gap-3">

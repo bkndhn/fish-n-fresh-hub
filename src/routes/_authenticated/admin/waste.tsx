@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { ExportDropdown, type ExportColumn, type ExportOptions } from "@/lib/exportUtils";
 import { toast } from "sonner";
 import {
   Trash2,
@@ -202,8 +203,47 @@ function WasteAdmin() {
     );
   });
 
+  const wasteExportOptions: ExportOptions = useMemo(() => {
+    const columns: ExportColumn[] = [
+      { key: "date", label: "Date (IST)", type: "date" },
+      { key: "product_name", label: "Product / Fish", type: "string" },
+      {
+        key: "quantity",
+        label: "Wasted Qty",
+        type: "string",
+        format: (v, r) => `${v} ${r.unit || "kg"}`,
+      },
+      {
+        key: "reason",
+        label: "Loss Reason",
+        type: "string",
+        format: (v) =>
+          v === "trimming_loss"
+            ? "Trimming / Cutting Loss"
+            : v === "spoilage"
+            ? "Cold Chain Spoilage"
+            : v === "transit_damage"
+            ? "Transit Damage"
+            : v === "customer_return"
+            ? "Customer Return"
+            : v,
+      },
+      { key: "cost_loss", label: "Cost Loss (₹)", type: "currency", format: (v) => formatINR(Number(v || 0)) },
+      { key: "logged_by", label: "Logged By", type: "string" },
+      { key: "notes", label: "Notes / Root Cause", type: "string" },
+    ];
+    return {
+      filename: `waste-and-loss-log-${new Date().toISOString().slice(0, 10)}`,
+      title: "Waste, Trimming & Spoilage Incident Register",
+      subtitle: `Exported on ${new Date().toLocaleDateString("en-IN")} | ${filteredList.length} incidents logged`,
+      columns,
+      data: filteredList,
+      orientation: "landscape",
+    };
+  }, [filteredList]);
+
   return (
-    <AdminShell title="Waste & Loss Management" allow={["admin", "staff"]}>
+    <AdminShell title="Waste & Loss Management" allow={["admin", "manager", "inventory_manager", "staff"]}>
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         <Card className="rounded-2xl border-border/80 p-3.5 shadow-2xs">
@@ -266,6 +306,7 @@ function WasteAdmin() {
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+          <ExportDropdown options={wasteExportOptions} buttonLabel="Export Waste Log" />
           <Button
             size="sm"
             variant="outline"

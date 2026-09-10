@@ -150,7 +150,7 @@ export function ComplaintsAdmin() {
   }
 
   return (
-    <AdminShell title="Customer Complaints" allow={["admin", "staff"]}>
+    <AdminShell title="Customer Complaints" allow={["admin", "manager", "support_staff", "staff"]}>
       {/* Header Overview & Controls */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2 flex-1 max-w-xl">

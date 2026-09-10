@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { ExportDropdown, type ExportColumn, type ExportOptions } from "@/lib/exportUtils";
 import { toast } from "sonner";
 import {
   Printer,
@@ -152,6 +153,29 @@ function OrdersAdmin() {
   // Calculate quick stats
   const todayCount = allOrders.filter((o) => getLocalDateString(o.created_at) === todayStr).length;
 
+  const ordersExportOptions: ExportOptions = useMemo(() => {
+    const columns: ExportColumn[] = [
+      { key: "order_number", label: "Order #", type: "string", format: (v, r) => v ?? r.id.slice(0, 8) },
+      { key: "created_at", label: "Date & Time (IST)", type: "date", format: (v) => formatIST(v) },
+      { key: "customer_name", label: "Customer Name", type: "string" },
+      { key: "customer_phone", label: "Customer Phone", type: "string" },
+      { key: "customer_address", label: "Delivery Address", type: "string" },
+      { key: "status", label: "Order Status", type: "string" },
+      { key: "fulfillment_type", label: "Fulfillment", type: "string" },
+      { key: "payment_method", label: "Payment Method", type: "string" },
+      { key: "total", label: "Order Total (₹)", type: "currency", format: (v) => formatINR(Number(v || 0)) },
+      { key: "driver_name", label: "Assigned Driver", type: "string" },
+    ];
+    return {
+      filename: `fishnfresh-orders-${dateFilter}-${new Date().toISOString().slice(0, 10)}`,
+      title: "Orders Register & Fulfillment Sheet",
+      subtitle: `Exported on ${new Date().toLocaleDateString("en-IN")} | Period: ${dateFilter.toUpperCase()} | ${rows.length} orders`,
+      columns,
+      data: rows,
+      orientation: "landscape",
+    };
+  }, [rows, dateFilter]);
+
   const toggleSelectAll = () => {
     if (selectedOrderIds.length === rows.length && rows.length > 0) {
       setSelectedOrderIds([]);
@@ -218,7 +242,7 @@ function OrdersAdmin() {
   };
 
   return (
-    <AdminShell title="Orders" allow={["admin", "staff"]}>
+    <AdminShell title="Orders" allow={["admin", "manager", "cashier", "support_staff", "staff"]}>
       {/* Date Filter Bar - Today as default */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-muted/30 p-3">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -267,7 +291,7 @@ function OrdersAdmin() {
           </Button>
         </div>
 
-        {/* Custom date input */}
+        {/* Custom date input & Export Dropdown */}
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">Custom Date:</span>
           <Input
@@ -279,6 +303,7 @@ function OrdersAdmin() {
             }}
             className={`h-7 w-36 rounded-lg text-xs ${dateFilter === "custom" ? "border-primary font-semibold ring-1 ring-primary" : ""}`}
           />
+          <ExportDropdown options={ordersExportOptions} buttonLabel="Export Orders" />
         </div>
       </div>
 

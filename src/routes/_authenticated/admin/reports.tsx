@@ -36,6 +36,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { AnalyticsIntelligence } from "@/components/admin/AnalyticsIntelligence";
+import { ExportDropdown, type ExportColumn, type ExportOptions } from "@/lib/exportUtils";
 
 export const Route = createFileRoute("/_authenticated/admin/reports")({
   head: () => ({
@@ -724,32 +726,28 @@ export function Reports() {
     return { projected7DayRev, insights };
   }, [range, daily.length, revenue, topProducts, hourlyData, customerAnalytics, cancellationRate]);
 
-  function exportCsv() {
-    const header = "order,date,customer,phone,status,fulfillment,payment,total\n";
-    const body = rows
-      .map((o) =>
-        [
-          o.order_number ?? o.id.slice(0, 8),
-          formatIST(o.created_at),
-          (o.customer_name || "").replace(/,/g, " "),
-          o.customer_phone || "",
-          o.status || "",
-          o.fulfillment_type || "delivery",
-          o.payment_method || "",
-          o.total,
-        ].join(",")
-      )
-      .join("\n");
-    const url = URL.createObjectURL(new Blob([header + body], { type: "text/csv" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `fishnfresh-business-report-${range === "custom" ? `${startDate}_to_${endDate}` : range}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+  const reportExportOptions: ExportOptions = useMemo(() => {
+    const columns: ExportColumn[] = [
+      { key: "order_number", label: "Order #", type: "string", format: (v, r) => v ?? r.id.slice(0, 8) },
+      { key: "created_at", label: "Date & Time (IST)", type: "date", format: (v) => formatIST(v) },
+      { key: "customer_name", label: "Customer Name", type: "string" },
+      { key: "customer_phone", label: "Phone", type: "string" },
+      { key: "status", label: "Status", type: "string" },
+      { key: "fulfillment_type", label: "Fulfillment", type: "string" },
+      { key: "payment_method", label: "Payment Method", type: "string" },
+      { key: "total", label: "Total Amount (₹)", type: "currency", format: (v) => formatINR(Number(v || 0)) },
+    ];
+    return {
+      filename: `fishnfresh-business-report-${range === "custom" ? `${startDate}_to_${endDate}` : range}`,
+      title: "Fish N Fresh Business Performance Report",
+      subtitle: `Exported on ${new Date().toLocaleDateString("en-IN")} | Range: ${range.toUpperCase()} | ${rows.length} orders`,
+      columns,
+      data: rows,
+    };
+  }, [rows, range, startDate, endDate]);
 
   return (
-    <AdminShell title="Business Reports & AI Analytics">
+    <AdminShell title="Business Reports & AI Analytics" allow={["admin", "manager"]}>
       {/* Date Range & Controls */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -789,9 +787,7 @@ export function Reports() {
             </div>
           )}
 
-          <Button size="sm" variant="outline" className="rounded-xl h-8 text-xs ml-auto" onClick={exportCsv}>
-            <Download className="mr-1.5 size-3.5" /> Export CSV Report
-          </Button>
+          <ExportDropdown options={reportExportOptions} buttonLabel="Export Report" className="ml-auto" />
         </div>
       </div>
 
@@ -842,6 +838,16 @@ export function Reports() {
           );
         })}
       </div>
+
+      {/* Peak Time & Sales Analytics, Date Range Comparison & Smart Harbour Purchasing Suite */}
+      <AnalyticsIntelligence
+        allOrders={allOrders}
+        currentOrders={rows}
+        products={products.data ?? []}
+        range={range}
+        startDate={startDate}
+        endDate={endDate}
+      />
 
       {/* Omnichannel Performance: In-Store Counter POS vs Online App Delivery */}
       <Card className="mt-4 border-border/70 shadow-sm overflow-hidden">

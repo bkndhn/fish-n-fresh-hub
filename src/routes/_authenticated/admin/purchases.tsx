@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { ExportDropdown, type ExportColumn, type ExportOptions } from "@/lib/exportUtils";
 import { toast } from "sonner";
 import {
   Anchor,
@@ -663,8 +664,35 @@ function PurchasesAdmin() {
     );
   });
 
+  const purchasesExportOptions: ExportOptions = useMemo(() => {
+    const columns: ExportColumn[] = [
+      { key: "reference_no", label: "Invoice / Lot #", type: "string" },
+      { key: "inward_date", label: "Date & Time (IST)", type: "date", format: (v) => formatIST(v) },
+      { key: "supplier_name", label: "Supplier / Harbour", type: "string" },
+      { key: "supplier_phone", label: "Phone", type: "string" },
+      { key: "payment_status", label: "Payment Status", type: "string" },
+      { key: "total_amount", label: "Gross Inward (₹)", type: "currency", format: (v) => formatINR(Number(v || 0)) },
+      { key: "paid_amount", label: "Paid (₹)", type: "currency", format: (v) => formatINR(Number(v || 0)) },
+      { key: "payment_method", label: "Payment Mode", type: "string" },
+      {
+        key: "items",
+        label: "Items Procured",
+        type: "string",
+        format: (v) => (v ? v.map((i: any) => `${i.product_name} (${i.qty} ${i.unit || "kg"})`).join(", ") : ""),
+      },
+    ];
+    return {
+      filename: `harbour-catch-purchases-${new Date().toISOString().slice(0, 10)}`,
+      title: "Harbour Catch Purchases & Inward Stock Ledger",
+      subtitle: `Exported on ${new Date().toLocaleDateString("en-IN")} | ${filteredPurchases.length} inward lots`,
+      columns,
+      data: filteredPurchases,
+      orientation: "landscape",
+    };
+  }, [filteredPurchases]);
+
   return (
-    <AdminShell title="Catch Inward & Suppliers" allow={["admin", "staff"]}>
+    <AdminShell title="Catch Inward & Suppliers" allow={["admin", "manager", "inventory_manager", "staff"]}>
       {/* Top Level Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         <Card className="rounded-2xl border-border/80 p-3.5 shadow-2xs">
@@ -733,6 +761,7 @@ function PurchasesAdmin() {
                   className="pl-8 h-8 rounded-xl text-xs"
                 />
               </div>
+              <ExportDropdown options={purchasesExportOptions} buttonLabel="Export Ledger" />
               <Button
                 size="sm"
                 className="h-8 rounded-xl text-xs font-bold shrink-0"

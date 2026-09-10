@@ -83,7 +83,7 @@ function BadgesAdmin() {
   });
 
   return (
-    <AdminShell title="Home highlight cards">
+    <AdminShell title="Home highlight cards" allow={["admin", "manager"]}>
       <Card className="mb-4">
         <CardContent className="grid gap-3 pt-6 md:grid-cols-[1fr_auto_auto] md:items-end">
           <div className="space-y-1.5">

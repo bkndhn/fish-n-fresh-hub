@@ -147,7 +147,7 @@ function AdminBroadcastsPage() {
   };
 
   return (
-    <AdminShell title="Morning Catch Alerts">
+    <AdminShell title="Morning Catch Alerts" allow={["admin", "manager", "inventory_manager", "staff"]}>
       <div className="space-y-6">
         {/* Header Hero */}
         <div className="rounded-3xl border border-sky-500/20 bg-gradient-to-br from-sky-500/10 via-background to-teal-500/10 p-5 sm:p-6">

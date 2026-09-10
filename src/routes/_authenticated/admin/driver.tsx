@@ -43,6 +43,7 @@ import type { DriverCashSettlement } from "@/lib/types";
 import { getGoogleMapsDirUrl } from "@/lib/maps";
 import { settingsQuery } from "@/lib/queries";
 import { getVerticalConfig } from "@/lib/verticals";
+import { ExportDropdown, type ExportColumn, type ExportOptions } from "@/lib/exportUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -128,50 +129,29 @@ export function DriverDispatchPage() {
     };
   }, [qc]);
 
-  function exportSettlementsCsv() {
-    if (settlements.length === 0) {
-      toast.error("No settlement records to export.");
-      return;
-    }
-
-    const headers = [
-      "Settlement Voucher #",
-      "Date & Time (IST)",
-      "Driver Name",
-      "Driver Phone",
-      "Orders Settled Count",
-      "Gross COD Collected (₹)",
-      "Amount Handed Over (₹)",
-      "Balance Remaining (₹)",
-      "Payment Mode",
-      "Admin Collector",
-      "Notes",
+  const settlementExportOptions: ExportOptions = useMemo(() => {
+    const columns: ExportColumn[] = [
+      { key: "settlement_number", label: "Voucher #", type: "string" },
+      { key: "settled_at", label: "Date & Time (IST)", type: "date", format: (v) => formatIST(v) },
+      { key: "driver_name", label: "Driver Name", type: "string" },
+      { key: "driver_phone", label: "Driver Phone", type: "string" },
+      { key: "orders_count", label: "Orders Settled", type: "number" },
+      { key: "amount_collected", label: "Gross COD (₹)", type: "currency", format: (v) => formatINR(Number(v || 0)) },
+      { key: "amount_settled", label: "Handed Over (₹)", type: "currency", format: (v) => formatINR(Number(v || 0)) },
+      { key: "balance_remaining", label: "Balance (₹)", type: "currency", format: (v) => formatINR(Number(v || 0)) },
+      { key: "payment_mode", label: "Payment Mode", type: "string" },
+      { key: "settled_by_name", label: "Collector", type: "string" },
+      { key: "notes", label: "Notes", type: "string" },
     ];
-
-    const lines = settlements.map((s) => [
-      `"${s.settlement_number}"`,
-      `"${formatIST(s.settled_at)}"`,
-      `"${s.driver_name.replace(/"/g, '""')}"`,
-      `"${s.driver_phone || ""}"`,
-      s.orders_count,
-      s.amount_collected,
-      s.amount_settled,
-      s.balance_remaining,
-      `"${s.payment_mode}"`,
-      `"${(s.settled_by_name || "").replace(/"/g, '""')}"`,
-      `"${(s.notes || "").replace(/"/g, '""')}"`,
-    ]);
-
-    const csvContent = [headers.join(","), ...lines.map((l) => l.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `driver-cash-settlements-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Cash settlements CSV report downloaded successfully");
-  }
+    return {
+      filename: `driver-cash-settlements-${new Date().toISOString().slice(0, 10)}`,
+      title: "Driver Cash & COD Settlements Register",
+      subtitle: `Exported on ${new Date().toLocaleDateString("en-IN")} | ${settlements.length} settlement vouchers`,
+      columns,
+      data: settlements,
+      orientation: "landscape",
+    };
+  }, [settlements]);
 
   const updateOrder = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: Partial<OrderRow> }) => {
@@ -1070,15 +1050,7 @@ export function DriverDispatchPage() {
               </p>
             </div>
 
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={settlements.length === 0}
-              className="rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-border shadow-xs"
-              onClick={exportSettlementsCsv}
-            >
-              <Download className="size-3.5" /> Export Settlements CSV
-            </Button>
+            <ExportDropdown options={settlementExportOptions} buttonLabel="Export Settlements" />
           </div>
 
           {/* Settlements Table & Mobile List */}

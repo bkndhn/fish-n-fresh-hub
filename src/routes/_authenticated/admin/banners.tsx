@@ -69,7 +69,7 @@ function AdminBanners() {
   });
 
   return (
-    <AdminShell title="Home Page Banners">
+    <AdminShell title="Home Page Banners" allow={["admin", "manager"]}>
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm text-muted-foreground">Manage the sliding banners on the home page.</p>
         <Button 

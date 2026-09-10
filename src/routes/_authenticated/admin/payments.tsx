@@ -114,7 +114,7 @@ function PaymentsReport() {
   }
 
   return (
-    <AdminShell title="Payments & refunds" allow={["admin"]}>
+    <AdminShell title="Payments & refunds" allow={["admin", "manager"]}>
       <div className="grid gap-3 sm:grid-cols-4">
         {[
           { label: "Billed", value: totals.billed },

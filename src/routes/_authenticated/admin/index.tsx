@@ -39,7 +39,7 @@ function Dashboard() {
   ];
 
   return (
-    <AdminShell title="Dashboard" allow={["admin", "staff"]}>
+    <AdminShell title="Dashboard" allow={["admin", "manager", "staff"]}>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((s) => (
           <Card key={s.label}>

@@ -209,6 +209,72 @@ export function RetailPosCounterPage() {
   const [chipInputLabel, setChipInputLabel] = useState("");
   const [chipScope, setChipScope] = useState<"product" | "global">("global");
 
+  // Dedicated Universal Quick Chips Manager Modal state
+  const [globalChipModalOpen, setGlobalChipModalOpen] = useState(false);
+  const [globalChips, setGlobalChips] = useState<QuickChipItem[]>(() => getStoredQuickChips());
+  const [newGlobalVal, setNewGlobalVal] = useState("");
+  const [newGlobalLabel, setNewGlobalLabel] = useState("");
+
+  const refreshGlobalChips = () => {
+    setGlobalChips(getStoredQuickChips());
+  };
+
+  const handleAddGlobalChip = () => {
+    const val = parseFloat(newGlobalVal);
+    if (isNaN(val) || val <= 0) {
+      toast.error("Please enter a valid weight number (e.g. 0.4 or 1.25)");
+      return;
+    }
+    const label = newGlobalLabel.trim() || (val < 1 ? `${Math.round(val * 1000)}g` : `${val} kg`);
+    const updated = [...globalChips.filter((c) => c.val !== val), { label, val }].sort((a, b) => a.val - b.val);
+    setGlobalChips(updated);
+    localStorage.setItem("fnf_pos_global_chips", JSON.stringify(updated));
+    setNewGlobalVal("");
+    setNewGlobalLabel("");
+    toast.success(`Universal portion chip added: ${label}`);
+    if (activeItemModal && chipScope === "global") {
+      setActiveChips(updated);
+    }
+  };
+
+  const handleDeleteGlobalChip = (valToDelete: number) => {
+    const updated = globalChips.filter((c) => c.val !== valToDelete);
+    setGlobalChips(updated);
+    localStorage.setItem("fnf_pos_global_chips", JSON.stringify(updated));
+    toast.success("Universal portion chip removed");
+    if (activeItemModal && chipScope === "global") {
+      setActiveChips(updated);
+    }
+  };
+
+  const handleResetUniversalChips = () => {
+    setGlobalChips(DEFAULT_QUICK_CHIPS);
+    localStorage.setItem("fnf_pos_global_chips", JSON.stringify(DEFAULT_QUICK_CHIPS));
+    toast.success("Universal chips reset to standard presets");
+    if (activeItemModal && chipScope === "global") {
+      setActiveChips(DEFAULT_QUICK_CHIPS);
+    }
+  };
+
+  const handleClearAllCustomOverrides = () => {
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("fnf_pos_chips_")) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+      toast.success(`Cleared ${keysToRemove.length} custom product overrides. Universal chips are now active for all items.`);
+      if (activeItemModal) {
+        setActiveChips(getStoredQuickChips());
+      }
+    } catch {
+      toast.error("Failed to clear overrides");
+    }
+  };
+
   useEffect(() => {
     if (activeItemModal) {
       setActiveChips(getStoredQuickChips(activeItemModal.id));
@@ -233,6 +299,7 @@ export function RetailPosCounterPage() {
       toast.success(`Quick chip saved for ${activeItemModal.name}!`);
     } else {
       localStorage.setItem("fnf_pos_global_chips", JSON.stringify(updated));
+      setGlobalChips(updated);
       toast.success("Quick chip added to all products (Global)!");
     }
     setChipInputVal("");
@@ -246,6 +313,7 @@ export function RetailPosCounterPage() {
       localStorage.setItem(`fnf_pos_chips_${activeItemModal.id}`, JSON.stringify(updated));
     } else {
       localStorage.setItem("fnf_pos_global_chips", JSON.stringify(updated));
+      setGlobalChips(updated);
     }
     toast.success("Quick chip removed");
   };
@@ -255,7 +323,8 @@ export function RetailPosCounterPage() {
     if (activeItemModal) {
       localStorage.removeItem(`fnf_pos_chips_${activeItemModal.id}`);
     }
-    localStorage.removeItem("fnf_pos_global_chips");
+    localStorage.setItem("fnf_pos_global_chips", JSON.stringify(DEFAULT_QUICK_CHIPS));
+    setGlobalChips(DEFAULT_QUICK_CHIPS);
     toast.success("Quick chips reset to standard presets");
   };
 
@@ -1007,6 +1076,21 @@ export function RetailPosCounterPage() {
                   {parkedCarts.length}
                 </span>
               )}
+            </Button>
+
+            {/* Universal Quick Chips Manager Trigger */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-border/80"
+              onClick={() => {
+                refreshGlobalChips();
+                setGlobalChipModalOpen(true);
+              }}
+              title="Universal and custom portion chips manager"
+            >
+              <Sliders className="size-3.5 text-primary" />
+              <span>⚡ Quick Chips</span>
             </Button>
 
             {/* Past Bills & Sales Register Trigger */}
@@ -1842,17 +1926,50 @@ export function RetailPosCounterPage() {
 
                 {/* Quick Weight Preset Chips with Custom Chips Manager */}
                 <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-muted-foreground">Quick Portion Chips:</span>
-                    <button
-                      type="button"
-                      onClick={() => setShowChipEditor(!showChipEditor)}
-                      className="text-[11px] text-primary font-semibold hover:underline flex items-center gap-1"
-                    >
-                      <Sliders className="size-3" />
-                      {showChipEditor ? "Done" : "Custom Chips"}
-                    </button>
-                  </div>
+                  {(() => {
+                    const isCustomForThis =
+                      typeof window !== "undefined" &&
+                      Boolean(localStorage.getItem(`fnf_pos_chips_${activeItemModal.id}`));
+                    return (
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-bold text-muted-foreground">Portion Chips:</span>
+                          {isCustomForThis ? (
+                            <span className="text-[10px] font-semibold text-cyan-700 dark:text-cyan-300 bg-cyan-50 dark:bg-cyan-950/40 px-1.5 py-0.5 rounded border border-cyan-200 dark:border-cyan-800">
+                              Custom for {activeItemModal.name}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                              Universal Store Presets
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isCustomForThis && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                localStorage.removeItem(`fnf_pos_chips_${activeItemModal.id}`);
+                                setActiveChips(getStoredQuickChips());
+                                toast.success("Restored universal chips for this item");
+                              }}
+                              className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                            >
+                              Revert Universal
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setShowChipEditor(!showChipEditor)}
+                            className="text-[11px] text-primary font-semibold hover:underline flex items-center gap-1"
+                          >
+                            <Sliders className="size-3" />
+                            {showChipEditor ? "Done" : "Configure"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Inline Custom Chip Editor */}
                   {showChipEditor && (
@@ -1980,6 +2097,106 @@ export function RetailPosCounterPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Universal Quick Chips Manager Modal */}
+      <Dialog open={globalChipModalOpen} onOpenChange={setGlobalChipModalOpen}>
+        <DialogContent className="max-w-lg rounded-3xl p-5">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
+              <Sliders className="size-5 text-primary" />
+              Universal Quick Portion Chips Manager
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Configure store-wide universal portion weight chips used across all seafood and meat items at the POS counter.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            {/* Add Universal Chip Form */}
+            <div className="p-3.5 rounded-2xl bg-muted/50 border border-border/80 space-y-2">
+              <span className="text-xs font-bold text-foreground">Add Universal Portion Preset:</span>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Weight in kg (e.g. 0.4, 1.25, 2.5)"
+                  value={newGlobalVal}
+                  onChange={(e) => setNewGlobalVal(e.target.value)}
+                  className="h-8 text-xs font-mono bg-background rounded-xl flex-1"
+                />
+                <Input
+                  placeholder="Label (e.g. 400g, 1.25 kg)"
+                  value={newGlobalLabel}
+                  onChange={(e) => setNewGlobalLabel(e.target.value)}
+                  className="h-8 text-xs bg-background rounded-xl flex-1"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleAddGlobalChip}
+                  className="h-8 px-3 text-xs font-bold rounded-xl"
+                >
+                  <Plus className="size-3.5 mr-1" /> Add Chip
+                </Button>
+              </div>
+            </div>
+
+            {/* Current Universal Chips */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
+                <span>Active Universal Chips ({globalChips.length}):</span>
+                <button
+                  type="button"
+                  onClick={handleResetUniversalChips}
+                  className="text-amber-600 hover:underline font-semibold"
+                >
+                  Reset Standard Defaults
+                </button>
+              </div>
+
+              <div className="flex flex-wrap gap-2 p-3 rounded-2xl border border-border/70 bg-card">
+                {globalChips.map((c) => (
+                  <div
+                    key={`${c.val}-${c.label}`}
+                    className="inline-flex items-center rounded-xl bg-muted/60 border border-border/80 text-xs font-mono font-bold"
+                  >
+                    <span className="px-2.5 py-1 text-foreground">
+                      {c.label} ({c.val} kg)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteGlobalChip(c.val)}
+                      className="px-1.5 py-1 text-destructive hover:bg-destructive/10 rounded-r-xl border-l border-border/60 transition"
+                      title="Remove this universal chip"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Overrides Reset Option */}
+            <div className="p-3 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 space-y-2 text-xs">
+              <div className="font-bold text-amber-900 dark:text-amber-200">
+                Custom Product Overrides in Storage:
+              </div>
+              <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 leading-relaxed">
+                If you previously set custom chips on specific items (e.g. Large Vanjaram or Crab), you can reset all products to strictly adhere to the universal list above.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs border-amber-300 text-amber-800 dark:text-amber-200 rounded-xl"
+                onClick={handleClearAllCustomOverrides}
+              >
+                Clear All Per-Product Overrides
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Held / Parked Carts Dialog */}
       <Dialog open={parkedModalOpen} onOpenChange={setParkedModalOpen}>

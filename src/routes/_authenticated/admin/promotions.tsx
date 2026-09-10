@@ -305,7 +305,7 @@ function PromotionsAdmin() {
   });
 
   return (
-    <AdminShell title="Promotions & Offers">
+    <AdminShell title="Promotions & Offers" allow={["admin", "manager"]}>
       {/* Top Header */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>

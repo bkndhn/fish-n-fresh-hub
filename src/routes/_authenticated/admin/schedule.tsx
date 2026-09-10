@@ -224,7 +224,7 @@ function SchedulePage() {
   });
 
   return (
-    <AdminShell title="Store Schedule & Operating Hours" allow={["admin", "staff"]}>
+    <AdminShell title="Store Schedule & Operating Hours" allow={["admin", "manager", "staff"]}>
       {/* Live Store Status Banner */}
       <div
         className={`mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 shadow-xs ${
