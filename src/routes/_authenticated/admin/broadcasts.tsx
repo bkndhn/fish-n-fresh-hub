@@ -1,7 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Anchor, Bell, Compass, Send, Trash2, CheckCircle2, Clock, Sparkles, Radio } from "lucide-react";
+import {
+  Anchor,
+  Bell,
+  Compass,
+  Send,
+  Trash2,
+  CheckCircle2,
+  Clock,
+  Sparkles,
+  Radio,
+  Zap,
+  Play,
+  Mail,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Button } from "@/components/ui/button";
@@ -10,9 +24,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { formatIST } from "@/lib/format";
 import { triggerLocalNotification } from "@/lib/fcm";
+import {
+  DRIP_SEQUENCES,
+  getDripEvaluationSummary,
+  dispatchDripCycle,
+  type DripEvaluationSummary,
+} from "@/lib/marketingDrips.server";
 import type { CatchBroadcast } from "@/lib/types";
 
 export const Route = createFileRoute("/_authenticated/admin/broadcasts")({
@@ -49,6 +70,28 @@ function AdminBroadcastsPage() {
   const [harbour, setHarbour] = useState("Kasimedu Harbour, Chennai");
   const [message, setMessage] = useState("");
   const [targetCategory, setTargetCategory] = useState("");
+
+  const [activeTab, setActiveTab] = useState<"broadcasts" | "drips">("broadcasts");
+  const [activeDripToggles, setActiveDripToggles] = useState<Record<string, boolean>>({
+    winback_7d: true,
+    review_48h: true,
+    abandoned_cart_2h: true,
+    friday_feast: true,
+    welcome_first: true,
+  });
+  const [dispatchingDrip, setDispatchingDrip] = useState<string | null>(null);
+
+  const { data: dripSummaries = [], refetch: refetchDrips } = useQuery({
+    queryKey: ["admin", "drip-evaluations"],
+    queryFn: async () => {
+      try {
+        const res = await getDripEvaluationSummary();
+        return res || [];
+      } catch {
+        return [];
+      }
+    },
+  });
 
   const { data: broadcasts = [], isLoading } = useQuery({
     queryKey: ["admin-catch-broadcasts"],
@@ -167,134 +210,282 @@ function AdminBroadcastsPage() {
           </div>
         </div>
 
-        {/* Compose New Broadcast Card */}
-        <div className="rounded-3xl border border-border bg-card p-5 sm:p-6 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display font-semibold text-base sm:text-lg flex items-center gap-2">
-              <Send className="size-4 text-primary" /> Dispatch New Harbour Announcement
-            </h2>
-            <span className="text-xs text-muted-foreground">1-Click customer push</span>
-          </div>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full space-y-4">
+          <TabsList className="rounded-2xl p-1 bg-muted/60">
+            <TabsTrigger value="broadcasts" className="rounded-xl text-xs font-bold gap-1.5">
+              <Radio className="size-3.5 text-sky-600" /> Harbour Morning Alerts
+            </TabsTrigger>
+            <TabsTrigger value="drips" className="rounded-xl text-xs font-bold gap-1.5">
+              <Zap className="size-3.5 text-amber-500" /> Automated Marketing Drips
+              <span className="ml-1 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 px-1.5 py-0.2 text-[10px] font-extrabold">
+                5 Sequences
+              </span>
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Quick Presets */}
-          <div>
-            <Label className="text-xs text-muted-foreground">Quick Harbor Landing Presets:</Label>
-            <div className="mt-1.5 flex flex-wrap gap-2">
-              {QUICK_TEMPLATES.map((tpl, i) => (
+          <TabsContent value="broadcasts" className="space-y-6">
+            <div className="rounded-3xl border border-border bg-card p-5 sm:p-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-display font-semibold text-base sm:text-lg flex items-center gap-2">
+                  <Send className="size-4 text-primary" /> Dispatch New Harbour Announcement
+                </h2>
+                <span className="text-xs text-muted-foreground">1-Click customer push</span>
+              </div>
+
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">Quick Harbour Templates:</Label>
+                <div className="flex flex-wrap gap-2">
+                  {QUICK_TEMPLATES.map((tpl, idx) => (
+                    <Button
+                      key={idx}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl text-xs h-8 border-sky-500/30 hover:bg-sky-50 dark:hover:bg-sky-950/40 text-left font-normal gap-1.5"
+                      onClick={() => applyTemplate(tpl)}
+                    >
+                      <Sparkles className="size-3 text-sky-500" />
+                      <span className="truncate max-w-[200px] sm:max-w-[280px]">{tpl.title}</span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title" className="text-xs font-bold">Broadcast Headline / Boat Notice</Label>
+                  <Input
+                    id="title"
+                    placeholder="e.g. Kasimedu 06:30 AM Boat Landed — Vanjaram Steaks Available"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="rounded-xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="harbour" className="text-xs font-bold">Harbour / Dock Source</Label>
+                  <Input
+                    id="harbour"
+                    placeholder="e.g. Kasimedu Harbour, Chennai"
+                    value={harbour}
+                    onChange={(e) => setHarbour(e.target.value)}
+                    className="rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="message" className="text-xs font-bold">Customer Notice Message</Label>
+                <Textarea
+                  id="message"
+                  placeholder="Describe the freshly unloaded catch, cutting options, and delivery timeslots..."
+                  rows={3}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  className="rounded-xl text-sm"
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border/50">
+                <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Bell className="size-3.5 text-primary" />
+                  <span>Will trigger in-app banner and browser push notifications to subscribed customers.</span>
+                </div>
                 <Button
-                  key={i}
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="rounded-xl text-xs h-8 border-dashed hover:border-primary hover:text-primary"
-                  onClick={() => applyTemplate(tpl)}
+                  className="rounded-xl font-bold gap-2 px-6 self-end sm:self-auto bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+                  disabled={sendBroadcast.isPending || !title.trim() || !message.trim()}
+                  onClick={() => sendBroadcast.mutate()}
                 >
-                  <Sparkles className="mr-1 size-3 text-sky-500" />
-                  {tpl.harbour.split(",")[0]} Catch
+                  {sendBroadcast.isPending ? "Broadcasting..." : <><Send className="size-4" /> Broadcast Catch Now</>}
                 </Button>
-              ))}
+              </div>
             </div>
-          </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="broadcast-title" className="text-xs font-semibold">Alert Title *</Label>
-              <Input
-                id="broadcast-title"
-                placeholder="e.g. 🌅 Kasimedu 06:30 AM Boat Landed! Live Catch Ready"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="rounded-xl"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="harbour-source" className="text-xs font-semibold">Harbour Source *</Label>
-              <Input
-                id="harbour-source"
-                placeholder="e.g. Kasimedu Harbour, Chennai"
-                value={harbour}
-                onChange={(e) => setHarbour(e.target.value)}
-                className="rounded-xl"
-              />
-            </div>
-          </div>
+            <div className="space-y-3">
+              <h2 className="font-display font-semibold text-base flex items-center gap-2">
+                <Clock className="size-4 text-muted-foreground" /> Harbour Broadcast History
+              </h2>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="broadcast-msg" className="text-xs font-semibold">Alert Message & Highlights *</Label>
-            <Textarea
-              id="broadcast-msg"
-              rows={3}
-              placeholder="Detail the fresh species landed, special prices, or cut recommendations..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              className="rounded-xl"
-            />
-          </div>
+              {isLoading ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">Loading broadcasts...</p>
+              ) : broadcasts.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border p-8 text-center text-muted-foreground text-sm">
+                  No previous catch broadcasts sent yet. Dispatch your first morning boat update above!
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  {broadcasts.map((b) => (
+                    <div
+                      key={b.id}
+                      className="rounded-2xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs"
+                    >
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-sm text-foreground">{b.title}</span>
+                          <Badge variant="outline" className="text-[10px] font-mono border-sky-500/40 text-sky-600 dark:text-sky-400 gap-1">
+                            <Compass className="size-2.5" /> {b.harbour_source}
+                          </Badge>
+                          <span className="text-[11px] text-muted-foreground">{formatIST(b.sent_at)}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{b.message}</p>
+                      </div>
 
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <Button
-              className="rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold gap-2 shadow-xs"
-              disabled={sendBroadcast.isPending || !title || !message}
-              onClick={() => sendBroadcast.mutate()}
-            >
-              <Send className="size-4" />
-              {sendBroadcast.isPending ? "Broadcasting..." : "Send Live Alert to Store & Customers"}
-            </Button>
-          </div>
-        </div>
-
-        {/* Past Broadcast History */}
-        <div className="space-y-3">
-          <h2 className="font-display font-semibold text-base flex items-center gap-2">
-            <Clock className="size-4 text-muted-foreground" /> Past Harbour Broadcasts ({broadcasts.length})
-          </h2>
-
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">Loading broadcasts...</p>
-          ) : broadcasts.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border p-8 text-center text-muted-foreground text-sm">
-              No previous catch broadcasts sent yet. Dispatch your first morning boat update above!
-            </div>
-          ) : (
-            <div className="grid gap-3">
-              {broadcasts.map((b) => (
-                <div
-                  key={b.id}
-                  className="rounded-2xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs"
-                >
-                  <div className="space-y-1 min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-sm text-foreground">{b.title}</span>
-                      <Badge variant="outline" className="text-[10px] font-mono border-sky-500/40 text-sky-600 dark:text-sky-400 gap-1">
-                        <Compass className="size-2.5" /> {b.harbour_source}
-                      </Badge>
-                      <span className="text-[11px] text-muted-foreground">{formatIST(b.sent_at)}</span>
+                      <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">Banner Live:</span>
+                          <Switch
+                            checked={b.is_active}
+                            onCheckedChange={(val) => toggleActive.mutate({ id: b.id, is_active: val })}
+                          />
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="size-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                          onClick={() => deleteBroadcast.mutate(b.id)}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground line-clamp-2">{b.message}</p>
-                  </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
 
-                  <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">Banner Live:</span>
+          <TabsContent value="drips" className="space-y-6">
+            <div className="rounded-3xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-background to-orange-500/10 p-5 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h2 className="font-display text-lg sm:text-xl font-bold flex items-center gap-2 text-foreground">
+                    <Zap className="size-5 text-amber-500" />
+                    Automated Retention Drips &amp; Abandoned Cart Triggers
+                  </h2>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    Intelligent background re-engagement rules that convert one-time seafood buyers into weekly repeat customers.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  className="rounded-xl font-bold text-xs h-9 bg-amber-600 hover:bg-amber-500 text-white gap-1.5 shadow-sm"
+                  disabled={Boolean(dispatchingDrip)}
+                  onClick={async () => {
+                    try {
+                      setDispatchingDrip("all");
+                      for (const seq of DRIP_SEQUENCES) {
+                        if (activeDripToggles[seq.id]) {
+                          await dispatchDripCycle({ data: { sequenceId: seq.id, isDryRun: false } });
+                        }
+                      }
+                      toast.success("All active marketing drip cycles executed successfully!");
+                      qc.invalidateQueries({ queryKey: ["admin-catch-broadcasts"] });
+                    } catch (e: any) {
+                      toast.error(e.message || "Failed to dispatch drips");
+                    } finally {
+                      setDispatchingDrip(null);
+                    }
+                  }}
+                >
+                  <Play className="size-3.5" />
+                  {dispatchingDrip === "all" ? "Executing Sequences..." : "Run Active Drips Now"}
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {DRIP_SEQUENCES.map((seq) => {
+                const summary = dripSummaries.find((s) => s.sequenceId === seq.id);
+                const isEnabled = activeDripToggles[seq.id] ?? true;
+                const isRunning = dispatchingDrip === seq.id;
+
+                return (
+                  <div
+                    key={seq.id}
+                    className={`rounded-2xl border p-4 bg-card shadow-xs space-y-3 transition-all ${
+                      isEnabled ? "border-border/80" : "border-border/40 opacity-60"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-foreground">{seq.name}</span>
+                          <Badge variant="outline" className="text-[10px] font-mono border-amber-500/40 text-amber-600 dark:text-amber-400">
+                            {seq.delayText}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{seq.triggerDescription}</p>
+                      </div>
+
                       <Switch
-                        checked={b.is_active}
-                        onCheckedChange={(val) => toggleActive.mutate({ id: b.id, is_active: val })}
+                        checked={isEnabled}
+                        onCheckedChange={(val) =>
+                          setActiveDripToggles((prev) => ({ ...prev, [seq.id]: val }))
+                        }
                       />
                     </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="size-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
-                      onClick={() => deleteBroadcast.mutate(b.id)}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
+
+                    <div className="p-2.5 rounded-xl bg-muted/20 border border-border/60 text-xs space-y-1 font-mono">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Coupon Attached:</span>
+                        <strong className="text-primary font-mono">{seq.defaultPromoCode}</strong>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Offer Value:</span>
+                        <strong className="text-emerald-600 dark:text-emerald-400">{seq.discountSummary}</strong>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Eligible Audience:</span>
+                        <strong className="text-foreground">{summary?.eligibleCount ?? 0} customers</strong>
+                      </div>
+                    </div>
+
+                    {summary?.sampleAudience && summary.sampleAudience.length > 0 && (
+                      <div className="text-[11px] text-muted-foreground pt-1 border-t border-border/40 flex items-center gap-1.5 flex-wrap">
+                        <Users className="size-3 text-muted-foreground" />
+                        <span>Sample Targets:</span>
+                        {summary.sampleAudience.slice(0, 2).map((a, i) => (
+                          <span key={i} className="px-1.5 py-0.5 rounded-md bg-muted/60 text-foreground font-medium">
+                            {a.name} ({a.phoneOrEmail})
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                        <Mail className="size-3" /> Email + Browser Push
+                      </span>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl h-7 text-xs font-semibold gap-1"
+                        disabled={isRunning || !isEnabled}
+                        onClick={async () => {
+                          try {
+                            setDispatchingDrip(seq.id);
+                            const res = await dispatchDripCycle({ data: { sequenceId: seq.id, isDryRun: false } });
+                            toast.success(`Drip "${seq.name}" triggered for ${res.dispatchedCount} customers!`);
+                            refetchDrips();
+                            qc.invalidateQueries({ queryKey: ["admin-catch-broadcasts"] });
+                          } catch (err: any) {
+                            toast.error(err.message || "Dispatch failed");
+                          } finally {
+                            setDispatchingDrip(null);
+                          }
+                        }}
+                      >
+                        <Send className="size-3 text-primary" />
+                        {isRunning ? "Sending..." : "Dispatch Now"}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </AdminShell>
   );

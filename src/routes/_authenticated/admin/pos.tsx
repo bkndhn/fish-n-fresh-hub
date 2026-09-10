@@ -35,7 +35,11 @@ import {
   Keyboard,
   FileText,
   ArrowUpDown,
+  Camera,
+  ScanLine,
 } from "lucide-react";
+import { hardwareScanner, type ParsedBarcode } from "@/lib/barcodeScanner";
+import { BarcodeCameraModal } from "@/components/BarcodeCameraModal";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminProductsQuery } from "@/lib/admin";
 import { categoriesQuery, settingsQuery } from "@/lib/queries";
@@ -182,6 +186,7 @@ export function RetailPosCounterPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const quickCodeInputRef = useRef<HTMLInputElement>(null);
   const [quickCodeInput, setQuickCodeInput] = useState("");
+  const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
   const { data: rawProducts = [], isLoading: productsLoading } = useQuery(adminProductsQuery);
   const { data: categories = [] } = useQuery(categoriesQuery);
   const { data: settings } = useQuery(settingsQuery);
@@ -464,6 +469,75 @@ export function RetailPosCounterPage() {
 
     toast.error(`No product found with PLU Code #${codeNum}`);
   };
+
+  // Barcode & Scale Scanner Handler
+  const handleBarcodeDetected = (parsed: ParsedBarcode) => {
+    // 1. Scale barcode with embedded weight (Prefix 20/21)
+    if (parsed.type === "scale_weight") {
+      const targetPlu = parseInt(parsed.productIdOrCode, 10);
+      const matched = products.find((p, idx) => p.pos_code === targetPlu || (!p.pos_code && (idx + 1) === targetPlu));
+      if (matched) {
+        const isWeightBased = (matched.unit || "kg").toLowerCase() === "kg";
+        const weight = parsed.embeddedWeightKg || 1;
+        const pricePerKg = Number(matched.price);
+        const totalPrice = Math.round(pricePerKg * (isWeightBased ? weight : 1));
+
+        const newItem: PosCartItem = {
+          id: `${matched.id}-${Date.now()}`,
+          productId: matched.id,
+          name: matched.name,
+          pricePerKg,
+          weightKg: isWeightBased ? weight : 0,
+          qty: isWeightBased ? 1 : Math.round(weight),
+          unit: matched.unit || "kg",
+          cuttingStyle: "Curry Cut",
+          totalPrice,
+          image: matched.image_url,
+          gstPercent: (matched as any).gst_percent || 0,
+        };
+
+        setCart((prev) => [...prev, newItem]);
+        toast.success(`Scale item added: ${matched.name} (${weight} kg - ₹${totalPrice})`, { icon: "⚖️" });
+        return;
+      }
+    }
+
+    // 2. PLU code scan (e.g. FNF-01 or numeric code)
+    if (parsed.type === "plu_code") {
+      const targetPlu = parseInt(parsed.productIdOrCode, 10);
+      const matched = products.find((p, idx) => p.pos_code === targetPlu || (!p.pos_code && (idx + 1) === targetPlu));
+      if (matched) {
+        handleOpenItem(matched);
+        toast.info(`Scanned PLU #${matched.pos_code ?? targetPlu}: ${matched.name}`);
+        return;
+      }
+    }
+
+    // 3. Direct Barcode / SKU matching
+    const matched = products.find(
+      (p, idx) =>
+        p.id === parsed.productIdOrCode ||
+        (p as any).barcode === parsed.productIdOrCode ||
+        (p as any).sku === parsed.productIdOrCode ||
+        p.pos_code === parseInt(parsed.productIdOrCode, 10) ||
+        (!p.pos_code && (idx + 1) === parseInt(parsed.productIdOrCode, 10))
+    );
+
+    if (matched) {
+      handleOpenItem(matched);
+      toast.info(`Scanned Barcode: ${matched.name}`);
+    } else {
+      toast.error(`Barcode not found in catalog: ${parsed.raw}`);
+    }
+  };
+
+  // Listen for hardware USB / Bluetooth barcode scanners
+  useEffect(() => {
+    hardwareScanner.startListening(handleBarcodeDetected);
+    return () => {
+      hardwareScanner.stopListening();
+    };
+  }, [products]);
 
   // Filtered Products with PLU Code Priority Matching
   const displayedProducts = useMemo(() => {
@@ -1288,13 +1362,14 @@ export function RetailPosCounterPage() {
                 </div>
               </div>
 
-              <form onSubmit={handleQuickCodeSubmit} className="flex items-center gap-2 shrink-0">
-                <div className="relative w-full sm:w-44">
+              <form onSubmit={handleQuickCodeSubmit} className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <div className="relative w-full sm:w-40">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono font-black text-xs text-primary">#</span>
                   <Input
                     ref={quickCodeInputRef}
-                    type="number"
-                    placeholder="PLU (e.g. 01)"
+                    data-barcode-input="true"
+                    type="text"
+                    placeholder="PLU / Barcode"
                     value={quickCodeInput}
                     onChange={(e) => setQuickCodeInput(e.target.value)}
                     className="pl-7 pr-2 h-9 text-xs font-mono font-bold rounded-xl bg-background border-primary/30 focus-visible:ring-primary text-foreground"
@@ -1305,7 +1380,18 @@ export function RetailPosCounterPage() {
                   size="sm"
                   className="h-9 rounded-xl font-bold text-xs bg-primary hover:bg-primary/90 text-primary-foreground shrink-0 shadow-2xs px-3"
                 >
-                  Select Item
+                  Select
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCameraScannerOpen(true)}
+                  className="h-9 rounded-xl font-bold text-xs border-primary/30 text-primary hover:bg-primary/10 gap-1.5 shrink-0 px-2.5"
+                  title="Scan Barcode using Device Camera"
+                >
+                  <Camera className="size-3.5" />
+                  <span className="hidden sm:inline">Camera</span>
                 </Button>
               </form>
             </div>
@@ -2583,6 +2669,13 @@ export function RetailPosCounterPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Camera Barcode Scanner Modal */}
+      <BarcodeCameraModal
+        isOpen={cameraScannerOpen}
+        onClose={() => setCameraScannerOpen(false)}
+        onScan={handleBarcodeDetected}
+      />
     </AdminShell>
   );
 }

@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Package,
   Truck,
@@ -18,7 +18,12 @@ import {
   Home,
   Briefcase,
   Navigation,
+  Calendar,
+  Pause,
+  Play,
+  RefreshCw,
 } from "lucide-react";
+import { updateSubscriptionStatus } from "@/lib/subscriptions.functions";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -99,7 +104,7 @@ function AccountPage() {
   const { user } = useSessionUser();
   const qc = useQueryClient();
   const { data: settings } = useQuery(settingsQuery);
-  const [tab, setTab] = useState<"orders" | "payments" | "addresses" | "wallet">("orders");
+  const [tab, setTab] = useState<"orders" | "subscriptions" | "payments" | "addresses" | "wallet">("orders");
   const [invoiceOrder, setInvoiceOrder] = useState<AccountOrder | null>(null);
 
   // 1. Strict Customer-Scoped Orders Query
@@ -152,6 +157,20 @@ function AccountPage() {
     },
   });
 
+  // Strict Customer-Scoped Subscriptions Query
+  const subscriptionsQ = useQuery({
+    queryKey: ["account", "subscriptions", user?.id],
+    enabled: Boolean(user?.id),
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("customer_subscriptions")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) return [];
+      return data ?? [];
+    },
+  });
+
   // 3. Strict Customer-Scoped Wallet Query
   const walletQ = useQuery({
     queryKey: ["account", "wallet", user?.id],
@@ -174,6 +193,26 @@ function AccountPage() {
       return { wallet: data, txns: txnRows ?? [] };
     },
   });
+
+  // Real-time WebSocket Order Updates
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`account-orders-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        () => {
+          qc.invalidateQueries({ queryKey: ["account", "orders", user.id] });
+          qc.invalidateQueries({ queryKey: ["account", "wallet", user.id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id, qc]);
 
   const orders = ordersQ.data ?? [];
   const active = orders.filter((o) => !["delivered", "cancelled"].includes(o.status));
@@ -209,6 +248,7 @@ function AccountPage() {
           {(
             [
               ["orders", "Orders & Delivery"],
+              ["subscriptions", "Fresh Subscriptions"],
               ["payments", "Past Payments"],
               ["addresses", "Saved Addresses"],
               ["wallet", "FreshCash Wallet"],
@@ -233,6 +273,12 @@ function AccountPage() {
           <div className="mt-4">
             {tab === "orders" && (
               <OrdersTab orders={orders} onOpenInvoice={(o) => setInvoiceOrder(o)} />
+            )}
+            {tab === "subscriptions" && (
+              <SubscriptionsTab
+                subscriptions={(subscriptionsQ.data ?? []) as any[]}
+                onRefresh={() => subscriptionsQ.refetch()}
+              />
             )}
             {tab === "payments" && (
               <PaymentsTab orders={orders} onOpenInvoice={(o) => setInvoiceOrder(o)} />
@@ -754,6 +800,188 @@ function WalletTab({ wallet, txns }: { wallet: any; txns: any[] }) {
             </li>
           ))}
         </ul>
+      )}
+    </div>
+  );
+}
+
+function SubscriptionsTab({
+  subscriptions,
+  onRefresh,
+}: {
+  subscriptions: any[];
+  onRefresh: () => void;
+}) {
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const handleToggle = async (sub: any) => {
+    const nextStatus = sub.status === "active" ? "paused" : "active";
+    try {
+      setUpdatingId(sub.id);
+      await updateSubscriptionStatus({
+        data: { subscriptionId: sub.id, status: nextStatus },
+      });
+      toast.success(
+        nextStatus === "paused"
+          ? "Subscription paused. We will hold repeat deliveries."
+          : "Subscription resumed! Fresh fish will arrive on your schedule."
+      );
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e.message || "Could not update subscription");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleCancel = async (sub: any) => {
+    if (!confirm(`Are you sure you want to cancel your weekly ${sub.product_name} subscription?`)) return;
+    try {
+      setUpdatingId(sub.id);
+      await updateSubscriptionStatus({
+        data: { subscriptionId: sub.id, status: "cancelled" },
+      });
+      toast.info("Subscription cancelled.");
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e.message || "Could not cancel subscription");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-2xl border border-sky-500/20 bg-gradient-to-br from-sky-500/10 via-background to-teal-500/10 p-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm sm:text-base font-bold text-foreground">
+              Fresh Seafood Repeat Subscriptions
+            </h2>
+            <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-extrabold px-2 py-0.5 border border-emerald-500/20">
+              Save 5% Always
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Never run out of fresh harbour catch. Automated morning deliveries with priority cutting and free cleaning.
+          </p>
+        </div>
+
+        <Button asChild size="sm" className="rounded-xl h-8 text-xs font-bold gap-1 bg-primary shadow-2xs">
+          <Link to="/catalog">
+            <Plus className="size-3.5" /> Subscribe to New Fish
+          </Link>
+        </Button>
+      </div>
+
+      {subscriptions.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border p-10 text-center space-y-3">
+          <Calendar className="size-8 mx-auto text-muted-foreground/60" />
+          <p className="text-sm font-semibold text-foreground">No active seafood subscriptions yet</p>
+          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+            Subscribe to your weekly Sunday Vanjaram steaks or Wednesday tiger prawns and save 5% on every order!
+          </p>
+          <Button asChild size="sm" className="rounded-xl">
+            <Link to="/catalog">Explore Fresh Catch</Link>
+          </Button>
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {subscriptions.map((sub) => {
+            const isActive = sub.status === "active";
+            const isPaused = sub.status === "paused";
+
+            return (
+              <div
+                key={sub.id}
+                className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-2xs"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-sm text-foreground">{sub.product_name}</span>
+                      <Badge
+                        className={`text-[10px] capitalize ${
+                          isActive
+                            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                            : isPaused
+                            ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {sub.status}
+                      </Badge>
+                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-md bg-primary/10 text-primary">
+                        5% OFF Active
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground">
+                      Portion: <strong>{sub.quantity} {sub.unit}</strong> ({sub.cutting_style}) · Schedule:{" "}
+                      <strong className="capitalize text-foreground">
+                        {sub.frequency} (Every {sub.day_of_week})
+                      </strong>
+                    </p>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <p className="text-base font-extrabold text-foreground">{inr(Number(sub.total_price))}</p>
+                    <p className="text-[10px] text-muted-foreground line-through">
+                      {inr(Number(sub.price_per_unit) * Number(sub.quantity))}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-border/50 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="size-3.5 text-primary" />
+                    <span>
+                      Next Delivery:{" "}
+                      <strong className="text-foreground font-mono">
+                        {formatIST(sub.next_delivery_date).slice(0, 11)}
+                      </strong>{" "}
+                      ({sub.preferred_slot})
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                    {sub.status !== "cancelled" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl h-7 text-xs font-semibold gap-1"
+                        disabled={updatingId === sub.id}
+                        onClick={() => handleToggle(sub)}
+                      >
+                        {isActive ? (
+                          <>
+                            <Pause className="size-3 text-amber-600" /> Pause
+                          </>
+                        ) : (
+                          <>
+                            <Play className="size-3 text-emerald-600" /> Resume
+                          </>
+                        )}
+                      </Button>
+                    )}
+
+                    {sub.status !== "cancelled" && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="rounded-xl h-7 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        disabled={updatingId === sub.id}
+                        onClick={() => handleCancel(sub)}
+                      >
+                        Cancel
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

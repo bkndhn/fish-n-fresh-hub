@@ -27,7 +27,16 @@ import {
   Receipt,
   Landmark,
   Scale,
+  ShieldAlert,
+  Snowflake,
+  AlertOctagon,
 } from "lucide-react";
+import {
+  createInwardBatch,
+  updateBatchStatus,
+  executeBatchRecall,
+  type BatchRecallReport,
+} from "@/lib/batches.functions";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminProductsQuery } from "@/lib/admin";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +45,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -214,8 +224,43 @@ function PurchasesAdmin() {
   // Filter state for ledger and statements
   const [searchLedger, setSearchLedger] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "paid">("all");
-  const [activeTab, setActiveTab] = useState<"ledger" | "outstanding" | "new" | "suppliers">("ledger");
+  const [activeTab, setActiveTab] = useState<"ledger" | "outstanding" | "new" | "suppliers" | "batches">("ledger");
   const [statementSupplierFilter, setStatementSupplierFilter] = useState<string>("all");
+
+  // Batch Traceability & Food Safety State
+  const { data: inventoryBatches = [], refetch: refetchBatches } = useQuery({
+    queryKey: ["admin", "inventory-batches"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("inventory_batches")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) return [];
+      return data || [];
+    },
+  });
+
+  const [batchRecallModalOpen, setBatchRecallModalOpen] = useState(false);
+  const [selectedRecallBatch, setSelectedRecallBatch] = useState<string>("");
+  const [recallReport, setRecallReport] = useState<BatchRecallReport | null>(null);
+  const [isRecalling, setIsRecalling] = useState(false);
+
+  const [newBatchModalOpen, setNewBatchModalOpen] = useState(false);
+  const [batchForm, setBatchForm] = useState({
+    batchNumber: `LOT-KAS-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(Math.random() * 90 + 10)}`,
+    productId: "",
+    productName: "",
+    supplierName: "Kasimedu Deep Sea Fishermen Society",
+    catchDate: new Date().toISOString().slice(0, 10),
+    catchHarbour: "Kasimedu Harbour, Chennai",
+    boatNumber: "TN-02-MM-1092",
+    initialQuantity: "40",
+    unit: "kg",
+    coldChainTempCelsius: "-1.8",
+    shelfLifeHours: "72",
+    qualityGrade: "Grade A+ (Export Quality)",
+    notes: "Direct dockside purchase on ice.",
+  });
 
   // Modals
   const [viewVoucher, setViewVoucher] = useState<PurchaseOrder | null>(null);
@@ -746,6 +791,14 @@ function PurchasesAdmin() {
               </TabsTrigger>
               <TabsTrigger value="suppliers" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0">
                 <Building2 className="mr-1.5 size-3.5" /> Suppliers Directory ({suppliers.length})
+              </TabsTrigger>
+              <TabsTrigger value="batches" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0">
+                <ShieldAlert className="mr-1.5 size-3.5 text-cyan-600" /> Catch Batches & Recall
+                {inventoryBatches.filter((b: any) => b.status === "active").length > 0 && (
+                  <span className="ml-1.5 rounded-full bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 px-1.5 py-0.2 text-[10px] font-extrabold">
+                    {inventoryBatches.filter((b: any) => b.status === "active").length}
+                  </span>
+                )}
               </TabsTrigger>
             </TabsList>
           </div>
@@ -1488,7 +1541,466 @@ function PurchasesAdmin() {
             ))}
           </div>
         </TabsContent>
+
+        {/* 5. CATCH BATCHES & FOOD SAFETY TRACEABILITY TAB */}
+        <TabsContent value="batches" className="space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-card p-4 rounded-2xl border border-border/80 shadow-2xs">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm sm:text-base font-bold text-foreground">
+                  Catch Batches &amp; Food Safety Traceability
+                </h3>
+                <span className="rounded-full bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 text-[10px] font-extrabold px-2 py-0.5 border border-cyan-500/20">
+                  FSSAI Compliant
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Track harbour dock origins, trawler vessel IDs, cold-chain temperatures, and execute instant customer recalls.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-xl h-8 text-xs font-bold gap-1.5 border-rose-500/30 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                onClick={() => {
+                  if (inventoryBatches.length > 0) {
+                    setSelectedRecallBatch(inventoryBatches[0].batch_number);
+                  }
+                  setBatchRecallModalOpen(true);
+                }}
+              >
+                <AlertOctagon className="size-3.5 text-rose-600" /> Batch Recall Tool
+              </Button>
+
+              <Button
+                size="sm"
+                className="rounded-xl h-8 text-xs font-bold gap-1.5 bg-primary text-primary-foreground shadow-2xs"
+                onClick={() => setNewBatchModalOpen(true)}
+              >
+                <Plus className="size-3.5" /> Log Catch Lot
+              </Button>
+            </div>
+          </div>
+
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Card className="rounded-2xl p-3 bg-card border-border/70">
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Active Fresh Lots</p>
+              <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                {inventoryBatches.filter((b: any) => b.status === "active").length} Lots
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Ready for counter &amp; online sales</p>
+            </Card>
+            <Card className="rounded-2xl p-3 bg-card border-border/70">
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Cold Chain Status</p>
+              <p className="text-xl font-extrabold text-cyan-600 dark:text-cyan-400 mt-0.5 flex items-center gap-1">
+                <Snowflake className="size-4" /> &lt; -1.5°C
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">100% Chilled pack compliance</p>
+            </Card>
+            <Card className="rounded-2xl p-3 bg-card border-border/70">
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Recalled Lots</p>
+              <p className="text-xl font-extrabold text-rose-600 dark:text-rose-400 mt-0.5">
+                {inventoryBatches.filter((b: any) => b.status === "recalled").length}
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Food safety quarantined</p>
+            </Card>
+            <Card className="rounded-2xl p-3 bg-card border-border/70">
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Traceable Lots</p>
+              <p className="text-xl font-extrabold text-foreground mt-0.5">
+                {inventoryBatches.length}
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Harbour to doorstep logged</p>
+            </Card>
+          </div>
+
+          {/* Batches Table (Desktop) / Cards (Mobile) */}
+          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-muted/60 text-muted-foreground font-semibold">
+                  <tr>
+                    <th className="p-3">Lot # / Harbour</th>
+                    <th className="p-3">Catch Product &amp; Vessel</th>
+                    <th className="p-3">Catch Date</th>
+                    <th className="p-3">Cold Chain</th>
+                    <th className="p-3 text-right">Qty (Init / Curr)</th>
+                    <th className="p-3">Status</th>
+                    <th className="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {inventoryBatches.map((b: any) => {
+                    const hoursRemaining = Math.round(
+                      (new Date(b.expiry_date).getTime() - Date.now()) / (1000 * 3600)
+                    );
+                    const isExpiringSoon = hoursRemaining > 0 && hoursRemaining <= 24;
+                    const isExpired = hoursRemaining <= 0;
+
+                    return (
+                      <tr key={b.id} className="hover:bg-muted/10">
+                        <td className="p-3">
+                          <div className="font-mono font-bold text-foreground">{b.batch_number}</div>
+                          <div className="text-[11px] text-muted-foreground">{b.catch_harbour}</div>
+                        </td>
+                        <td className="p-3">
+                          <div className="font-semibold text-foreground">{b.product_name}</div>
+                          <div className="text-[11px] text-muted-foreground">
+                            Boat: <strong className="text-foreground">{b.boat_number || "Dockside Trawler"}</strong> · {b.quality_grade}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <div className="text-foreground font-medium">{formatIST(b.catch_date).slice(0, 11)}</div>
+                          <div className={`text-[10px] font-semibold ${isExpired ? "text-rose-600" : isExpiringSoon ? "text-amber-600" : "text-emerald-600"}`}>
+                            {isExpired ? "Expired" : `Shelf life: ~${hoursRemaining}h left`}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <span className="inline-flex items-center gap-1 font-mono font-semibold px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-700 dark:text-cyan-300">
+                            <Snowflake className="size-3" /> {b.cold_chain_temp_celsius}°C
+                          </span>
+                        </td>
+                        <td className="p-3 text-right font-medium">
+                          <span className="text-foreground font-bold">{b.current_quantity}</span>
+                          <span className="text-muted-foreground"> / {b.initial_quantity} {b.unit}</span>
+                        </td>
+                        <td className="p-3">
+                          <Badge
+                            className={`rounded-full border-0 text-[10px] capitalize ${
+                              b.status === "active"
+                                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                : b.status === "recalled"
+                                ? "bg-rose-500/15 text-rose-600 dark:text-rose-400"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {b.status}
+                          </Badge>
+                        </td>
+                        <td className="p-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {b.status === "active" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs px-2 rounded-lg text-rose-600 border-rose-500/30 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                                onClick={async () => {
+                                  if (!confirm(`Mark lot ${b.batch_number} as RECALLED? This will log a food safety alert.`)) return;
+                                  await updateBatchStatus({ data: { batchId: b.id, status: "recalled" } });
+                                  toast.warning(`Lot ${b.batch_number} marked as RECALLED`);
+                                  refetchBatches();
+                                }}
+                              >
+                                Recall
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs px-2 rounded-lg"
+                              onClick={() => {
+                                setSelectedRecallBatch(b.batch_number);
+                                setBatchRecallModalOpen(true);
+                              }}
+                            >
+                              Trace
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="sm:hidden divide-y divide-border/60 p-2 space-y-2">
+              {inventoryBatches.map((b: any) => (
+                <div key={b.id} className="p-2 space-y-1.5 bg-muted/5 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono font-bold text-xs text-foreground">{b.batch_number}</span>
+                    <Badge className="text-[10px] capitalize">{b.status}</Badge>
+                  </div>
+                  <div className="text-xs font-semibold text-foreground">{b.product_name}</div>
+                  <div className="text-[11px] text-muted-foreground flex justify-between">
+                    <span>Boat: {b.boat_number || "Harbour"}</span>
+                    <span>{b.cold_chain_temp_celsius}°C</span>
+                  </div>
+                  <div className="text-[11px] flex justify-between pt-1 border-t border-border/40">
+                    <span>Stock: <strong>{b.current_quantity} {b.unit}</strong></span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-[10px] px-2"
+                      onClick={() => {
+                        setSelectedRecallBatch(b.batch_number);
+                        setBatchRecallModalOpen(true);
+                      }}
+                    >
+                      Audit Trace
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </TabsContent>
       </Tabs>
+
+      {/* FOOD SAFETY BATCH RECALL TOOL MODAL */}
+      <Dialog open={batchRecallModalOpen} onOpenChange={setBatchRecallModalOpen}>
+        <DialogContent className="max-w-2xl rounded-3xl p-6 bg-card">
+          <DialogHeader className="border-b pb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-xl bg-rose-500/10 text-rose-600">
+                <AlertOctagon className="size-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-foreground">
+                  Food Safety Batch Traceability &amp; Customer Recall Tool
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground">
+                  Instantly locate every customer order and phone number that received seafood from this catch lot.
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2 text-xs">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex-1">
+                <Label className="text-xs font-semibold">Select Lot Number to Audit</Label>
+                <select
+                  value={selectedRecallBatch}
+                  onChange={(e) => setSelectedRecallBatch(e.target.value)}
+                  className="w-full h-9 rounded-xl border border-border bg-background px-3 text-xs font-mono font-bold mt-1"
+                >
+                  {inventoryBatches.map((b: any) => (
+                    <option key={b.id} value={b.batch_number}>
+                      {b.batch_number} — {b.product_name} ({b.catch_harbour})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button
+                className="self-end h-9 rounded-xl font-bold bg-rose-600 hover:bg-rose-500 text-white px-4"
+                disabled={isRecalling || !selectedRecallBatch}
+                onClick={async () => {
+                  try {
+                    setIsRecalling(true);
+                    const report = await executeBatchRecall({ data: { batchNumber: selectedRecallBatch } });
+                    setRecallReport(report);
+                    refetchBatches();
+                    toast.success(`Traceability audit complete for ${report.batchNumber}`);
+                  } catch (e: any) {
+                    toast.error(e.message || "Trace audit failed");
+                  } finally {
+                    setIsRecalling(false);
+                  }
+                }}
+              >
+                {isRecalling ? "Tracing Orders..." : "Run Traceability Audit"}
+              </Button>
+            </div>
+
+            {recallReport && (
+              <div className="space-y-3 border-t border-border pt-3">
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-xl border p-2.5 bg-muted/20">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground">Lot / Catch</p>
+                    <p className="font-bold text-xs text-foreground truncate">{recallReport.productName}</p>
+                    <p className="text-[10px] text-muted-foreground">{recallReport.catchHarbour}</p>
+                  </div>
+                  <div className="rounded-xl border p-2.5 bg-muted/20">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground">Impacted Customers</p>
+                    <p className="font-extrabold text-base text-rose-600">{recallReport.totalCustomersImpacted}</p>
+                    <p className="text-[10px] text-muted-foreground">Requires phone notification</p>
+                  </div>
+                  <div className="rounded-xl border p-2.5 bg-muted/20">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground">Affected Orders</p>
+                    <p className="font-extrabold text-base text-foreground">{recallReport.impactedOrders.length}</p>
+                    <p className="text-[10px] text-muted-foreground">Orders containing this catch</p>
+                  </div>
+                </div>
+
+                {recallReport.impactedOrders.length > 0 ? (
+                  <div className="max-h-56 overflow-y-auto rounded-xl border border-border bg-background">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-muted/60 text-muted-foreground font-semibold sticky top-0">
+                        <tr>
+                          <th className="p-2">Order #</th>
+                          <th className="p-2">Customer</th>
+                          <th className="p-2">Phone</th>
+                          <th className="p-2">Order Date</th>
+                          <th className="p-2 text-right">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/60">
+                        {recallReport.impactedOrders.map((o) => (
+                          <tr key={o.orderId}>
+                            <td className="p-2 font-mono font-bold">#{o.orderNumber}</td>
+                            <td className="p-2 font-medium text-foreground">{o.customerName}</td>
+                            <td className="p-2 font-mono">{o.customerPhone}</td>
+                            <td className="p-2 text-muted-foreground">{formatIST(o.orderDate).slice(0, 11)}</td>
+                            <td className="p-2 text-right font-bold">{formatINR(o.totalAmount)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl border border-dashed border-emerald-500/40 bg-emerald-500/5 text-center text-emerald-700 dark:text-emerald-300">
+                    ✅ No customer orders have been dispatched from this lot yet.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* LOG NEW CATCH LOT MODAL */}
+      <Dialog open={newBatchModalOpen} onOpenChange={setNewBatchModalOpen}>
+        <DialogContent className="max-w-lg rounded-3xl p-5 bg-card">
+          <DialogHeader className="border-b pb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                <ShieldAlert className="size-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-foreground">
+                  Log Inward Catch Lot (Traceability)
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground">
+                  Record boat registration, harbour source, and cold chain temperature.
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!batchForm.productId) {
+                toast.error("Please select a seafood product");
+                return;
+              }
+              try {
+                const prod = products.find((p) => p.id === batchForm.productId);
+                await createInwardBatch({
+                  data: {
+                    ...batchForm,
+                    productName: prod?.name || "Fresh Seafood",
+                    initialQuantity: Number(batchForm.initialQuantity),
+                    coldChainTempCelsius: Number(batchForm.coldChainTempCelsius),
+                    shelfLifeHours: Number(batchForm.shelfLifeHours),
+                  },
+                });
+                toast.success(`Catch lot ${batchForm.batchNumber} registered!`);
+                setNewBatchModalOpen(false);
+                refetchBatches();
+              } catch (err: any) {
+                toast.error(err.message || "Failed to log lot");
+              }
+            }}
+            className="space-y-3 pt-2 text-xs"
+          >
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs font-semibold">Batch Lot Number</Label>
+                <Input
+                  value={batchForm.batchNumber}
+                  onChange={(e) => setBatchForm({ ...batchForm, batchNumber: e.target.value })}
+                  className="rounded-xl h-9 text-xs font-mono font-bold mt-1"
+                  required
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold">Select Product</Label>
+                <select
+                  value={batchForm.productId}
+                  onChange={(e) => setBatchForm({ ...batchForm, productId: e.target.value })}
+                  className="w-full h-9 rounded-xl border border-border bg-background px-2.5 text-xs mt-1"
+                  required
+                >
+                  <option value="">-- Choose Seafood --</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs font-semibold">Catch Harbour / Port</Label>
+                <Input
+                  value={batchForm.catchHarbour}
+                  onChange={(e) => setBatchForm({ ...batchForm, catchHarbour: e.target.value })}
+                  className="rounded-xl h-9 text-xs mt-1"
+                  required
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold">Trawler / Boat ID</Label>
+                <Input
+                  value={batchForm.boatNumber}
+                  onChange={(e) => setBatchForm({ ...batchForm, boatNumber: e.target.value })}
+                  placeholder="e.g. TN-02-MM-1092"
+                  className="rounded-xl h-9 text-xs mt-1"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <Label className="text-xs font-semibold">Catch Qty (kg)</Label>
+                <Input
+                  type="number"
+                  value={batchForm.initialQuantity}
+                  onChange={(e) => setBatchForm({ ...batchForm, initialQuantity: e.target.value })}
+                  className="rounded-xl h-9 text-xs mt-1"
+                  required
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold">Cold Chain (°C)</Label>
+                <Input
+                  value={batchForm.coldChainTempCelsius}
+                  onChange={(e) => setBatchForm({ ...batchForm, coldChainTempCelsius: e.target.value })}
+                  placeholder="-1.8"
+                  className="rounded-xl h-9 text-xs mt-1"
+                  required
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold">Shelf Life (Hours)</Label>
+                <Input
+                  type="number"
+                  value={batchForm.shelfLifeHours}
+                  onChange={(e) => setBatchForm({ ...batchForm, shelfLifeHours: e.target.value })}
+                  className="rounded-xl h-9 text-xs mt-1"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button type="button" variant="outline" size="sm" className="rounded-xl h-9" onClick={() => setNewBatchModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" className="rounded-xl h-9 font-bold bg-primary text-primary-foreground px-4">
+                Save &amp; Inward Lot
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Printable Inward Voucher Modal */}
       <Dialog open={Boolean(viewVoucher)} onOpenChange={(open) => !open && setViewVoucher(null)}>

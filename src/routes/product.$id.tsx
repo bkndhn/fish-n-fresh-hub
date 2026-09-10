@@ -1,7 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { Minus, Plus, ShieldCheck, Star, MessageSquare, Fish } from "lucide-react";
+import { Minus, Plus, ShieldCheck, Star, MessageSquare, Fish, Calendar, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import { productQuery, productsQuery, settingsQuery } from "@/lib/queries";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductAiBenefitsCard } from "@/components/ProductAiBenefitsCard";
 import { SeoStructuredData } from "@/components/SeoStructuredData";
+import { createSubscription } from "@/lib/subscriptions.functions";
 
 const PORTION_CHIPS = [
   { label: "250g", val: 0.25 },
@@ -85,6 +86,17 @@ function ProductPage() {
   const [qty, setQty] = useState(1);
   const [qtyInput, setQtyInput] = useState("1");
   const cartItem = items.find((i) => i.product_id === product?.id);
+
+  const navigate = useNavigate();
+  const [subscribeModalOpen, setSubscribeModalOpen] = useState(false);
+  const [subFrequency, setSubFrequency] = useState<"weekly" | "daily" | "bi_weekly">("weekly");
+  const [subDay, setSubDay] = useState<"sunday" | "wednesday" | "friday">("sunday");
+  const [subSlot, setSubSlot] = useState("07:00 AM - 09:00 AM (Early Catch)");
+  const [subName, setSubName] = useState("");
+  const [subPhone, setSubPhone] = useState("");
+  const [subAddress, setSubAddress] = useState("");
+  const [subCutting, setSubCutting] = useState("Curry Cut");
+  const [isSubscribing, setIsSubscribing] = useState(false);
 
   useEffect(() => {
     if (product) {
@@ -305,7 +317,218 @@ function ProductPage() {
                 </Button>
               </div>
             )}
+
+            {/* Subscribe & Save 5% Card */}
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="flex size-6 items-center justify-center rounded-lg bg-emerald-500 text-white text-xs font-bold">
+                    %
+                  </span>
+                  <div>
+                    <span className="text-xs font-bold text-foreground">Subscribe &amp; Save 5%</span>
+                    <span className="ml-2 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-1.5 py-0.2 rounded-md">
+                      Weekly Catch
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isOutOfStock}
+                  className="rounded-xl h-8 text-xs font-bold text-emerald-700 dark:text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/10"
+                  onClick={() => setSubscribeModalOpen(true)}
+                >
+                  Set Schedule
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Get this fresh cut delivered automatically every week with priority harbour dispatch. Pause or cancel anytime in your account.
+              </p>
+            </div>
           </div>
+
+          {/* Subscribe & Save Modal */}
+          <Dialog open={subscribeModalOpen} onOpenChange={setSubscribeModalOpen}>
+            <DialogContent className="max-w-md rounded-3xl p-5 bg-card">
+              <DialogHeader className="border-b pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600">
+                    <Calendar className="size-5" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-base font-bold text-foreground">
+                      Subscribe to Weekly {product.name}
+                    </DialogTitle>
+                    <p className="text-xs text-muted-foreground">
+                      Automatic fresh catch dispatch at 5% discount.
+                    </p>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!subPhone || subPhone.length < 10) {
+                    toast.error("Please enter a valid 10-digit phone number");
+                    return;
+                  }
+                  if (!subAddress) {
+                    toast.error("Please enter your delivery address");
+                    return;
+                  }
+
+                  try {
+                    setIsSubscribing(true);
+                    const { data: session } = await supabase.auth.getSession();
+                    const userId = session.session?.user?.id;
+
+                    await createSubscription({
+                      data: {
+                        userId,
+                        customerName: subName.trim() || (session.session?.user?.user_metadata?.["name"] as string | undefined) || "Customer",
+                        customerPhone: subPhone.trim(),
+                        customerEmail: session.session?.user?.email,
+                        customerAddress: subAddress.trim(),
+                        productId: product.id,
+                        productName: product.name,
+                        quantity: qty,
+                        unit: product.unit || "kg",
+                        cuttingStyle: subCutting,
+                        frequency: subFrequency,
+                        dayOfWeek: subDay,
+                        preferredSlot: subSlot,
+                        pricePerUnit: Number(product.price),
+                      },
+                    });
+
+                    toast.success(`Subscribed to weekly ${product.name}!`);
+                    setSubscribeModalOpen(false);
+                    navigate({ to: "/account" });
+                  } catch (err: any) {
+                    toast.error(err.message || "Failed to create subscription");
+                  } finally {
+                    setIsSubscribing(false);
+                  }
+                }}
+                className="space-y-3 pt-2 text-xs"
+              >
+                <div className="p-2.5 rounded-xl bg-muted/20 border border-border flex items-center justify-between font-mono">
+                  <div>
+                    <p className="font-bold text-foreground">{product.name} ({qty} {product.unit || "kg"})</p>
+                    <p className="text-[11px] text-muted-foreground">Standard: {inr(Number(product.price) * qty)}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                      5% Discount
+                    </span>
+                    <p className="font-extrabold text-sm text-foreground">
+                      {inr(Math.round(Number(product.price) * qty * 0.95))}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs font-semibold">Frequency</Label>
+                    <select
+                      value={subFrequency}
+                      onChange={(e) => setSubFrequency(e.target.value as any)}
+                      className="w-full h-9 rounded-xl border border-border bg-background px-2 text-xs mt-1"
+                    >
+                      <option value="weekly">Weekly (Recommended)</option>
+                      <option value="bi_weekly">Every 2 Weeks</option>
+                      <option value="daily">Daily</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">Delivery Day</Label>
+                    <select
+                      value={subDay}
+                      onChange={(e) => setSubDay(e.target.value as any)}
+                      className="w-full h-9 rounded-xl border border-border bg-background px-2 text-xs mt-1 capitalize"
+                    >
+                      <option value="sunday">Sunday (Morning Catch)</option>
+                      <option value="wednesday">Wednesday</option>
+                      <option value="friday">Friday</option>
+                      <option value="saturday">Saturday</option>
+                      <option value="tuesday">Tuesday</option>
+                      <option value="thursday">Thursday</option>
+                      <option value="monday">Monday</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold">Preferred Delivery Slot</Label>
+                  <select
+                    value={subSlot}
+                    onChange={(e) => setSubSlot(e.target.value)}
+                    className="w-full h-9 rounded-xl border border-border bg-background px-2 text-xs mt-1"
+                  >
+                    <option value="07:00 AM - 09:00 AM (Early Catch)">07:00 AM - 09:00 AM (Early Catch)</option>
+                    <option value="09:00 AM - 12:00 PM (Lunch Prep)">09:00 AM - 12:00 PM (Lunch Prep)</option>
+                    <option value="04:00 PM - 07:00 PM (Evening Dinner)">04:00 PM - 07:00 PM (Evening Dinner)</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs font-semibold">Your Name</Label>
+                    <Input
+                      value={subName}
+                      onChange={(e) => setSubName(e.target.value)}
+                      placeholder="e.g. Ramesh"
+                      className="rounded-xl h-9 text-xs mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">Phone Number *</Label>
+                    <Input
+                      value={subPhone}
+                      onChange={(e) => setSubPhone(e.target.value)}
+                      placeholder="10-digit mobile"
+                      className="rounded-xl h-9 text-xs mt-1"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold">Delivery Address *</Label>
+                  <Textarea
+                    value={subAddress}
+                    onChange={(e) => setSubAddress(e.target.value)}
+                    placeholder="House/flat number, street name, pincode..."
+                    rows={2}
+                    className="rounded-xl text-xs mt-1"
+                    required
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl h-9"
+                    onClick={() => setSubscribeModalOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={isSubscribing}
+                    className="rounded-xl h-9 font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-4"
+                  >
+                    {isSubscribing ? "Subscribing..." : "Confirm Subscription"}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
 
           <dl className="mt-6 grid grid-cols-2 gap-3 text-sm">
             {product.calories != null && <Info label="Calories" value={`${product.calories} kcal`} />}

@@ -1,6 +1,6 @@
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { RotateCcw, FileText } from "lucide-react";
@@ -108,6 +108,24 @@ function MyOrders() {
       return data ?? [];
     },
   });
+
+  // Live WebSocket Realtime updates
+  useEffect(() => {
+    const channel = supabase
+      .channel("realtime-customer-my-orders")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        () => {
+          qc.invalidateQueries({ queryKey: ["my-orders"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [qc]);
 
   const submitComplaint = useMutation({
     mutationFn: async ({ id, text }: { id: string; text: string }) => {

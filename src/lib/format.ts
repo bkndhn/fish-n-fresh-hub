@@ -1,9 +1,10 @@
-export function inr(value: number): string {
+export function inr(value: number | null | undefined): string {
+  const num = Number(value) || 0;
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(num);
 }
 
 export const formatINR = inr;

@@ -25,6 +25,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatINR, formatIST } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { subscribeToOrderRealtime } from "@/lib/realtime";
 import { settingsQuery } from "@/lib/queries";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
@@ -82,21 +84,22 @@ function TrackPage() {
     },
   });
 
-  // Realtime subscription for live delivery transitions
+  // Realtime WebSocket subscription for live delivery transitions & driver updates
   useEffect(() => {
-    const channel = supabase
-      .channel(`track-order-${id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders", filter: `id=eq.${id}` },
-        () => {
-          qc.invalidateQueries({ queryKey: ["track", id] });
-        }
-      )
-      .subscribe();
+    const unsubscribe = subscribeToOrderRealtime(id, {
+      onStatusChange: (newStatus) => {
+        toast.success(`Live Order Status: ${newStatus.replace(/_/g, " ").toUpperCase()}`, {
+          description: "Your order step has just updated in real time.",
+        });
+        qc.invalidateQueries({ queryKey: ["track", id] });
+      },
+      onAnyUpdate: () => {
+        qc.invalidateQueries({ queryKey: ["track", id] });
+      },
+    });
 
     return () => {
-      void supabase.removeChannel(channel);
+      unsubscribe();
     };
   }, [id, qc]);
 
@@ -173,7 +176,7 @@ function TrackPage() {
         {/* Header Title Card */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-4">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
                 Order #{order.order_number ?? order.id.slice(0, 8)}
               </h1>
@@ -183,6 +186,15 @@ function TrackPage() {
               >
                 {String(order.status).replace(/_/g, " ")}
               </Badge>
+              {!isDelivered && !isCancelled && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] font-semibold">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                  </span>
+                  Live WebSocket Stream
+                </span>
+              )}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               Placed on {formatIST(order.created_at)} ·{" "}

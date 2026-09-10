@@ -23,7 +23,9 @@ import {
   Route as RouteIcon,
   KeyRound,
   FileText,
+  Repeat,
 } from "lucide-react";
+import { generateDueSubscriptionOrders } from "@/lib/subscriptions.functions";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery, ORDER_STATUSES, type OrderRow } from "@/lib/admin";
 import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
@@ -87,6 +89,21 @@ function OrdersAdmin() {
   const [routeModalOrder, setRouteModalOrder] = useState<OrderRow | null>(null);
   const [pinModalOrder, setPinModalOrder] = useState<OrderRow | null>(null);
   const [invoiceOrder, setInvoiceOrder] = useState<OrderRow | null>(null);
+
+  // Subscriptions & MRR Pipeline State
+  const { data: adminSubscriptions = [], refetch: refetchAdminSubs } = useQuery({
+    queryKey: ["admin", "all-subscriptions"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("customer_subscriptions")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) return [];
+      return data || [];
+    },
+  });
+  const [subTabOpen, setSubTabOpen] = useState(false);
+  const [generatingSubs, setGeneratingSubs] = useState(false);
 
   // Bulk Actions State
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -303,9 +320,80 @@ function OrdersAdmin() {
             }}
             className={`h-7 w-36 rounded-lg text-xs ${dateFilter === "custom" ? "border-primary font-semibold ring-1 ring-primary" : ""}`}
           />
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 rounded-lg text-xs font-bold gap-1 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+            onClick={() => setSubTabOpen((prev) => !prev)}
+          >
+            <Repeat className="size-3 text-emerald-600" />
+            Subscriptions ({adminSubscriptions.filter((s: any) => s.status === "active").length})
+          </Button>
           <ExportDropdown options={ordersExportOptions} buttonLabel="Export Orders" />
         </div>
       </div>
+
+      {/* Recurring Subscriptions & MRR Pipeline Drawer */}
+      {subTabOpen && (
+        <div className="mb-4 rounded-2xl border border-emerald-500/30 bg-card p-4 space-y-3 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                  <Repeat className="size-4 text-emerald-600" /> Recurring Seafood Subscriptions &amp; MRR
+                </h3>
+                <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-extrabold px-2 py-0.2">
+                  Active MRR: {formatINR(adminSubscriptions.filter((s: any) => s.status === "active").reduce((acc: number, s: any) => acc + (Number(s.total_price) * (s.frequency === "daily" ? 26 : s.frequency === "bi_weekly" ? 2 : 4)), 0))}/mo
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Manage scheduled weekly fish repeat deliveries and batch convert due subscriptions into today's packing pipeline.
+              </p>
+            </div>
+
+            <Button
+              size="sm"
+              disabled={generatingSubs}
+              className="h-8 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 self-start sm:self-auto"
+              onClick={async () => {
+                try {
+                  setGeneratingSubs(true);
+                  const res = await generateDueSubscriptionOrders();
+                  toast.success(`Generated ${res.ordersGenerated} order(s) for today's packing pipeline!`);
+                  qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+                  refetchAdminSubs();
+                } catch (e: any) {
+                  toast.error(e.message || "Failed to generate subscription orders");
+                } finally {
+                  setGeneratingSubs(false);
+                }
+              }}
+            >
+              <CheckCircle2 className="size-3.5" />
+              {generatingSubs ? "Generating Orders..." : "Generate Today's Subscription Orders"}
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+            {adminSubscriptions.map((sub: any) => (
+              <div key={sub.id} className="rounded-xl border border-border/70 p-2.5 bg-muted/20 text-xs space-y-1">
+                <div className="flex justify-between items-start">
+                  <span className="font-bold text-foreground truncate">{sub.customer_name}</span>
+                  <Badge className="text-[10px] capitalize">{sub.status}</Badge>
+                </div>
+                <div className="text-[11px] text-muted-foreground flex justify-between">
+                  <span>{sub.product_name}</span>
+                  <span className="font-mono font-bold text-foreground">{formatINR(sub.total_price)}</span>
+                </div>
+                <div className="text-[10px] text-muted-foreground flex justify-between pt-1 border-t border-border/40">
+                  <span>Every {sub.day_of_week} ({sub.frequency})</span>
+                  <span>Next: {formatIST(sub.next_delivery_date).slice(0, 11)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Search and Status Filters */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
