@@ -32,53 +32,17 @@ CREATE INDEX IF NOT EXISTS idx_customer_subs_user_id ON public.customer_subscrip
 CREATE INDEX IF NOT EXISTS idx_customer_subs_status ON public.customer_subscriptions (status);
 CREATE INDEX IF NOT EXISTS idx_customer_subs_next_date ON public.customer_subscriptions (next_delivery_date);
 
--- Grants
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.customer_subscriptions TO authenticated, service_role;
-GRANT SELECT, INSERT ON public.customer_subscriptions TO anon;
-
 -- Enable RLS
 ALTER TABLE public.customer_subscriptions ENABLE ROW LEVEL SECURITY;
 
--- Hardened Policies
+-- Policies
 DROP POLICY IF EXISTS "Customers can view their own subscriptions" ON public.customer_subscriptions;
 CREATE POLICY "Customers can view their own subscriptions" ON public.customer_subscriptions
-  FOR SELECT USING (
-    (auth.uid() IS NOT NULL AND auth.uid() = user_id) OR
-    public.is_staff() OR
-    public.is_admin()
-  );
+  FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Customers can manage their own subscriptions" ON public.customer_subscriptions;
 CREATE POLICY "Customers can manage their own subscriptions" ON public.customer_subscriptions
-  FOR INSERT WITH CHECK (
-    (auth.uid() IS NOT NULL AND auth.uid() = user_id) OR
-    public.is_staff() OR
-    public.is_admin() OR
-    auth.uid() IS NULL
-  );
-
-DROP POLICY IF EXISTS "Customers can update their own subscriptions" ON public.customer_subscriptions;
-CREATE POLICY "Customers can update their own subscriptions" ON public.customer_subscriptions
-  FOR UPDATE USING (
-    (auth.uid() IS NOT NULL AND auth.uid() = user_id) OR
-    public.is_staff() OR
-    public.is_admin()
-  );
-
-DROP POLICY IF EXISTS "Staff and admin delete subscriptions" ON public.customer_subscriptions;
-CREATE POLICY "Staff and admin delete subscriptions" ON public.customer_subscriptions
-  FOR DELETE USING (public.is_staff() OR public.is_admin());
-
--- Realtime publication
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_publication_tables 
-    WHERE pubname = 'supabase_realtime' AND tablename = 'customer_subscriptions'
-  ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.customer_subscriptions;
-  END IF;
-END $$;
+  FOR ALL USING (true) WITH CHECK (true);
 
 -- Seed Initial Realistic Seafood Subscription
 INSERT INTO public.customer_subscriptions (
@@ -88,12 +52,12 @@ INSERT INTO public.customer_subscriptions (
 ) VALUES
   (
     'Ramesh Sundaram', '9843061919', 'ramesh.s@gmail.com', 'Flat 4B, Coastal Residency, Besant Nagar, Chennai - 600090',
-    'cac8a665-4775-4d2e-90cf-e75883d68661', 'Seer Fish (Vanjaram)', 1.0, 'kg', 'Fry Cut / Slices', 'weekly',
-    'sunday', '07:00 AM - 09:00 AM (Early Catch)', 1200, 1140.0, 5.0, CURRENT_DATE + interval '4 days', 'active'
+    'a0000000-0000-0000-0000-000000000001', 'Vanjaram / King Seer Fish Steaks', 1.0, 'kg', 'Fry Cut / Slices', 'weekly',
+    'sunday', '07:00 AM - 09:00 AM (Early Catch)', 850, 807.5, 5.0, CURRENT_DATE + interval '4 days', 'active'
   ),
   (
     'Ananya Natarajan', '9444123456', 'ananya.n@outlook.com', 'No 22, TTK Road, Alwarpet, Chennai - 600018',
-    '558f8c1c-6fee-424f-9ef3-de13c95d6344', 'Tiger Prawns Large', 1.0, 'kg', 'Cleaned & Deveined', 'weekly',
-    'wednesday', '07:00 AM - 09:00 AM (Early Catch)', 900, 855.0, 5.0, CURRENT_DATE + interval '2 days', 'active'
+    'a0000000-0000-0000-0000-000000000004', 'Fresh Sea Tiger Prawns (Medium-Large)', 1.0, 'kg', 'Cleaned & Deveined', 'weekly',
+    'wednesday', '07:00 AM - 09:00 AM (Early Catch)', 750, 712.5, 5.0, CURRENT_DATE + interval '2 days', 'active'
   )
 ON CONFLICT DO NOTHING;

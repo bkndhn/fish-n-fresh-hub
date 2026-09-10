@@ -207,45 +207,47 @@ export const applyRealProductsCatalog = createServerFn({ method: "POST" })
 
       // 1. Ensure Categories Exist
       const categoriesToUpsert = [
-        { id: "c1111111-1111-1111-1111-111111111111", name: "Sea Fish", slug: "sea-fish", sort_order: 1 },
-        { id: "c2222222-2222-2222-2222-222222222222", name: "Prawns & Shellfish", slug: "prawns-shellfish", sort_order: 2 },
-        { id: "c3333333-3333-3333-3333-333333333333", name: "Freshwater Fish", slug: "freshwater-fish", sort_order: 3 },
-        { id: "c4444444-4444-4444-4444-444444444444", name: "Poultry & Meat", slug: "poultry-meat", sort_order: 4 },
+        { id: "c1111111-1111-1111-1111-111111111111", name: "Sea Fish", name_ta: "கடல் மீன்", slug: "sea-fish", sort_order: 1, is_active: true },
+        { id: "c2222222-2222-2222-2222-222222222222", name: "Prawns & Shellfish", name_ta: "இறால் மற்றும் நண்டு", slug: "prawns-shellfish", sort_order: 2, is_active: true },
+        { id: "c3333333-3333-3333-3333-333333333333", name: "Freshwater Fish", name_ta: "நன்னீர் மீன்", slug: "freshwater-fish", sort_order: 3, is_active: true },
+        { id: "c4444444-4444-4444-4444-444444444444", name: "Poultry & Meat", name_ta: "நாட்டுக்கோழி & ஆட்டிறைச்சி", slug: "poultry-meat", sort_order: 4, is_active: true },
       ];
 
       for (const cat of categoriesToUpsert) {
         await (supabaseAdmin as any).from("categories").upsert(cat, { onConflict: "slug" });
       }
 
-      // 2. Map Categories to IDs if needed
-      const { data: catRows } = await (supabaseAdmin as any).from("categories").select("id, slug, name");
+      // 2. Map Categories to IDs
+      const { data: catRows } = await (supabaseAdmin as any).from("categories").select("id, slug");
+      const catMap = new Map(((catRows as Array<{ id: string; slug: string }>) || []).map((c) => [c.slug, c.id]));
 
       // 3. Optionally archive old mock products
       if (data.archiveExisting) {
         const realIds = REAL_SEAFOOD_PRODUCTS.map((p) => p.id);
         await (supabaseAdmin as any)
           .from("products")
-          .update({ is_available: false })
+          .update({ is_active: false })
           .not("id", "in", `(${realIds.join(",")})`);
       }
 
-      // 4. Upsert Real Products matching live schema
+      // 4. Upsert Real Products
       let count = 0;
       for (const p of REAL_SEAFOOD_PRODUCTS) {
+        const catId = catMap.get(p.category_slug) || null;
         const payload = {
           id: p.id,
           pos_code: p.pos_code,
           name: p.name,
-          name_tamil: p.name_ta,
-          category: p.category_name,
+          name_ta: p.name_ta,
+          category_id: catId,
           price: p.price,
-          old_price: p.original_mrp,
+          original_mrp: p.original_mrp,
           unit: p.unit,
           stock: p.stock,
           image_url: p.image_url,
           description: p.description,
-          benefits: [p.ai_benefits_summary],
-          is_available: p.is_active,
+          ai_benefits_summary: p.ai_benefits_summary,
+          is_active: p.is_active,
           is_featured: p.is_featured,
           is_bestseller: p.is_bestseller,
           hsn_code: p.hsn_code,

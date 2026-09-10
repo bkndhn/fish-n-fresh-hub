@@ -206,57 +206,6 @@ export type Database = {
         }
         Relationships: []
       }
-      customer_suspensions: {
-        Row: {
-          phone: string
-          reason: string | null
-          suspended_at: string
-        }
-        Insert: {
-          phone: string
-          reason?: string | null
-          suspended_at?: string
-        }
-        Update: {
-          phone?: string
-          reason?: string | null
-          suspended_at?: string
-        }
-        Relationships: []
-      }
-      customer_wallets: {
-        Row: {
-          balance: number
-          created_at: string
-          referral_code: string
-          referred_by: string | null
-          total_earned: number
-          total_redeemed: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          balance?: number
-          created_at?: string
-          referral_code: string
-          referred_by?: string | null
-          total_earned?: number
-          total_redeemed?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          balance?: number
-          created_at?: string
-          referral_code?: string
-          referred_by?: string | null
-          total_earned?: number
-          total_redeemed?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       customer_subscriptions: {
         Row: {
           created_at: string
@@ -337,8 +286,59 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
-          }
+          },
         ]
+      }
+      customer_suspensions: {
+        Row: {
+          phone: string
+          reason: string | null
+          suspended_at: string
+        }
+        Insert: {
+          phone: string
+          reason?: string | null
+          suspended_at?: string
+        }
+        Update: {
+          phone?: string
+          reason?: string | null
+          suspended_at?: string
+        }
+        Relationships: []
+      }
+      customer_wallets: {
+        Row: {
+          balance: number
+          created_at: string
+          referral_code: string
+          referred_by: string | null
+          total_earned: number
+          total_redeemed: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          referral_code: string
+          referred_by?: string | null
+          total_earned?: number
+          total_redeemed?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          referral_code?: string
+          referred_by?: string | null
+          total_earned?: number
+          total_redeemed?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       delivery_windows: {
         Row: {
@@ -592,13 +592,6 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "inventory_batches_supplier_id_fkey"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "suppliers"
-            referencedColumns: ["id"]
-          }
         ]
       }
       loyalty_accounts: {
