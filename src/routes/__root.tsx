@@ -194,10 +194,63 @@ function RealtimeSubscriber({ queryClient }: { queryClient: any }) {
           }
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "platform_revocations" },
+        async (payload) => {
+          const revocation = payload.new as any;
+          if (!revocation) return;
+
+          const { data: authData } = await supabase.auth.getUser();
+          const currentUserId = authData.user?.id;
+          const currentBranchSlug = localStorage.getItem("fnf_customer_branch_slug");
+          const adminBranch = localStorage.getItem("fnf_admin_selected_branch");
+
+          const isGlobal = revocation.scope === "global";
+          const isTargetUser = revocation.scope === "user" && revocation.target_id === currentUserId;
+          const isTargetBranch = revocation.scope === "branch" && (
+            revocation.target_id === adminBranch || revocation.target_id === currentBranchSlug
+          );
+
+          if (isGlobal || isTargetUser || isTargetBranch) {
+            console.warn("Security session revocation received:", revocation.reason);
+            await supabase.auth.signOut();
+            localStorage.removeItem("fnf_phone");
+            localStorage.removeItem("fnf_admin_selected_branch");
+            window.location.href = "/auth?revocation=1";
+            alert(`Security Alert: Your session was terminated by Platform Security Administrator.\nReason: ${revocation.reason}`);
+          }
+        }
+      )
+      .subscribe();
+
+    const killswitchChannel = supabase
+      .channel("security_killswitch")
+      .on("broadcast", { event: "force_logout" }, async (event) => {
+        const payload = event.payload;
+        if (!payload) return;
+
+        const { data: authData } = await supabase.auth.getUser();
+        const currentUserId = authData.user?.id;
+        const adminBranch = localStorage.getItem("fnf_admin_selected_branch");
+
+        const isGlobal = payload.scope === "global";
+        const isTargetUser = payload.scope === "user" && payload.target_id === currentUserId;
+        const isTargetBranch = payload.scope === "branch" && payload.target_id === adminBranch;
+
+        if (isGlobal || isTargetUser || isTargetBranch) {
+          await supabase.auth.signOut();
+          localStorage.removeItem("fnf_phone");
+          localStorage.removeItem("fnf_admin_selected_branch");
+          window.location.href = "/auth?revocation=1";
+          alert(`Security Notice: Platform Administrator triggered an emergency session reset.\nReason: ${payload.reason || "Security maintenance"}`);
+        }
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(killswitchChannel);
     };
   }, [queryClient]);
 

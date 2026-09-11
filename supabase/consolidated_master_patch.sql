@@ -385,3 +385,87 @@ CREATE INDEX IF NOT EXISTS idx_purchases_branch ON public.purchase_orders(branch
 CREATE INDEX IF NOT EXISTS idx_subscriptions_branch ON public.customer_subscriptions(branch_id, status);
 CREATE INDEX IF NOT EXISTS idx_user_roles_user_branch ON public.user_roles(user_id, branch_id, role);
 
+
+-- ============================================================================
+-- Phase 4: Super Admin Governance Platform & Anti-Impersonation
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.tenant_quotas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_name TEXT NOT NULL DEFAULT 'Fish N Fresh Enterprise',
+  tenant_code TEXT NOT NULL UNIQUE DEFAULT 'FNF-MAIN',
+  max_branches INTEGER NOT NULL DEFAULT 10,
+  max_staff_per_branch INTEGER NOT NULL DEFAULT 15,
+  max_monthly_orders INTEGER NOT NULL DEFAULT 25000,
+  max_storage_mb INTEGER NOT NULL DEFAULT 5000,
+  tier TEXT NOT NULL DEFAULT 'enterprise' CHECK (tier IN ('starter', 'growth', 'enterprise')),
+  is_locked BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+INSERT INTO public.tenant_quotas (tenant_name, tenant_code, max_branches, max_staff_per_branch, max_monthly_orders, max_storage_mb, tier, is_locked)
+VALUES ('Fish N Fresh Enterprise', 'FNF-MAIN', 10, 15, 25000, 5000, 'enterprise', false)
+ON CONFLICT (tenant_code) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS public.platform_revocations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  scope TEXT NOT NULL CHECK (scope IN ('global', 'branch', 'user')),
+  target_id TEXT,
+  reason TEXT NOT NULL DEFAULT 'Administrative security revocation',
+  revoked_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  revoked_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_revocations_scope_target ON public.platform_revocations(scope, target_id, revoked_at);
+
+CREATE TABLE IF NOT EXISTS public.platform_audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  actor_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  actor_role TEXT NOT NULL DEFAULT 'super_admin',
+  action TEXT NOT NULL,
+  target_type TEXT,
+  target_id TEXT,
+  details JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action_created ON public.platform_audit_logs(action, created_at DESC);
+
+ALTER TABLE public.tenant_quotas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.platform_revocations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.platform_audit_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION public.is_super_admin()
+RETURNS BOOLEAN AS \$\$
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = auth.uid()
+      AND role = 'super_admin'
+  );
+\$\$ LANGUAGE sql STABLE SECURITY DEFINER;
+
+DROP POLICY IF EXISTS \"Authenticated can view tenant quotas\" ON public.tenant_quotas;
+CREATE POLICY \"Authenticated can view tenant quotas\" ON public.tenant_quotas
+  FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS \"Super Admin can manage tenant quotas\" ON public.tenant_quotas;
+CREATE POLICY \"Super Admin can manage tenant quotas\" ON public.tenant_quotas
+  FOR ALL TO authenticated USING (public.is_super_admin() OR public.is_admin_or_super())
+  WITH CHECK (public.is_super_admin() OR public.is_admin_or_super());
+
+DROP POLICY IF EXISTS \"Authenticated can view revocations\" ON public.platform_revocations;
+CREATE POLICY \"Authenticated can view revocations\" ON public.platform_revocations
+  FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS \"Super Admin can issue revocations\" ON public.platform_revocations;
+CREATE POLICY \"Super Admin can issue revocations\" ON public.platform_revocations
+  FOR INSERT TO authenticated WITH CHECK (public.is_super_admin() OR public.is_admin_or_super());
+
+DROP POLICY IF EXISTS \"Super Admin can view audit logs\" ON public.platform_audit_logs;
+CREATE POLICY \"Super Admin can view audit logs\" ON public.platform_audit_logs
+  FOR SELECT TO authenticated USING (public.is_super_admin() OR public.is_admin_or_super());
+
+DROP POLICY IF EXISTS \"Service and super admin can insert audit logs\" ON public.platform_audit_logs;
+CREATE POLICY \"Service and super admin can insert audit logs\" ON public.platform_audit_logs
+  FOR INSERT TO authenticated WITH CHECK (true);

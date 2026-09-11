@@ -49,6 +49,7 @@ import { Route as AuthenticatedAdminReportsRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminScheduleRouteImport } from './routes/_authenticated/admin/schedule'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin/settings'
 import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authenticated/admin/staff'
+import { Route as AuthenticatedAdminSuperRouteImport } from './routes/_authenticated/admin/super'
 import { Route as AuthenticatedAdminSupportRouteImport } from './routes/_authenticated/admin/support'
 import { Route as AuthenticatedAdminWasteRouteImport } from './routes/_authenticated/admin/waste'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
@@ -269,6 +270,11 @@ const AuthenticatedAdminStaffRoute = AuthenticatedAdminStaffRouteImport.update({
   path: '/admin/staff',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminSuperRoute = AuthenticatedAdminSuperRouteImport.update({
+  id: '/admin/super',
+  path: '/admin/super',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAdminSupportRoute =
   AuthenticatedAdminSupportRouteImport.update({
     id: '/admin/support',
@@ -326,6 +332,7 @@ export interface FileRoutesByFullPath {
   '/admin/schedule': typeof AuthenticatedAdminScheduleRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/staff': typeof AuthenticatedAdminStaffRoute
+  '/admin/super': typeof AuthenticatedAdminSuperRoute
   '/admin/support': typeof AuthenticatedAdminSupportRoute
   '/admin/waste': typeof AuthenticatedAdminWasteRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -370,6 +377,7 @@ export interface FileRoutesByTo {
   '/admin/schedule': typeof AuthenticatedAdminScheduleRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/staff': typeof AuthenticatedAdminStaffRoute
+  '/admin/super': typeof AuthenticatedAdminSuperRoute
   '/admin/support': typeof AuthenticatedAdminSupportRoute
   '/admin/waste': typeof AuthenticatedAdminWasteRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -416,6 +424,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/schedule': typeof AuthenticatedAdminScheduleRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/admin/staff': typeof AuthenticatedAdminStaffRoute
+  '/_authenticated/admin/super': typeof AuthenticatedAdminSuperRoute
   '/_authenticated/admin/support': typeof AuthenticatedAdminSupportRoute
   '/_authenticated/admin/waste': typeof AuthenticatedAdminWasteRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -462,6 +471,7 @@ export interface FileRouteTypes {
     | '/admin/schedule'
     | '/admin/settings'
     | '/admin/staff'
+    | '/admin/super'
     | '/admin/support'
     | '/admin/waste'
     | '/admin/'
@@ -506,6 +516,7 @@ export interface FileRouteTypes {
     | '/admin/schedule'
     | '/admin/settings'
     | '/admin/staff'
+    | '/admin/super'
     | '/admin/support'
     | '/admin/waste'
     | '/admin'
@@ -551,6 +562,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/schedule'
     | '/_authenticated/admin/settings'
     | '/_authenticated/admin/staff'
+    | '/_authenticated/admin/super'
     | '/_authenticated/admin/support'
     | '/_authenticated/admin/waste'
     | '/_authenticated/admin/'
@@ -862,6 +874,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminStaffRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/super': {
+      id: '/_authenticated/admin/super'
+      path: '/admin/super'
+      fullPath: '/admin/super'
+      preLoaderRoute: typeof AuthenticatedAdminSuperRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/support': {
       id: '/_authenticated/admin/support'
       path: '/admin/support'
@@ -907,6 +926,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminScheduleRoute: typeof AuthenticatedAdminScheduleRoute
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminStaffRoute: typeof AuthenticatedAdminStaffRoute
+  AuthenticatedAdminSuperRoute: typeof AuthenticatedAdminSuperRoute
   AuthenticatedAdminSupportRoute: typeof AuthenticatedAdminSupportRoute
   AuthenticatedAdminWasteRoute: typeof AuthenticatedAdminWasteRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -933,6 +953,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminScheduleRoute: AuthenticatedAdminScheduleRoute,
   AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
   AuthenticatedAdminStaffRoute: AuthenticatedAdminStaffRoute,
+  AuthenticatedAdminSuperRoute: AuthenticatedAdminSuperRoute,
   AuthenticatedAdminSupportRoute: AuthenticatedAdminSupportRoute,
   AuthenticatedAdminWasteRoute: AuthenticatedAdminWasteRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,

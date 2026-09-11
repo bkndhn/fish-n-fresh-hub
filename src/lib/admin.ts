@@ -208,6 +208,7 @@ export const adminSuspensionsQuery = queryOptions({
 
 export type AppRole =
   | "admin"
+  | "super_admin"
   | "staff"
   | "driver"
   | "user"

@@ -306,3 +306,49 @@ UPDATE public.products
 SET branch_id = '20f2ea34-9e3c-4999-aeac-7aae3367ee60'
 WHERE branch_id IS NULL;
 
+
+-- ============================================================================
+-- Phase 4: Super Admin Governance Platform & Anti-Impersonation
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.tenant_quotas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_name TEXT NOT NULL DEFAULT 'Fish N Fresh Enterprise',
+  tenant_code TEXT NOT NULL UNIQUE DEFAULT 'FNF-MAIN',
+  max_branches INTEGER NOT NULL DEFAULT 10,
+  max_staff_per_branch INTEGER NOT NULL DEFAULT 15,
+  max_monthly_orders INTEGER NOT NULL DEFAULT 25000,
+  max_storage_mb INTEGER NOT NULL DEFAULT 5000,
+  tier TEXT NOT NULL DEFAULT 'enterprise' CHECK (tier IN ('starter', 'growth', 'enterprise')),
+  is_locked BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+INSERT INTO public.tenant_quotas (tenant_name, tenant_code, max_branches, max_staff_per_branch, max_monthly_orders, max_storage_mb, tier, is_locked)
+VALUES ('Fish N Fresh Enterprise', 'FNF-MAIN', 10, 15, 25000, 5000, 'enterprise', false)
+ON CONFLICT (tenant_code) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS public.platform_revocations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  scope TEXT NOT NULL CHECK (scope IN ('global', 'branch', 'user')),
+  target_id TEXT,
+  reason TEXT NOT NULL DEFAULT 'Administrative security revocation',
+  revoked_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  revoked_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_revocations_scope_target ON public.platform_revocations(scope, target_id, revoked_at);
+
+CREATE TABLE IF NOT EXISTS public.platform_audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  actor_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  actor_role TEXT NOT NULL DEFAULT 'super_admin',
+  action TEXT NOT NULL,
+  target_type TEXT,
+  target_id TEXT,
+  details JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action_created ON public.platform_audit_logs(action, created_at DESC);
