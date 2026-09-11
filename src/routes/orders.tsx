@@ -72,6 +72,7 @@ function MyOrders() {
           } as any,
           Number(it.qty) || 1,
           it.cut_preference || "Curry Cut",
+          it.branch_id ? { id: it.branch_id, name: it.branch_name || "Hub" } : undefined
         );
       });
       toast.success("Items added to your cart!");

@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { MapPin, Copy, QrCode, Smartphone, Tag, MessageCircle, AlertTriangle, CheckCircle2, Zap, Clock, Gift, Wallet, Sparkles, Upload, X, Check } from "lucide-react";
+import { MapPin, Copy, QrCode, Smartphone, Tag, MessageCircle, AlertTriangle, CheckCircle2, Zap, Clock, Gift, Wallet, Sparkles, Upload, X, Check, Store } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useCustomerBranch } from "@/lib/customerBranchContext";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -88,12 +89,16 @@ function Checkout() {
   const { items, subtotal, clear } = useCart();
   const { data: settings } = useQuery(settingsQuery);
   const { data: products } = useQuery(productsQuery);
+  const { activeBranch, isWithinDeliveryRadius, setIsLocationModalOpen } = useCustomerBranch();
   const navigate = useNavigate();
   const { user } = useSessionUser();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
+
+  const hubLat = activeBranch?.lat ?? settings?.shop_lat;
+  const hubLng = activeBranch?.lng ?? settings?.shop_lng;
   
   useEffect(() => {
     const savedEmail = localStorage.getItem("fnf_email") || "";
@@ -123,7 +128,7 @@ function Checkout() {
   const [upiUtr, setUpiUtr] = useState("");
   const [upiScreenshot, setUpiScreenshot] = useState<string | null>(null);
   const [paymentTimerSeconds, setPaymentTimerSeconds] = useState(600);
-  const [orderSuccess, setOrderSuccess] = useState<{ id: string; order_number?: string; total: number; phone: string; name: string } | null>(null);
+  const [orderSuccess, setOrderSuccess] = useState<{ id: string; order_number?: string; total: number; phone: string; name: string; branch_name?: string } | null>(null);
 
   useEffect(() => {
     if (payment !== "upi") return;
@@ -323,8 +328,8 @@ function Checkout() {
         const { latitude, longitude } = pos.coords;
         setCustomerLat(latitude);
         setCustomerLng(longitude);
-        if (settings?.shop_lat && settings?.shop_lng) {
-          const d = calculateDistanceKm(settings.shop_lat, settings.shop_lng, latitude, longitude);
+        if (hubLat && hubLng) {
+          const d = calculateDistanceKm(hubLat, hubLng, latitude, longitude);
           setDistanceKm(d);
         }
         try {
@@ -395,6 +400,7 @@ function Checkout() {
         : null;
 
     const orderNotes = [
+      activeBranch ? `Hub: ${activeBranch.name} (${activeBranch.code})` : "",
       notes.trim(),
       upiUtr ? `UPI UTR: ${upiUtr}` : "",
       upiScreenshot ? "Payment Screenshot Proof Attached" : "",
@@ -448,6 +454,7 @@ function Checkout() {
         notes: orderNotes || null,
         user_id: userId,
         created_by: userId,
+        branch_id: activeBranch?.id || null,
       })
       .select("id, order_number")
       .single();
@@ -539,6 +546,7 @@ function Checkout() {
       total,
       phone: cleanPhone,
       name: cleanName,
+      branch_name: activeBranch?.name,
     });
     toast.success("Order placed successfully!");
   }
@@ -549,6 +557,7 @@ function Checkout() {
     const waText = encodeURIComponent(
       `*Fish N Fresh — New Order Placed*\n\n` +
       `Order: #${orderSuccess.order_number}\n` +
+      (orderSuccess.branch_name ? `Hub: ${orderSuccess.branch_name}\n` : "") +
       `Customer: ${orderSuccess.name} (${orderSuccess.phone})\n` +
       `Total: ${inr(orderSuccess.total)}\n` +
       `Payment: ${payment.toUpperCase()}${upiUtr ? ` (UTR: ${upiUtr})` : ""}\n` +
@@ -576,6 +585,12 @@ function Checkout() {
               <span className="text-muted-foreground">Total Amount</span>
               <span className="font-bold font-display text-base">{inr(orderSuccess.total)}</span>
             </div>
+            {orderSuccess.branch_name && (
+              <div className="flex justify-between border-b pb-2 text-xs">
+                <span className="text-muted-foreground">Fulfillment Hub</span>
+                <span className="font-semibold text-primary">{orderSuccess.branch_name}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-muted-foreground">Payment</span>
               <span className="capitalize font-medium">{payment === "cod" ? "Cash on Delivery" : payment.toUpperCase()}</span>
@@ -723,6 +738,50 @@ function Checkout() {
         ))}
       </div>
 
+      {/* Fulfillment Hub Card */}
+      {activeBranch && (
+        <div className="mt-4 flex items-center justify-between rounded-2xl border border-primary/25 bg-primary/5 p-3 sm:p-3.5 text-xs shadow-2xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Store className="size-4.5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Fulfilling Hub</p>
+                <Badge variant="outline" className="text-[9px] py-0 px-1 border-primary/30 text-primary bg-primary/10">
+                  {activeBranch.delivery_radius_km} km zone
+                </Badge>
+              </div>
+              <p className="font-bold text-foreground text-xs sm:text-sm truncate">{activeBranch.name}</p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsLocationModalOpen(true)}
+            className="h-8 text-xs font-semibold text-primary border-primary/30 hover:bg-primary/10 rounded-xl shrink-0"
+          >
+            Change Hub
+          </Button>
+        </div>
+      )}
+
+      {/* Delivery Radius Boundary Advisory */}
+      {fulfillment === "delivery" && distanceKm !== null && activeBranch && distanceKm > (activeBranch.delivery_radius_km || 15) && (
+        <div className="mt-2.5 flex items-start gap-2.5 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
+          <AlertTriangle className="size-4.5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+          <div className="space-y-0.5">
+            <p className="font-bold text-amber-800 dark:text-amber-300">
+              Distance Advisory (~{distanceKm.toFixed(1)} km)
+            </p>
+            <p className="opacity-90 leading-relaxed">
+              Your doorstep is located beyond this hub's standard {activeBranch.delivery_radius_km || 12} km express delivery radius. Fulfilling your order may take extra transit turnaround time.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="mt-4 space-y-3">
         <div>
           <Label htmlFor="name">Full name</Label>
@@ -793,8 +852,8 @@ function Checkout() {
                 }
                 setCustomerLat(finalLat);
                 setCustomerLng(finalLng);
-                if (settings?.shop_lat && settings?.shop_lng && finalLat && finalLng) {
-                  const road = await getOsrmRoadRoute(settings.shop_lat, settings.shop_lng, finalLat, finalLng);
+                if (hubLat && hubLng && finalLat && finalLng) {
+                  const road = await getOsrmRoadRoute(hubLat, hubLng, finalLat, finalLng);
                   setDistanceKm(road.distanceKm);
                 }
               }} 
@@ -833,8 +892,8 @@ function Checkout() {
                     if (geo) {
                       setCustomerLat(geo.lat);
                       setCustomerLng(geo.lng);
-                      if (settings?.shop_lat && settings?.shop_lng) {
-                        const road = await getOsrmRoadRoute(settings.shop_lat, settings.shop_lng, geo.lat, geo.lng);
+                      if (hubLat && hubLng) {
+                        const road = await getOsrmRoadRoute(hubLat, hubLng, geo.lat, geo.lng);
                         setDistanceKm(road.distanceKm);
                       }
                       toast.info(`📍 Doorstep located near ${geo.displayName.slice(0, 35)}…`);

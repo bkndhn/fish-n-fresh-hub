@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Clock } from "lucide-react";
+import { Clock, Store } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { BannerCarousel } from "@/components/BannerCarousel";
@@ -12,6 +12,7 @@ import { bannersQuery, categoriesQuery, productsQuery, trustBadgesQuery, setting
 import { useTranslation } from "@/lib/i18n";
 import { getStoreStatus } from "@/lib/storeSchedule";
 import { SeoStructuredData } from "@/components/SeoStructuredData";
+import { useCustomerBranch } from "@/lib/customerBranchContext";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -33,9 +34,10 @@ export const Route = createFileRoute("/")({
 });
 
 function Home() {
+  const { activeBranch, setIsLocationModalOpen } = useCustomerBranch();
   const { data: banners } = useQuery(bannersQuery);
   const { data: categories } = useQuery(categoriesQuery);
-  const { data: products } = useQuery(productsQuery);
+  const { data: products } = useQuery(productsQuery(activeBranch?.id));
   const { data: badges } = useQuery(trustBadgesQuery);
   const { data: settings } = useQuery(settingsQuery);
   const { t } = useTranslation();
@@ -103,6 +105,27 @@ function Home() {
               <Link to="/catalog">Order Ahead</Link>
             </Button>
           )}
+        </div>
+      )}
+
+      {/* Active Hub Express Dispatch Strip */}
+      {activeBranch && (
+        <div className="mb-3 flex items-center justify-between gap-2 rounded-2xl border border-primary/20 bg-primary/5 px-3.5 py-2 text-xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <Store className="size-4 text-primary shrink-0" />
+            <div className="truncate">
+              <span className="text-muted-foreground">Delivering from </span>
+              <span className="font-bold text-foreground">{activeBranch.name}</span>
+              <span className="text-muted-foreground hidden sm:inline"> · 35-min ice-box express</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsLocationModalOpen(true)}
+            className="text-xs font-semibold text-primary hover:underline shrink-0 cursor-pointer"
+          >
+            Change
+          </button>
         </div>
       )}
 

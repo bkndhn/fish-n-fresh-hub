@@ -30,6 +30,8 @@ export type Product = {
   allow_custom_qty: boolean;
   low_stock_threshold?: number | null;
   pos_code?: number | null;
+  branch_id?: string | null;
+  branch_name?: string | null;
 };
 
 export type Category = {
@@ -60,6 +62,8 @@ export type CartItem = {
   image_url: string | null;
   qty: number;
   cut_preference?: string | null;
+  branch_id?: string | null;
+  branch_name?: string | null;
 };
 
 export type Supplier = {

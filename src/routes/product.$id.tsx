@@ -24,6 +24,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { ProductAiBenefitsCard } from "@/components/ProductAiBenefitsCard";
 import { SeoStructuredData } from "@/components/SeoStructuredData";
 import { createSubscription } from "@/lib/subscriptions.functions";
+import { useCustomerBranch } from "@/lib/customerBranchContext";
 
 const PORTION_CHIPS = [
   { label: "250g", val: 0.25 },
@@ -83,6 +84,7 @@ function ProductPage() {
   const { data: all } = useQuery(productsQuery);
   const { data: settings } = useQuery(settingsQuery);
   const { add, items } = useCart();
+  const { activeBranch } = useCustomerBranch();
   const [qty, setQty] = useState(1);
   const [qtyInput, setQtyInput] = useState("1");
   const cartItem = items.find((i) => i.product_id === product?.id);
@@ -299,8 +301,15 @@ function ProductPage() {
                 className="flex-1 rounded-xl h-11 text-sm font-bold shadow-sm"
                 disabled={isOutOfStock}
                 onClick={() => {
-                  add(product, qty);
-                  toast.success(`Added ${qty} ${product.unit || "kg"} ${product.name} to cart!`);
+                  const res = add(
+                    product,
+                    qty,
+                    undefined,
+                    activeBranch ? { id: activeBranch.id, name: activeBranch.name } : undefined
+                  );
+                  if (res?.added) {
+                    toast.success(`Added ${qty} ${product.unit || "kg"} ${product.name} to cart!`);
+                  }
                 }}
               >
                 {isOutOfStock ? "Out of Stock" : `Add to cart · ${inr(Number(product.price) * qty)}`}

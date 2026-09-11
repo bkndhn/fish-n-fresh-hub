@@ -48,9 +48,11 @@ import {
   Check,
   RotateCcw,
   Search as SearchIcon,
+  Store,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { SeoStructuredData } from "@/components/SeoStructuredData";
+import { useCustomerBranch } from "@/lib/customerBranchContext";
 
 type PriceRange = "all" | "under300" | "300-600" | "600-1000" | "above1000";
 type SortOption = "featured" | "price-asc" | "price-desc" | "rating" | "discount" | "name";
@@ -70,7 +72,8 @@ function Catalog() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const observerTarget = useRef<HTMLDivElement>(null);
 
-  const { data: products } = useQuery(productsQuery);
+  const { activeBranch, setIsLocationModalOpen } = useCustomerBranch();
+  const { data: products } = useQuery(productsQuery(activeBranch?.id));
   const { data: categories } = useQuery(categoriesQuery);
 
   // Reset pagination when search or filters change
@@ -185,6 +188,27 @@ function Catalog() {
             {filtered.length} {filtered.length === 1 ? "Catch" : "Catches"}
           </span>
         </div>
+
+        {/* Active Fulfillment Hub Banner */}
+        {activeBranch && (
+          <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
+            <div className="flex items-center gap-2 min-w-0">
+              <Store className="size-3.5 text-primary shrink-0" />
+              <div className="truncate">
+                <span className="text-muted-foreground">Catch supplied from </span>
+                <span className="font-bold text-foreground">{activeBranch.name}</span>
+                <span className="text-muted-foreground hidden sm:inline"> ({activeBranch.delivery_radius_km} km zone)</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsLocationModalOpen(true)}
+              className="text-xs font-semibold text-primary hover:underline shrink-0 ml-2 cursor-pointer"
+            >
+              Change Hub
+            </button>
+          </div>
+        )}
 
         <div className="relative">
           <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />

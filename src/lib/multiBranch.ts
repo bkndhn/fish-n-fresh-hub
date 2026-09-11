@@ -188,15 +188,27 @@ export function resolveBranchBySlug(branches: Branch[], slugOrCode: string): Bra
  */
 export function validateCartForBranch(
   items: Array<{ product_id?: string; branch_id?: string | null }>,
-  targetBranchId: string
-): { isValid: boolean; mismatchedCount: number } {
-  if (!items.length || !targetBranchId) return { isValid: true, mismatchedCount: 0 };
+  targetBranchId: string | null
+): { isValid: boolean; mismatchedCount: number; conflictDetected: boolean; cartBranchId: string | null } {
+  const itemWithBranch = items.find((item) => Boolean(item.branch_id));
+  const cartBranchId = itemWithBranch?.branch_id ?? null;
+
+  if (!items.length || !targetBranchId || !cartBranchId) {
+    return { isValid: true, mismatchedCount: 0, conflictDetected: false, cartBranchId };
+  }
+
   const mismatched = items.filter((item) => item.branch_id && item.branch_id !== targetBranchId);
+  const conflictDetected = Boolean(cartBranchId && targetBranchId && cartBranchId !== targetBranchId);
+
   return {
-    isValid: mismatched.length === 0,
+    isValid: mismatched.length === 0 && !conflictDetected,
     mismatchedCount: mismatched.length,
+    conflictDetected,
+    cartBranchId,
   };
 }
+
+export const validateCartBranchMatch = validateCartForBranch;
 
 /**
  * TanStack query options to fetch all branches ordered by priority.

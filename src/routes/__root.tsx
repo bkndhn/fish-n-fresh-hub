@@ -208,6 +208,8 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { SeoStructuredData } from "@/components/SeoStructuredData";
 import { AnalyticsTracker } from "@/components/AnalyticsTracker";
+import { CustomerBranchProvider } from "@/lib/customerBranchContext";
+import { BranchPickerModal } from "@/components/BranchPickerModal";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
@@ -230,13 +232,16 @@ function RootComponent() {
       <ThemeProvider defaultTheme="light" storageKey="fnf-theme">
         <LanguageProvider>
           <CartProvider>
-            <OfflineBanner />
-            <SeoStructuredData />
-            <AnalyticsTracker />
-            <RealtimeSubscriber queryClient={queryClient} />
-            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-            <Outlet />
-            <Toaster position="top-center" />
+            <CustomerBranchProvider>
+              <OfflineBanner />
+              <SeoStructuredData />
+              <AnalyticsTracker />
+              <RealtimeSubscriber queryClient={queryClient} />
+              {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+              <Outlet />
+              <BranchPickerModal />
+              <Toaster position="top-center" />
+            </CustomerBranchProvider>
           </CartProvider>
         </LanguageProvider>
       </ThemeProvider>

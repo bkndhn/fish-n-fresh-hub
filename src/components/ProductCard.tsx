@@ -9,9 +9,11 @@ import { settingsQuery } from "@/lib/queries";
 import type { Product } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { optimizeImageUrl } from "@/lib/imageOptimizer";
+import { useCustomerBranch } from "@/lib/customerBranchContext";
 
 export function ProductCard({ product }: { product: Product }) {
   const { items, add, setQty, remove } = useCart();
+  const { activeBranch } = useCustomerBranch();
   const cartItem = items.find((i) => i.product_id === product.id);
   const { data: settings } = useQuery(settingsQuery);
 
@@ -255,8 +257,15 @@ export function ProductCard({ product }: { product: Product }) {
                     toast.error("This product is currently out of stock");
                     return;
                   }
-                  add(product, 1);
-                  toast.success(`${product.name} added to cart`);
+                  const res = add(
+                    product,
+                    1,
+                    undefined,
+                    activeBranch ? { id: activeBranch.id, name: activeBranch.name } : undefined
+                  );
+                  if (res?.added) {
+                    toast.success(`${product.name} added to cart`);
+                  }
                 }}
               >
                 <Plus className="mr-1 size-3 stroke-[2.5]" /> Add

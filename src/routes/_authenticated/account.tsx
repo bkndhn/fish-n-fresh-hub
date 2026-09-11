@@ -343,7 +343,7 @@ function OrdersTab({
 
   function reorder(items: AccountOrder["items"]) {
     if (!Array.isArray(items) || !items.length) return;
-    items.forEach((it) =>
+    items.forEach((it: any) =>
       add(
         {
           id: it.product_id || "",
@@ -353,6 +353,8 @@ function OrdersTab({
           image_url: null,
         } as any,
         Number(it.qty) || 1,
+        it.cut_preference || "Curry Cut",
+        it.branch_id ? { id: it.branch_id, name: it.branch_name || "Hub" } : undefined
       ),
     );
     toast.success("Items added to your cart");

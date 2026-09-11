@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
-import { Fish, Search, ShoppingCart, User, Shield, Download } from "lucide-react";
+import { Fish, Search, ShoppingCart, User, Shield, Download, MapPin, ChevronDown } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { promptPwaInstall } from "@/components/PwaPrompt";
@@ -10,6 +10,7 @@ import { settingsQuery } from "@/lib/queries";
 import { myRolesQuery } from "@/lib/admin";
 import { useTranslation } from "@/lib/i18n";
 import { getStoreStatus } from "@/lib/storeSchedule";
+import { useCustomerBranch } from "@/lib/customerBranchContext";
 
 import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
@@ -22,6 +23,7 @@ export function SiteHeader() {
   const { data: settings } = useQuery(settingsQuery);
   const { data: myRoles } = useQuery(myRolesQuery);
   const { lang, setLang } = useTranslation();
+  const { activeBranch, setIsLocationModalOpen } = useCustomerBranch();
   const [isStandalone, setIsStandalone] = useState(false);
   const [atmosphereActive, setAtmosphereActive] = useState(() => isDailyAtmosphereEnabled(settings));
   const todayMood = getDailyAtmosphere();
@@ -140,6 +142,23 @@ export function SiteHeader() {
             </div>
           )}
         </div>
+
+        {/* Customer Delivery Hub Location Button */}
+        <button
+          type="button"
+          onClick={() => setIsLocationModalOpen(true)}
+          className="flex items-center gap-1 sm:gap-1.5 rounded-xl sm:rounded-full border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 px-2 sm:px-3 py-1 text-[11px] sm:text-xs font-semibold text-foreground transition-all shadow-2xs group shrink-0 min-w-0 max-w-[120px] xs:max-w-[150px] sm:max-w-[210px]"
+          title="Change delivery hub or auto-detect location"
+        >
+          <MapPin className="size-3.5 text-primary shrink-0 group-hover:scale-110 transition-transform" />
+          <div className="flex flex-col items-start min-w-0 leading-tight text-left">
+            <span className="text-[9px] text-muted-foreground hidden sm:inline font-normal">Delivering from</span>
+            <span className="truncate font-bold text-foreground text-[10px] sm:text-xs">
+              {activeBranch ? activeBranch.name.replace(/ Hub| Branch/gi, "") : "Select Hub"}
+            </span>
+          </div>
+          <ChevronDown className="size-3 text-muted-foreground shrink-0 ml-auto" />
+        </button>
 
         {/* Right: Controls & Navigation */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">

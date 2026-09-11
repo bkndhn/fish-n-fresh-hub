@@ -22,18 +22,44 @@ function sanitizeProduct(p: Product): Product {
   return p;
 }
 
-export const productsQuery = queryOptions({
-  queryKey: ["products"],
-  queryFn: async (): Promise<Product[]> => {
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .eq("is_available", true)
-      .order("name");
-    if (error) throw error;
-    return ((data ?? []) as unknown as Product[]).map(sanitizeProduct);
-  },
-});
+export function getProductsQuery(branchId?: string) {
+  const effectiveBranch = branchId || "all";
+  return queryOptions({
+    queryKey: ["products", effectiveBranch],
+    queryFn: async (): Promise<Product[]> => {
+      let q = supabase
+        .from("products")
+        .select("*")
+        .eq("is_available", true)
+        .order("name");
+
+      if (branchId) {
+        q = q.or(`branch_id.eq.${branchId},branch_id.is.null`);
+      }
+
+      const { data, error } = await q;
+      if (error) throw error;
+      const list = ((data ?? []) as unknown as Product[]).map(sanitizeProduct);
+
+      // If branch has no products yet, fallback to all available products
+      if (branchId && list.length === 0) {
+        const { data: fallbackData } = await supabase
+          .from("products")
+          .select("*")
+          .eq("is_available", true)
+          .order("name");
+        return ((fallbackData ?? []) as unknown as Product[]).map(sanitizeProduct);
+      }
+
+      return list;
+    },
+  });
+}
+
+export const productsQuery = Object.assign(
+  (branchId?: string) => getProductsQuery(branchId),
+  getProductsQuery()
+);
 
 export const categoriesQuery = queryOptions({
   queryKey: ["categories"],

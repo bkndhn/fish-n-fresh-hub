@@ -26,6 +26,7 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedCrewRouteImport } from './routes/_authenticated/crew'
+import { Route as BranchSlugRouteImport } from './routes/branch.$slug'
 import { Route as ProductIdRouteImport } from './routes/product.$id'
 import { Route as TrackIdRouteImport } from './routes/track.$id'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
@@ -136,6 +137,11 @@ const AuthenticatedCrewRoute = AuthenticatedCrewRouteImport.update({
   id: '/crew',
   path: '/crew',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const BranchSlugRoute = BranchSlugRouteImport.update({
+  id: '/branch/$slug',
+  path: '/branch/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ProductIdRoute = ProductIdRouteImport.update({
   id: '/product/$id',
@@ -298,6 +304,7 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/account': typeof AuthenticatedAccountRoute
   '/crew': typeof AuthenticatedCrewRoute
+  '/branch/$slug': typeof BranchSlugRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -341,6 +348,7 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/account': typeof AuthenticatedAccountRoute
   '/crew': typeof AuthenticatedCrewRoute
+  '/branch/$slug': typeof BranchSlugRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -386,6 +394,7 @@ export interface FileRoutesById {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/crew': typeof AuthenticatedCrewRoute
+  '/branch/$slug': typeof BranchSlugRoute
   '/product/$id': typeof ProductIdRoute
   '/track/$id': typeof TrackIdRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -431,6 +440,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/account'
     | '/crew'
+    | '/branch/$slug'
     | '/product/$id'
     | '/track/$id'
     | '/.lovable/oauth/consent'
@@ -474,6 +484,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/account'
     | '/crew'
+    | '/branch/$slug'
     | '/product/$id'
     | '/track/$id'
     | '/.lovable/oauth/consent'
@@ -518,6 +529,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/account'
     | '/_authenticated/crew'
+    | '/branch/$slug'
     | '/product/$id'
     | '/track/$id'
     | '/.lovable/oauth/consent'
@@ -561,6 +573,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  BranchSlugRoute: typeof BranchSlugRoute
   ProductIdRoute: typeof ProductIdRoute
   TrackIdRoute: typeof TrackIdRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
@@ -687,6 +700,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/crew'
       preLoaderRoute: typeof AuthenticatedCrewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/branch/$slug': {
+      id: '/branch/$slug'
+      path: '/branch/$slug'
+      fullPath: '/branch/$slug'
+      preLoaderRoute: typeof BranchSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/product/$id': {
       id: '/product/$id'
@@ -938,6 +958,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  BranchSlugRoute: BranchSlugRoute,
   ProductIdRoute: ProductIdRoute,
   TrackIdRoute: TrackIdRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
