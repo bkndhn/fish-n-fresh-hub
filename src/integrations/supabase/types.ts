@@ -60,74 +60,50 @@ export type Database = {
         Row: {
           address: string | null
           close_time: string | null
-          code: string | null
           created_at: string
           delivery_radius_km: number
-          fssai_license: string | null
-          gstin: string | null
           id: string
           is_active: boolean
-          is_default: boolean
           lat: number | null
           lng: number | null
           manager: string | null
-          manager_user_id: string | null
-          min_order_amount: number
           name: string
           open_time: string | null
           phone: string | null
-          slug: string | null
           sort_order: number
           updated_at: string
-          upi_id: string | null
         }
         Insert: {
           address?: string | null
           close_time?: string | null
-          code?: string | null
           created_at?: string
           delivery_radius_km?: number
-          fssai_license?: string | null
-          gstin?: string | null
           id?: string
           is_active?: boolean
-          is_default?: boolean
           lat?: number | null
           lng?: number | null
           manager?: string | null
-          manager_user_id?: string | null
-          min_order_amount?: number
           name: string
           open_time?: string | null
           phone?: string | null
-          slug?: string | null
           sort_order?: number
           updated_at?: string
-          upi_id?: string | null
         }
         Update: {
           address?: string | null
           close_time?: string | null
-          code?: string | null
           created_at?: string
           delivery_radius_km?: number
-          fssai_license?: string | null
-          gstin?: string | null
           id?: string
           is_active?: boolean
-          is_default?: boolean
           lat?: number | null
           lng?: number | null
           manager?: string | null
-          manager_user_id?: string | null
-          min_order_amount?: number
           name?: string
           open_time?: string | null
           phone?: string | null
-          slug?: string | null
           sort_order?: number
           updated_at?: string
-          upi_id?: string | null
         }
         Relationships: []
       }
