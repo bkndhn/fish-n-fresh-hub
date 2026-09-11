@@ -8,11 +8,17 @@ const Tabs = TabsPrimitive.Root;
 const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
->(({ className, ...props }, ref) => (
+>(({ className, onWheel, ...props }, ref) => (
   <TabsPrimitive.List
     ref={ref}
+    onWheel={(e) => {
+      if (e.deltaY !== 0 && Math.abs(e.deltaX) < 10) {
+        e.currentTarget.scrollLeft += e.deltaY;
+      }
+      onWheel?.(e);
+    }}
     className={cn(
-      "inline-flex h-9 items-center justify-start max-w-full overflow-x-auto no-scrollbar rounded-lg bg-muted p-1 text-muted-foreground",
+      "inline-flex h-9 items-center justify-start max-w-full overflow-x-auto touch-pan-x scroll-smooth no-scrollbar rounded-lg bg-muted p-1 text-muted-foreground",
       className,
     )}
     {...props}

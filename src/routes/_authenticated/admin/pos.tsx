@@ -1577,7 +1577,14 @@ export function RetailPosCounterPage() {
               </div>
 
               {/* Category Pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              <div 
+                className="flex items-center gap-1.5 overflow-x-auto touch-pan-x scroll-smooth pb-1 scrollbar-none"
+                onWheel={(e) => {
+                  if (e.deltaY !== 0 && Math.abs(e.deltaX) < 10) {
+                    e.currentTarget.scrollLeft += e.deltaY;
+                  }
+                }}
+              >
                 <Button
                   size="sm"
                   variant={selectedCategory === "all" ? "default" : "outline"}
@@ -1610,6 +1617,10 @@ export function RetailPosCounterPage() {
                   (typeof prod.stock === "number" && prod.stock <= 0) || prod.is_available === false;
                 const effectiveCode = prod.pos_code ?? (index + 1);
 
+                const cartEntries = cart.filter((item) => item.productId === prod.id);
+                const isInCart = cartEntries.length > 0;
+                const inCartQty = cartEntries.reduce((sum, item) => sum + (item.weightKg > 0 ? item.weightKg : item.qty), 0);
+
                 return (
                   <button
                     key={prod.id}
@@ -1625,6 +1636,8 @@ export function RetailPosCounterPage() {
                     className={`relative text-left p-3 rounded-2xl border transition-all duration-150 flex flex-col justify-between group ${
                       isOutOfStock
                         ? "opacity-60 border-dashed border-destructive/40 bg-destructive/5 cursor-not-allowed"
+                        : isInCart
+                        ? "bg-primary/5 dark:bg-primary/10 border-primary/80 ring-2 ring-primary/30 shadow-md scale-[1.01]"
                         : "bg-card border-border/80 hover:border-primary/60 hover:shadow-md active:scale-98"
                     }`}
                   >
@@ -1636,6 +1649,16 @@ export function RetailPosCounterPage() {
                             #{String(effectiveCode).padStart(2, "0")}
                           </span>
                         </div>
+                        {/* In-Cart Highlight Badge */}
+                        {isInCart && (
+                          <div className="absolute top-1.5 right-1.5 z-10">
+                            <span className="flex items-center gap-1 font-mono font-black text-[10px] px-2 py-0.5 rounded-lg bg-emerald-600 text-white shadow-sm border border-white/20 animate-in fade-in zoom-in-95">
+                              <CheckCircle2 className="size-3 fill-white text-emerald-600" />
+                              <span>{Math.round(inCartQty * 1000) / 1000} {prod.unit || "kg"}</span>
+                            </span>
+                          </div>
+                        )}
+
                         {prod.image_url ? (
                           <img
                             src={prod.image_url}
@@ -1694,10 +1717,12 @@ export function RetailPosCounterPage() {
                         className={`size-6 rounded-lg flex items-center justify-center font-bold text-xs transition-colors ${
                           isOutOfStock
                             ? "bg-muted text-muted-foreground"
+                            : isInCart
+                            ? "bg-emerald-600 text-white shadow-2xs"
                             : "bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground"
                         }`}
                       >
-                        {isOutOfStock ? "✕" : "+"}
+                        {isOutOfStock ? "✕" : isInCart ? "✓" : "+"}
                       </span>
                     </div>
                   </button>
@@ -1713,7 +1738,7 @@ export function RetailPosCounterPage() {
           </div>
 
           {/* RIGHT: Live Active Bill & Checkout Panel */}
-          <div className="space-y-3 sticky top-4">
+          <div id="pos-cart-panel" className="space-y-3 sticky top-4">
             <Card className="border-border/80 shadow-md rounded-3xl overflow-hidden">
               {/* Bill Header */}
               <CardHeader className="bg-gradient-to-r from-primary/15 via-primary/5 to-transparent p-4 pb-3 border-b border-border/60">
@@ -2143,6 +2168,45 @@ export function RetailPosCounterPage() {
             </Card>
           </div>
         </div>
+
+        {/* Floating POS Counter Bottom Cart Bar (Shown whenever cart has items, especially on mobile/tablets or when cashier has scrolled down) */}
+        {cart.length > 0 && (
+          <div className="fixed inset-x-0 bottom-20 z-40 mx-auto max-w-xl px-3 sm:px-4 lg:hidden pointer-events-none">
+            <div className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-primary via-primary to-primary/95 px-4 py-3 text-primary-foreground shadow-2xl pointer-events-auto border border-white/20 animate-in slide-in-from-bottom-3 duration-300">
+              <div className="flex items-center gap-3">
+                <div className="relative flex size-10 items-center justify-center rounded-2xl bg-white/20 shrink-0 shadow-inner">
+                  <Receipt className="size-5" />
+                  <span className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-accent text-accent-foreground font-mono text-[10px] font-black shadow-xs">
+                    {cart.length}
+                  </span>
+                </div>
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-extrabold text-base sm:text-lg font-mono tracking-tight">{formatINR(totalPayable)}</span>
+                    <span className="text-xs text-primary-foreground/80 font-medium">({cart.length} {cart.length === 1 ? "item" : "items"})</span>
+                  </div>
+                  <p className="text-[11px] text-primary-foreground/75 line-clamp-1">
+                    {cart.slice(0, 2).map((i) => i.name).join(", ")}{cart.length > 2 ? ` +${cart.length - 2} more` : ""}
+                  </p>
+                </div>
+              </div>
+              <Button 
+                type="button"
+                variant="secondary" 
+                className="rounded-xl px-4 sm:px-5 shadow-md text-xs sm:text-sm font-bold gap-1.5 hover:scale-102 transition-transform bg-white text-primary hover:bg-white/90"
+                onClick={() => {
+                  const el = document.getElementById("pos-cart-panel");
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }
+                }}
+              >
+                <span>View Bill</span>
+                <ArrowRight className="size-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Item Weighing Scale & Cutting Style Customizer Modal (Fixed Decimal Weight Input < 1kg) */}

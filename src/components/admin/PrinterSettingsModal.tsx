@@ -122,7 +122,7 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md w-[95vw] rounded-3xl p-5 border-border/70 shadow-2xl">
+      <DialogContent className="max-w-md w-[95vw] max-h-[90vh] overflow-y-auto rounded-3xl p-5 border-border/70 shadow-2xl">
         <DialogHeader className="pb-2 border-b border-border/60">
           <div className="flex items-center gap-2">
             <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">

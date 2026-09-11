@@ -136,15 +136,13 @@ export function AdminShell({
     <div className="min-h-screen bg-muted/30 overflow-x-hidden w-full">
       <header className="glass sticky top-0 z-50 border-b border-border">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4">
-          <Link to="/" className="flex items-center gap-2 font-display font-bold">
-            {settings?.logo_url ? (
-              <img src={settings.logo_url} alt="Store Logo" className="h-8 w-auto object-contain" />
-            ) : (
-              <span className="ocean-gradient flex size-8 items-center justify-center rounded-xl text-primary-foreground">
-                <Fish className="size-4" />
-              </span>
-            )}
-            {!settings?.logo_url && "Fish N Fresh"}
+          <Link to="/" className="flex items-center gap-2 font-display font-bold text-foreground">
+            <img 
+              src={settings?.logo_url || "/logo.png"} 
+              alt="Store Logo" 
+              className="h-8 w-auto rounded-xl object-contain shrink-0 shadow-2xs" 
+            />
+            <span>{settings?.store_name || "Fish N Fresh"}</span>
           </Link>
           <div className="ml-auto flex items-center gap-2">
             <Button
@@ -208,7 +206,7 @@ export function AdminShell({
         <main className="min-w-0 flex-1 max-w-full overflow-x-hidden pb-24 md:pb-6">
           <div className="mb-3 sm:mb-4 flex flex-wrap items-center justify-between gap-2.5">
             <h1 className="font-display text-xl font-bold text-foreground sm:text-2xl">{title}</h1>
-            {action && <div className="flex items-center gap-2 shrink-0">{action}</div>}
+            {action && <div className="flex flex-wrap items-center gap-2 max-w-full">{action}</div>}
           </div>
           {children}
         </main>

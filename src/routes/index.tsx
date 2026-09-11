@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Clock } from "lucide-react";
@@ -52,8 +53,61 @@ function Home() {
 
   const vertical = getVerticalConfig(settings?.business_vertical);
 
+  const [stickyVisible, setStickyVisible] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => {
+      // Show sticky categories when scrolled past the hero banner & circles (~350px)
+      if (window.scrollY > 350) {
+        setStickyVisible(true);
+      } else {
+        setStickyVisible(false);
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
     <AppShell>
+      {/* Pinned Sticky Horizontal Category Pill Bar (Reveals smoothly on scroll) */}
+      {stickyVisible && (
+        <div 
+          className="sticky top-14 z-40 -mx-3 sm:-mx-4 px-3 sm:px-4 py-2 bg-background/95 backdrop-blur-md border-b border-border/80 shadow-xs animate-in slide-in-from-top-2 duration-200"
+        >
+          <div 
+            className="flex items-center gap-2 overflow-x-auto touch-pan-x scroll-smooth no-scrollbar"
+            onWheel={(e) => {
+              if (e.deltaY !== 0 && Math.abs(e.deltaX) < 10) {
+                e.currentTarget.scrollLeft += e.deltaY;
+              }
+            }}
+          >
+            <Link
+              to="/catalog"
+              className="rounded-full px-3.5 py-1 text-xs font-bold shrink-0 transition-all border border-border/80 bg-muted/60 hover:bg-muted text-foreground"
+            >
+              🌊 All Catalog
+            </Link>
+            {(categories ?? []).map((c) => (
+              <Link
+                key={c.id}
+                to="/catalog"
+                search={{ category: c.name }}
+                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold shrink-0 transition-all border border-border/80 bg-card hover:border-primary hover:text-primary shadow-2xs text-foreground"
+              >
+                {c.image_url ? (
+                  <img src={c.image_url} alt="" className="size-4 rounded-full object-cover" />
+                ) : (
+                  <span>🐟</span>
+                )}
+                <span>{c.name}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       <SeoStructuredData
         breadcrumbs={[{ name: "Home", path: "/" }]}
         faqs={[

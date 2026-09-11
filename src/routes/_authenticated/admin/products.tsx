@@ -669,7 +669,14 @@ function ProductsAdmin() {
       </div>
 
       {/* Primary Filter Tabs - Full-width horizontally scrollable row */}
-      <div className="mb-2 w-full min-w-0 overflow-x-auto no-scrollbar flex items-center gap-1.5 pb-1">
+      <div 
+        className="mb-2 w-full min-w-0 overflow-x-auto touch-pan-x scroll-smooth no-scrollbar flex items-center gap-1.5 pb-1"
+        onWheel={(e) => {
+          if (e.deltaY !== 0 && Math.abs(e.deltaX) < 10) {
+            e.currentTarget.scrollLeft += e.deltaY;
+          }
+        }}
+      >
         <Button
           size="sm"
           variant={filterType === "all" ? "default" : "outline"}
@@ -741,7 +748,14 @@ function ProductsAdmin() {
       </div>
 
       {/* Category Chips - Full-width horizontally scrollable row */}
-      <div className="mb-3.5 w-full min-w-0 overflow-x-auto no-scrollbar flex items-center gap-1.5 pb-1">
+      <div 
+        className="mb-3.5 w-full min-w-0 overflow-x-auto touch-pan-x scroll-smooth no-scrollbar flex items-center gap-1.5 pb-1"
+        onWheel={(e) => {
+          if (e.deltaY !== 0 && Math.abs(e.deltaX) < 10) {
+            e.currentTarget.scrollLeft += e.deltaY;
+          }
+        }}
+      >
         <button
           type="button"
           onClick={() => setSelectedCategory("all")}

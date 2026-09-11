@@ -51,13 +51,11 @@ export function SiteHeader() {
         {/* Left: Brand Logo & Status */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 min-w-0">
           <Link to="/" className="flex items-center gap-1.5 font-display text-base sm:text-lg font-bold tracking-tight whitespace-nowrap">
-            {settings?.logo_url ? (
-              <img src={settings.logo_url} alt="Store Logo" className="h-7 sm:h-8 w-auto object-contain shrink-0" />
-            ) : (
-              <span className="ocean-gradient flex size-7 sm:size-8 items-center justify-center rounded-xl text-primary-foreground shrink-0 shadow-2xs text-sm sm:text-base">
-                {vertical.emoji}
-              </span>
-            )}
+            <img 
+              src={settings?.logo_url || "/logo.png"} 
+              alt={settings?.store_name || "Fish N Fresh"} 
+              className="h-8 sm:h-9 w-auto rounded-xl object-contain shrink-0 shadow-2xs" 
+            />
             <span className="truncate max-w-[130px] sm:max-w-none text-foreground">
               {settings?.store_name || "Fish N Fresh"}
             </span>
@@ -88,6 +86,8 @@ export function SiteHeader() {
                 <span>
                   {storeStatus.isOpen
                     ? `Open (${storeStatus.openTimeFormatted} – ${storeStatus.closeTimeFormatted})`
+                    : storeStatus.isLunchBreak
+                    ? `Lunch Break (${storeStatus.lunchStartFormatted} – ${storeStatus.lunchEndFormatted})`
                     : storeStatus.allowPreorders
                     ? "Pre-orders Open"
                     : "Store Closed"}

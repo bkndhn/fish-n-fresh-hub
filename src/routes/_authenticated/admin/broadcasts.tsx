@@ -15,6 +15,7 @@ import {
   Play,
   Mail,
   Users,
+  Edit3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AdminShell } from "@/components/admin/AdminShell";
@@ -25,6 +26,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { formatIST } from "@/lib/format";
 import { triggerLocalNotification } from "@/lib/fcm";
@@ -180,6 +188,33 @@ function AdminBroadcastsPage() {
       qc.invalidateQueries({ queryKey: ["admin-catch-broadcasts"] });
       qc.invalidateQueries({ queryKey: ["latest-catch-broadcast"] });
       toast.success("Broadcast deleted");
+    },
+  });
+
+  const [editingBroadcast, setEditingBroadcast] = useState<CatchBroadcast | null>(null);
+
+  const updateBroadcast = useMutation({
+    mutationFn: async (updated: CatchBroadcast) => {
+      const { error } = await supabase
+        .from("catch_broadcasts")
+        .update({
+          title: updated.title.trim(),
+          harbour_source: updated.harbour_source.trim(),
+          message: updated.message.trim(),
+          target_category: updated.target_category || null,
+          is_active: updated.is_active,
+        })
+        .eq("id", updated.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-catch-broadcasts"] });
+      qc.invalidateQueries({ queryKey: ["latest-catch-broadcast"] });
+      toast.success("Catch broadcast updated successfully!");
+      setEditingBroadcast(null);
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to update broadcast");
     },
   });
 
@@ -341,8 +376,18 @@ function AdminBroadcastsPage() {
                         <Button
                           size="sm"
                           variant="ghost"
+                          className="size-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+                          onClick={() => setEditingBroadcast({ ...b })}
+                          title="Edit broadcast"
+                        >
+                          <Edit3 className="size-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
                           className="size-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
                           onClick={() => deleteBroadcast.mutate(b.id)}
+                          title="Delete broadcast"
                         >
                           <Trash2 className="size-3.5" />
                         </Button>
@@ -486,6 +531,97 @@ function AdminBroadcastsPage() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Edit Broadcast Dialog */}
+        <Dialog open={Boolean(editingBroadcast)} onOpenChange={(open) => !open && setEditingBroadcast(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Edit3 className="size-4 text-sky-500" />
+                Edit Harbour Catch Alert
+              </DialogTitle>
+            </DialogHeader>
+
+            {editingBroadcast && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  updateBroadcast.mutate(editingBroadcast);
+                }}
+                className="space-y-4"
+              >
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-title">Alert Title</Label>
+                  <Input
+                    id="edit-title"
+                    value={editingBroadcast.title}
+                    onChange={(e) => setEditingBroadcast({ ...editingBroadcast, title: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-harbour">Harbour Source / Dock</Label>
+                  <Input
+                    id="edit-harbour"
+                    value={editingBroadcast.harbour_source}
+                    onChange={(e) => setEditingBroadcast({ ...editingBroadcast, harbour_source: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-category">Target Category (Optional)</Label>
+                  <Input
+                    id="edit-category"
+                    value={editingBroadcast.target_category || ""}
+                    onChange={(e) => setEditingBroadcast({ ...editingBroadcast, target_category: e.target.value })}
+                    placeholder="e.g. Sea Fish, Crabs, Prawns"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-msg">Broadcast Message</Label>
+                  <Textarea
+                    id="edit-msg"
+                    rows={3}
+                    value={editingBroadcast.message}
+                    onChange={(e) => setEditingBroadcast({ ...editingBroadcast, message: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-xl bg-muted/50 border border-border">
+                  <Label htmlFor="edit-active" className="text-xs cursor-pointer">
+                    Live Announcement Banner
+                  </Label>
+                  <Switch
+                    id="edit-active"
+                    checked={editingBroadcast.is_active}
+                    onCheckedChange={(checked) => setEditingBroadcast({ ...editingBroadcast, is_active: checked })}
+                  />
+                </div>
+
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEditingBroadcast(null)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="bg-sky-600 hover:bg-sky-500 text-white font-bold"
+                    disabled={updateBroadcast.isPending}
+                  >
+                    {updateBroadcast.isPending ? "Saving..." : "Save Changes"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminShell>
   );

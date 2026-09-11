@@ -1594,7 +1594,7 @@ export function Reports() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Link to="/admin/purchases">
                 <Button size="sm" variant="outline" className="rounded-xl h-8 text-xs">
                   <Package className="mr-1.5 size-3.5 text-primary" /> Catch Inward Refill

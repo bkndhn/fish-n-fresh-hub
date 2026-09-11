@@ -79,6 +79,10 @@ function SchedulePage() {
   // Shop hours & holiday state
   const [openTime, setOpenTime] = useState("07:00");
   const [closeTime, setCloseTime] = useState("21:00");
+  const [lunchEnabled, setLunchEnabled] = useState(false);
+  const [lunchStart, setLunchStart] = useState("13:00");
+  const [lunchEnd, setLunchEnd] = useState("14:30");
+  const [blockDuringLunch, setBlockDuringLunch] = useState(true);
   const [workingDays, setWorkingDays] = useState<number[]>(ALL_WEEKDAYS);
   const [allowPreorders, setAllowPreorders] = useState(true);
   const [closedMessage, setClosedMessage] = useState("");
@@ -93,6 +97,14 @@ function SchedulePage() {
     if (settings) {
       if ((settings as any).open_time) setOpenTime((settings as any).open_time);
       if ((settings as any).close_time) setCloseTime((settings as any).close_time);
+      if ((settings as any).lunch_start) {
+        setLunchStart((settings as any).lunch_start);
+        setLunchEnabled(true);
+      }
+      if ((settings as any).lunch_end) setLunchEnd((settings as any).lunch_end);
+      if ((settings as any).block_during_lunch !== undefined) {
+        setBlockDuringLunch(Boolean((settings as any).block_during_lunch));
+      }
       if ((settings as any).working_days) {
         const wd = (settings as any).working_days;
         setWorkingDays(Array.isArray(wd) ? wd : typeof wd === "string" ? JSON.parse(wd) : ALL_WEEKDAYS);
@@ -162,6 +174,22 @@ function SchedulePage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Toggle instant store open/pause status
+  const toggleStoreOpen = useMutation({
+    mutationFn: async (newIsOpen: boolean) => {
+      if (!settings?.id) return;
+      const { error } = await supabase.from("store_settings").update({
+        is_open: newIsOpen,
+      } as any).eq("id", settings.id);
+      if (error) throw error;
+    },
+    onSuccess: (_, newIsOpen) => {
+      toast.success(newIsOpen ? "Store is now OPEN and accepting orders!" : "Store is now PAUSED.");
+      invalidate();
+    },
+    onError: (e: any) => toast.error(`Failed to update store status: ${e.message}`),
+  });
+
   // Save Shop Hours & Holiday settings
   const saveScheduleSettings = useMutation({
     mutationFn: async () => {
@@ -169,6 +197,9 @@ function SchedulePage() {
       const { error } = await supabase.from("store_settings").update({
         open_time: openTime,
         close_time: closeTime,
+        lunch_start: lunchEnabled && lunchStart.trim() ? lunchStart.trim() : null,
+        lunch_end: lunchEnabled && lunchEnd.trim() ? lunchEnd.trim() : null,
+        block_during_lunch: blockDuringLunch,
         working_days: workingDays,
         custom_holidays: customHolidays,
         allow_preorders_when_closed: allowPreorders,
@@ -217,6 +248,9 @@ function SchedulePage() {
     is_open: settings?.is_open,
     open_time: openTime,
     close_time: closeTime,
+    lunch_start: lunchEnabled ? lunchStart : null,
+    lunch_end: lunchEnabled ? lunchEnd : null,
+    block_during_lunch: blockDuringLunch,
     working_days: workingDays,
     custom_holidays: customHolidays,
     allow_preorders_when_closed: allowPreorders,
@@ -261,13 +295,32 @@ function SchedulePage() {
           </div>
         </div>
 
-        <div className="text-right text-xs text-muted-foreground">
-          <p>
-            Operating Hours: <strong className="text-foreground">{formatTime12h(openTime)} – {formatTime12h(closeTime)}</strong>
-          </p>
-          <p className="mt-0.5">
-            Next Open Delivery Day: <strong className="text-primary">{liveStatus.nextWorkingDate}</strong>
-          </p>
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="text-right text-xs text-muted-foreground hidden sm:block">
+            <p>
+              Operating Hours: <strong className="text-foreground">{formatTime12h(openTime)} – {formatTime12h(closeTime)}</strong>
+            </p>
+            <p className="mt-0.5">
+              Next Open Delivery Day: <strong className="text-primary">{liveStatus.nextWorkingDate}</strong>
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2.5 rounded-xl border border-border/80 bg-background/80 px-3 py-2 shadow-2xs backdrop-blur-xs">
+            <div className="text-right text-xs">
+              <span className="font-bold block text-foreground leading-tight">
+                {settings?.is_open !== false ? "Store Orders Open" : "Store Orders Paused"}
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                {settings?.is_open !== false ? "Toggle to pause checkout" : "Toggle to resume orders"}
+              </span>
+            </div>
+            <Switch
+              checked={settings?.is_open !== false}
+              disabled={toggleStoreOpen.isPending}
+              onCheckedChange={(checked) => toggleStoreOpen.mutate(checked)}
+              aria-label="Toggle store open status"
+            />
+          </div>
         </div>
       </div>
 
@@ -314,6 +367,66 @@ function SchedulePage() {
                     />
                     <p className="text-[11px] text-muted-foreground">{formatTime12h(closeTime)}</p>
                   </div>
+                </div>
+
+                {/* Daily Lunch Break & Counter Restocking */}
+                <div className="space-y-3 pt-3 border-t">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-xs font-semibold flex items-center gap-1.5">
+                        <Clock className="size-3.5 text-primary" /> Daily Lunch Break / Restocking
+                      </Label>
+                      <p className="text-[11px] text-muted-foreground">
+                        Pause orders during afternoon counter restock or staff lunch break
+                      </p>
+                    </div>
+                    <Switch
+                      checked={lunchEnabled}
+                      onCheckedChange={setLunchEnabled}
+                      aria-label="Enable daily lunch break"
+                    />
+                  </div>
+
+                  {lunchEnabled && (
+                    <div className="space-y-3 rounded-xl border border-border/80 bg-muted/30 p-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Lunch Starts</Label>
+                          <Input
+                            type="time"
+                            value={lunchStart}
+                            onChange={(e) => setLunchStart(e.target.value)}
+                            className="rounded-xl"
+                          />
+                          <p className="text-[11px] text-muted-foreground">{formatTime12h(lunchStart)}</p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Lunch Ends</Label>
+                          <Input
+                            type="time"
+                            value={lunchEnd}
+                            onChange={(e) => setLunchEnd(e.target.value)}
+                            className="rounded-xl"
+                          />
+                          <p className="text-[11px] text-muted-foreground">{formatTime12h(lunchEnd)}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1">
+                        <div>
+                          <Label className="text-xs font-medium">Block Checkout During Lunch</Label>
+                          <p className="text-[10px] text-muted-foreground">
+                            {blockDuringLunch ? "Strictly pauses checkout until lunch ends" : "Allows pre-orders for evening delivery"}
+                          </p>
+                        </div>
+                        <Switch
+                          checked={blockDuringLunch}
+                          onCheckedChange={setBlockDuringLunch}
+                          aria-label="Block checkout during lunch"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Weekly Operating Days */}

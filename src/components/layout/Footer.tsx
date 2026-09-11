@@ -84,18 +84,16 @@ export function Footer() {
       <div className="mx-auto max-w-6xl px-3 sm:px-4 pt-10 pb-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-5 w-full max-w-full overflow-hidden">
         {/* Column 1: Brand & Heritage */}
         <div className="space-y-4 lg:col-span-1">
-          {settings.logo_url ? (
+          <div className="flex items-center gap-2.5">
             <img
-              src={settings.logo_url}
+              src={settings.logo_url || "/logo.png"}
               alt="Store Logo"
-              className="h-10 w-auto object-contain"
+              className="h-10 w-auto rounded-xl object-contain shadow-2xs"
             />
-          ) : (
-            <p className="font-display text-xl font-extrabold text-foreground flex items-center gap-2">
-              <Fish className="size-5 text-primary" />
+            <p className="font-display text-xl font-extrabold text-foreground">
               {settings.store_name || "Fish N Fresh"}
             </p>
-          )}
+          </div>
           <p className="text-xs leading-relaxed text-muted-foreground">
             Chennai's premier dock-to-door fresh seafood marketplace. Sourced directly from local harbour boats every morning.
           </p>
@@ -168,6 +166,8 @@ export function Footer() {
                 />
                 {storeStatus.isOpen
                   ? "Open Now"
+                  : storeStatus.isLunchBreak
+                  ? "Lunch Break"
                   : storeStatus.statusBadge === "preorder_only"
                   ? "Pre-Orders Open"
                   : "Closed"}

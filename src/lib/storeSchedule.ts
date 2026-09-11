@@ -8,6 +8,9 @@ export type StoreScheduleSettings = {
   is_open?: boolean;
   open_time?: string; // HH:mm (e.g. "07:00")
   close_time?: string; // HH:mm (e.g. "21:00")
+  lunch_start?: string | null; // HH:mm (e.g. "13:00")
+  lunch_end?: string | null; // HH:mm (e.g. "14:30")
+  block_during_lunch?: boolean; // true = block orders during lunch break
   working_days?: number[]; // [0..6], 0=Sun, 1=Mon, ..., 6=Sat
   custom_holidays?: CustomHoliday[];
   allow_preorders_when_closed?: boolean; // true = accept preorders, false = block orders
@@ -20,6 +23,7 @@ export type StoreStatusResult = {
   isWeeklyHoliday: boolean;
   isCustomHoliday: boolean;
   isOutsideHours: boolean;
+  isLunchBreak: boolean;
   holidayReason?: string | undefined;
   canAcceptOrder: boolean;
   allowPreorders: boolean;
@@ -29,6 +33,8 @@ export type StoreStatusResult = {
   nextWorkingDate: string;
   openTimeFormatted: string;
   closeTimeFormatted: string;
+  lunchStartFormatted?: string | undefined;
+  lunchEndFormatted?: string | undefined;
 };
 
 export const ALL_WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
@@ -166,8 +172,23 @@ export function getStoreStatus(settings: any, now: Date = new Date()): StoreStat
   // 3. Check Operating Hours today
   const isOutsideHours = currentMinutes < openMinutes || currentMinutes >= closeMinutes;
 
-  // Store is open ONLY IF manual open + open day + not holiday + within hours
-  const isOpen = !isManualClosed && !isCustomHoliday && !isWeeklyHoliday && !isOutsideHours;
+  // 4. Check Lunch Break today
+  const lunchStart = settings?.lunch_start ? String(settings.lunch_start).trim() : null;
+  const lunchEnd = settings?.lunch_end ? String(settings.lunch_end).trim() : null;
+  const blockDuringLunch = settings?.block_during_lunch !== false;
+  let isLunchBreak = false;
+  if (lunchStart && lunchEnd) {
+    const [lsh, lsm] = lunchStart.split(":").map(Number);
+    const [leh, lem] = lunchEnd.split(":").map(Number);
+    const lunchStartMinutes = (lsh || 0) * 60 + (lsm || 0);
+    const lunchEndMinutes = (leh || 0) * 60 + (lem || 0);
+    if (lunchStartMinutes < lunchEndMinutes) {
+      isLunchBreak = currentMinutes >= lunchStartMinutes && currentMinutes < lunchEndMinutes;
+    }
+  }
+
+  // Store is open ONLY IF manual open + open day + not holiday + within hours + not on lunch break
+  const isOpen = !isManualClosed && !isCustomHoliday && !isWeeklyHoliday && !isOutsideHours && !isLunchBreak;
 
   // Next open date calculation
   const tomorrow = new Date(now);
@@ -177,15 +198,27 @@ export function getStoreStatus(settings: any, now: Date = new Date()): StoreStat
     : getNextWorkingDate(workingDays, customHolidays, currentMinutes < openMinutes && !isCustomHoliday && !isWeeklyHoliday ? now : tomorrow);
 
   // Can the customer place an order?
+  // If lunch break with blocking -> NO
   // If open -> YES
   // If closed -> YES only if allowPreorders is true
-  const canAcceptOrder = isOpen || allowPreorders;
+  let canAcceptOrder = isOpen || (allowPreorders && !isLunchBreak);
+  if (isLunchBreak && !blockDuringLunch && allowPreorders) {
+    canAcceptOrder = true;
+  }
 
   let statusBadge: "open" | "preorder_only" | "closed" = "open";
   let statusTitle = `Open Now (${formatTime12h(openTime)} – ${formatTime12h(closeTime)})`;
   let statusDescription = "Accepting fresh orders for today's delivery slots.";
 
-  if (isManualClosed) {
+  if (isLunchBreak) {
+    statusBadge = canAcceptOrder ? "preorder_only" : "closed";
+    statusTitle = `Lunch Break (${formatTime12h(lunchStart!)} – ${formatTime12h(lunchEnd!)})`;
+    statusDescription =
+      customMessage ||
+      (canAcceptOrder
+        ? `Our counter is on a lunch break (${formatTime12h(lunchStart!)} – ${formatTime12h(lunchEnd!)}). Pre-orders are open for evening delivery slots starting at ${formatTime12h(lunchEnd!)}.`
+        : `Our store is currently on a lunch break (${formatTime12h(lunchStart!)} – ${formatTime12h(lunchEnd!)}). Fresh orders will resume at ${formatTime12h(lunchEnd!)}. You can browse our fresh catch in the meantime!`);
+  } else if (isManualClosed) {
     statusBadge = allowPreorders ? "preorder_only" : "closed";
     statusTitle = "Temporarily Closed";
     statusDescription =
@@ -225,6 +258,7 @@ export function getStoreStatus(settings: any, now: Date = new Date()): StoreStat
     isWeeklyHoliday,
     isCustomHoliday,
     isOutsideHours,
+    isLunchBreak,
     holidayReason,
     canAcceptOrder,
     allowPreorders,
@@ -234,5 +268,7 @@ export function getStoreStatus(settings: any, now: Date = new Date()): StoreStat
     nextWorkingDate,
     openTimeFormatted: formatTime12h(openTime),
     closeTimeFormatted: formatTime12h(closeTime),
+    lunchStartFormatted: lunchStart ? formatTime12h(lunchStart) : undefined,
+    lunchEndFormatted: lunchEnd ? formatTime12h(lunchEnd) : undefined,
   };
 }

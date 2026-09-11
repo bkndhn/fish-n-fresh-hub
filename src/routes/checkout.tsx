@@ -627,9 +627,15 @@ function Checkout() {
           <div className="space-y-1">
             <p className="font-bold text-sm text-destructive">{storeStatus.statusTitle}</p>
             <p className="opacity-90">{storeStatus.statusDescription}</p>
-            <p className="font-semibold pt-1">
-              New orders are paused. Next ordering window opens on <span className="underline">{storeStatus.nextWorkingDate}</span> at {storeStatus.openTimeFormatted}.
-            </p>
+            {storeStatus.isLunchBreak ? (
+              <p className="font-semibold pt-1">
+                Orders will resume today at <span className="underline">{storeStatus.lunchEndFormatted}</span>. Your cart items are saved!
+              </p>
+            ) : (
+              <p className="font-semibold pt-1">
+                New orders are paused. Next ordering window opens on <span className="underline">{storeStatus.nextWorkingDate}</span> at {storeStatus.openTimeFormatted}.
+              </p>
+            )}
           </div>
         </div>
       ) : !storeStatus.isOpen ? (

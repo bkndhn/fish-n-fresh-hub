@@ -407,11 +407,18 @@ function OrdersAdmin() {
           />
         </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div 
+          className="flex items-center gap-1.5 overflow-x-auto min-w-0 max-w-full touch-pan-x scroll-smooth no-scrollbar pb-1"
+          onWheel={(e) => {
+            if (e.deltaY !== 0 && Math.abs(e.deltaX) < 10) {
+              e.currentTarget.scrollLeft += e.deltaY;
+            }
+          }}
+        >
           <Button
             size="sm"
             variant={statusFilter === "all" ? "default" : "outline"}
-            className="rounded-full text-xs"
+            className="rounded-full text-xs shrink-0"
             onClick={() => setStatusFilter("all")}
           >
             All Statuses ({rows.length})
@@ -431,7 +438,7 @@ function OrdersAdmin() {
                 key={s}
                 size="sm"
                 variant={statusFilter === s ? "default" : "outline"}
-                className="rounded-full text-xs capitalize whitespace-nowrap"
+                className="rounded-full text-xs capitalize whitespace-nowrap shrink-0"
                 onClick={() => setStatusFilter(s)}
               >
                 {s.replace(/_/g, " ")} ({count})

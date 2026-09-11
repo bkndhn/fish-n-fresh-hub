@@ -66,8 +66,12 @@ export function ThemeProvider({
       favicon.rel = "icon";
       document.head.appendChild(favicon);
     }
-    // If settings has logo, use it. Otherwise, use an SVG fish emoji as default
-    favicon.href = settings?.logo_url || "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐟</text></svg>";
+    // Dynamic Favicon Update: prefer custom logo if provided, otherwise default to generated master favicon
+    if (settings?.logo_url) {
+      favicon.href = settings.logo_url;
+    } else {
+      favicon.href = "/favicon.ico";
+    }
 
     if (settings?.theme_color) {
       root.style.setProperty("--primary", settings.theme_color);
@@ -89,37 +93,6 @@ export function ThemeProvider({
         metaThemeColor.setAttribute("content", isDark ? "#000000" : "#ffffff");
       }
     }
-
-    // Dynamic Manifest for PWA App Icon
-    const manifestUrl = URL.createObjectURL(new Blob([JSON.stringify({
-      name: "Fish N Fresh",
-      short_name: "FishNFresh",
-      start_url: "/",
-      display: "standalone",
-      background_color: "#ffffff",
-      theme_color: settings?.theme_color || "#0ea5e9",
-      icons: [
-        {
-          src: settings?.logo_url || favicon.href,
-          sizes: "192x192",
-          type: "image/png"
-        },
-        {
-          src: settings?.logo_url || favicon.href,
-          sizes: "512x512",
-          type: "image/png"
-        }
-      ]
-    })], { type: 'application/json' }));
-
-    let manifestLink = document.querySelector("link[rel='manifest']") as HTMLLinkElement;
-    if (!manifestLink) {
-      manifestLink = document.createElement("link");
-      manifestLink.rel = "manifest";
-      document.head.appendChild(manifestLink);
-    }
-    manifestLink.href = manifestUrl;
-
   }, [settings?.theme_color, settings?.logo_url, theme]);
 
   const value = {

@@ -5,6 +5,17 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useCart } from "@/lib/cart";
 import { inr } from "@/lib/format";
 import { settingsQuery, productsQuery } from "@/lib/queries";
@@ -243,7 +254,11 @@ function CartPage() {
           <div>
             <p className="font-bold">{storeStatus.statusTitle}</p>
             <p className="mt-0.5 opacity-90">{storeStatus.statusDescription}</p>
-            <p className="mt-1 font-semibold">Orders will reopen on {storeStatus.nextWorkingDate} at {storeStatus.openTimeFormatted}.</p>
+            {storeStatus.isLunchBreak ? (
+              <p className="mt-1 font-semibold">Orders resume today at {storeStatus.lunchEndFormatted}. You can continue browsing items in the meantime.</p>
+            ) : (
+              <p className="mt-1 font-semibold">Orders will reopen on {storeStatus.nextWorkingDate} at {storeStatus.openTimeFormatted}.</p>
+            )}
           </div>
         </div>
       )}
@@ -259,16 +274,50 @@ function CartPage() {
       )}
 
       <div className="mt-4 flex gap-3">
-        <Button variant="outline" className="rounded-xl" onClick={clear}>
-          Clear
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="outline" className="rounded-xl gap-1.5 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors">
+              <Trash2 className="size-3.5" />
+              <span>Clear</span>
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent className="rounded-3xl max-w-md p-6 border-border/80 shadow-2xl">
+            <AlertDialogHeader className="space-y-3">
+              <div className="size-12 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto sm:mx-0">
+                <Trash2 className="size-6" />
+              </div>
+              <div>
+                <AlertDialogTitle className="text-lg font-bold text-foreground">
+                  Clear your shopping cart?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-xs text-muted-foreground mt-1">
+                  Are you sure you want to remove all {items.length} {items.length === 1 ? "item" : "items"} ({inr(subtotal)}) from your seafood cart? This action cannot be undone.
+                </AlertDialogDescription>
+              </div>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="mt-4 gap-2">
+              <AlertDialogCancel className="rounded-xl h-10 text-xs font-semibold">
+                Keep Items
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  clear();
+                  toast.info("Shopping cart cleared");
+                }}
+                className="rounded-xl h-10 text-xs font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              >
+                Yes, Clear Cart
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         {hasOutOfStockItems ? (
           <Button disabled className="flex-1 rounded-xl opacity-75 bg-destructive hover:bg-destructive text-destructive-foreground">
             Remove Sold Out Items to Checkout
           </Button>
         ) : storeStatus && !storeStatus.canAcceptOrder ? (
           <Button disabled className="flex-1 rounded-xl opacity-60">
-            Orders Paused · Store Closed
+            Orders Paused · {storeStatus.statusTitle}
           </Button>
         ) : (
           <Button asChild className="flex-1 rounded-xl">
