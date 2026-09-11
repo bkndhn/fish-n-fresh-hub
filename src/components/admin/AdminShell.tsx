@@ -26,6 +26,7 @@ import {
   Eye,
   ExternalLink,
   ShieldAlert,
+  Banknote,
 } from "lucide-react";
 import { AdminBranchProvider } from "@/lib/branchContext";
 import { AdminBranchSwitcher } from "@/components/admin/AdminBranchSwitcher";
@@ -60,6 +61,7 @@ const NAV = [
   { to: "/admin/broadcasts", label: "Catch Alerts", icon: Bell, roles: ["admin", "manager", "inventory_manager", "staff"] },
   { to: "/admin/purchases", label: "Purchases", icon: Anchor, roles: ["admin", "manager", "inventory_manager", "staff"] },
   { to: "/admin/waste", label: "Waste mgmt", icon: Trash2, roles: ["admin", "manager", "inventory_manager", "staff"] },
+  { to: "/admin/expenses", label: "Expenses", icon: Banknote, roles: ["admin", "manager", "staff"] },
   { to: "/admin/banners", label: "Banners", icon: Sparkles, roles: ["admin", "manager"] },
   { to: "/admin/orders", label: "Orders", icon: ReceiptText, roles: ["admin", "manager", "cashier", "support_staff", "staff"] },
   { to: "/admin/customers", label: "Customers", icon: Users, roles: ["admin", "manager", "support_staff"] },

@@ -96,7 +96,7 @@ describe("Bulk Retail CSV Import and Export Engine", () => {
     const fashionCsv = generateSampleCsv("clothing_fashion");
     const groceryCsv = generateSampleCsv("grocery_supermarket");
 
-    expect(electCsv).toContain("name,category,price");
+    expect(electCsv).toContain("name,category,cost_price,price");
     expect(electCsv).toContain("Apple iPhone 15");
     expect(electCsv).toContain("Smartphones & Tablets");
 

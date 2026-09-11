@@ -145,6 +145,7 @@ function ProductsAdmin() {
     requires_serial: false,
     aisle_location: "",
     specifications_text: "",
+    cost_price: "",
   });
 
   const update = useMutation({
@@ -237,6 +238,7 @@ function ProductsAdmin() {
         requires_serial: !!newProduct.requires_serial,
         aisle_location: newProduct.aisle_location?.trim() || null,
         specifications: parseSpecsText(newProduct.specifications_text),
+        cost_price: newProduct.cost_price ? Number(newProduct.cost_price) : null,
       } as any);
       if (error) throw error;
     },
@@ -269,6 +271,7 @@ function ProductsAdmin() {
         requires_serial: false,
         aisle_location: "",
         specifications_text: "",
+        cost_price: "",
       });
       qc.invalidateQueries({ queryKey: ["admin", "products"] });
       qc.invalidateQueries({ queryKey: ["products"] });
@@ -326,6 +329,9 @@ function ProductsAdmin() {
         specifications: typeof editingProduct.specifications_text === "string"
           ? parseSpecsText(editingProduct.specifications_text)
           : (editingProduct.specifications ?? null),
+        cost_price: editingProduct.cost_price !== undefined && editingProduct.cost_price !== "" && editingProduct.cost_price !== null
+          ? Number(editingProduct.cost_price)
+          : null,
       } as any).eq("id", editingProduct.id);
       if (error) throw error;
     },
@@ -944,7 +950,7 @@ function ProductsAdmin() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
                 <div className="space-y-1.5">
                   <Label htmlFor="prod-pos-code" className="text-primary font-bold flex items-center gap-1">
                     <Hash className="size-3" /> PLU Code
@@ -955,6 +961,18 @@ function ProductsAdmin() {
                     placeholder={`#${nextSuggestedPosCode}`}
                     value={newProduct.pos_code}
                     onChange={(e) => setNewProduct({ ...newProduct, pos_code: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="prod-cost-price" className="text-emerald-700 dark:text-emerald-400 font-bold">
+                    Buying Cost (₹)
+                  </Label>
+                  <Input
+                    id="prod-cost-price"
+                    type="number"
+                    placeholder="e.g. 320"
+                    value={newProduct.cost_price}
+                    onChange={(e) => setNewProduct({ ...newProduct, cost_price: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -1008,6 +1026,17 @@ function ProductsAdmin() {
                   />
                 </div>
               </div>
+
+              {Number(newProduct.cost_price) > 0 && Number(newProduct.price) > 0 && (
+                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-2 text-xs text-emerald-700 dark:text-emerald-300 flex items-center justify-between">
+                  <span>
+                    Unit Gross Margin: <strong>{Math.round(((Number(newProduct.price) - Number(newProduct.cost_price)) / Number(newProduct.price)) * 100)}%</strong>
+                  </span>
+                  <span>
+                    Gross Profit per unit: <strong>{formatINR(Number(newProduct.price) - Number(newProduct.cost_price))}</strong>
+                  </span>
+                </div>
+              )}
 
               {Number(newProduct.old_price) > Number(newProduct.price) && Number(newProduct.price) > 0 && (
                 <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-2 text-xs text-emerald-700 dark:text-emerald-300 flex items-center justify-between">
@@ -1411,6 +1440,12 @@ function ProductsAdmin() {
                         </span>
                       )}
 
+                      {p.cost_price != null && Number(p.cost_price) > 0 && (
+                        <span className="rounded-md bg-teal-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-teal-700 dark:text-teal-300 border border-teal-500/20" title={`Buying Cost: ${formatINR(Number(p.cost_price))}`}>
+                          Buy: {formatINR(Number(p.cost_price))} ({Math.round(((Number(p.price) - Number(p.cost_price)) / Number(p.price)) * 100)}% Margin)
+                        </span>
+                      )}
+
                       {/* 1-Click Featured Toggle */}
                       <button
                         type="button"
@@ -1445,7 +1480,21 @@ function ProductsAdmin() {
                 </div>
 
                 {/* Middle Tier: Thumb-friendly Quick Values & Toggles */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 rounded-2xl bg-muted/40 p-2.5 border border-border/60">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 rounded-2xl bg-muted/40 p-2.5 border border-border/60">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Buying Cost (₹)</Label>
+                    <Input
+                      type="number"
+                      defaultValue={p.cost_price ?? ""}
+                      placeholder="e.g. 250"
+                      className="h-8 rounded-xl text-xs font-bold bg-background text-emerald-700 dark:text-emerald-400"
+                      onBlur={(e) => {
+                        const val = e.target.value.trim() ? Number(e.target.value) : null;
+                        if (val !== p.cost_price) update.mutate({ id: p.id, patch: { cost_price: val } });
+                      }}
+                    />
+                  </div>
+
                   <div className="space-y-1">
                     <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Selling Price (₹)</Label>
                     <Input
@@ -1538,6 +1587,7 @@ function ProductsAdmin() {
                         : "";
                       setEditingProduct({
                         ...p,
+                        cost_price: p.cost_price ?? "",
                         unit: isStandardUnit ? p.unit : "custom",
                         customUnit: isStandardUnit ? "" : p.unit,
                         customCategory: "",
@@ -1695,7 +1745,7 @@ function ProductsAdmin() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
                 <div className="space-y-1.5">
                   <Label htmlFor="edit-pos-code" className="text-primary font-bold flex items-center gap-1">
                     <Hash className="size-3" /> PLU Code
@@ -1706,6 +1756,18 @@ function ProductsAdmin() {
                     placeholder="e.g. 1"
                     value={editingProduct.pos_code ?? ""}
                     onChange={(e) => setEditingProduct({ ...editingProduct, pos_code: e.target.value ? parseInt(e.target.value, 10) : null })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-cost-price" className="text-emerald-700 dark:text-emerald-400 font-bold">
+                    Buying Cost (₹)
+                  </Label>
+                  <Input
+                    id="edit-cost-price"
+                    type="number"
+                    placeholder="e.g. 320"
+                    value={editingProduct.cost_price ?? ""}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, cost_price: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -1755,6 +1817,17 @@ function ProductsAdmin() {
                   />
                 </div>
               </div>
+
+              {Number(editingProduct.cost_price) > 0 && Number(editingProduct.price) > 0 && (
+                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-2 text-xs text-emerald-700 dark:text-emerald-300 flex items-center justify-between">
+                  <span>
+                    Unit Gross Margin: <strong>{Math.round(((Number(editingProduct.price) - Number(editingProduct.cost_price)) / Number(editingProduct.price)) * 100)}%</strong>
+                  </span>
+                  <span>
+                    Gross Profit per unit: <strong>{formatINR(Number(editingProduct.price) - Number(editingProduct.cost_price))}</strong>
+                  </span>
+                </div>
+              )}
 
               {Number(editingProduct.old_price) > Number(editingProduct.price) && Number(editingProduct.price) > 0 && (
                 <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-2 text-xs text-emerald-700 dark:text-emerald-300 flex items-center justify-between">

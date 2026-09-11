@@ -70,6 +70,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { AnalyticsIntelligence } from "@/components/admin/AnalyticsIntelligence";
+import { AdminPnlReport } from "@/components/admin/AdminPnlReport";
 import { ExportDropdown, type ExportColumn, type ExportOptions } from "@/lib/exportUtils";
 
 export const Route = createFileRoute("/_authenticated/admin/reports")({
@@ -123,7 +124,7 @@ export function Reports() {
   const products = useQuery(adminProductsQuery(selectedBranchId));
   const settings = useQuery(settingsQuery);
 
-  const [activeReportTab, setActiveReportTab] = useState<"analytics" | "pos_bills">("analytics");
+  const [activeReportTab, setActiveReportTab] = useState<"analytics" | "pnl" | "pos_bills">("analytics");
   const [range, setRange] = useState<(typeof RANGES)[number]["key"]>("30");
 
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -1025,6 +1026,17 @@ export function Reports() {
             onClick={() => setActiveReportTab("analytics")}
           >
             <BarChart3 className="size-3.5" /> Business Analytics &amp; AI
+          </Button>
+          <Button
+            size="sm"
+            variant={activeReportTab === "pnl" ? "default" : "ghost"}
+            className="rounded-xl h-8 text-xs font-bold gap-1.5 text-emerald-700 dark:text-emerald-400"
+            onClick={() => setActiveReportTab("pnl")}
+          >
+            <Percent className="size-3.5" /> Profit &amp; Loss (P&amp;L)
+            <Badge className="ml-1 text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30">
+              New
+            </Badge>
           </Button>
           <Button
             size="sm"
@@ -2366,6 +2378,8 @@ export function Reports() {
         </CardContent>
       </Card>
         </>
+      ) : activeReportTab === "pnl" ? (
+        <AdminPnlReport />
       ) : (
         /* DEDICATED POS COUNTER BILLS & RECEIPTS REGISTER */
         <div className="space-y-4">

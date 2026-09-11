@@ -42,6 +42,7 @@ export type Product = {
   pos_code?: number | null;
   branch_id?: string | null;
   branch_name?: string | null;
+  cost_price?: number | null;
   // Universal Retail extensions
   brand?: string | null;
   model_number?: string | null;
@@ -51,6 +52,73 @@ export type Product = {
   variants?: ProductVariant[] | null;
   requires_serial?: boolean;
 };
+
+export type ExpenseCategory =
+  | "rent_lease"
+  | "salaries_wages"
+  | "electricity_utilities"
+  | "packaging_bags"
+  | "cold_storage_ice"
+  | "fuel_logistics"
+  | "marketing_ads"
+  | "maintenance_repairs"
+  | "licenses_taxes"
+  | "other";
+
+export interface Expense {
+  id: string;
+  branch_id?: string | null;
+  branch_name?: string | null;
+  category: ExpenseCategory;
+  title: string;
+  amount: number;
+  expense_date: string;
+  payment_method: string;
+  vendor_name?: string | null;
+  receipt_url?: string | null;
+  notes?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface PnlSummary {
+  grossSales: number;
+  discounts: number;
+  netSales: number;
+  gstCollected: number;
+  totalCogs: number;
+  totalWasteCost: number;
+  totalProductionCost: number;
+  grossProfit: number;
+  grossMarginPct: number;
+  totalExpenses: number;
+  expensesByCategory: Record<string, number>;
+  netProfit: number;
+  netMarginPct: number;
+  orderCount: number;
+  unitsSold: number;
+}
+
+export interface ProductPnlItem {
+  id: string;
+  name: string;
+  category: string;
+  brand?: string | null;
+  unit: string;
+  stock: number;
+  sellingPrice: number;
+  costPrice: number;
+  unitsSold: number;
+  revenue: number;
+  cogs: number;
+  wasteQty: number;
+  wasteCost: number;
+  grossProfit: number;
+  marginPct: number;
+  profitSharePct: number;
+  tier: "high_profit" | "healthy" | "slim" | "loss_making";
+}
 
 export type Category = {
   id: string;
