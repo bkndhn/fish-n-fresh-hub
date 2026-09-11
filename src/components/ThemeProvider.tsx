@@ -1,6 +1,11 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { settingsQuery } from "@/lib/queries";
+import {
+  applyDailyAtmosphere,
+  isDailyAtmosphereEnabled,
+  updateStatusBarColor,
+} from "@/lib/dailyAtmosphere";
 
 type Theme = "dark" | "light" | "system";
 
@@ -55,45 +60,50 @@ export function ThemeProvider({
     }
   }, [theme]);
   
-  // Apply dynamic brand theme color and favicon
+  // Apply dynamic brand theme color, daily atmosphere, favicon, and status bar color
   useEffect(() => {
     const root = window.document.documentElement;
     
-    // Dynamic Favicon Update
+    // Dynamic Favicon Update: prefer custom logo if provided, otherwise default to generated master favicon
     let favicon = document.querySelector("link[rel='icon']") as HTMLLinkElement;
     if (!favicon) {
       favicon = document.createElement("link");
       favicon.rel = "icon";
       document.head.appendChild(favicon);
     }
-    // Dynamic Favicon Update: prefer custom logo if provided, otherwise default to generated master favicon
     if (settings?.logo_url) {
       favicon.href = settings.logo_url;
     } else {
       favicon.href = "/favicon.ico";
     }
 
-    if (settings?.theme_color) {
-      root.style.setProperty("--primary", settings.theme_color);
-      
-      // Also update meta theme-color for status bar
-      let metaThemeColor = document.querySelector("meta[name='theme-color']");
-      if (!metaThemeColor) {
-        metaThemeColor = document.createElement("meta");
-        metaThemeColor.setAttribute("name", "theme-color");
-        document.head.appendChild(metaThemeColor);
-      }
-      metaThemeColor.setAttribute("content", settings.theme_color);
-    } else {
-      root.style.removeProperty("--primary");
-      
+    const syncColors = () => {
       const isDark = root.classList.contains("dark");
-      let metaThemeColor = document.querySelector("meta[name='theme-color']");
-      if (metaThemeColor) {
-        metaThemeColor.setAttribute("content", isDark ? "#000000" : "#ffffff");
+      const dailyEnabled = isDailyAtmosphereEnabled(settings);
+
+      if (dailyEnabled) {
+        // Procedural daily atmosphere theme (different every single day)
+        applyDailyAtmosphere(true, isDark);
+      } else if (settings?.theme_color) {
+        // Static brand theme color configured by store admin
+        applyDailyAtmosphere(false, isDark);
+        root.style.setProperty("--primary", settings.theme_color);
+        root.style.setProperty("--ring", settings.theme_color);
+        updateStatusBarColor(isDark ? "#0b1120" : settings.theme_color);
+      } else {
+        // Classic Ocean theme
+        applyDailyAtmosphere(false, isDark);
       }
-    }
-  }, [settings?.theme_color, settings?.logo_url, theme]);
+    };
+
+    syncColors();
+
+    const onAtmosphereChanged = () => syncColors();
+    window.addEventListener("daily-atmosphere-changed", onAtmosphereChanged);
+    return () => {
+      window.removeEventListener("daily-atmosphere-changed", onAtmosphereChanged);
+    };
+  }, [settings?.theme_color, settings?.logo_url, (settings as any)?.daily_atmosphere_enabled, theme]);
 
   const value = {
     theme,

@@ -15,6 +15,7 @@ import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { ReferralModal } from "@/components/ReferralModal";
 import { getVerticalConfig } from "@/lib/verticals";
+import { getDailyAtmosphere, isDailyAtmosphereEnabled } from "@/lib/dailyAtmosphere";
 
 export function SiteHeader() {
   const { count } = useCart();
@@ -22,16 +23,36 @@ export function SiteHeader() {
   const { data: myRoles } = useQuery(myRolesQuery);
   const { lang, setLang } = useTranslation();
   const [isStandalone, setIsStandalone] = useState(false);
+  const [atmosphereActive, setAtmosphereActive] = useState(() => isDailyAtmosphereEnabled(settings));
+  const todayMood = getDailyAtmosphere();
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    if (typeof window === "undefined") return;
+
+    const checkInstalled = () => {
       const standalone =
         window.matchMedia("(display-mode: standalone)").matches ||
         (window.navigator as any).standalone === true ||
-        document.referrer.includes("android-app://");
+        document.referrer.includes("android-app://") ||
+        (typeof localStorage !== "undefined" && localStorage.getItem("fnf_pwa_installed") === "true");
       setIsStandalone(standalone);
-    }
-  }, []);
+    };
+
+    checkInstalled();
+    window.addEventListener("appinstalled", checkInstalled);
+    window.addEventListener("pwa-app-installed", checkInstalled);
+
+    const onAtmosphereChanged = (e: any) => {
+      setAtmosphereActive(Boolean(e.detail?.enabled ?? isDailyAtmosphereEnabled(settings)));
+    };
+    window.addEventListener("daily-atmosphere-changed", onAtmosphereChanged);
+
+    return () => {
+      window.removeEventListener("appinstalled", checkInstalled);
+      window.removeEventListener("pwa-app-installed", checkInstalled);
+      window.removeEventListener("daily-atmosphere-changed", onAtmosphereChanged);
+    };
+  }, [settings]);
 
   const storeStatus = settings ? getStoreStatus(settings) : null;
   const waTarget = settings?.whatsapp_number || settings?.support_phone;
@@ -106,6 +127,17 @@ export function SiteHeader() {
                 title={storeStatus.statusTitle}
               />
             </>
+          )}
+
+          {/* Daily Coastal Atmosphere Mood Badge */}
+          {atmosphereActive && (
+            <div
+              className="hidden lg:flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/5 px-2.5 py-0.5 text-[11px] font-medium text-foreground transition-all hover:bg-primary/10 shadow-2xs cursor-default"
+              title={`Today's Coastal Ambience: ${todayMood.name} — ${todayMood.description}`}
+            >
+              <span className="text-xs">{todayMood.emoji}</span>
+              <span className="font-semibold text-primary">{todayMood.name}</span>
+            </div>
           )}
         </div>
 

@@ -46,6 +46,7 @@ import { getGoogleMapsDirUrl, type GeocodedAddress } from "@/lib/maps";
 import { VERTICAL_CONFIGS, getVerticalConfig, type BusinessVertical } from "@/lib/verticals";
 import { getCurrentTenant } from "@/lib/tenant";
 import { SeoSettingsManager } from "@/components/admin/SeoSettingsManager";
+import { getDailyAtmosphere, isDailyAtmosphereEnabled, setDailyAtmosphereEnabled } from "@/lib/dailyAtmosphere";
 
 export const Route = createFileRoute("/_authenticated/admin/settings")({
   component: AdminSettings,
@@ -292,7 +293,12 @@ function AdminSettings() {
   });
 
   useEffect(() => {
-    if (settings) setForm(settings);
+    if (settings) {
+      setForm({
+        ...settings,
+        daily_atmosphere_enabled: isDailyAtmosphereEnabled(settings),
+      });
+    }
   }, [settings]);
 
   useEffect(() => {
@@ -308,7 +314,11 @@ function AdminSettings() {
   const update = useMutation({
     mutationFn: async (patch: any) => {
       if (!settings?.id) return;
-      const { error } = await supabase.from("store_settings").update(patch).eq("id", settings.id);
+      const { daily_atmosphere_enabled, ...dbPatch } = patch;
+      if (daily_atmosphere_enabled !== undefined) {
+        setDailyAtmosphereEnabled(Boolean(daily_atmosphere_enabled));
+      }
+      const { error } = await supabase.from("store_settings").update(dbPatch).eq("id", settings.id);
       if (error) throw error;
 
       const creds = {
@@ -757,12 +767,84 @@ function AdminSettings() {
               />
             </div>
 
+            {/* Infinite Daily Coastal Atmosphere Engine */}
+            <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-3.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="size-4 text-primary" />
+                    <Label className="text-sm font-bold text-foreground">Infinite Daily Coastal Atmosphere</Label>
+                    <Badge variant="outline" className="text-[10px] py-0 border-primary/40 text-primary bg-primary/10">
+                      Dynamic Mood Engine
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    Procedurally shifts the coastal atmosphere, maritime palette, and status bar color every single day (14 rotating coastal moods with infinite micro-variations). Gives customers a fresh, premium experience each day while keeping all shopping & checkout flows 100% identical.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-semibold ${(form.daily_atmosphere_enabled ?? true) ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
+                    {(form.daily_atmosphere_enabled ?? true) ? "Active (Dynamic)" : "Disabled (Static)"}
+                  </span>
+                  <Switch
+                    checked={form.daily_atmosphere_enabled ?? true}
+                    onCheckedChange={(checked) => {
+                      setForm({ ...form, daily_atmosphere_enabled: checked });
+                      setDailyAtmosphereEnabled(checked);
+                      toast.success(checked ? "Infinite Daily Atmosphere enabled!" : "Daily Atmosphere disabled. Using static theme color.");
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Today's Active Mood Showcase Card */}
+              {(() => {
+                const todayMood = getDailyAtmosphere();
+                const isEnabled = form.daily_atmosphere_enabled ?? true;
+                return (
+                  <div className={`rounded-xl border p-3 text-xs transition-all ${isEnabled ? "border-primary/30 bg-card shadow-2xs" : "border-border/60 bg-muted/40 opacity-70"}`}>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">{todayMood.emoji}</span>
+                        <div>
+                          <span className="font-bold text-foreground text-sm flex items-center gap-1.5">
+                            Today: {todayMood.name}
+                            <span className="text-[10px] font-mono font-normal text-muted-foreground">
+                              ({todayMood.dateStr} · Day #{todayMood.dayOfYear})
+                            </span>
+                          </span>
+                          <span className="text-[11px] text-primary font-medium block">
+                            {todayMood.subtitle}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className="size-3.5 rounded-full border border-black/10 shadow-2xs"
+                          style={{ backgroundColor: todayMood.primaryHex }}
+                          title={`Light mode primary: ${todayMood.primaryHex}`}
+                        />
+                        <span
+                          className="size-3.5 rounded-full border border-white/20 shadow-2xs"
+                          style={{ backgroundColor: todayMood.primaryDarkHex }}
+                          title={`Dark mode primary: ${todayMood.primaryDarkHex}`}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      {todayMood.description}
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
+
             {/* App Theme Color with Revert to Default and Preset Swatches */}
             <div className="space-y-3 rounded-xl border border-border/70 bg-muted/20 p-3.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <Label className="text-sm font-semibold">App Brand & Theme Color</Label>
-                  <p className="text-[11px] text-muted-foreground">Sets the primary accent color across buttons, badges, and headers.</p>
+                  <Label className="text-sm font-semibold">App Brand & Theme Color (Fallback / Static Mode)</Label>
+                  <p className="text-[11px] text-muted-foreground">Sets the primary accent color when Daily Atmosphere is disabled.</p>
                 </div>
                 <Button
                   type="button"

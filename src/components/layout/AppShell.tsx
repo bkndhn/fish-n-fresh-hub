@@ -33,7 +33,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     : null;
 
   return (
-    <div className="min-h-screen bg-background w-full max-w-full overflow-x-hidden flex flex-col">
+    <div 
+      className="min-h-screen bg-background w-full max-w-full overflow-x-hidden flex flex-col"
+      style={{ backgroundImage: "var(--daily-glow)" }}
+    >
       <PwaPrompt />
       <CatchAlertBanner />
       <SiteHeader />

@@ -28,11 +28,15 @@ export function promptPwaInstall() {
       prompt.userChoice.then((choice: any) => {
         if (choice.outcome === "accepted") {
           (window as any).__pwaInstallPrompt = null;
+          try {
+            localStorage.setItem("fnf_pwa_installed", "true");
+          } catch (_) {}
+          window.dispatchEvent(new CustomEvent("pwa-app-installed"));
         }
       });
       return;
     }
-    // No native prompt available — let PwaPrompt component decide (iOS guide / desktop guide)
+    // Open dedicated install presentation sheet
     window.dispatchEvent(new CustomEvent("open-pwa-install"));
   }
 }
@@ -55,7 +59,8 @@ export function PwaPrompt() {
     const standaloneCheck =
       window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as any).standalone === true ||
-      document.referrer.includes("android-app://");
+      document.referrer.includes("android-app://") ||
+      (typeof localStorage !== "undefined" && localStorage.getItem("fnf_pwa_installed") === "true");
     setIsStandalone(standaloneCheck);
     if (standaloneCheck) return;
 
@@ -88,7 +93,22 @@ export function PwaPrompt() {
     };
     window.addEventListener("beforeinstallprompt", installHandler);
 
-    // 7. Sync state when global store is updated
+    // 7. Native app installation complete event
+    const onAppInstalled = () => {
+      setIsStandalone(true);
+      setShowBanner(false);
+      setShowIosGuide(false);
+      setShowDesktopGuide(false);
+      (window as any).__pwaInstallPrompt = null;
+      setDeferredPrompt(null);
+      try {
+        localStorage.setItem("fnf_pwa_installed", "true");
+      } catch (_) {}
+    };
+    window.addEventListener("appinstalled", onAppInstalled);
+    window.addEventListener("pwa-app-installed", onAppInstalled);
+
+    // 8. Sync state when global store is updated
     const onPromptReady = () => {
       if ((window as any).__pwaInstallPrompt) {
         setDeferredPrompt((window as any).__pwaInstallPrompt);
@@ -96,17 +116,14 @@ export function PwaPrompt() {
     };
     window.addEventListener("pwa-prompt-ready", onPromptReady);
 
-    // 8. Global trigger from promptPwaInstall() helper.
-    //    KEY FIX: read window.__pwaInstallPrompt at call time, NOT the stale closure variable.
+    // 9. Global trigger from promptPwaInstall() helper.
     const manualOpenHandler = () => {
       const activePrompt = (window as any).__pwaInstallPrompt;
       if (activePrompt) {
         activePrompt.prompt();
         activePrompt.userChoice.then((choice: any) => {
           if (choice.outcome === "accepted") {
-            setShowBanner(false);
-            (window as any).__pwaInstallPrompt = null;
-            setDeferredPrompt(null);
+            onAppInstalled();
           }
         });
       } else if (isIosDevice) {
@@ -119,6 +136,8 @@ export function PwaPrompt() {
 
     return () => {
       window.removeEventListener("beforeinstallprompt", installHandler);
+      window.removeEventListener("appinstalled", onAppInstalled);
+      window.removeEventListener("pwa-app-installed", onAppInstalled);
       window.removeEventListener("pwa-prompt-ready", onPromptReady);
       window.removeEventListener("open-pwa-install", manualOpenHandler);
     };
@@ -139,8 +158,13 @@ export function PwaPrompt() {
     const { outcome } = await activePrompt.userChoice;
     if (outcome === "accepted") {
       setShowBanner(false);
+      setShowDesktopGuide(false);
       (window as any).__pwaInstallPrompt = null;
       setDeferredPrompt(null);
+      setIsStandalone(true);
+      try {
+        localStorage.setItem("fnf_pwa_installed", "true");
+      } catch (_) {}
     }
   };
 
@@ -264,37 +288,64 @@ export function PwaPrompt() {
         </DialogContent>
       </Dialog>
 
-      {/* Desktop instructions — fallback when beforeinstallprompt never fired */}
+      {/* Native App Install Presentation Modal */}
       <Dialog open={showDesktopGuide} onOpenChange={setShowDesktopGuide}>
-        <DialogContent className="rounded-3xl max-w-sm p-5 sm:p-6">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base font-bold">
-              <Monitor className="size-5 text-primary" />
-              Install on Desktop / Chrome
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Install Fish N Fresh for direct desktop access and offline support:
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3 my-2 text-xs text-muted-foreground">
-            <p className="leading-relaxed">
-              1. Look at your browser address bar at the top right.
-            </p>
-            <p className="leading-relaxed">
-              2. Click the <strong>Install</strong> icon (computer with down arrow) next to the bookmark star.
-            </p>
-            <p className="leading-relaxed">
-              3. Or click the <strong>three dots (⋮)</strong> menu in Chrome/Edge &rarr; <strong>Save and share</strong> &rarr; <strong>Install Fish N Fresh Hub</strong>.
-            </p>
+        <DialogContent className="rounded-3xl max-w-sm p-5 sm:p-6 border-border/80 shadow-2xl">
+          <div className="flex flex-col items-center text-center space-y-3">
+            <img
+              src="/logo.png"
+              alt="Fish N Fresh Hub"
+              className="size-16 rounded-2xl object-contain shadow-md border border-border/60 p-1 bg-background"
+            />
+            <div>
+              <DialogTitle className="text-lg font-bold text-foreground">
+                Install Fish N Fresh Hub
+              </DialogTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Official PWA · Fast, lightweight &amp; secure
+              </p>
+            </div>
           </div>
 
-          <Button
-            className="w-full rounded-xl mt-2 font-bold"
-            onClick={() => setShowDesktopGuide(false)}
-          >
-            Understood
-          </Button>
+          <div className="space-y-2.5 my-3 text-xs bg-muted/40 p-3.5 rounded-2xl border border-border/60">
+            <div className="flex items-center gap-2 text-foreground font-medium">
+              <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+              <span>Express 35-min fresh catch checkout</span>
+            </div>
+            <div className="flex items-center gap-2 text-foreground font-medium">
+              <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+              <span>Real-time morning boat arrival alerts</span>
+            </div>
+            <div className="flex items-center gap-2 text-foreground font-medium">
+              <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+              <span>Works seamlessly even with spotty internet</span>
+            </div>
+          </div>
+
+          {getActivePrompt() ? (
+            <Button
+              className="w-full rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm h-10"
+              onClick={handleNativeInstall}
+            >
+              <Download className="mr-1.5 size-4" />
+              Install App Now
+            </Button>
+          ) : (
+            <div className="space-y-2.5">
+              <Button
+                className="w-full rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm h-10"
+                onClick={handleNativeInstall}
+              >
+                <Download className="mr-1.5 size-4" />
+                Install App
+              </Button>
+              <div className="p-2.5 rounded-xl bg-muted/30 border text-[11px] text-muted-foreground space-y-1">
+                <p className="font-semibold text-foreground">If install dialog doesn't appear automatically:</p>
+                <p>• <strong>Mobile Chrome:</strong> Tap top menu <strong className="text-foreground">(⋮)</strong> &rarr; tap <strong className="text-foreground">Install app</strong></p>
+                <p>• <strong>Desktop Chrome/Edge:</strong> Click the <strong className="text-foreground">Install icon</strong> at the right side of the address bar</p>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>
