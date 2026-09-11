@@ -66,6 +66,7 @@ function Catalog() {
   const [inStockOnly, setInStockOnly] = useState(false);
   const [discountOnly, setDiscountOnly] = useState(false);
   const [unitFilter, setUnitFilter] = useState<string>("all");
+  const [brandFilter, setBrandFilter] = useState<string>("all");
   const [filterModalOpen, setFilterModalOpen] = useState(false);
 
   const PAGE_SIZE = 12;
@@ -76,13 +77,19 @@ function Catalog() {
   const { data: products } = useQuery(productsQuery(activeBranch?.id));
   const { data: categories } = useQuery(categoriesQuery);
 
+  const allBrands = useMemo(() => {
+    const brands = (products ?? []).map((p: any) => p.brand).filter(Boolean) as string[];
+    return Array.from(new Set(brands)).sort();
+  }, [products]);
+
   // Reset pagination when search or filters change
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [category, q, sort, priceRange, inStockOnly, discountOnly, unitFilter]);
+  }, [category, q, sort, priceRange, inStockOnly, discountOnly, unitFilter, brandFilter]);
 
   const activeFilterCount =
     (category ? 1 : 0) +
+    (brandFilter !== "all" ? 1 : 0) +
     (priceRange !== "all" ? 1 : 0) +
     (inStockOnly ? 1 : 0) +
     (discountOnly ? 1 : 0) +
@@ -95,6 +102,7 @@ function Catalog() {
     setInStockOnly(false);
     setDiscountOnly(false);
     setUnitFilter("all");
+    setBrandFilter("all");
     setSort("featured");
     setQ("");
   };
@@ -102,6 +110,7 @@ function Catalog() {
   const filtered = (products ?? [])
     .filter((p) => p.is_available !== false)
     .filter((p) => (category ? p.category === category : true))
+    .filter((p: any) => (brandFilter !== "all" ? p.brand === brandFilter : true))
     .filter((p) =>
       q
         ? `${p.name} ${p.name_tamil ?? ""} ${p.description ?? ""}`.toLowerCase().includes(q.toLowerCase())
@@ -259,6 +268,45 @@ function Catalog() {
           </Button>
         ))}
       </div>
+
+      {/* Brand Filter Pills (When Brands Exist) */}
+      {allBrands.length > 0 && (
+        <div 
+          className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar scrollbar-none scroll-smooth -mx-1 px-1"
+          onWheel={(e) => {
+            if (e.deltaY !== 0 && Math.abs(e.deltaX) < 10) {
+              e.currentTarget.scrollLeft += e.deltaY;
+            }
+          }}
+        >
+          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider shrink-0 mr-1">Brand:</span>
+          <button
+            type="button"
+            onClick={() => setBrandFilter("all")}
+            className={`px-2.5 py-0.5 rounded-full text-xs font-semibold shrink-0 transition-all ${
+              brandFilter === "all"
+                ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                : "bg-muted/60 text-muted-foreground hover:text-foreground border border-border/60"
+            }`}
+          >
+            All Brands
+          </button>
+          {allBrands.map((b) => (
+            <button
+              key={b}
+              type="button"
+              onClick={() => setBrandFilter(b === brandFilter ? "all" : b)}
+              className={`px-2.5 py-0.5 rounded-full text-xs font-semibold shrink-0 transition-all ${
+                brandFilter === b
+                  ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                  : "bg-muted/60 text-muted-foreground hover:text-foreground border border-border/60"
+              }`}
+            >
+              {b}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Quick Filter Bar + Advance Filter Modal Trigger */}
       <div className="mt-2.5 flex items-center justify-between gap-2">

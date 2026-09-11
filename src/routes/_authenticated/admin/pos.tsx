@@ -108,6 +108,11 @@ export interface PosCartItem {
   totalPrice: number;
   image?: string | null;
   gstPercent: number;
+  serialNumbers?: string[];
+  variant?: { id?: string; size?: string; color?: string; sku?: string };
+  brand?: string;
+  warrantyMonths?: number;
+  aisleLocation?: string;
 }
 
 interface ParkedCart {
@@ -215,6 +220,8 @@ export function RetailPosCounterPage() {
   const [activeItemModal, setActiveItemModal] = useState<Product | null>(null);
   const [modalWeightInput, setModalWeightInput] = useState<string>("1.0");
   const [modalCutting, setModalCutting] = useState<string>("Curry Cut");
+  const [modalSerialInput, setModalSerialInput] = useState<string>("");
+  const [modalSelectedVariant, setModalSelectedVariant] = useState<any | null>(null);
 
   // Custom Quick Chips state
   const [activeChips, setActiveChips] = useState<QuickChipItem[]>(DEFAULT_QUICK_CHIPS);
@@ -754,10 +761,16 @@ export function RetailPosCounterPage() {
   // Open item customization modal (with stock guard & live scale reading auto-detect)
   const handleOpenItem = (prod: Product) => {
     if ((prod.stock ?? 0) <= 0 || prod.is_available === false) {
-      toast.error(`${prod.name} is currently SOLD OUT! Inward fresh catch from harbour first.`);
+      toast.error(`${prod.name} is currently SOLD OUT! Please inward stock first.`);
       return;
     }
     setActiveItemModal(prod);
+    setModalSerialInput("");
+    if (prod.variants && prod.variants.length > 0) {
+      setModalSelectedVariant(prod.variants[0]);
+    } else {
+      setModalSelectedVariant(null);
+    }
     // If electronic weighing scale has live weight on plate, auto-populate hands-free!
     if (scaleStatus === "streaming" && scaleReading.weightKg >= (scaleConfig.minCaptureWeightKg || 0.02)) {
       setModalWeightInput(scaleReading.weightKg.toFixed(3));
@@ -775,24 +788,40 @@ export function RetailPosCounterPage() {
   const handleAddToCart = () => {
     if (!activeItemModal) return;
     const isWeightBased = (activeItemModal.unit || "kg").toLowerCase() === "kg";
-    const pricePerKg = Number(activeItemModal.price);
+    const selectedVar = modalSelectedVariant;
+    const basePrice = selectedVar ? Number(selectedVar.price) : Number(activeItemModal.price);
+    const pricePerKg = basePrice;
     const weight = isWeightBased ? modalWeight : 1;
     const qty = isWeightBased ? 1 : Math.round(modalWeight);
 
-    const availableStock = activeItemModal.stock ?? 0;
+    const availableStock = selectedVar ? Number(selectedVar.stock ?? 0) : (activeItemModal.stock ?? 0);
     const requestedAmt = isWeightBased ? modalWeight : qty;
 
     if (availableStock <= 0 || activeItemModal.is_available === false) {
-      toast.error(`${activeItemModal.name} is out of stock! Cannot add to bill.`);
+      toast.error(`${activeItemModal.name}${selectedVar ? ` (${selectedVar.size || ""} ${selectedVar.color || ""})` : ""} is out of stock! Cannot add to bill.`);
       return;
     }
 
     if (requestedAmt > availableStock) {
       toast.error(
-        `Requested ${requestedAmt} ${activeItemModal.unit || "kg"} exceeds available stock of ${availableStock} ${activeItemModal.unit || "kg"}!`
+        `Requested ${requestedAmt} exceeds available stock of ${availableStock}!`
       );
       setModalWeightInput(availableStock.toString());
       return;
+    }
+
+    // Mandatory IMEI / Serial tracking validation
+    let serialList: string[] = [];
+    if (activeItemModal.requires_serial) {
+      const serials = modalSerialInput
+        .split(/[\n,]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (serials.length < qty) {
+        toast.error(`Please enter or scan at least ${qty} Serial/IMEI number(s). Currently captured: ${serials.length}`);
+        return;
+      }
+      serialList = serials.slice(0, qty);
     }
 
     const totalPrice = Math.round(pricePerKg * (isWeightBased ? modalWeight : qty));
@@ -809,6 +838,18 @@ export function RetailPosCounterPage() {
       totalPrice,
       image: activeItemModal.image_url,
       gstPercent: (activeItemModal as any).gst_percent || 0,
+      serialNumbers: serialList.length > 0 ? serialList : undefined,
+      variant: selectedVar
+        ? {
+            id: selectedVar.id,
+            size: selectedVar.size,
+            color: selectedVar.color,
+            sku: selectedVar.sku,
+          }
+        : undefined,
+      brand: activeItemModal.brand || undefined,
+      warrantyMonths: activeItemModal.warranty_period_months || undefined,
+      aisleLocation: activeItemModal.aisle_location || undefined,
     };
 
     setCart((prev) => [...prev, newItem]);
@@ -1021,6 +1062,13 @@ export function RetailPosCounterPage() {
       unitPrice: it.pricePerKg,
       totalPrice: it.totalPrice,
       cuttingStyle: it.cuttingStyle,
+      brand: it.brand,
+      serialNumbers: it.serialNumbers,
+      variant: it.variant
+        ? `${it.variant.size ? `Size: ${it.variant.size} ` : ""}${it.variant.color ? `Color: ${it.variant.color}` : ""}`.trim()
+        : undefined,
+      warrantyMonths: it.warrantyMonths,
+      aisleLocation: it.aisleLocation,
     }));
 
     const receiptData: PosReceiptData = {
@@ -1043,7 +1091,7 @@ export function RetailPosCounterPage() {
         upi: splitUpiNum,
         card: splitCardNum,
       } : undefined,
-      storeName: settings?.store_name || "Fish N Fresh Hub",
+      storeName: settings?.store_name || "Universal Retail Hub",
       storeAddress: settings?.store_address || undefined,
       storePhone: (settings as any)?.contact_phone || undefined,
       storeGstin: (settings as any)?.gst_number || undefined,
@@ -1077,6 +1125,11 @@ export function RetailPosCounterPage() {
           unit: it.unit,
           cutting_style: it.cuttingStyle,
           line_total: it.totalPrice,
+          brand: it.brand || null,
+          serial_numbers: it.serialNumbers || [],
+          variant: it.variant || null,
+          warranty_months: it.warrantyMonths || 0,
+          aisle_location: it.aisleLocation || null,
         })) as any,
         pos_cashier_id: cashierId,
         pos_cashier_name: cashierName,
@@ -1821,13 +1874,33 @@ export function RetailPosCounterPage() {
                   {cart.map((item) => (
                     <div key={item.id} className="py-2 first:pt-0 last:pb-0 flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="font-bold text-xs text-foreground truncate">{item.name}</p>
-                        <p className="text-[11px] text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          {item.brand && (
+                            <span className="text-[10px] font-extrabold uppercase px-1 rounded bg-primary/10 text-primary">
+                              {item.brand}
+                            </span>
+                          )}
+                          <p className="font-bold text-xs text-foreground truncate">{item.name}</p>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-1 mt-0.5">
+                          {item.variant && (
+                            <span className="text-[10px] font-medium bg-muted px-1.5 py-0.2 rounded font-mono">
+                              {item.variant.size ? `Size: ${item.variant.size} ` : ""}{item.variant.color ? `· ${item.variant.color}` : ""}
+                            </span>
+                          )}
                           {item.cuttingStyle && (
                             <span className="text-primary font-medium">[{item.cuttingStyle}] · </span>
                           )}
-                          ₹{item.pricePerKg}/{item.unit}
+                          <span>₹{item.pricePerKg}/{item.unit}</span>
+                          {item.aisleLocation && (
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400">· 📍 {item.aisleLocation}</span>
+                          )}
                         </p>
+                        {item.serialNumbers && item.serialNumbers.length > 0 && (
+                          <p className="text-[10px] font-mono text-blue-600 dark:text-blue-400 mt-0.5">
+                            SN: {item.serialNumbers.join(", ")}
+                          </p>
+                        )}
                         {/* Inline Item Stepper */}
                         <div className="flex items-center gap-1.5 mt-1">
                           <button
@@ -2246,12 +2319,32 @@ export function RetailPosCounterPage() {
                   <Scale className="size-5" />
                 </div>
                 <div>
-                  <DialogTitle className="font-display text-base font-bold text-foreground">
-                    {activeItemModal.name}
-                  </DialogTitle>
-                  <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                    Rate: {formatINR(Number(activeItemModal.price))}/{activeItemModal.unit || "kg"} · Live Stock: {formatStockDisplay(activeItemModal.stock, activeItemModal.unit)}
-                  </DialogDescription>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {activeItemModal.brand && (
+                      <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                        {activeItemModal.brand}
+                      </span>
+                    )}
+                    <DialogTitle className="font-display text-base font-bold text-foreground">
+                      {activeItemModal.name}
+                    </DialogTitle>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                    <span>
+                      Rate: {formatINR(modalSelectedVariant ? Number(modalSelectedVariant.price) : Number(activeItemModal.price))}/{activeItemModal.unit || "kg"}
+                    </span>
+                    <span>· Live Stock: {formatStockDisplay(modalSelectedVariant ? modalSelectedVariant.stock : activeItemModal.stock, activeItemModal.unit)}</span>
+                    {activeItemModal.warranty_period_months && activeItemModal.warranty_period_months > 0 ? (
+                      <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold px-1 rounded">
+                        🛡️ {activeItemModal.warranty_period_months}M Warranty
+                      </span>
+                    ) : null}
+                    {activeItemModal.aisle_location && (
+                      <span className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold px-1 rounded">
+                        📍 {activeItemModal.aisle_location}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -2536,28 +2629,89 @@ export function RetailPosCounterPage() {
                 </div>
               </div>
 
-              {/* Cutting & Cleaning Style Selection */}
-              <div className="space-y-2 pt-1 border-t border-border/50">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Scissors className="size-3.5 text-primary" /> Cleaning &amp; Cutting Style
-                </label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {CUTTING_STYLES.map((style) => (
-                    <button
-                      key={style}
-                      type="button"
-                      onClick={() => setModalCutting(style)}
-                      className={`text-left p-2.5 rounded-xl text-xs font-medium transition-all ${
-                        modalCutting === style
-                          ? "bg-primary/10 border-primary text-primary font-bold border ring-1 ring-primary/20"
-                          : "bg-card border border-border/70 hover:border-primary/40 text-muted-foreground"
-                      }`}
-                    >
-                      {style}
-                    </button>
-                  ))}
+              {/* 2D Size & Color Variant Matrix Selection */}
+              {activeItemModal.variants && activeItemModal.variants.length > 0 && (
+                <div className="space-y-2 pt-1 border-t border-border/50">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Layers className="size-3.5 text-primary" /> Size & Color Variant
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {activeItemModal.variants.map((v: any) => {
+                      const isSel = (modalSelectedVariant?.id || activeItemModal.variants?.[0]?.id) === v.id;
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          onClick={() => setModalSelectedVariant(v)}
+                          className={`text-left p-2.5 rounded-xl text-xs transition-all ${
+                            isSel
+                              ? "bg-primary/10 border-primary text-primary font-bold border ring-1 ring-primary/20"
+                              : "bg-card border border-border/70 hover:border-primary/40 text-muted-foreground"
+                          }`}
+                        >
+                          <div className="font-bold text-foreground">
+                            {v.size ? `Size: ${v.size} ` : ""}{v.color ? `· ${v.color}` : ""}
+                          </div>
+                          <div className="flex justify-between items-center text-[10px] text-muted-foreground mt-0.5 font-mono">
+                            <span className="text-primary font-semibold">{formatINR(Number(v.price))}</span>
+                            <span>Stock: {v.stock}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Mandatory Serial / IMEI Number Entry */}
+              {activeItemModal.requires_serial && (
+                <div className="space-y-2 rounded-2xl border border-blue-500/30 bg-blue-500/5 p-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                      <ScanLine className="size-3.5 text-blue-500" />
+                      Capture Serial / IMEI Number(s)
+                    </label>
+                    <span className="text-[10px] font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-500/15 px-1.5 py-0.5 rounded">
+                      {((activeItemModal.unit || "kg").toLowerCase() === "kg" ? 1 : Math.round(modalWeight))} required
+                    </span>
+                  </div>
+                  <Input
+                    value={modalSerialInput}
+                    onChange={(e) => setModalSerialInput(e.target.value)}
+                    placeholder="Scan barcode gun or type IMEI / Serial (comma separated)"
+                    className="h-8 text-xs font-mono bg-background rounded-xl"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Hardware barcode gun supported. Serial is printed on the GST tax invoice.
+                  </p>
+                </div>
+              )}
+
+              {/* Cutting & Cleaning Style Selection (For Meat & Seafood) */}
+              {((activeItemModal.unit || "kg").toLowerCase() === "kg" || 
+                (activeItemModal.category && /fish|meat|chicken|seafood/i.test(activeItemModal.category))) && (
+                <div className="space-y-2 pt-1 border-t border-border/50">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Scissors className="size-3.5 text-primary" /> Cleaning &amp; Cutting Style
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {CUTTING_STYLES.map((style) => (
+                      <button
+                        key={style}
+                        type="button"
+                        onClick={() => setModalCutting(style)}
+                        className={`text-left p-2.5 rounded-xl text-xs font-medium transition-all ${
+                          modalCutting === style
+                            ? "bg-primary/10 border-primary text-primary font-bold border ring-1 ring-primary/20"
+                            : "bg-card border border-border/70 hover:border-primary/40 text-muted-foreground"
+                        }`}
+                      >
+                        {style}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Add to Bill Button */}
               <Button
@@ -2565,7 +2719,9 @@ export function RetailPosCounterPage() {
                 onClick={handleAddToCart}
                 className="w-full rounded-2xl h-11 text-sm font-bold shadow-md gap-2"
               >
-                <span>Add {modalWeightInput || "0"} kg to Bill · {formatINR(Math.round(Number(activeItemModal.price) * modalWeight))}</span>
+                <span>
+                  Add {((activeItemModal.unit || "kg").toLowerCase() === "kg" ? `${modalWeightInput || "0"} kg` : `${Math.round(modalWeight)} pcs`)} to Bill · {formatINR(Math.round((modalSelectedVariant ? Number(modalSelectedVariant.price) : Number(activeItemModal.price)) * modalWeight))}
+                </span>
                 <ArrowRight className="size-4" />
               </Button>
             </div>

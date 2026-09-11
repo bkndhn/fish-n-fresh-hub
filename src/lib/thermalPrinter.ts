@@ -479,6 +479,11 @@ export interface PosReceiptItem {
   totalPrice: number;
   cuttingStyle?: string | undefined;
   unit?: string | undefined;
+  serialNumbers?: string[] | undefined;
+  variant?: string | undefined;
+  brand?: string | undefined;
+  warrantyMonths?: number | undefined;
+  aisleLocation?: string | undefined;
 }
 
 export interface PosReceiptData {
@@ -570,11 +575,24 @@ export function buildPosReceiptEscPos(
 
   // Items
   for (const it of data.items) {
-    b.bold(true).textLine(it.name).bold(false);
+    const brandPrefix = it.brand ? `[${it.brand}] ` : "";
+    b.bold(true).textLine(`${brandPrefix}${it.name}`).bold(false);
     const qtyStr = it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} unit`;
     const rateStr = `@ ₹${it.unitPrice.toFixed(0)}`;
     const lineDesc = it.cuttingStyle ? `${qtyStr} ${rateStr} [${it.cuttingStyle}]` : `${qtyStr} ${rateStr}`;
     b.row(lineDesc, `₹${it.totalPrice.toFixed(0)}`);
+    if (it.variant) {
+      b.textLine(`  Variant: ${it.variant}`);
+    }
+    if (it.serialNumbers && it.serialNumbers.length > 0) {
+      b.textLine(`  IMEI/SN: ${it.serialNumbers.join(", ")}`);
+    }
+    if (it.warrantyMonths && it.warrantyMonths > 0) {
+      b.textLine(`  Warranty: ${it.warrantyMonths} Months Brand Cover`);
+    }
+    if (it.aisleLocation) {
+      b.textLine(`  Location: ${it.aisleLocation}`);
+    }
   }
 
   b.horizontalRule("-")
@@ -673,21 +691,25 @@ export function buildPosReceiptHtml(
       .map(
         (it) => `
       <div class="row">
-        <span>${it.name}${it.cuttingStyle ? ` [${it.cuttingStyle}]` : ""}</span>
-        <span class="bold">₹${it.totalPrice.toFixed(0)}</span>
+        <span>${it.brand ? `[${it.brand}] ` : ""}${it.name}${it.cuttingStyle ? ` [${it.cuttingStyle}]` : ""}</span>
+        <span class="bold">₹${(it.totalPrice ?? (it as any).total ?? (it.unitPrice * (it.qty || 1))).toFixed(0)}</span>
       </div>
       <div class="row muted font-mono" style="padding-left: 6px; font-size: 0.9em;">
-        <span>${it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} pcs`} × ₹${it.unitPrice.toFixed(0)}</span>
+        <span>${it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} pcs`} × ₹${(it.unitPrice || 0).toFixed(0)}</span>
       </div>
+      ${it.variant ? `<div class="row muted font-mono" style="padding-left: 6px; font-size: 0.8em;"><span>Variant: ${it.variant}</span></div>` : ""}
+      ${it.serialNumbers && it.serialNumbers.length > 0 ? `<div class="row muted font-mono" style="padding-left: 6px; font-size: 0.8em;"><span>IMEI/SN: ${it.serialNumbers.join(", ")}</span></div>` : ""}
+      ${it.warrantyMonths && it.warrantyMonths > 0 ? `<div class="row muted font-mono" style="padding-left: 6px; font-size: 0.8em;"><span>Warranty: ${it.warrantyMonths}M Official</span></div>` : ""}
+      ${it.aisleLocation ? `<div class="row muted font-mono" style="padding-left: 6px; font-size: 0.8em;"><span>Loc: ${it.aisleLocation}</span></div>` : ""}
     `
       )
       .join("")}
     <div class="hr"></div>
-    <div class="row"><span>Subtotal:</span><span>₹${data.subtotal.toFixed(0)}</span></div>
-    ${data.discount > 0 ? `<div class="row"><span>Discount:</span><span>-₹${data.discount.toFixed(0)}</span></div>` : ""}
-    ${data.gstAmount > 0 ? `<div class="row"><span>GST:</span><span>₹${data.gstAmount.toFixed(0)}</span></div>` : ""}
+    <div class="row"><span>Subtotal:</span><span>₹${(data.subtotal || 0).toFixed(0)}</span></div>
+    ${(data.discount || 0) > 0 ? `<div class="row"><span>Discount:</span><span>-₹${data.discount.toFixed(0)}</span></div>` : ""}
+    ${(data.gstAmount || 0) > 0 ? `<div class="row"><span>GST:</span><span>₹${data.gstAmount.toFixed(0)}</span></div>` : ""}
     <div class="hr"></div>
-    <div class="row bold total"><span>TOTAL PAYABLE:</span><span>₹${data.total.toFixed(0)}</span></div>
+    <div class="row bold total"><span>TOTAL PAYABLE:</span><span>₹${(data.total ?? (data as any).finalTotal ?? 0).toFixed(0)}</span></div>
     <div class="hr"></div>
     ${
       data.splitPayments
@@ -698,14 +720,14 @@ export function buildPosReceiptHtml(
       ${data.splitPayments.card ? `<div class="row muted" style="padding-left: 8px;"><span>Card:</span><span>₹${data.splitPayments.card}</span></div>` : ""}
     `
         : `
-      <div class="row"><span>Payment Mode:</span><span class="bold">${data.paymentMethod.toUpperCase()}</span></div>
+      <div class="row"><span>Payment Mode:</span><span class="bold">${(data.paymentMethod || "CASH").toUpperCase()}</span></div>
     `
     }
     ${data.amountTendered ? `<div class="row"><span>Cash Tendered:</span><span>₹${data.amountTendered.toFixed(0)}</span></div>` : ""}
     ${typeof data.changeDue === "number" ? `<div class="row"><span>Change Returned:</span><span>₹${data.changeDue.toFixed(0)}</span></div>` : ""}
     ${data.upiRef ? `<div class="row muted font-mono"><span>UPI Ref:</span><span>${data.upiRef}</span></div>` : ""}
     <div class="hr"></div>
-    <div class="center bold footer">${config.footerLine1 || config.footerText || "Fresh Catch Guaranteed · No Returns After Cutting"}</div>
+    <div class="center bold footer">${config.footerLine1 || config.footerText || "100% Genuine Guaranteed"}</div>
     ${config.footerLine2 ? `<div class="center muted">${config.footerLine2}</div>` : ""}
   `;
 }
@@ -714,10 +736,10 @@ export function buildPosReceiptHtml(
  * Generate formatted WhatsApp receipt text for quick sharing.
  */
 export function generatePosWhatsAppText(data: PosReceiptData, orderId?: string): string {
-  const store = data.storeName || "Fish N Fresh Hub";
+  const store = data.storeName || "Universal Store Hub";
   const lines: string[] = [];
   lines.push(`🧾 *${store.toUpperCase()} - TAX INVOICE*`);
-  lines.push(`Bill No: *${data.receiptNo}*`);
+  lines.push(`Bill No: *${data.receiptNo || (data as any).receiptNumber || "INV"}*`);
   lines.push(`Date: ${data.date}`);
   lines.push(`Cashier: ${data.cashierName}`);
   if (data.customerName && data.customerName !== "Walk-in Customer") {
@@ -727,7 +749,13 @@ export function generatePosWhatsAppText(data: PosReceiptData, orderId?: string):
   for (const it of data.items) {
     const qtyStr = it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} unit`;
     const cutStr = it.cuttingStyle ? ` [${it.cuttingStyle}]` : "";
-    lines.push(`• *${it.name}*${cutStr}\n   ${qtyStr} × ₹${it.unitPrice.toFixed(0)} = ₹${it.totalPrice.toFixed(0)}`);
+    const brandStr = it.brand ? `[${it.brand}] ` : "";
+    const itemTotal = it.totalPrice ?? (it as any).total ?? (it.unitPrice * (it.qty || 1));
+    lines.push(`• *${brandStr}${it.name}*${cutStr}\n   ${qtyStr} × ₹${it.unitPrice.toFixed(0)} = ₹${itemTotal.toFixed(0)}`);
+    if (it.variant) lines.push(`   Variant: ${it.variant}`);
+    if (it.serialNumbers && it.serialNumbers.length > 0) lines.push(`   IMEI/SN: ${it.serialNumbers.join(", ")}`);
+    if (it.warrantyMonths && it.warrantyMonths > 0) lines.push(`   Warranty: ${it.warrantyMonths}M Brand Cover`);
+    if (it.aisleLocation) lines.push(`   Loc: ${it.aisleLocation}`);
   }
   lines.push("--------------------------------");
   lines.push(`Subtotal: ₹${data.subtotal.toFixed(0)}`);

@@ -99,19 +99,31 @@ function ProductPage() {
   const [subAddress, setSubAddress] = useState("");
   const [subCutting, setSubCutting] = useState("Curry Cut");
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [selectedVariant, setSelectedVariant] = useState<any | null>(null);
+  const [sizeChartOpen, setSizeChartOpen] = useState(false);
+
+  useEffect(() => {
+    if (product?.variants && product.variants.length > 0) {
+      setSelectedVariant(product.variants[0]);
+    } else {
+      setSelectedVariant(null);
+    }
+  }, [product?.id, product?.variants]);
 
   useEffect(() => {
     if (product) {
-      document.title = `${product.name} (Fresh ${product.unit}) | ${settings?.store_name || "Fish N Fresh"}`;
+      document.title = `${product.name} | ${settings?.store_name || "Universal Retail Hub"}`;
     }
   }, [product, settings?.store_name]);
 
   if (isLoading) return <AppShell><p className="py-20 text-center text-muted-foreground">Loading…</p></AppShell>;
   if (!product) return <AppShell><p className="py-20 text-center">Product not found.</p></AppShell>;
 
+  const effectivePrice = selectedVariant ? Number(selectedVariant.price) : Number(product.price);
+  const effectiveStock = selectedVariant ? Number(selectedVariant.stock ?? 0) : (product.stock !== null ? Number(product.stock) : 0);
   const related = (all ?? []).filter((p) => p.category === product.category && p.id !== product.id).slice(0, 3);
 
-  const isOutOfStock = (product.stock !== null && Number(product.stock) <= 0) || product.is_available === false;
+  const isOutOfStock = (product.stock !== null && effectiveStock <= 0) || product.is_available === false;
   const showStockToCustomer = (settings as any)?.show_stock_to_customers ?? true;
   const urgencyThreshold = Number((settings as any)?.stock_urgency_threshold ?? 5);
   const isLowStock =
@@ -149,34 +161,108 @@ function ProductPage() {
           )}
         </div>
         <div>
+          {/* Brand & Model Header */}
+          {(product.brand || product.model_number) && (
+            <div className="flex items-center gap-2 flex-wrap mb-1.5">
+              {product.brand && (
+                <span className="px-2.5 py-0.5 rounded-lg bg-primary/10 text-primary font-black text-xs uppercase tracking-wider border border-primary/20">
+                  {product.brand}
+                </span>
+              )}
+              {product.model_number && (
+                <span className="text-xs font-mono text-muted-foreground">
+                  Model: {product.model_number}
+                </span>
+              )}
+            </div>
+          )}
+
           <h1 className="text-2xl font-bold">{product.name}</h1>
           {product.name_tamil && <p className="text-muted-foreground">{product.name_tamil}</p>}
-          <div className="mt-2 flex items-center gap-2 text-sm">
-            <Star className="size-4 fill-current text-accent" />
-            {Number(product.rating).toFixed(1)}
+
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+            <div className="flex items-center gap-1">
+              <Star className="size-4 fill-current text-accent" />
+              {Number(product.rating).toFixed(1)}
+            </div>
+            {product.warranty_period_months && product.warranty_period_months > 0 && (
+              <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-xs font-bold gap-1">
+                <ShieldCheck className="size-3" /> {product.warranty_period_months}M Official Warranty
+              </Badge>
+            )}
+            {product.aisle_location && (
+              <Badge variant="outline" className="text-xs text-amber-700 dark:text-amber-300 border-amber-500/30 gap-1">
+                📍 {product.aisle_location}
+              </Badge>
+            )}
             {product.lab_tested && (
               <Badge variant="secondary" className="gap-1">
                 <ShieldCheck className="size-3" /> Lab tested
               </Badge>
             )}
           </div>
+
           <div className="mt-3 flex flex-wrap items-baseline gap-2.5">
-            <span className="font-display text-3xl font-bold">{inr(Number(product.price))}</span>
-            {product.old_price && Number(product.old_price) > Number(product.price) && (
+            <span className="font-display text-3xl font-bold">{inr(effectivePrice)}</span>
+            {product.old_price && Number(product.old_price) > effectivePrice && (
               <>
                 <span className="text-base text-muted-foreground line-through">
                   MRP: {inr(Number(product.old_price))}
                 </span>
                 <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs">
-                  {Math.round(((Number(product.old_price) - Number(product.price)) / Number(product.old_price)) * 100)}% OFF
+                  {Math.round(((Number(product.old_price) - effectivePrice) / Number(product.old_price)) * 100)}% OFF
                 </Badge>
                 <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                  (Save {inr(Number(product.old_price) - Number(product.price))})
+                  (Save {inr(Number(product.old_price) - effectivePrice)})
                 </span>
               </>
             )}
           </div>
           <p className="text-sm text-muted-foreground">per {product.unit}</p>
+
+          {/* 2D Size & Color Variant Matrix Selection */}
+          {product.variants && product.variants.length > 0 && (
+            <div className="mt-4 p-3.5 rounded-2xl border border-border bg-card space-y-2.5 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-foreground uppercase tracking-wider">
+                  Select Size & Color Variant:
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setSizeChartOpen(true)}
+                  className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+                >
+                  📏 Size Guide
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {product.variants.map((v: any) => {
+                  const isSelected = (selectedVariant?.id || product.variants?.[0]?.id) === v.id;
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => setSelectedVariant(v)}
+                      className={`p-2.5 rounded-xl text-left text-xs transition-all border ${
+                        isSelected
+                          ? "border-primary bg-primary/10 ring-2 ring-primary/30 font-bold"
+                          : "border-border hover:border-primary/40 bg-muted/30"
+                      }`}
+                    >
+                      <div className="text-foreground">
+                        {v.size ? `Size: ${v.size} ` : ""}{v.color ? `· ${v.color}` : ""}
+                      </div>
+                      <div className="flex justify-between items-center text-[10px] text-muted-foreground mt-0.5">
+                        <span className="font-bold text-primary font-mono">{inr(Number(v.price))}</span>
+                        <span>{v.stock > 0 ? `${v.stock} left` : "Sold out"}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Real-time Urgency / Out of Stock / Inactive Banner */}
           {product.is_available === false ? (
@@ -301,18 +387,25 @@ function ProductPage() {
                 className="flex-1 rounded-xl h-11 text-sm font-bold shadow-sm"
                 disabled={isOutOfStock}
                 onClick={() => {
+                  const productWithVariant = {
+                    ...product,
+                    price: effectivePrice,
+                    brand: product.brand,
+                    warranty_period_months: product.warranty_period_months,
+                  };
                   const res = add(
-                    product,
+                    productWithVariant,
                     qty,
                     undefined,
                     activeBranch ? { id: activeBranch.id, name: activeBranch.name } : undefined
                   );
                   if (res?.added) {
-                    toast.success(`Added ${qty} ${product.unit || "kg"} ${product.name} to cart!`);
+                    const variantLabel = selectedVariant ? ` (${selectedVariant.size ? `Size: ${selectedVariant.size} ` : ""}${selectedVariant.color ? `· ${selectedVariant.color}` : ""})` : "";
+                    toast.success(`Added ${qty} ${product.unit || "kg"} ${product.name}${variantLabel} to cart!`);
                   }
                 }}
               >
-                {isOutOfStock ? "Out of Stock" : `Add to cart · ${inr(Number(product.price) * qty)}`}
+                {isOutOfStock ? "Out of Stock" : `Add to cart · ${inr(effectivePrice * qty)}`}
               </Button>
             </div>
 
@@ -549,6 +642,54 @@ function ProductPage() {
           </dl>
         </div>
       </div>
+
+      {/* Technical Specifications & Details (For Electronics, Appliances & Fashion) */}
+      {product.specifications && Object.keys(product.specifications).length > 0 && (
+        <section className="mt-8 rounded-2xl border border-border bg-card p-5 shadow-2xs">
+          <h2 className="text-base font-bold flex items-center gap-2 mb-3">
+            ⚙️ Technical Specifications & Product Details
+          </h2>
+          <div className="divide-y divide-border/60 rounded-xl border border-border/60 overflow-hidden">
+            {Object.entries(product.specifications).map(([key, val], idx) => (
+              <div key={key} className={`flex items-center justify-between p-3 text-xs ${idx % 2 === 0 ? "bg-muted/20" : "bg-card"}`}>
+                <span className="font-semibold text-muted-foreground capitalize">{key.replace(/_/g, " ")}</span>
+                <span className="font-bold text-foreground text-right">{String(val)}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Interactive Size Chart Modal */}
+      <Dialog open={sizeChartOpen} onOpenChange={setSizeChartOpen}>
+        <DialogContent className="max-w-md rounded-3xl p-5">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">📏 Size Guide & Measurements</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Standard body fit guidelines in inches and centimeters for apparel.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr className="border-b bg-muted/50 font-bold">
+                  <th className="p-2">Size</th>
+                  <th className="p-2">Chest</th>
+                  <th className="p-2">Waist</th>
+                  <th className="p-2">Length</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/50 font-mono">
+                <tr><td className="p-2 font-bold">S</td><td className="p-2">38" (96cm)</td><td className="p-2">32" (81cm)</td><td className="p-2">27" (68cm)</td></tr>
+                <tr><td className="p-2 font-bold">M</td><td className="p-2">40" (101cm)</td><td className="p-2">34" (86cm)</td><td className="p-2">28" (71cm)</td></tr>
+                <tr><td className="p-2 font-bold">L</td><td className="p-2">42" (106cm)</td><td className="p-2">36" (91cm)</td><td className="p-2">29" (74cm)</td></tr>
+                <tr><td className="p-2 font-bold">XL</td><td className="p-2">44" (112cm)</td><td className="p-2">38" (96cm)</td><td className="p-2">30" (76cm)</td></tr>
+                <tr><td className="p-2 font-bold">XXL</td><td className="p-2">46" (117cm)</td><td className="p-2">40" (101cm)</td><td className="p-2">31" (79cm)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* AI Multi-Language Health & Culinary Intelligence */}
       <div className="mt-8">

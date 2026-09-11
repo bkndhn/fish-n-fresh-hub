@@ -511,8 +511,17 @@ function AdminSettings() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Vertical Selector Radio Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {(["seafood", "chicken_meat", "all_meat"] as BusinessVertical[]).map((vId) => {
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {([
+              "electronics_appliances",
+              "clothing_fashion",
+              "grocery_supermarket",
+              "departmental_store",
+              "seafood",
+              "chicken_meat",
+              "all_meat",
+              "universal",
+            ] as BusinessVertical[]).map((vId) => {
               const cfg = VERTICAL_CONFIGS[vId];
               const isSelected = (form.business_vertical || "seafood") === vId;
               return (

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Search, Edit, AlertTriangle, Zap, PackagePlus, CheckCircle2, X, CheckSquare, Square, Layers, ArrowUpCircle, Eye, EyeOff, Sparkles, Star, Flame, Camera, RefreshCw, Copy, Check, Printer, Hash } from "lucide-react";
+import { Plus, Trash2, Search, Edit, AlertTriangle, Zap, PackagePlus, CheckCircle2, X, CheckSquare, Square, Layers, ArrowUpCircle, Eye, EyeOff, Sparkles, Star, Flame, Camera, RefreshCw, Copy, Check, Printer, Hash, FileUp, FileDown, Download, ShieldCheck } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { useAdminBranch } from "@/lib/branchContext";
 import { adminProductsQuery } from "@/lib/admin";
@@ -10,6 +10,7 @@ import { categoriesQuery } from "@/lib/queries";
 import type { Product } from "@/lib/types";
 import { formatINR, formatStockDisplay, formatStockUnitLabel } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
+import { generateSampleCsv, parseProductsCsv, exportProductsToCsv } from "@/lib/retailCsv";
 import { applyRealProductsCatalog } from "@/lib/products.functions";
 import { ProductAiBenefitsCard } from "@/components/ProductAiBenefitsCard";
 import {
@@ -68,6 +69,21 @@ const getRefillPresets = (unit: string) => {
   return ["5", "10", "20", "50"];
 };
 
+function parseSpecsText(text?: string): Record<string, string> | null {
+  if (!text || !text.trim()) return null;
+  const result: Record<string, string> = {};
+  const lines = text.split(/\r?\n/);
+  for (const line of lines) {
+    const idx = line.indexOf(":");
+    if (idx !== -1) {
+      const k = line.substring(0, idx).trim();
+      const v = line.substring(idx + 1).trim();
+      if (k && v) result[k] = v;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+
 function ProductsAdmin() {
   const qc = useQueryClient();
   const { selectedBranchId, selectedBranch, isConsolidated, branches } = useAdminBranch();
@@ -96,6 +112,13 @@ function ProductsAdmin() {
   const [aiVisualProduct, setAiVisualProduct] = useState<Product | null>(null);
   const [copiedPrompt, setCopiedPrompt] = useState<string | null>(null);
 
+  // CSV Import / Export states
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
+  const [csvTemplateVertical, setCsvTemplateVertical] = useState<string>("electronics_appliances");
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvParsedProducts, setCsvParsedProducts] = useState<Partial<Product>[] | null>(null);
+  const [csvParseErrors, setCsvParseErrors] = useState<string[]>([]);
+
   const [newProduct, setNewProduct] = useState({
     name: "",
     name_tamil: "",
@@ -116,6 +139,12 @@ function ProductsAdmin() {
     allow_custom_qty: true,
     image_url: "",
     description: "",
+    brand: "",
+    model_number: "",
+    warranty_period_months: "0",
+    requires_serial: false,
+    aisle_location: "",
+    specifications_text: "",
   });
 
   const update = useMutation({
@@ -197,8 +226,17 @@ function ProductsAdmin() {
         gst_included: newProduct.gst_included,
         is_available: newProduct.is_available,
         allow_custom_qty: newProduct.allow_custom_qty,
+        is_featured: newProduct.is_featured,
+        is_bestseller: newProduct.is_bestseller,
         image_url: newProduct.image_url || null,
         description: newProduct.description.trim() || null,
+        branch_id: selectedBranchId || null,
+        brand: newProduct.brand?.trim() || null,
+        model_number: newProduct.model_number?.trim() || null,
+        warranty_period_months: Number(newProduct.warranty_period_months) || 0,
+        requires_serial: !!newProduct.requires_serial,
+        aisle_location: newProduct.aisle_location?.trim() || null,
+        specifications: parseSpecsText(newProduct.specifications_text),
       } as any);
       if (error) throw error;
     },
@@ -225,6 +263,12 @@ function ProductsAdmin() {
         is_bestseller: false,
         image_url: "",
         description: "",
+        brand: "",
+        model_number: "",
+        warranty_period_months: "0",
+        requires_serial: false,
+        aisle_location: "",
+        specifications_text: "",
       });
       qc.invalidateQueries({ queryKey: ["admin", "products"] });
       qc.invalidateQueries({ queryKey: ["products"] });
@@ -274,6 +318,14 @@ function ProductsAdmin() {
         allow_custom_qty: editingProduct.allow_custom_qty ?? true,
         image_url: editingProduct.image_url || null,
         description: editingProduct.description?.trim() || null,
+        brand: editingProduct.brand?.trim() || null,
+        model_number: editingProduct.model_number?.trim() || null,
+        warranty_period_months: Number(editingProduct.warranty_period_months) || 0,
+        requires_serial: !!editingProduct.requires_serial,
+        aisle_location: editingProduct.aisle_location?.trim() || null,
+        specifications: typeof editingProduct.specifications_text === "string"
+          ? parseSpecsText(editingProduct.specifications_text)
+          : (editingProduct.specifications ?? null),
       } as any).eq("id", editingProduct.id);
       if (error) throw error;
     },
@@ -571,9 +623,30 @@ function ProductsAdmin() {
           <Button
             variant="outline"
             className="rounded-xl h-9 font-semibold text-xs gap-1.5 border-border/80 hover:bg-muted"
-            onClick={handlePrintCheatSheet}
+            onClick={() => {
+              const csv = exportProductsToCsv(allProducts);
+              const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `fish-n-fresh-catalog-${new Date().toISOString().slice(0, 10)}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+              toast.success(`Exported ${allProducts.length} products to CSV`);
+            }}
           >
-            <Printer className="size-3.5" /> <span>Print POS Cheat Sheet</span>
+            <FileDown className="size-3.5" /> <span>Export CSV</span>
+          </Button>
+          <Button
+            variant="outline"
+            className="rounded-xl h-9 font-semibold text-xs gap-1.5 border-border/80 hover:bg-muted"
+            onClick={() => {
+              setCsvParsedProducts(null);
+              setCsvParseErrors([]);
+              setCsvModalOpen(true);
+            }}
+          >
+            <FileUp className="size-3.5" /> <span>Import CSV</span>
           </Button>
           <Button
             className="rounded-xl h-9 font-bold shadow-xs"
@@ -791,7 +864,7 @@ function ProductsAdmin() {
       <Dialog open={openAdd} onOpenChange={setOpenAdd}>
         <DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add New Seafood Product</DialogTitle>
+            <DialogTitle>Add New Product</DialogTitle>
           </DialogHeader>
             <div className="space-y-4 pt-2">
               <div className="grid grid-cols-2 gap-3">
@@ -799,7 +872,7 @@ function ProductsAdmin() {
                   <Label htmlFor="prod-name">Name (English) *</Label>
                   <Input
                     id="prod-name"
-                    placeholder="e.g. Vanjaram / Seer Fish"
+                    placeholder="e.g. iPhone 15, Cotton Shirt, Vanjaram"
                     value={newProduct.name}
                     onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
                   />
@@ -959,10 +1032,85 @@ function ProductsAdmin() {
                 <Label htmlFor="prod-desc">Description</Label>
                 <Textarea
                   id="prod-desc"
-                  placeholder="Fresh daily catch, cleaned and cut to order..."
+                  placeholder="High quality product details and description..."
                   value={newProduct.description}
                   onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
                 />
+              </div>
+
+              {/* Retail Attributes: Brand, Model, Warranty, Aisle, Serial/IMEI Tracking */}
+              <div className="rounded-2xl border border-border/80 bg-muted/20 p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <ShieldCheck className="size-3.5 text-primary" /> Retail Specifications & Tracking
+                  </Label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="prod-brand">Brand / Manufacturer</Label>
+                    <Input
+                      id="prod-brand"
+                      placeholder="e.g. Apple, Nike, Samsung, Amul"
+                      value={newProduct.brand}
+                      onChange={(e) => setNewProduct({ ...newProduct, brand: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="prod-model">Model Number / SKU</Label>
+                    <Input
+                      id="prod-model"
+                      placeholder="e.g. A3090, 511-SLIM, TS-100"
+                      value={newProduct.model_number}
+                      onChange={(e) => setNewProduct({ ...newProduct, model_number: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="prod-warranty">Warranty Period (Months)</Label>
+                    <Input
+                      id="prod-warranty"
+                      type="number"
+                      placeholder="e.g. 12 or 24 (0 for none)"
+                      value={newProduct.warranty_period_months}
+                      onChange={(e) => setNewProduct({ ...newProduct, warranty_period_months: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="prod-aisle">Aisle / Shelf / Rack</Label>
+                    <Input
+                      id="prod-aisle"
+                      placeholder="e.g. Aisle 2, Shelf B-4"
+                      value={newProduct.aisle_location}
+                      onChange={(e) => setNewProduct({ ...newProduct, aisle_location: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-1">
+                  <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                    <Switch
+                      checked={newProduct.requires_serial}
+                      onCheckedChange={(requires_serial) => setNewProduct({ ...newProduct, requires_serial })}
+                    />
+                    <span className={newProduct.requires_serial ? "text-purple-600 dark:text-purple-400 font-bold" : "text-muted-foreground"}>
+                      Require Serial / IMEI scan at POS checkout
+                    </span>
+                  </label>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="prod-specs">Technical Specs (Key: Value per line)</Label>
+                  <Textarea
+                    id="prod-specs"
+                    placeholder="RAM: 8GB&#10;Storage: 256GB&#10;Screen: 6.1 inch OLED&#10;Fabric: 100% Cotton"
+                    rows={3}
+                    value={newProduct.specifications_text}
+                    onChange={(e) => setNewProduct({ ...newProduct, specifications_text: e.target.value })}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 rounded-2xl border border-border/80 bg-muted/20 p-3">
@@ -1224,9 +1372,34 @@ function ProductsAdmin() {
 
                     {/* Category & Pricing & Badges */}
                     <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                      {p.brand && (
+                        <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary border border-primary/20">
+                          {p.brand}
+                        </span>
+                      )}
                       <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                        {p.category ?? "Seafood"}
+                        {p.category ?? "General"}
                       </span>
+                      {p.model_number && (
+                        <span className="rounded-md bg-secondary/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          Mod: {p.model_number}
+                        </span>
+                      )}
+                      {p.warranty_period_months ? (
+                        <span className="rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 px-1.5 py-0.5 text-[10px] font-semibold">
+                          🛡️ {p.warranty_period_months}M Warranty
+                        </span>
+                      ) : null}
+                      {p.requires_serial && (
+                        <span className="rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 px-1.5 py-0.5 text-[10px] font-semibold">
+                          IMEI/Serial
+                        </span>
+                      )}
+                      {p.aisle_location && (
+                        <span className="rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium">
+                          📍 {p.aisle_location}
+                        </span>
+                      )}
 
                       <span className="font-extrabold text-foreground text-sm sm:text-base">
                         {formatINR(Number(p.price))} <span className="text-xs font-normal text-muted-foreground">/ {p.unit}</span>
@@ -1360,11 +1533,20 @@ function ProductsAdmin() {
                     className="flex-1 min-w-[65px] rounded-xl h-8 text-xs font-semibold"
                     onClick={() => {
                       const isStandardUnit = UNIT_OPTIONS.includes(p.unit);
+                      const specsText = p.specifications
+                        ? Object.entries(p.specifications).map(([k, v]) => `${k}: ${v}`).join("\n")
+                        : "";
                       setEditingProduct({
                         ...p,
                         unit: isStandardUnit ? p.unit : "custom",
                         customUnit: isStandardUnit ? "" : p.unit,
                         customCategory: "",
+                        brand: p.brand || "",
+                        model_number: p.model_number || "",
+                        warranty_period_months: p.warranty_period_months ?? 0,
+                        aisle_location: p.aisle_location || "",
+                        requires_serial: !!p.requires_serial,
+                        specifications_text: specsText,
                       });
                     }}
                   >
@@ -1602,6 +1784,81 @@ function ProductsAdmin() {
                 />
               </div>
 
+              {/* Retail Attributes: Brand, Model, Warranty, Aisle, Serial/IMEI Tracking */}
+              <div className="rounded-2xl border border-border/80 bg-muted/20 p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <ShieldCheck className="size-3.5 text-primary" /> Retail Specifications & Tracking
+                  </Label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-brand">Brand / Manufacturer</Label>
+                    <Input
+                      id="edit-brand"
+                      placeholder="e.g. Apple, Nike, Samsung, Amul"
+                      value={editingProduct.brand ?? ""}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, brand: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-model">Model Number / SKU</Label>
+                    <Input
+                      id="edit-model"
+                      placeholder="e.g. A3090, 511-SLIM, TS-100"
+                      value={editingProduct.model_number ?? ""}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, model_number: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-warranty">Warranty Period (Months)</Label>
+                    <Input
+                      id="edit-warranty"
+                      type="number"
+                      placeholder="e.g. 12 or 24 (0 for none)"
+                      value={editingProduct.warranty_period_months ?? 0}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, warranty_period_months: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-aisle">Aisle / Shelf / Rack</Label>
+                    <Input
+                      id="edit-aisle"
+                      placeholder="e.g. Aisle 2, Shelf B-4"
+                      value={editingProduct.aisle_location ?? ""}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, aisle_location: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-1">
+                  <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                    <Switch
+                      checked={!!editingProduct.requires_serial}
+                      onCheckedChange={(requires_serial) => setEditingProduct({ ...editingProduct, requires_serial })}
+                    />
+                    <span className={editingProduct.requires_serial ? "text-purple-600 dark:text-purple-400 font-bold" : "text-muted-foreground"}>
+                      Require Serial / IMEI scan at POS checkout
+                    </span>
+                  </label>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-specs">Technical Specs (Key: Value per line)</Label>
+                  <Textarea
+                    id="edit-specs"
+                    placeholder="RAM: 8GB&#10;Storage: 256GB&#10;Screen: 6.1 inch OLED&#10;Fabric: 100% Cotton"
+                    rows={3}
+                    value={editingProduct.specifications_text ?? ""}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, specifications_text: e.target.value })}
+                  />
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 rounded-2xl border border-border/80 bg-muted/20 p-3">
                 <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
                   <Switch
@@ -1656,6 +1913,166 @@ function ProductsAdmin() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Product CSV Import & Template Suite Dialog */}
+      <Dialog open={csvModalOpen} onOpenChange={setCsvModalOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileUp className="size-5 text-primary" />
+              <span>Bulk Product CSV Import & Templates</span>
+            </DialogTitle>
+            <DialogDescription>
+              Upload a CSV file containing your product catalog or download ready-made templates for your industry.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            {/* Step 1: Download sample template */}
+            <div className="rounded-2xl border border-border/70 bg-muted/30 p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  1. Download Ready Sample Template
+                </span>
+              </div>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <select
+                  value={csvTemplateVertical}
+                  onChange={(e) => setCsvTemplateVertical(e.target.value)}
+                  className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs"
+                >
+                  <option value="electronics_appliances">Electronics & Appliances (IMEI, Specs, Warranty)</option>
+                  <option value="clothing_fashion">Clothing & Fashion (Sizes, Fabric, Fit)</option>
+                  <option value="grocery_supermarket">Grocery & Supermarket (Aisle, Pack, Nutrition)</option>
+                  <option value="departmental_store">Departmental Store (Multi-category)</option>
+                  <option value="seafood">Seafood & Meat Catch</option>
+                </select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl text-xs gap-1.5 shrink-0"
+                  onClick={() => {
+                    const sample = generateSampleCsv(csvTemplateVertical);
+                    const blob = new Blob([sample], { type: "text/csv;charset=utf-8;" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `sample_${csvTemplateVertical}_template.csv`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    toast.success("Sample template downloaded");
+                  }}
+                >
+                  <Download className="size-3.5" /> Download Template
+                </Button>
+              </div>
+            </div>
+
+            {/* Step 2: Upload CSV */}
+            <div className="rounded-2xl border-2 border-dashed border-border/80 p-5 text-center space-y-2">
+              <Input
+                type="file"
+                accept=".csv,text/csv"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = (evt) => {
+                    const text = evt.target?.result as string;
+                    const res = parseProductsCsv(text);
+                    setCsvParsedProducts(res.validProducts);
+                    setCsvParseErrors(res.errors);
+                  };
+                  reader.readAsText(file);
+                }}
+                className="cursor-pointer file:cursor-pointer file:rounded-lg file:border-0 file:bg-primary file:text-primary-foreground file:text-xs file:font-semibold"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Supports columns: name, category, price, old_price, unit, stock, brand, model_number, warranty_period_months, requires_serial, aisle_location, specifications, pos_code, description.
+              </p>
+            </div>
+
+            {/* Parse Warnings / Errors */}
+            {csvParseErrors.length > 0 && (
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300 space-y-1 max-h-32 overflow-y-auto">
+                <div className="font-bold flex items-center gap-1">
+                  <AlertTriangle className="size-3.5" /> {csvParseErrors.length} issues noted:
+                </div>
+                {csvParseErrors.map((err, i) => (
+                  <div key={i} className="text-[11px] leading-tight">• {err}</div>
+                ))}
+              </div>
+            )}
+
+            {/* Preview of valid items */}
+            {csvParsedProducts && csvParsedProducts.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="size-4" /> Ready to import {csvParsedProducts.length} products
+                  </span>
+                  <span className="text-muted-foreground text-[11px]">Previewing first 5</span>
+                </div>
+                <div className="max-h-48 overflow-y-auto rounded-xl border border-border/80 bg-background divide-y divide-border/60">
+                  {csvParsedProducts.slice(0, 5).map((p, idx) => (
+                    <div key={idx} className="p-2 text-xs flex items-center justify-between">
+                      <div>
+                        <span className="font-bold">{p.name}</span>
+                        {p.brand && <span className="ml-1 text-[11px] text-muted-foreground">({p.brand})</span>}
+                        <div className="text-[10px] text-muted-foreground">
+                          {p.category} • {formatINR(p.price || 0)} / {p.unit} • Stock: {p.stock}
+                          {p.requires_serial ? " • Serial/IMEI Tracking" : ""}
+                          {p.aisle_location ? ` • Aisle: ${p.aisle_location}` : ""}
+                        </div>
+                      </div>
+                      <span className="text-emerald-600 text-xs font-bold">Valid</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-2 justify-end pt-2">
+              <Button variant="outline" className="rounded-xl" onClick={() => setCsvModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                className="rounded-xl font-bold"
+                disabled={!csvParsedProducts || csvParsedProducts.length === 0 || csvImporting}
+                onClick={async () => {
+                  if (!csvParsedProducts || csvParsedProducts.length === 0) return;
+                  setCsvImporting(true);
+                  try {
+                    const toInsert = csvParsedProducts.map((p) => ({
+                      ...p,
+                      branch_id: selectedBranchId || null,
+                    }));
+                    const chunkSize = 50;
+                    for (let i = 0; i < toInsert.length; i += chunkSize) {
+                      const chunk = toInsert.slice(i, i + chunkSize);
+                      const { error } = await supabase.from("products").insert(chunk as any);
+                      if (error) throw error;
+                    }
+                    toast.success(`Successfully imported ${toInsert.length} products!`);
+                    setCsvModalOpen(false);
+                    setCsvParsedProducts(null);
+                    setCsvParseErrors([]);
+                    qc.invalidateQueries({ queryKey: ["admin", "products"] });
+                    qc.invalidateQueries({ queryKey: ["products"] });
+                  } catch (err: any) {
+                    toast.error(err.message || "Failed to import products");
+                  } finally {
+                    setCsvImporting(false);
+                  }
+                }}
+              >
+                {csvImporting ? "Importing..." : `Import ${csvParsedProducts?.length || 0} Products`}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

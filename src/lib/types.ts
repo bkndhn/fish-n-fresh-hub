@@ -1,3 +1,13 @@
+export interface ProductVariant {
+  id: string;
+  size?: string | null;
+  color?: string | null;
+  sku: string;
+  price: number;
+  stock: number;
+  barcode?: string | null;
+}
+
 export type Product = {
   id: string;
   name: string;
@@ -32,6 +42,14 @@ export type Product = {
   pos_code?: number | null;
   branch_id?: string | null;
   branch_name?: string | null;
+  // Universal Retail extensions
+  brand?: string | null;
+  model_number?: string | null;
+  warranty_period_months?: number | null;
+  specifications?: Record<string, string> | null;
+  aisle_location?: string | null;
+  variants?: ProductVariant[] | null;
+  requires_serial?: boolean;
 };
 
 export type Category = {
@@ -64,6 +82,12 @@ export type CartItem = {
   cut_preference?: string | null;
   branch_id?: string | null;
   branch_name?: string | null;
+  // Universal Retail additions
+  serial_numbers?: string[] | null;
+  variant?: { id?: string; size?: string; color?: string; sku?: string } | null;
+  brand?: string | null;
+  warranty_months?: number | null;
+  aisle_location?: string | null;
 };
 
 export type Supplier = {

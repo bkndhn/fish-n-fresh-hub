@@ -469,3 +469,33 @@ CREATE POLICY \"Super Admin can view audit logs\" ON public.platform_audit_logs
 DROP POLICY IF EXISTS \"Service and super admin can insert audit logs\" ON public.platform_audit_logs;
 CREATE POLICY \"Service and super admin can insert audit logs\" ON public.platform_audit_logs
   FOR INSERT TO authenticated WITH CHECK (true);
+
+-- Universal Retail Verticals Extensions (Electronics, Fashion, Grocery & Mart)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='brand') THEN
+    ALTER TABLE public.products ADD COLUMN brand TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='model_number') THEN
+    ALTER TABLE public.products ADD COLUMN model_number TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='warranty_period_months') THEN
+    ALTER TABLE public.products ADD COLUMN warranty_period_months INTEGER DEFAULT 0;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='specifications') THEN
+    ALTER TABLE public.products ADD COLUMN specifications JSONB DEFAULT '{}'::jsonb;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='aisle_location') THEN
+    ALTER TABLE public.products ADD COLUMN aisle_location TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='variants') THEN
+    ALTER TABLE public.products ADD COLUMN variants JSONB DEFAULT '[]'::jsonb;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='requires_serial') THEN
+    ALTER TABLE public.products ADD COLUMN requires_serial BOOLEAN DEFAULT FALSE;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_products_brand ON public.products(brand) WHERE brand IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_products_aisle ON public.products(aisle_location) WHERE aisle_location IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_products_requires_serial ON public.products(requires_serial) WHERE requires_serial = true;

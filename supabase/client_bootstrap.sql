@@ -97,6 +97,13 @@ CREATE TABLE IF NOT EXISTS public.products (
     hsn_code TEXT DEFAULT '0302',
     gst_percent NUMERIC DEFAULT 0,
     gst_included BOOLEAN DEFAULT true,
+    brand TEXT,
+    model_number TEXT,
+    warranty_period_months INTEGER DEFAULT 0,
+    specifications JSONB DEFAULT '{}'::jsonb,
+    aisle_location TEXT,
+    variants JSONB DEFAULT '[]'::jsonb,
+    requires_serial BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
