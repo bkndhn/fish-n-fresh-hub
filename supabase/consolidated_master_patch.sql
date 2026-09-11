@@ -297,3 +297,91 @@ SET pos_code = op.seq
 FROM ordered_products op
 WHERE p.id = op.id;
 
+-- 16. Multi-Branch Support & Zero-Downtime Data Isolation
+ALTER TABLE public.branches
+  ADD COLUMN IF NOT EXISTS slug TEXT,
+  ADD COLUMN IF NOT EXISTS code TEXT,
+  ADD COLUMN IF NOT EXISTS is_default BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS gstin TEXT,
+  ADD COLUMN IF NOT EXISTS fssai_license TEXT,
+  ADD COLUMN IF NOT EXISTS upi_id TEXT,
+  ADD COLUMN IF NOT EXISTS min_order_amount NUMERIC NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS manager_user_id UUID;
+
+UPDATE public.branches
+SET slug = 'chennai-harbour', code = 'CHH', is_default = true
+WHERE (name ILIKE '%harbour%' OR name ILIKE '%chennai%') AND slug IS NULL;
+
+UPDATE public.branches
+SET slug = 'velachery', code = 'VEL', is_default = false
+WHERE (name ILIKE '%velachery%') AND slug IS NULL;
+
+UPDATE public.branches
+SET slug = LOWER(REGEXP_REPLACE(name, '[^a-zA-Z0-9]+', '-', 'g')),
+    code = UPPER(SUBSTRING(REGEXP_REPLACE(name, '[^a-zA-Z0-9]', '', 'g') FROM 1 FOR 3))
+WHERE slug IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_branches_slug_unique ON public.branches(slug) WHERE slug IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_branches_code_unique ON public.branches(code) WHERE code IS NOT NULL;
+
+ALTER TABLE public.orders
+  ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES public.branches(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS branch_name TEXT;
+
+ALTER TABLE public.products
+  ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES public.branches(id) ON DELETE CASCADE;
+
+ALTER TABLE public.inventory_batches
+  ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES public.branches(id) ON DELETE CASCADE;
+
+ALTER TABLE public.purchase_orders
+  ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES public.branches(id) ON DELETE SET NULL;
+
+ALTER TABLE public.waste_entries
+  ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES public.branches(id) ON DELETE CASCADE;
+
+ALTER TABLE public.customer_subscriptions
+  ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES public.branches(id) ON DELETE SET NULL;
+
+ALTER TABLE public.driver_cash_settlements
+  ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES public.branches(id) ON DELETE SET NULL;
+
+ALTER TABLE public.user_roles
+  ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES public.branches(id) ON DELETE CASCADE;
+
+DO $$
+DECLARE
+  v_default_branch_id UUID;
+  v_default_branch_name TEXT;
+BEGIN
+  SELECT id, name INTO v_default_branch_id, v_default_branch_name 
+  FROM public.branches 
+  WHERE is_default = true 
+  LIMIT 1;
+
+  IF v_default_branch_id IS NULL THEN
+    SELECT id, name INTO v_default_branch_id, v_default_branch_name 
+    FROM public.branches 
+    ORDER BY sort_order ASC, created_at ASC 
+    LIMIT 1;
+  END IF;
+
+  IF v_default_branch_id IS NOT NULL THEN
+    UPDATE public.products SET branch_id = v_default_branch_id WHERE branch_id IS NULL;
+    UPDATE public.orders SET branch_id = v_default_branch_id, branch_name = COALESCE(branch_name, v_default_branch_name) WHERE branch_id IS NULL;
+    UPDATE public.inventory_batches SET branch_id = v_default_branch_id WHERE branch_id IS NULL;
+    UPDATE public.purchase_orders SET branch_id = v_default_branch_id WHERE branch_id IS NULL;
+    UPDATE public.waste_entries SET branch_id = v_default_branch_id WHERE branch_id IS NULL;
+    UPDATE public.customer_subscriptions SET branch_id = v_default_branch_id WHERE branch_id IS NULL;
+    UPDATE public.driver_cash_settlements SET branch_id = v_default_branch_id WHERE branch_id IS NULL;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_orders_branch_status ON public.orders(branch_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_products_branch_available ON public.products(branch_id, is_available);
+CREATE INDEX IF NOT EXISTS idx_batches_branch_status ON public.inventory_batches(branch_id, status, expiry_date);
+CREATE INDEX IF NOT EXISTS idx_waste_branch ON public.waste_entries(branch_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_purchases_branch ON public.purchase_orders(branch_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_branch ON public.customer_subscriptions(branch_id, status);
+CREATE INDEX IF NOT EXISTS idx_user_roles_user_branch ON public.user_roles(user_id, branch_id, role);
+

@@ -264,3 +264,45 @@ ON CONFLICT (id) DO UPDATE SET
     price = EXCLUDED.price,
     stock = EXCLUDED.stock,
     pos_code = EXCLUDED.pos_code;
+
+-- 13. Multi-Branch Support & Default Branches Initialization
+CREATE TABLE IF NOT EXISTS public.branches (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE,
+    code TEXT UNIQUE,
+    address TEXT,
+    phone TEXT,
+    manager TEXT,
+    manager_user_id UUID,
+    lat NUMERIC,
+    lng NUMERIC,
+    open_time TEXT DEFAULT '06:00',
+    close_time TEXT DEFAULT '21:00',
+    delivery_radius_km NUMERIC NOT NULL DEFAULT 12,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    is_default BOOLEAN NOT NULL DEFAULT false,
+    gstin TEXT DEFAULT '33AAACF1234F1Z5',
+    fssai_license TEXT DEFAULT '12423008000123',
+    upi_id TEXT,
+    min_order_amount NUMERIC NOT NULL DEFAULT 0,
+    sort_order INT NOT NULL DEFAULT 1,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO public.branches (
+    id, name, slug, code, address, phone, manager, lat, lng, open_time, close_time, delivery_radius_km, is_active, is_default, sort_order
+) VALUES
+    ('20f2ea34-9e3c-4999-aeac-7aae3367ee60', 'Chennai Harbour Hub', 'chennai-harbour', 'CHH', 'Harbour Road, Kasimedu, Chennai 600001', '+91 98765 43210', 'Ravi Kumar', 13.0827, 80.2707, '06:00', '21:00', 15, true, true, 1),
+    ('53da6ab2-7cda-4499-b1a3-9b84a8c77398', 'Velachery Express Hub', 'velachery', 'VEL', '100 Feet Road, Velachery, Chennai 600042', '+91 98765 43211', 'Suresh M', 12.9791, 80.2209, '07:00', '21:00', 10, true, false, 2)
+ON CONFLICT (id) DO UPDATE SET
+    slug = EXCLUDED.slug,
+    code = EXCLUDED.code,
+    is_default = EXCLUDED.is_default;
+
+-- Associate products with default flagship branch
+UPDATE public.products
+SET branch_id = '20f2ea34-9e3c-4999-aeac-7aae3367ee60'
+WHERE branch_id IS NULL;
+
