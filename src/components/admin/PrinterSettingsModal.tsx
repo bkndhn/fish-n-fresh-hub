@@ -32,9 +32,11 @@ import {
   savePrinterConfig,
   connectBluetoothPrinter,
   connectSerialUsbPrinter,
-  buildTestPrintEscPos,
   sendEscPosToPrinter,
+  buildTestPrintForFormat,
+  printUniversalDocument,
   type ThermalPrinterConfig,
+  type PrintFormat,
 } from "@/lib/thermalPrinter";
 
 interface PrinterSettingsModalProps {
@@ -47,16 +49,21 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
   const [connectedDevice, setConnectedDevice] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [testFormat, setTestFormat] = useState<PrintFormat>(config.defaultFormat || "58mm");
 
   useEffect(() => {
     if (open) {
-      setConfig(getSavedPrinterConfig());
+      const saved = getSavedPrinterConfig();
+      setConfig(saved);
+      setTestFormat(saved.defaultFormat || "58mm");
     }
   }, [open]);
 
   const handleSave = () => {
-    savePrinterConfig(config);
-    toast.success("Printer configuration saved");
+    const updated = { ...config, defaultFormat: testFormat };
+    savePrinterConfig(updated);
+    setConfig(updated);
+    toast.success("Universal printer configuration saved");
     onOpenChange(false);
   };
 
@@ -88,31 +95,27 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
     }
   };
 
-  const handleTestPrint = async () => {
+  const handleTestPrint = async (format: PrintFormat = testFormat) => {
     setIsTesting(true);
     try {
-      const bytes = buildTestPrintEscPos(config);
-      await sendEscPosToPrinter(
-        bytes,
-        config,
-        `
-        <div class="center">
-          <div class="title">${config.headerLine1}</div>
-          <div>${config.headerLine2}</div>
-          <div class="hr"></div>
-          <div class="bold">*** TEST RECEIPT OK ***</div>
-          <div>Roll Width: ${config.paperWidth}</div>
-          <div>Time: ${new Date().toLocaleTimeString()}</div>
-          <div class="hr"></div>
-        </div>
-        <div class="row"><span>Printer Engine</span><span class="bold">ACTIVE</span></div>
-        <div class="row"><span>Hardware Cut</span><span>${config.autoCut ? "ENABLED" : "OFF"}</span></div>
-        <div class="row"><span>Cash Drawer</span><span>${config.openCashDrawer ? "ENABLED" : "OFF"}</span></div>
-        <div class="hr"></div>
-        <div class="center">${config.footerText}</div>
-      `
-      );
-      toast.success("Test receipt sent to printer!");
+      const testArtifacts = buildTestPrintForFormat(format, config);
+      if (format === "a4" || format === "a5") {
+        const win = window.open("", "_blank", "width=850,height=900");
+        if (win) {
+          win.document.write(testArtifacts.html);
+          win.document.close();
+          win.focus();
+          setTimeout(() => win.print(), 350);
+          toast.success(`Test ${format.toUpperCase()} invoice rendered!`);
+        }
+      } else {
+        await sendEscPosToPrinter(
+          testArtifacts.bytes || new Uint8Array(),
+          config,
+          testArtifacts.html
+        );
+        toast.success(`Test ${format.toUpperCase()} sent to printer!`);
+      }
     } catch (err: any) {
       toast.error(`Test Print Error: ${err.message}`);
     } finally {
@@ -180,26 +183,36 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
             </p>
           </div>
 
-          {/* Roll Width & Hardware Switches */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Universal Print Format & Hardware Switches */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-bold">Paper Roll Width</Label>
+              <Label className="text-[11px] font-bold">Default Print Format</Label>
               <Select
-                value={config.paperWidth}
-                onValueChange={(v) => setConfig({ ...config, paperWidth: v as any })}
+                value={testFormat}
+                onValueChange={(v) => {
+                  setTestFormat(v as PrintFormat);
+                  if (v === "58mm" || v === "80mm") {
+                    setConfig({ ...config, paperWidth: v as any, defaultFormat: v as PrintFormat });
+                  } else {
+                    setConfig({ ...config, defaultFormat: v as PrintFormat });
+                  }
+                }}
               >
                 <SelectTrigger className="rounded-xl h-8 text-xs font-semibold">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
-                  <SelectItem value="58mm">58mm (2-Inch Standard)</SelectItem>
-                  <SelectItem value="80mm">80mm (3-Inch Wide POS)</SelectItem>
+                  <SelectItem value="58mm">58mm (2-Inch Thermal Roll)</SelectItem>
+                  <SelectItem value="80mm">80mm (3-Inch Wide POS Roll)</SelectItem>
+                  <SelectItem value="kot">KOT (Fish Cutting Station Token)</SelectItem>
+                  <SelectItem value="a4">A4 (Full GST Tax Invoice · Laser/Deskjet)</SelectItem>
+                  <SelectItem value="a5">A5 (Delivery Dispatch Slip · Half Page)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-bold">Print Method</Label>
+              <Label className="text-[11px] font-bold">Printer Connection</Label>
               <Select
                 value={config.type}
                 onValueChange={(v) => setConfig({ ...config, type: v as any })}
@@ -208,13 +221,37 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
-                  <SelectItem value="bluetooth">Bluetooth ESC/POS</SelectItem>
-                  <SelectItem value="serial_usb">USB Serial ESC/POS</SelectItem>
-                  <SelectItem value="browser_print">Browser Thermal Fallback</SelectItem>
+                  <SelectItem value="browser_print">Universal Browser Print (All Printers)</SelectItem>
+                  <SelectItem value="bluetooth">Bluetooth ESC/POS (BLE Mobile/Tablet)</SelectItem>
+                  <SelectItem value="serial_usb">USB Serial ESC/POS (Desktop Windows)</SelectItem>
+                  <SelectItem value="network_ip">Network LAN / WiFi ESC/POS (IP:Port)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
+
+          {config.type === "network_ip" && (
+            <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl border border-border/80 bg-muted/20">
+              <div className="col-span-2 space-y-1">
+                <Label className="text-[10px] font-bold">Printer LAN IP</Label>
+                <Input
+                  value={config.networkIp || "192.168.1.100"}
+                  onChange={(e) => setConfig({ ...config, networkIp: e.target.value })}
+                  placeholder="192.168.1.100"
+                  className="h-7 rounded-lg text-xs font-mono"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold">Port</Label>
+                <Input
+                  value={String(config.networkPort || 9100)}
+                  onChange={(e) => setConfig({ ...config, networkPort: Number(e.target.value) || 9100 })}
+                  placeholder="9100"
+                  className="h-7 rounded-lg text-xs font-mono"
+                />
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3 pt-1">
             <div className="flex items-center justify-between p-2 rounded-xl bg-muted/40 border border-border/50">
@@ -326,6 +363,65 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
             </div>
           </div>
 
+          {/* Multi-Format Hardware Test Prints */}
+          <div className="space-y-1.5 pt-1">
+            <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+              1-Click Format Test Print
+            </Label>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isTesting}
+                onClick={() => handleTestPrint("58mm")}
+                className="h-7 text-[11px] font-semibold rounded-lg px-1.5"
+              >
+                58mm Roll
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isTesting}
+                onClick={() => handleTestPrint("80mm")}
+                className="h-7 text-[11px] font-semibold rounded-lg px-1.5"
+              >
+                80mm POS
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isTesting}
+                onClick={() => handleTestPrint("kot")}
+                className="h-7 text-[11px] font-semibold rounded-lg px-1.5 border-amber-500/40 text-amber-700 dark:text-amber-300"
+              >
+                KOT Token
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isTesting}
+                onClick={() => handleTestPrint("a4")}
+                className="h-7 text-[11px] font-semibold rounded-lg px-1.5 border-sky-500/40 text-sky-700 dark:text-sky-300"
+              >
+                A4 Invoice
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isTesting}
+                onClick={() => handleTestPrint("a5")}
+                className="h-7 text-[11px] font-semibold rounded-lg px-1.5"
+              >
+                A5 Slip
+              </Button>
+            </div>
+          </div>
+
           {/* Action Buttons */}
           <div className="flex items-center gap-2 pt-2">
             <Button
@@ -333,11 +429,11 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
               variant="outline"
               size="sm"
               disabled={isTesting}
-              onClick={handleTestPrint}
+              onClick={() => handleTestPrint(testFormat)}
               className="flex-1 rounded-xl h-8.5 text-xs font-bold gap-1 border-primary/30 text-primary hover:bg-primary/10"
             >
               <Printer className="size-3.5" />
-              {isTesting ? "Printing..." : "🖨️ Test Print Slip"}
+              {isTesting ? "Printing..." : `🖨️ Test Default (${testFormat.toUpperCase()})`}
             </Button>
 
             <Button

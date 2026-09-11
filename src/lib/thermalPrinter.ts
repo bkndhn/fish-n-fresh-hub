@@ -12,10 +12,12 @@
 
 export type PrinterType = "bluetooth" | "serial_usb" | "network_ip" | "browser_print";
 export type PaperWidth = "58mm" | "80mm";
+export type PrintFormat = "58mm" | "80mm" | "a4" | "a5" | "kot";
 
 export interface ThermalPrinterConfig {
   type: PrinterType;
   paperWidth: PaperWidth;
+  defaultFormat?: PrintFormat;
   autoCut: boolean;
   openCashDrawer: boolean;
   headerLine1: string;
@@ -35,6 +37,7 @@ export interface ThermalPrinterConfig {
 export const DEFAULT_PRINTER_CONFIG: ThermalPrinterConfig = {
   type: "browser_print",
   paperWidth: "58mm",
+  defaultFormat: "58mm",
   autoCut: true,
   openCashDrawer: false,
   headerLine1: "FISH N FRESH HUB",
@@ -179,6 +182,26 @@ export class EscPosBuilder {
     this.lineFeed(3);
     this.buffer.push(GS, 0x56, 0x42, 0x00); // Partial cut
     return this;
+  }
+
+  line(str: string) {
+    return this.textLine(str);
+  }
+
+  hr(char = "-") {
+    return this.horizontalRule(char);
+  }
+
+  feed(lines = 1) {
+    return this.lineFeed(lines);
+  }
+
+  cut() {
+    return this.cutPaper();
+  }
+
+  getBytes(): Uint8Array {
+    return this.build();
   }
 
   build(): Uint8Array {
@@ -455,6 +478,7 @@ export interface PosReceiptItem {
   unitPrice: number;
   totalPrice: number;
   cuttingStyle?: string | undefined;
+  unit?: string | undefined;
 }
 
 export interface PosReceiptData {
@@ -734,3 +758,372 @@ export function getPosWhatsAppShareUrl(phone: string, dataOrText: PosReceiptData
   const text = typeof dataOrText === "string" ? dataOrText : generatePosWhatsAppText(dataOrText, orderId);
   return `https://wa.me/${targetPhone}?text=${encodeURIComponent(text)}`;
 }
+
+/**
+ * Generate ESC/POS commands for Fish Cutting & Cleaning Station KOT Token.
+ */
+export function buildKotTokenEscPos(data: PosReceiptData, config: ThermalPrinterConfig = getSavedPrinterConfig()): Uint8Array {
+  const b = new EscPosBuilder(config.paperWidth);
+  b.init()
+    .align("center")
+    .bold(true)
+    .size("double")
+    .line("CUTTING TOKEN")
+    .size("normal")
+    .line(`Token #${data.receiptNo}`)
+    .line(`Time: ${data.date}`)
+    .hr()
+    .align("left")
+    .line(`Customer: ${data.customerName || "Counter Guest"}`)
+    .line(`Cashier: ${data.cashierName}`)
+    .hr();
+
+  b.bold(true).line("ITEMS TO CUT & PREPARE:").bold(false);
+  data.items.forEach((it, idx) => {
+    const qtyStr = it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} ${it.unit || "unit"}`;
+    b.bold(true)
+      .size("double")
+      .line(`${idx + 1}. ${it.name}`)
+      .size("normal")
+      .bold(false)
+      .line(`   QTY: ${qtyStr}`);
+    if (it.cuttingStyle) {
+      b.bold(true).line(`   >> CUT: [${it.cuttingStyle.toUpperCase()}] <<`).bold(false);
+    }
+  });
+
+  b.hr()
+    .align("center")
+    .line("* PACK ON FOOD-GRADE CRUSHED ICE *")
+    .feed(3);
+
+  if (config.autoCut) b.cut();
+  return b.getBytes();
+}
+
+/**
+ * Generate HTML for Fish Cutting & Cleaning Station KOT Token.
+ */
+export function buildKotTokenHtml(data: PosReceiptData, config: ThermalPrinterConfig = getSavedPrinterConfig()): string {
+  return `
+    <div class="center bold title" style="font-size: 16px;">*** CUTTING TOKEN ***</div>
+    <div class="center bold">Token #${data.receiptNo}</div>
+    <div class="center muted">${data.date}</div>
+    <div class="hr"></div>
+    <div class="row"><span>Customer:</span><span class="bold">${data.customerName || "Counter Guest"}</span></div>
+    <div class="row"><span>Cashier:</span><span>${data.cashierName}</span></div>
+    <div class="hr"></div>
+    <div class="bold" style="margin-bottom: 4px;">ITEMS TO CUT & PREPARE:</div>
+    ${data.items
+      .map(
+        (it, idx) => `
+      <div style="margin: 6px 0; padding: 4px; border: 1px dashed #000;">
+        <div class="bold" style="font-size: 13px;">${idx + 1}. ${it.name}</div>
+        <div class="row">
+          <span>Qty:</span>
+          <span class="bold">${it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} ${it.unit || "unit"}`}</span>
+        </div>
+        ${
+          it.cuttingStyle
+            ? `<div style="background: #000; color: #fff; padding: 2px 4px; font-weight: bold; text-align: center; margin-top: 3px; font-size: 11px;">
+                STYLE: ${it.cuttingStyle.toUpperCase()}
+               </div>`
+            : ""
+        }
+      </div>
+    `
+      )
+      .join("")}
+    <div class="hr"></div>
+    <div class="center bold" style="font-size: 11px;">* PACK IN INSULATED ICE BOX *</div>
+  `;
+}
+
+/**
+ * Generate standard A4 GST Tax Invoice HTML for laser/inkjet printers.
+ */
+export function buildA4InvoiceHtml(data: PosReceiptData, config: ThermalPrinterConfig = getSavedPrinterConfig()): string {
+  const store = data.storeName || config.headerLine1 || "FISH N FRESH HUB";
+  const address = data.storeAddress || "Kasimedu Marine Terminal, Chennai - 600013";
+  const phone = data.storePhone || "9843061919";
+  const gstin = data.storeGstin || "33AAAAF1234A1Z5";
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>GST Tax Invoice #${data.receiptNo}</title>
+        <style>
+          @page { size: A4 portrait; margin: 12mm 15mm; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 12px; color: #111; margin: 0; line-height: 1.4; }
+          .invoice-box { max-width: 800px; margin: auto; padding: 20px; border: 1px solid #ddd; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0284c7; padding-bottom: 12px; }
+          .company-name { font-size: 22px; font-weight: bold; color: #0284c7; }
+          .doc-title { font-size: 18px; font-weight: bold; text-align: right; }
+          .grid-2 { display: flex; justify-content: space-between; margin: 15px 0; gap: 20px; }
+          .table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+          .table th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 8px; font-size: 11px; text-transform: uppercase; }
+          .table td { border: 1px solid #cbd5e1; padding: 8px; }
+          .text-right { text-align: right; }
+          .text-center { text-align: center; }
+          .bold { font-weight: bold; }
+          .summary-box { width: 280px; margin-left: auto; margin-top: 15px; }
+          .summary-row { display: flex; justify-content: space-between; padding: 4px 0; }
+          .total-row { border-top: 2px solid #111; border-bottom: 2px solid #111; font-size: 14px; font-weight: bold; padding: 6px 0; margin-top: 4px; }
+          .footer { margin-top: 30px; border-top: 1px solid #ddd; padding-top: 10px; font-size: 10px; color: #666; display: flex; justify-content: space-between; }
+        </style>
+      </head>
+      <body>
+        <div class="invoice-box">
+          <div class="header">
+            <div>
+              <div class="company-name">${store}</div>
+              <div>${address}</div>
+              <div>Phone: ${phone} · GSTIN: <strong>${gstin}</strong></div>
+              <div>FSSAI Lic No: 12423002000456 · State: Tamil Nadu (Code 33)</div>
+            </div>
+            <div>
+              <div class="doc-title">TAX INVOICE</div>
+              <div>Invoice No: <strong>#${data.receiptNo}</strong></div>
+              <div>Date: ${data.date}</div>
+              <div>Place of Supply: Tamil Nadu (33)</div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div>
+              <div class="bold" style="color: #475569; font-size: 11px;">BILLED TO:</div>
+              <div class="bold" style="font-size: 13px;">${data.customerName || "Walk-in Customer"}</div>
+              <div>Phone: ${data.customerPhone || "N/A"}</div>
+              <div>Payment Mode: <strong>${data.paymentMethod.toUpperCase()}</strong></div>
+            </div>
+            <div class="text-right">
+              <div class="bold" style="color: #475569; font-size: 11px;">DISPATCH DETAILS:</div>
+              <div>Cashier: ${data.cashierName}</div>
+              <div>Cold-Chain Integrity: Guaranteed 0°C–4°C</div>
+              <div>HSN Code: 0302 (Fresh Sea Fish)</div>
+            </div>
+          </div>
+
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="width: 30px;">#</th>
+                <th style="text-align: left;">Item Description</th>
+                <th style="width: 70px;">HSN</th>
+                <th style="width: 80px;" class="text-right">Quantity</th>
+                <th style="width: 80px;" class="text-right">Rate</th>
+                <th style="width: 90px;" class="text-right">Amount (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.items
+                .map(
+                  (it, idx) => `
+                <tr>
+                  <td class="text-center">${idx + 1}</td>
+                  <td>
+                    <strong>${it.name}</strong>
+                    ${it.cuttingStyle ? `<div style="font-size: 10px; color: #64748b;">Style: ${it.cuttingStyle}</div>` : ""}
+                  </td>
+                  <td class="text-center">0302</td>
+                  <td class="text-right">${it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} ${it.unit || "kg"}`}</td>
+                  <td class="text-right">₹${it.unitPrice.toFixed(2)}</td>
+                  <td class="text-right bold">₹${it.totalPrice.toFixed(2)}</td>
+                </tr>
+              `
+                )
+                .join("")}
+            </tbody>
+          </table>
+
+          <div class="summary-box">
+            <div class="summary-row"><span>Subtotal:</span><span class="bold">₹${data.subtotal.toFixed(2)}</span></div>
+            ${data.discount > 0 ? `<div class="summary-row" style="color: #16a34a;"><span>Discount:</span><span>-₹${data.discount.toFixed(2)}</span></div>` : ""}
+            <div class="summary-row"><span>CGST (2.5%):</span><span>₹${(data.gstAmount / 2).toFixed(2)}</span></div>
+            <div class="summary-row"><span>SGST (2.5%):</span><span>₹${(data.gstAmount / 2).toFixed(2)}</span></div>
+            <div class="summary-row total-row"><span>Grand Total:</span><span>₹${data.total.toFixed(2)}</span></div>
+          </div>
+
+          <div class="footer">
+            <div>
+              <p>Terms: 100% chemical-free fresh catch. Perishable goods warranty 2 hours from delivery.</p>
+              <p>This is a computer-generated statutory tax invoice under Section 31 of CGST Act 2017.</p>
+            </div>
+            <div style="text-align: right;">
+              <div style="height: 35px;"></div>
+              <div class="bold">For ${store}</div>
+              <div style="font-size: 10px; color: #666;">Authorized Signatory</div>
+            </div>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+}
+
+/**
+ * Generate standard A5 Delivery Packing Slip HTML.
+ */
+export function buildA5SlipHtml(data: PosReceiptData, config: ThermalPrinterConfig = getSavedPrinterConfig()): string {
+  const store = data.storeName || config.headerLine1 || "FISH N FRESH HUB";
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Packing Slip #${data.receiptNo}</title>
+        <style>
+          @page { size: A5 landscape; margin: 8mm 10mm; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 11px; color: #111; margin: 0; }
+          .header { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 6px; }
+          .table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          .table th, .table td { border: 1px solid #bbb; padding: 6px; }
+          .bold { font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div style="font-size: 16px; font-weight: bold;">${store} — DISPATCH SLIP</div>
+            <div>Order #${data.receiptNo} · ${data.date}</div>
+          </div>
+          <div style="text-align: right;">
+            <div>Customer: <strong>${data.customerName || "Walk-in Customer"}</strong></div>
+            <div>Phone: ${data.customerPhone || "N/A"}</div>
+          </div>
+        </div>
+        <table class="table">
+          <thead>
+            <tr style="background: #f1f5f9;">
+              <th>#</th>
+              <th>Product</th>
+              <th>Cut Style</th>
+              <th>Weight / Qty</th>
+              <th>Verified</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.items
+              .map(
+                (it, idx) => `
+              <tr>
+                <td style="text-align: center;">${idx + 1}</td>
+                <td class="bold">${it.name}</td>
+                <td>${it.cuttingStyle || "Standard"}</td>
+                <td style="text-align: right;">${it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} ${it.unit || "unit"}`}</td>
+                <td style="text-align: center; font-size: 14px;">[ &nbsp; ]</td>
+              </tr>
+            `
+              )
+              .join("")}
+          </tbody>
+        </table>
+        <div style="display: flex; justify-content: space-between; margin-top: 15px;">
+          <div>Packed on crushed ice at 0°C–4°C. Doorstep inspection required.</div>
+          <div>Total Items: <strong>${data.items.length}</strong> · Amount: <strong>₹${data.total.toFixed(0)}</strong></div>
+        </div>
+      </body>
+    </html>
+  `;
+}
+
+/**
+ * Universal print dispatcher for all formats (58mm, 80mm, A4, A5, KOT).
+ */
+export async function printUniversalDocument(
+  data: PosReceiptData,
+  format: PrintFormat = "58mm",
+  config: ThermalPrinterConfig = getSavedPrinterConfig()
+): Promise<boolean> {
+  if (format === "kot") {
+    const bytes = buildKotTokenEscPos(data, config);
+    const fallbackHtml = buildKotTokenHtml(data, config);
+    return sendEscPosToPrinter(bytes, config, fallbackHtml);
+  }
+
+  if (format === "a4") {
+    const html = buildA4InvoiceHtml(data, config);
+    const win = window.open("", "_blank", "width=850,height=900");
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+      setTimeout(() => {
+        win.print();
+      }, 350);
+      return true;
+    }
+    return false;
+  }
+
+  if (format === "a5") {
+    const html = buildA5SlipHtml(data, config);
+    const win = window.open("", "_blank", "width=750,height=600");
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+      setTimeout(() => {
+        win.print();
+      }, 350);
+      return true;
+    }
+    return false;
+  }
+
+  // Standard 58mm / 80mm thermal receipts
+  const bytes = buildPosReceiptEscPos(data, config);
+  const fallbackHtml = buildPosReceiptHtml(data, config);
+  return sendEscPosToPrinter(bytes, config, fallbackHtml);
+}
+
+/**
+ * Build test print artifacts for any format.
+ */
+export function buildTestPrintForFormat(format: PrintFormat, config: ThermalPrinterConfig): { bytes?: Uint8Array; html: string } {
+  const sampleData: PosReceiptData = {
+    receiptNo: "TEST-9999",
+    date: new Date().toLocaleString("en-IN"),
+    cashierName: "Test Terminal",
+    customerName: "Demo Customer",
+    customerPhone: "9876543210",
+    items: [
+      { name: "Vanjaram / Seer Fish (Steaks)", qty: 1, weightKg: 1.25, unit: "kg", unitPrice: 950, totalPrice: 1188, cuttingStyle: "Curry Cut" },
+      { name: "Tiger Prawns (Cleaned)", qty: 1, weightKg: 0.8, unit: "kg", unitPrice: 750, totalPrice: 600, cuttingStyle: "Deveined & Peeled" },
+    ],
+    subtotal: 1788,
+    discount: 50,
+    gstAmount: 86,
+    total: 1824,
+    paymentMethod: "UPI",
+    storeName: config.headerLine1 || "FISH N FRESH HUB",
+    storeAddress: "Kasimedu Marine Terminal, Chennai",
+    storePhone: "9843061919",
+    storeGstin: "33AAAAF1234A1Z5",
+  };
+
+  if (format === "kot") {
+    return {
+      bytes: buildKotTokenEscPos(sampleData, config),
+      html: buildKotTokenHtml(sampleData, config),
+    };
+  }
+
+  if (format === "a4") {
+    return {
+      html: buildA4InvoiceHtml(sampleData, config),
+    };
+  }
+
+  if (format === "a5") {
+    return {
+      html: buildA5SlipHtml(sampleData, config),
+    };
+  }
+
+  return {
+    bytes: buildPosReceiptEscPos(sampleData, config),
+    html: buildPosReceiptHtml(sampleData, config),
+  };
+}
+

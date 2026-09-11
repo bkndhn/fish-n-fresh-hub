@@ -125,6 +125,24 @@ function OrdersAdmin() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const verifyUpiPayment = async (orderId: string) => {
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .update({
+          payment_status: "paid",
+          upi_paid: true,
+          status: "confirmed",
+        })
+        .eq("id", orderId);
+      if (error) throw error;
+      toast.success("UPI payment verified & marked as PAID!");
+      qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to verify UPI payment");
+    }
+  };
+
   const yesterdayDate = new Date();
   yesterdayDate.setDate(yesterdayDate.getDate() - 1);
   const yesterdayStr = getLocalDateString(yesterdayDate.toISOString());
@@ -261,15 +279,15 @@ function OrdersAdmin() {
   return (
     <AdminShell title="Orders" allow={["admin", "manager", "cashier", "support_staff", "staff"]}>
       {/* Date Filter Bar - Today as default */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-muted/30 p-3">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs font-semibold text-muted-foreground mr-1 flex items-center gap-1">
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-border/80 bg-muted/30 p-3">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-w-full">
+          <span className="text-xs font-semibold text-muted-foreground mr-1 flex items-center gap-1 shrink-0">
             <Calendar className="size-3.5 text-primary" /> Period:
           </span>
           <Button
             size="sm"
             variant={dateFilter === "today" ? "default" : "ghost"}
-            className="h-7 rounded-lg text-xs"
+            className="h-7 rounded-lg text-xs shrink-0"
             onClick={() => setDateFilter("today")}
           >
             Today ({todayCount})
@@ -277,7 +295,7 @@ function OrdersAdmin() {
           <Button
             size="sm"
             variant={dateFilter === "yesterday" ? "default" : "ghost"}
-            className="h-7 rounded-lg text-xs"
+            className="h-7 rounded-lg text-xs shrink-0"
             onClick={() => setDateFilter("yesterday")}
           >
             Yesterday
@@ -285,7 +303,7 @@ function OrdersAdmin() {
           <Button
             size="sm"
             variant={dateFilter === "this_week" ? "default" : "ghost"}
-            className="h-7 rounded-lg text-xs"
+            className="h-7 rounded-lg text-xs shrink-0"
             onClick={() => setDateFilter("this_week")}
           >
             This Week
@@ -293,7 +311,7 @@ function OrdersAdmin() {
           <Button
             size="sm"
             variant={dateFilter === "this_month" ? "default" : "ghost"}
-            className="h-7 rounded-lg text-xs"
+            className="h-7 rounded-lg text-xs shrink-0"
             onClick={() => setDateFilter("this_month")}
           >
             This Month
@@ -301,35 +319,49 @@ function OrdersAdmin() {
           <Button
             size="sm"
             variant={dateFilter === "all" ? "default" : "ghost"}
-            className="h-7 rounded-lg text-xs"
+            className="h-7 rounded-lg text-xs shrink-0"
             onClick={() => setDateFilter("all")}
           >
             All Time ({allOrders.length})
           </Button>
         </div>
 
-        {/* Custom date input & Export Dropdown */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Custom Date:</span>
-          <Input
-            type="date"
-            value={customDate}
-            onChange={(e) => {
-              setCustomDate(e.target.value);
-              setDateFilter("custom");
-            }}
-            className={`h-7 w-36 rounded-lg text-xs ${dateFilter === "custom" ? "border-primary font-semibold ring-1 ring-primary" : ""}`}
-          />
+        {/* Custom date input, Subscriptions Drawer Toggle & Export Dropdown */}
+        <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-xs text-muted-foreground">Custom:</span>
+            <Input
+              type="date"
+              value={customDate}
+              onChange={(e) => {
+                setCustomDate(e.target.value);
+                setDateFilter("custom");
+              }}
+              className={`h-7 w-32 rounded-lg text-xs ${dateFilter === "custom" ? "border-primary font-semibold ring-1 ring-primary" : ""}`}
+            />
+          </div>
+
           <Button
             size="sm"
-            variant="outline"
-            className="h-7 rounded-lg text-xs font-bold gap-1 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+            variant={subTabOpen ? "default" : "outline"}
+            className={`h-7.5 rounded-xl text-xs font-bold gap-1.5 shrink-0 transition-all ${
+              subTabOpen
+                ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                : "border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+            }`}
             onClick={() => setSubTabOpen((prev) => !prev)}
+            title="Toggle Recurring Subscriptions & MRR Pipeline Drawer"
           >
-            <Repeat className="size-3 text-emerald-600" />
-            Subscriptions ({adminSubscriptions.filter((s: any) => s.status === "active").length})
+            <Repeat className="size-3 text-emerald-600 dark:text-emerald-400" />
+            <span>Subscriptions</span>
+            <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.2 text-[10px] font-mono">
+              {adminSubscriptions.filter((s: any) => s.status === "active").length}
+            </span>
           </Button>
-          <ExportDropdown options={ordersExportOptions} buttonLabel="Export Orders" />
+
+          <div className="shrink-0">
+            <ExportDropdown options={ordersExportOptions} buttonLabel="Export Orders" />
+          </div>
         </div>
       </div>
 
@@ -669,13 +701,53 @@ function OrdersAdmin() {
                   </ul>
                 </div>
 
-                {/* Payment & COD Alert Banner */}
+                {/* Payment & COD / UPI Alert Banner */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {isCOD ? (
                       <span className="rounded-xl bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-300">
                         ⚠️ Collect Cash: {formatINR(Number(o.total))}
                       </span>
+                    ) : o.payment_method === "upi" ? (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {(o as any).upi_paid || o.payment_status === "paid" ? (
+                          <span className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                            ✅ UPI Verified Paid {(o as any).actual_payment_ref ? `(UTR: ${(o as any).actual_payment_ref})` : ""}
+                          </span>
+                        ) : (
+                          <>
+                            <span className="rounded-xl bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-300">
+                              ⏳ UPI Verification Pending {(o as any).actual_payment_ref ? `(UTR: ${(o as any).actual_payment_ref})` : ""}
+                            </span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs font-bold rounded-lg text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10 gap-1"
+                              onClick={() => verifyUpiPayment(o.id)}
+                            >
+                              <CheckCircle2 className="size-3" /> Mark Verified
+                            </Button>
+                            <Button
+                              asChild
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs font-semibold rounded-lg text-green-700 dark:text-green-400 border-green-500/30 hover:bg-green-500/10 gap-1"
+                            >
+                              <a
+                                href={getWhatsAppUrl(
+                                  o.customer_phone,
+                                  `Hi ${o.customer_name}, your order #${o.order_number ?? o.id.slice(0, 8)} of ${formatINR(Number(o.total))} is awaiting UPI payment. Please pay to UPI ID ${settings?.upi_id || "our UPI"} or tap: upi://pay?pa=${settings?.upi_id || ""}&pn=FishNFresh&am=${o.total}&cu=INR. Thank you!`
+                                )}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <WhatsAppIcon className="size-3" /> Payment Reminder
+                              </a>
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     ) : (
                       <span className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
                         ✅ Paid Online ({o.payment_method.toUpperCase()})

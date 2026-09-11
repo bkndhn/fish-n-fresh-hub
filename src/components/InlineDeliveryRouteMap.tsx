@@ -7,6 +7,9 @@ import {
   ExternalLink,
   Phone,
   Navigation,
+  Layers,
+  RotateCcw,
+  Truck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -58,6 +61,11 @@ export function InlineDeliveryRouteMap({
 }: InlineDeliveryRouteMapProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const leafletMapRef = useRef<any>(null);
+  const leafletModuleRef = useRef<any>(null);
+  const currentTileLayerRef = useRef<any>(null);
+
+  const [mapError, setMapError] = useState(false);
+  const [isSatellite, setIsSatellite] = useState(false);
 
   const effectiveStoreLat = storeLat || DEFAULT_STORE_LAT;
   const effectiveStoreLng = storeLng || DEFAULT_STORE_LNG;
@@ -70,6 +78,21 @@ export function InlineDeliveryRouteMap({
 
   // Road route result from OSRM
   const [roadRoute, setRoadRoute] = useState<RoadRouteResult | null>(null);
+
+  const toggleSatellite = () => {
+    const nextMode = !isSatellite;
+    setIsSatellite(nextMode);
+
+    if (leafletMapRef.current && leafletModuleRef.current) {
+      const L = leafletModuleRef.current;
+      const map = leafletMapRef.current;
+      if (currentTileLayerRef.current) {
+        map.removeLayer(currentTileLayerRef.current);
+      }
+      const layer = createResilientTileLayer(L, map, nextMode).addTo(map);
+      currentTileLayerRef.current = layer;
+    }
+  };
 
   // Resolve coordinates if missing but address is present
   useEffect(() => {
@@ -159,6 +182,8 @@ export function InlineDeliveryRouteMap({
       try {
         const L = (await import("leaflet")).default;
 
+        leafletModuleRef.current = L;
+
         if (!mapContainerRef.current || !isMounted || !roadRoute) return;
 
         if (leafletMapRef.current) {
@@ -172,7 +197,7 @@ export function InlineDeliveryRouteMap({
           dragging: !L.Browser.mobile,
         });
 
-        createResilientTileLayer(L, map).addTo(map);
+        currentTileLayerRef.current = createResilientTileLayer(L, map, isSatellite).addTo(map);
 
         L.control.zoom({ position: "bottomright" }).addTo(map);
 
@@ -244,6 +269,7 @@ export function InlineDeliveryRouteMap({
         }, 300);
       } catch (err) {
         console.error("Inline delivery map error:", err);
+        setMapError(true);
       }
     }
 
@@ -268,6 +294,72 @@ export function InlineDeliveryRouteMap({
     verticalEmoji,
   ]);
 
+  if (mapError) {
+    return (
+      <div
+        className={`relative w-full max-w-full overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-muted/30 to-card p-4 sm:p-5 shadow-xs ${className}`}
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3.5 mb-3.5">
+          <div className="flex items-center gap-2">
+            <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Truck className="size-4 animate-pulse" />
+            </span>
+            <div>
+              <p className="text-xs font-bold text-foreground">Live Delivery Tracking</p>
+              <p className="text-[11px] text-muted-foreground">Doorstep transit milestones active</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="rounded-xl h-7 px-2.5 text-[11px] gap-1"
+              onClick={() => setMapError(false)}
+            >
+              <RotateCcw className="size-3" /> Retry Map
+            </Button>
+          </div>
+        </div>
+
+        {/* Milestone Steps Fallback */}
+        <div className="grid grid-cols-3 gap-2 py-2 text-center">
+          <div className="rounded-xl bg-muted/50 p-2.5 border border-border/40">
+            <div className="text-base mb-1">{verticalEmoji}</div>
+            <p className="text-[11px] font-bold text-foreground truncate">Hub</p>
+            <p className="text-[9px] text-muted-foreground truncate">{storeAddress}</p>
+          </div>
+          <div className="rounded-xl bg-primary/10 p-2.5 border border-primary/25">
+            <div className="text-base mb-1">🛵</div>
+            <p className="text-[11px] font-bold text-primary truncate">In Transit</p>
+            <p className="text-[9px] font-semibold text-primary">~{displayEta} mins ({distanceKm} km)</p>
+          </div>
+          <div className="rounded-xl bg-muted/50 p-2.5 border border-border/40">
+            <div className="text-base mb-1">🏡</div>
+            <p className="text-[11px] font-bold text-foreground truncate">Doorstep</p>
+            <p className="text-[9px] text-muted-foreground truncate">{destAddress || "Customer"}</p>
+          </div>
+        </div>
+
+        {/* Action button */}
+        <div className="mt-3 flex items-center justify-between gap-2 pt-3 border-t border-border/50">
+          <p className="text-xs text-muted-foreground">
+            Navigation active via external GPS
+          </p>
+          <Button
+            asChild
+            size="sm"
+            className="h-8 rounded-xl text-xs font-bold gap-1 bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer">
+              <Compass className="size-3.5" /> Google Maps Navigation
+            </a>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`relative w-full max-w-full overflow-hidden rounded-2xl border border-border/80 bg-card shadow-xs ${className}`}
@@ -287,19 +379,35 @@ export function InlineDeliveryRouteMap({
           )}
         </div>
 
-        {onExpand && (
+        <div className="flex items-center gap-1.5 pointer-events-auto">
           <Button
             type="button"
             size="sm"
             variant="outline"
-            className="rounded-full h-8 px-2.5 bg-background/90 backdrop-blur-md shadow-sm border-border/60 text-xs font-semibold hover:bg-background pointer-events-auto gap-1"
-            onClick={onExpand}
-            title="Expand Full Screen Map"
+            className={`rounded-full h-8 px-2.5 bg-background/90 backdrop-blur-md shadow-sm border-border/60 text-xs font-semibold hover:bg-background gap-1 ${
+              isSatellite ? "border-primary text-primary bg-primary/10" : ""
+            }`}
+            onClick={toggleSatellite}
+            title={isSatellite ? "Switch to Streets Map" : "Switch to Satellite Imagery"}
           >
-            <Maximize2 className="size-3.5" />
-            <span className="hidden sm:inline">Full Map</span>
+            <Layers className="size-3.5" />
+            <span className="hidden sm:inline">{isSatellite ? "Streets" : "Satellite"}</span>
           </Button>
-        )}
+
+          {onExpand && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="rounded-full h-8 px-2.5 bg-background/90 backdrop-blur-md shadow-sm border-border/60 text-xs font-semibold hover:bg-background gap-1"
+              onClick={onExpand}
+              title="Expand Full Screen Map"
+            >
+              <Maximize2 className="size-3.5" />
+              <span className="hidden sm:inline">Full Map</span>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Map Container Canvas */}

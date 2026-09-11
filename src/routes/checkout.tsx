@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { MapPin, Copy, QrCode, Smartphone, Tag, MessageCircle, AlertTriangle, CheckCircle2, Zap, Clock, Gift, Wallet, Sparkles } from "lucide-react";
+import { MapPin, Copy, QrCode, Smartphone, Tag, MessageCircle, AlertTriangle, CheckCircle2, Zap, Clock, Gift, Wallet, Sparkles, Upload, X, Check } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,29 @@ function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
     Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c; 
+}
+
+function playOrderSuccessChime() {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+    notes.forEach((freq, index) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + index * 0.09);
+      gain.gain.setValueAtTime(0.18, ctx.currentTime + index * 0.09);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + index * 0.09 + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + index * 0.09);
+      osc.stop(ctx.currentTime + index * 0.09 + 0.35);
+    });
+  } catch {
+    // audio policy
+  }
 }
 
 export const Route = createFileRoute("/checkout")({
@@ -98,7 +121,17 @@ function Checkout() {
   const [appliedPromo, setAppliedPromo] = useState<{ code: string; discount: number } | null>(null);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [upiUtr, setUpiUtr] = useState("");
+  const [upiScreenshot, setUpiScreenshot] = useState<string | null>(null);
+  const [paymentTimerSeconds, setPaymentTimerSeconds] = useState(600);
   const [orderSuccess, setOrderSuccess] = useState<{ id: string; order_number?: string; total: number; phone: string; name: string } | null>(null);
+
+  useEffect(() => {
+    if (payment !== "upi") return;
+    const interval = setInterval(() => {
+      setPaymentTimerSeconds((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [payment]);
   
   const { data: windows } = useQuery(deliveryWindowsQuery);
   const [slot, setSlot] = useState("");
@@ -364,6 +397,7 @@ function Checkout() {
     const orderNotes = [
       notes.trim(),
       upiUtr ? `UPI UTR: ${upiUtr}` : "",
+      upiScreenshot ? "Payment Screenshot Proof Attached" : "",
       appliedReferral ? `Referral: ${appliedReferral.code} (-${inr(appliedReferral.bonus)})` : "",
       walletDiscount > 0 ? `FreshCash Redeemed: -${inr(walletDiscount)}` : "",
     ]
@@ -405,6 +439,9 @@ function Checkout() {
         total,
         status: "pending",
         payment_method: payment,
+        payment_status: (payment === "upi" && upiUtr.length === 12) ? "paid" : "pending",
+        actual_payment_ref: upiUtr || null,
+        upi_paid: Boolean(payment === "upi" && upiUtr.length === 12),
         fulfillment_type: fulfillment,
         delivery_date: fulfillment === "delivery" ? deliveryDate : null,
         delivery_slot: finalSlot,
@@ -420,6 +457,8 @@ function Checkout() {
       toast.error("Could not place order. Please try again.");
       return;
     }
+
+    playOrderSuccessChime();
 
     // Record campaign conversion if applicable
     if (autoCartReward.eligible && autoCartReward.campaignId) {
@@ -616,7 +655,10 @@ function Checkout() {
 
   const upiId = settings?.upi_id || "9843061919@upi";
   const upiName = settings?.upi_name || "Fish N Fresh";
-  const upiDeepLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${total}&cu=INR`;
+  const upiDeepLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${total}&cu=INR&tn=${encodeURIComponent("Fish N Fresh Seafood")}`;
+  const gpayDeepLink = `tez://upi/pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${total}&cu=INR&tn=${encodeURIComponent("Fish N Fresh Seafood")}`;
+  const phonepeDeepLink = `phonepe://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${total}&cu=INR&tn=${encodeURIComponent("Fish N Fresh Seafood")}`;
+  const paytmDeepLink = `paytmmp://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${total}&cu=INR&tn=${encodeURIComponent("Fish N Fresh Seafood")}`;
   const upiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiDeepLink)}`;
 
   return (
@@ -1110,67 +1152,218 @@ function Checkout() {
         </div>
 
         {payment === "upi" && (
-          <div className="mt-4 rounded-2xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+          <div className="mt-4 rounded-2xl border border-primary/30 bg-primary/5 p-4 space-y-3.5">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-sm">Scan & Pay via UPI (0% Fee)</span>
               <span className="text-xs font-bold text-primary">{inr(total)}</span>
             </div>
 
-            <div className="flex flex-col items-center justify-center p-3 bg-white rounded-xl border">
+            {/* UPI Session Countdown Timer */}
+            <div className="flex items-center justify-between text-xs rounded-xl bg-background/80 p-2.5 border border-border/60">
+              <span className="flex items-center gap-1.5 font-medium text-foreground">
+                <Clock className="size-3.5 text-primary" /> Session Active
+              </span>
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={`font-mono text-xs font-bold px-2 py-0.5 rounded-full ${
+                    paymentTimerSeconds < 120
+                      ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 animate-pulse"
+                      : "bg-primary/10 text-primary"
+                  }`}
+                >
+                  {Math.floor(paymentTimerSeconds / 60)
+                    .toString()
+                    .padStart(2, "0")}
+                  :
+                  {(paymentTimerSeconds % 60)
+                    .toString()
+                    .padStart(2, "0")} remaining
+                </span>
+                {paymentTimerSeconds === 0 && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 text-[10px] px-1.5 text-primary"
+                    onClick={() => setPaymentTimerSeconds(600)}
+                  >
+                    Reset
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* UPI QR Code Container */}
+            <div className="flex flex-col items-center justify-center p-3.5 bg-white rounded-xl border shadow-2xs">
               <img
                 src={upiQrUrl}
                 alt="UPI QR Code"
-                className="size-44 object-contain"
+                className="size-44 object-contain rounded-lg"
               />
               <p className="mt-2 text-[11px] text-muted-foreground text-center">
                 Scan with Google Pay, PhonePe, Paytm, BHIM, or any banking app
               </p>
             </div>
 
+            {/* Store UPI ID & Copy */}
             <div className="flex items-center justify-between rounded-xl bg-background p-2.5 border text-xs">
               <div className="min-w-0 pr-2">
-                <p className="text-[10px] text-muted-foreground">Store UPI ID</p>
+                <p className="text-[10px] text-muted-foreground">Store Official UPI ID</p>
                 <p className="font-mono font-medium truncate">{upiId}</p>
               </div>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-7 text-xs rounded-lg shrink-0"
+                className="h-7 text-xs rounded-lg shrink-0 gap-1"
                 onClick={() => {
                   navigator.clipboard.writeText(upiId);
-                  toast.success("UPI ID copied!");
+                  toast.success("UPI ID copied to clipboard!");
                 }}
               >
-                <Copy className="mr-1 size-3" /> Copy
+                <Copy className="size-3" /> Copy ID
               </Button>
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full rounded-xl sm:hidden border-primary/40 text-primary"
-              onClick={() => {
-                window.location.href = upiDeepLink;
-              }}
-            >
-              <Smartphone className="mr-2 size-4" /> Open UPI App on this Phone
-            </Button>
+            {/* Direct 1-Tap UPI App Deep Links for Mobile */}
+            <div className="space-y-1.5 pt-0.5 sm:hidden">
+              <p className="text-[11px] font-semibold text-muted-foreground">
+                Or Pay Directly Using Installed App:
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl h-8 text-xs font-semibold border-border hover:border-primary/40 gap-1.5"
+                  onClick={() => {
+                    window.location.href = gpayDeepLink;
+                  }}
+                >
+                  <span>Google Pay</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl h-8 text-xs font-semibold border-border hover:border-primary/40 gap-1.5"
+                  onClick={() => {
+                    window.location.href = phonepeDeepLink;
+                  }}
+                >
+                  <span>PhonePe</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl h-8 text-xs font-semibold border-border hover:border-primary/40 gap-1.5"
+                  onClick={() => {
+                    window.location.href = paytmDeepLink;
+                  }}
+                >
+                  <span>Paytm</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl h-8 text-xs font-semibold border-primary/40 text-primary hover:bg-primary/10 gap-1.5"
+                  onClick={() => {
+                    window.location.href = upiDeepLink;
+                  }}
+                >
+                  <Smartphone className="size-3.5" />
+                  <span>Any UPI App</span>
+                </Button>
+              </div>
+            </div>
 
+            {/* 12-Digit UTR Input with real-time validation */}
             <div className="space-y-1.5 pt-1">
-              <Label htmlFor="upi-utr" className="text-xs">
-                12-Digit UPI Transaction / UTR No. (Optional)
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="upi-utr" className="text-xs font-semibold">
+                  12-Digit UPI Transaction / UTR No.
+                </Label>
+                {upiUtr.length === 12 ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                    <Check className="size-3" /> 12-Digit UTR Valid
+                  </span>
+                ) : upiUtr.length > 0 ? (
+                  <span className="text-[11px] font-mono text-amber-600 dark:text-amber-400">
+                    {upiUtr.length}/12 digits
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground">Optional but recommended</span>
+                )}
+              </div>
               <Input
                 id="upi-utr"
                 placeholder="e.g. 423456789012"
                 value={upiUtr}
                 onChange={(e) => setUpiUtr(e.target.value.replace(/\D/g, "").slice(0, 12))}
-                className="rounded-xl bg-background font-mono text-sm"
+                className={`rounded-xl bg-background font-mono text-sm tracking-wider ${
+                  upiUtr.length === 12 ? "border-emerald-500 ring-1 ring-emerald-500/30" : ""
+                }`}
               />
               <p className="text-[10px] text-muted-foreground">
-                Enter your transaction ID from GPay/PhonePe to speed up packing and verification.
+                Enter your 12-digit UTR from GPay/PhonePe/Paytm to instantly verify and expedite packing.
               </p>
+            </div>
+
+            {/* Payment Screenshot Proof Attachment */}
+            <div className="space-y-1.5 pt-1">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">Payment Screenshot Proof</Label>
+                <span className="text-[10px] text-muted-foreground">Optional</span>
+              </div>
+              {upiScreenshot ? (
+                <div className="relative flex items-center gap-3 p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
+                  <img
+                    src={upiScreenshot}
+                    alt="Payment Proof"
+                    className="size-11 object-cover rounded-lg border border-border shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300 truncate">
+                      Screenshot Attached
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Will be verified by the packing counter
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="size-7 text-muted-foreground hover:text-destructive shrink-0"
+                    onClick={() => setUpiScreenshot(null)}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
+              ) : (
+                <label className="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-dashed border-border hover:border-primary/50 bg-background cursor-pointer text-xs text-muted-foreground hover:text-primary transition">
+                  <Upload className="size-3.5" />
+                  <span>Attach payment receipt screenshot</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (file.size > 5 * 1024 * 1024) {
+                          toast.error("File is too large. Max 5MB allowed.");
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = (evt) => {
+                          setUpiScreenshot(evt.target?.result as string);
+                          toast.success("Payment screenshot attached!");
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </label>
+              )}
             </div>
           </div>
         )}

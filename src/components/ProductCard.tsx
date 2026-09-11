@@ -8,6 +8,7 @@ import { inr, formatStockDisplay } from "@/lib/format";
 import { settingsQuery } from "@/lib/queries";
 import type { Product } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { optimizeImageUrl } from "@/lib/imageOptimizer";
 
 export function ProductCard({ product }: { product: Product }) {
   const { items, add, setQty, remove } = useCart();
@@ -51,7 +52,7 @@ export function ProductCard({ product }: { product: Product }) {
         <div className="aspect-[4/3] overflow-hidden bg-muted">
           {product.image_url ? (
             <img
-              src={product.image_url}
+              src={optimizeImageUrl(product.image_url, { width: 500, quality: 75 })}
               alt={product.name}
               loading="lazy"
               decoding="async"

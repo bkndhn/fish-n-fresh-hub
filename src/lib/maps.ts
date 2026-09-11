@@ -185,21 +185,21 @@ export async function searchNominatim(query: string): Promise<NominatimSearchRes
  */
 export const TILE_PROVIDERS = [
   {
-    name: "OpenStreetMap Standard",
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    options: {
-      maxZoom: 19,
-      subdomains: ["a", "b", "c"],
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    },
-  },
-  {
     name: "CartoDB Voyager (Resilient High-Contrast)",
     url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
     options: {
       maxZoom: 20,
       subdomains: "abcd",
       attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+    },
+  },
+  {
+    name: "OpenStreetMap Standard",
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    options: {
+      maxZoom: 19,
+      subdomains: ["a", "b", "c"],
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     },
   },
   {
@@ -211,9 +211,28 @@ export const TILE_PROVIDERS = [
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     },
   },
+  {
+    name: "Esri Satellite Imagery",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    options: {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri &mdash; High-Res Aerial Satellite',
+    },
+  },
 ];
 
-export function createResilientTileLayer(L: any, map?: any) {
+export function createResilientTileLayer(L: any, map?: any, isSatellite: boolean = false) {
+  if (isSatellite) {
+    return L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      {
+        maxZoom: 19,
+        attribution: 'Tiles &copy; Esri &mdash; High-Res Aerial Satellite',
+        crossOrigin: true,
+      }
+    );
+  }
+
   let providerIndex = 0;
   const layer = L.tileLayer(TILE_PROVIDERS[0]!.url, {
     ...TILE_PROVIDERS[0]!.options,
@@ -230,6 +249,67 @@ export function createResilientTileLayer(L: any, map?: any) {
   });
 
   return layer;
+}
+
+/**
+ * Smart parser for Google Maps URLs, Plus Codes, and coordinate strings.
+ * Extracts {lat, lng} from links shared from installed Google Maps mobile app or web.
+ */
+export function parseGoogleMapsUrl(input: string): { lat: number; lng: number } | null {
+  if (!input || typeof input !== "string") return null;
+  const trimmed = input.trim();
+
+  // 1. Plain coordinates: "13.0827, 80.2707" or "13.0827,80.2707"
+  const plainCoords = trimmed.match(/^\s*(-?\d{1,2}\.\d+)[,\s]+(-?\d{1,3}\.\d+)\s*$/);
+  if (plainCoords && plainCoords[1] && plainCoords[2]) {
+    const lat = parseFloat(plainCoords[1]);
+    const lng = parseFloat(plainCoords[2]);
+    if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      return { lat, lng };
+    }
+  }
+
+  // 2. Google Maps @lat,lng format: ".../@13.0827,80.2707,17z..."
+  const atMatch = trimmed.match(/@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/);
+  if (atMatch && atMatch[1] && atMatch[2]) {
+    const lat = parseFloat(atMatch[1]);
+    const lng = parseFloat(atMatch[2]);
+    if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      return { lat, lng };
+    }
+  }
+
+  // 3. Google Maps query param: "...?q=13.0827,80.2707..." or "...&ll=13.0827,80.2707..."
+  const qMatch = trimmed.match(/[?&](?:q|ll|destination|center)=(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/);
+  if (qMatch && qMatch[1] && qMatch[2]) {
+    const lat = parseFloat(qMatch[1]);
+    const lng = parseFloat(qMatch[2]);
+    if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      return { lat, lng };
+    }
+  }
+
+  // 4. Google Maps place data tag: "...!3d13.0827!4d80.2707..."
+  const placeMatch = trimmed.match(/!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/);
+  if (placeMatch && placeMatch[1] && placeMatch[2]) {
+    const lat = parseFloat(placeMatch[1]);
+    const lng = parseFloat(placeMatch[2]);
+    if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      return { lat, lng };
+    }
+  }
+
+  // 5. Geo URI: "geo:13.0827,80.2707"
+  const geoMatch = trimmed.match(/geo:(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/i);
+  if (geoMatch && geoMatch[1] && geoMatch[2]) {
+    const lat = parseFloat(geoMatch[1]);
+    const lng = parseFloat(geoMatch[2]);
+    if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      return { lat, lng };
+    }
+  }
+
+  return null;
 }
 
 export interface RoadRouteResult {

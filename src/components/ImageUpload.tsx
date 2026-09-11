@@ -1,18 +1,28 @@
 import { useState } from "react";
-import imageCompression from "browser-image-compression";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { UploadCloud, Loader2, Camera } from "lucide-react";
+import { UploadCloud, Loader2, Camera, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { compressImageFile } from "@/lib/imageOptimizer";
 
 interface ImageUploadProps {
   onUpload: (url: string) => void;
-  currentImage?: string | null;
-  compact?: boolean;
+  onRemove?: (() => void) | undefined;
+  currentImage?: string | null | undefined;
+  compact?: boolean | undefined;
+  maxSizeMB?: number | undefined;
+  label?: string | undefined;
 }
 
-export function ImageUpload({ onUpload, currentImage, compact = false }: ImageUploadProps) {
+export function ImageUpload({
+  onUpload,
+  onRemove,
+  currentImage,
+  compact = false,
+  maxSizeMB = 0.2, // Default 200KB limit for products & banners
+  label,
+}: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -21,29 +31,24 @@ export function ImageUpload({ onUpload, currentImage, compact = false }: ImageUp
 
     setUploading(true);
     try {
-      // Compress to max 200kb
-      const options = {
-        maxSizeMB: 0.2,
-        maxWidthOrHeight: 1024,
-        useWebWorker: true,
-      };
-      
-      const compressedFile = await imageCompression(file, options);
-      
-      const fileExt = file.name.split('.').pop();
+      // Compress to requested maximum size (0.2MB for products/banners, 0.5MB for logo)
+      const compressedFile = await compressImageFile(file, maxSizeMB, 1200);
+
+      const fileExt = file.name.split(".").pop() || "jpg";
       const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
       const filePath = `public/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('images')
+        .from("images")
         .upload(filePath, compressedFile);
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage.from('images').getPublicUrl(filePath);
-      
+      const { data } = supabase.storage.from("images").getPublicUrl(filePath);
+
       onUpload(data.publicUrl);
-      toast.success("Image updated successfully");
+      const kbSize = Math.round(compressedFile.size / 1024);
+      toast.success(`Image uploaded & optimized (${kbSize} KB)`);
     } catch (error: any) {
       toast.error(error.message || "Failed to upload image");
     } finally {
@@ -93,13 +98,15 @@ export function ImageUpload({ onUpload, currentImage, compact = false }: ImageUp
     );
   }
 
+  const maxKb = Math.round(maxSizeMB * 1024);
+
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex flex-wrap items-center gap-3">
       {currentImage && (
-        <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-border bg-muted/40">
+        <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-border bg-muted/40 shadow-2xs">
           <img
             src={currentImage}
-            alt="Current"
+            alt="Current preview"
             className="size-full object-cover"
             onError={(e) => {
               e.currentTarget.src = "https://images.unsplash.com/photo-1509722747041-616f39b57569?w=800";
@@ -107,18 +114,36 @@ export function ImageUpload({ onUpload, currentImage, compact = false }: ImageUp
           />
         </div>
       )}
-      <div className="relative">
-        <Input 
-          type="file" 
-          accept="image/*" 
-          className="absolute inset-0 cursor-pointer opacity-0"
-          onChange={handleFileChange}
-          disabled={uploading}
-        />
-        <Button variant="outline" className="pointer-events-none rounded-xl" disabled={uploading}>
-          {uploading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <UploadCloud className="mr-2 size-4" />}
-          {uploading ? "Uploading..." : "Upload Image"}
-        </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative">
+          <Input 
+            type="file" 
+            accept="image/*" 
+            className="absolute inset-0 cursor-pointer opacity-0"
+            onChange={handleFileChange}
+            disabled={uploading}
+          />
+          <Button variant="outline" className="pointer-events-none rounded-xl text-xs font-semibold h-9" disabled={uploading}>
+            {uploading ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <UploadCloud className="mr-1.5 size-3.5" />}
+            {uploading ? "Compressing & Uploading..." : (label || "Upload Image")}
+          </Button>
+        </div>
+
+        {onRemove && currentImage && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="rounded-xl h-9 text-xs text-destructive hover:bg-destructive/10 gap-1"
+            onClick={onRemove}
+          >
+            <Trash2 className="size-3.5" /> Remove
+          </Button>
+        )}
+
+        <span className="text-[10px] text-muted-foreground font-medium px-2 py-0.5 rounded-md bg-muted border border-border/50">
+          Max {maxKb} KB auto-compressed
+        </span>
       </div>
     </div>
   );

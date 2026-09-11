@@ -10,6 +10,10 @@ import {
   Crosshair,
   Building,
   Sparkles,
+  Layers,
+  Globe,
+  ExternalLink,
+  Link as LinkIcon,
 } from "lucide-react";
 import {
   Dialog,
@@ -23,6 +27,7 @@ import {
   reverseGeocodeNominatim,
   searchNominatim,
   createResilientTileLayer,
+  parseGoogleMapsUrl,
   type GeocodedAddress,
   type NominatimSearchResult,
 } from "@/lib/maps";
@@ -55,6 +60,7 @@ export function MapPinPickerModal({
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const leafletMapRef = useRef<any>(null);
   const leafletModuleRef = useRef<any>(null);
+  const currentTileLayerRef = useRef<any>(null);
 
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number }>({
     lat: initialLat || DEFAULT_LAT,
@@ -65,12 +71,50 @@ export function MapPinPickerModal({
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
+  const [isSatellite, setIsSatellite] = useState(false);
+
+  // Google Maps link parser state
+  const [googleMapsInput, setGoogleMapsInput] = useState("");
+  const [showGoogleMapsInput, setShowGoogleMapsInput] = useState(false);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<NominatimSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
+
+  // Toggle Satellite and Street View
+  const toggleSatelliteView = () => {
+    if (!leafletMapRef.current || !leafletModuleRef.current) return;
+    const L = leafletModuleRef.current;
+    const map = leafletMapRef.current;
+    const nextMode = !isSatellite;
+    setIsSatellite(nextMode);
+
+    if (currentTileLayerRef.current) {
+      map.removeLayer(currentTileLayerRef.current);
+    }
+    const newLayer = createResilientTileLayer(L, map, nextMode).addTo(map);
+    currentTileLayerRef.current = newLayer;
+  };
+
+  // Parse Google Maps Link or Coordinates
+  const handleParseGoogleMaps = () => {
+    if (!googleMapsInput.trim()) return;
+    const parsed = parseGoogleMapsUrl(googleMapsInput);
+    if (parsed) {
+      setCurrentCoords(parsed);
+      if (leafletMapRef.current) {
+        leafletMapRef.current.flyTo([parsed.lat, parsed.lng], 17, { duration: 1.2 });
+      }
+      fetchAddressForCoords(parsed.lat, parsed.lng);
+      toast.success("Coordinates extracted from Google Maps!");
+      setShowGoogleMapsInput(false);
+      setGoogleMapsInput("");
+    } else {
+      toast.error("Could not parse coordinates. Please paste a link with @lat,lng, ?q=lat,lng, or coordinates like 13.0827, 80.2707");
+    }
+  };
 
   // Initialize Leaflet only in the browser
   useEffect(() => {
@@ -101,7 +145,8 @@ export function MapPinPickerModal({
         });
 
         // Add resilient multi-provider tiles
-        createResilientTileLayer(L, map).addTo(map);
+        const layer = createResilientTileLayer(L, map, isSatellite).addTo(map);
+        currentTileLayerRef.current = layer;
 
         // Add zoom control at bottom right
         L.control.zoom({ position: "bottomright" }).addTo(map);
@@ -286,6 +331,18 @@ export function MapPinPickerModal({
               <Button
                 type="button"
                 size="sm"
+                variant={showGoogleMapsInput ? "default" : "outline"}
+                className="h-9 px-2.5 text-xs rounded-xl gap-1 shrink-0 font-medium"
+                onClick={() => setShowGoogleMapsInput(!showGoogleMapsInput)}
+                title="Paste location shared from Google Maps"
+              >
+                <LinkIcon className="size-3.5" />
+                <span className="hidden sm:inline">Google Maps Link</span>
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
                 variant="outline"
                 className="h-9 px-3 text-xs rounded-xl gap-1 shrink-0 font-medium"
                 onClick={handleLocateMe}
@@ -299,6 +356,27 @@ export function MapPinPickerModal({
                 <span className="hidden sm:inline">Use GPS</span>
               </Button>
             </div>
+
+            {/* Google Maps Link Paste Box */}
+            {showGoogleMapsInput && (
+              <div className="mt-2 flex items-center gap-1.5 p-2 rounded-xl bg-muted/50 border border-border animate-in fade-in duration-200">
+                <Input
+                  placeholder="Paste Google Maps URL (e.g. https://maps.app.goo.gl/... or 13.0827,80.2707)"
+                  value={googleMapsInput}
+                  onChange={(e) => setGoogleMapsInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleParseGoogleMaps()}
+                  className="h-8 text-xs rounded-lg bg-background"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8 px-3 text-xs rounded-lg shrink-0 font-bold"
+                  onClick={handleParseGoogleMaps}
+                >
+                  Apply Pin
+                </Button>
+              </div>
+            )}
 
             {/* Autocomplete Results Dropdown */}
             {showSearchResults && searchResults.length > 0 && (
@@ -322,6 +400,38 @@ export function MapPinPickerModal({
         <div className="relative flex-1 bg-muted/40 w-full overflow-hidden">
           {/* Leaflet container */}
           <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
+
+          {/* Floating Controls: Satellite Switcher & Open in Google Maps */}
+          <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="h-7.5 rounded-full px-2.5 text-[11px] font-semibold bg-background/90 backdrop-blur-md shadow-md border border-border/60 gap-1 hover:bg-background"
+              onClick={toggleSatelliteView}
+            >
+              <Layers className="size-3.5 text-primary" />
+              <span>{isSatellite ? "Street Map" : "Satellite View"}</span>
+            </Button>
+
+            <Button
+              asChild
+              size="sm"
+              variant="secondary"
+              className="h-7.5 rounded-full px-2.5 text-[11px] font-semibold bg-background/90 backdrop-blur-md shadow-md border border-border/60 gap-1 hover:bg-background text-foreground"
+            >
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${currentCoords.lat},${currentCoords.lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="View in Google Maps App"
+              >
+                <Globe className="size-3.5 text-blue-600" />
+                <span className="hidden sm:inline">Google Maps</span>
+                <ExternalLink className="size-2.5 opacity-60 ml-0.5" />
+              </a>
+            </Button>
+          </div>
 
           {/* Floating Center Pin Indicator (Uber/Swiggy Style) */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full pointer-events-none z-30 flex flex-col items-center">

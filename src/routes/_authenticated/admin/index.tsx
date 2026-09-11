@@ -24,6 +24,8 @@ import {
   Calendar,
   Layers,
   ArrowRight,
+  Eye,
+  ExternalLink,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminCustomersQuery, adminOrdersQuery, adminProductsQuery } from "@/lib/admin";
@@ -153,6 +155,19 @@ function Dashboard() {
               All-Time
             </Button>
           </div>
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="h-8.5 rounded-xl font-bold gap-1.5 border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 shadow-2xs"
+            title="Open live customer storefront in new tab to test shopping experience"
+          >
+            <Link to="/" target="_blank" rel="noopener noreferrer">
+              <Eye className="size-4 text-emerald-600 dark:text-emerald-400" />
+              <span>Customer Storefront</span>
+              <ExternalLink className="size-3 opacity-60 ml-0.5" />
+            </Link>
+          </Button>
           <Link to="/admin/pos">
             <Button size="sm" className="h-8.5 rounded-xl font-bold gap-1.5 bg-primary text-primary-foreground shadow-2xs">
               <Store className="size-4" /> POS Counter
@@ -162,6 +177,36 @@ function Dashboard() {
       }
     >
       <div className="space-y-5">
+        {/* Quick Customer Storefront Tester Banner */}
+        <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-card to-sky-500/10 p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="size-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <Eye className="size-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-foreground">Customer Portal & Experience Tester</h3>
+                <Badge className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold">1-Click Live Test</Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Audit the complete customer journey — real-time catalog, cart stepper, UPI checkout, and live driver tracking.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              asChild
+              size="sm"
+              className="h-8.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs gap-1.5 shadow-xs"
+            >
+              <Link to="/" target="_blank" rel="noopener noreferrer">
+                <span>View Customer Storefront</span>
+                <ExternalLink className="size-3.5" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+
         {/* Operating Status HUD Banner */}
         {storeStatus && (
           <div 

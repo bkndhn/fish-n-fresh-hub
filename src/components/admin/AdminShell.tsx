@@ -23,6 +23,8 @@ import {
   Store,
   MessageCircle,
   Rocket,
+  Eye,
+  ExternalLink,
 } from "lucide-react";
 import { GoLiveChecklistModal } from "@/components/admin/GoLiveChecklistModal";
 import { supabase } from "@/integrations/supabase/client";
@@ -146,6 +148,21 @@ export function AdminShell({
           </Link>
           <div className="ml-auto flex items-center gap-2">
             <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-xl text-xs font-bold gap-1.5 border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 shadow-2xs transition-all"
+              title="View Customer Portal / Live Storefront"
+            >
+              <Link to="/" target="_blank" rel="noopener noreferrer">
+                <Eye className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span className="hidden sm:inline">Customer Portal</span>
+                <span className="sm:hidden">Store</span>
+                <ExternalLink className="size-2.5 opacity-60 ml-0.5" />
+              </Link>
+            </Button>
+
+            <Button
               variant="outline"
               size="sm"
               onClick={() => setGoLiveOpen(true)}
@@ -249,9 +266,21 @@ export function AdminShell({
                     </button>
                   </SheetTrigger>
                   <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto p-5 border-t border-border/80 bg-background shadow-2xl">
-                    <SheetHeader className="mb-4 text-left">
+                    <SheetHeader className="mb-3 text-left">
                       <SheetTitle className="text-base font-bold">Admin Console Menu</SheetTitle>
                     </SheetHeader>
+                    <div className="mb-4">
+                      <Button
+                        asChild
+                        className="w-full h-10 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs gap-2 shadow-xs"
+                      >
+                        <Link to="/" target="_blank" rel="noopener noreferrer" onClick={() => setMoreOpen(false)}>
+                          <Eye className="size-4" />
+                          <span>View Live Customer Storefront</span>
+                          <ExternalLink className="size-3.5 opacity-70 ml-auto" />
+                        </Link>
+                      </Button>
+                    </div>
                     <div className="grid grid-cols-3 gap-2.5 pb-6">
                       {moreNav.map((item) => (
                         <Link

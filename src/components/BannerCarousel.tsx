@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Banner } from "@/lib/types";
+import { optimizeImageUrl } from "@/lib/imageOptimizer";
 
 export function BannerCarousel({ banners }: { banners: Banner[] }) {
   const [index, setIndex] = useState(0);
@@ -124,7 +125,7 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
         {banners.map((b, i) => (
           <div key={b.id || i} className="relative w-full shrink-0">
             <img
-              src={b.image_url}
+              src={optimizeImageUrl(b.image_url, { width: 1080, quality: 75 })}
               alt={b.title}
               loading="eager"
               decoding="async"

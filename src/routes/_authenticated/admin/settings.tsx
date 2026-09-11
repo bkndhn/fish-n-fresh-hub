@@ -27,7 +27,9 @@ import {
   MessageSquare,
   Bot,
   Mail,
-  Send
+  Send,
+  Image as ImageIcon,
+  Trash2,
 } from "lucide-react";
 import { testEmailDispatch } from "@/lib/emails.functions";
 import { AdminShell } from "@/components/admin/AdminShell";
@@ -383,6 +385,111 @@ function AdminSettings() {
           />
         </div>
       </div>
+
+      {/* Store Identity & Brand Logo Manager (Compressed to <= 500KB with Edit & Delete options) */}
+      <Card className="mb-6 border-border/80 shadow-xs">
+        <CardHeader className="pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <ImageIcon className="size-5 text-primary" />
+                Store Brand Logo & Identity Manager
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Manage your store logo and public identity. Upload, edit, or delete/reset your logo. Auto-compressed to under 500KB.
+              </p>
+            </div>
+            <Badge variant="outline" className="text-xs border-primary/30 text-primary bg-primary/5">
+              ≤ 500 KB Limit
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-2xl border border-border/80 bg-muted/20 p-4">
+            {/* Current Active Logo Preview */}
+            <div className="relative size-20 shrink-0 overflow-hidden rounded-2xl border border-border bg-white shadow-xs flex items-center justify-center p-1">
+              <img
+                src={form.logo_url || "/logo.png"}
+                alt="Store Logo"
+                className="size-full object-contain"
+                onError={(e) => {
+                  e.currentTarget.src = "/logo.png";
+                }}
+              />
+            </div>
+
+            <div className="space-y-1.5 flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-bold text-sm text-foreground">
+                  {form.store_name || "Fish N Fresh"}
+                </span>
+                <Badge
+                  variant={form.logo_url ? "default" : "secondary"}
+                  className="text-[10px] font-semibold"
+                >
+                  {form.logo_url ? "Custom Logo Active" : "Default Master Logo (/logo.png)"}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Target size: ≤ 500 KB. High-res vector and raster images are automatically compressed to ensure lightning fast load on mobile networks & PWA home screens.
+              </p>
+
+              {/* Upload and Delete/Reset controls */}
+              <div className="pt-2 flex flex-wrap items-center gap-2">
+                <ImageUpload
+                  maxSizeMB={0.5}
+                  label="Upload New Logo"
+                  currentImage={form.logo_url || null}
+                  onUpload={(url) => {
+                    setForm({ ...form, logo_url: url, shop_logo: url });
+                    toast.success("New brand logo uploaded & optimized! Click 'Save Settings' below to persist.");
+                  }}
+                  onRemove={form.logo_url ? () => {
+                    setForm({ ...form, logo_url: null, shop_logo: null });
+                    toast.info("Custom logo removed. Master logo restored! Click 'Save Settings' to persist.");
+                  } : undefined}
+                />
+
+                {form.logo_url && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl h-9 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 gap-1"
+                    onClick={() => {
+                      setForm({ ...form, logo_url: null, shop_logo: null });
+                      toast.info("Custom logo removed. Default master logo restored! Click 'Save Settings' to persist.");
+                    }}
+                  >
+                    <Trash2 className="size-3.5" /> Reset to Master Logo
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+            <div>
+              <Label className="text-xs font-semibold">Store Brand Name</Label>
+              <Input
+                value={form.store_name ?? ""}
+                onChange={(e) => setForm({ ...form, store_name: e.target.value })}
+                placeholder="Fish N Fresh"
+                className="mt-1 text-sm rounded-xl"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-semibold">Brand Tagline / Catchphrase</Label>
+              <Input
+                value={form.tagline ?? ""}
+                onChange={(e) => setForm({ ...form, tagline: e.target.value })}
+                placeholder="100% Chemical-Free Fresh Catch Delivered Daily"
+                className="mt-1 text-sm rounded-xl"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Store Business Vertical & Industry Theme Switcher */}
       <Card className="mb-6 border-border/80 shadow-xs">
