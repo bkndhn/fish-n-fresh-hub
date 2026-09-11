@@ -28,6 +28,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { useAdminBranch } from "@/lib/branchContext";
 import { adminCustomersQuery, adminOrdersQuery, adminProductsQuery } from "@/lib/admin";
 import { settingsQuery } from "@/lib/queries";
 import { formatINR } from "@/lib/format";
@@ -59,9 +60,10 @@ function getLocalDateString(isoStr: string): string {
 }
 
 function Dashboard() {
-  const orders = useQuery(adminOrdersQuery);
-  const products = useQuery(adminProductsQuery);
-  const customers = useQuery(adminCustomersQuery);
+  const { selectedBranchId, selectedBranch, isConsolidated } = useAdminBranch();
+  const orders = useQuery(adminOrdersQuery(selectedBranchId));
+  const products = useQuery(adminProductsQuery(selectedBranchId));
+  const customers = useQuery(adminCustomersQuery(selectedBranchId));
   const { data: settings } = useQuery(settingsQuery);
 
   const [timeframe, setTimeframe] = useState<"today" | "all">("today");
@@ -177,6 +179,27 @@ function Dashboard() {
       }
     >
       <div className="space-y-5">
+        {/* Active Branch Operational Scope Banner */}
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/80 bg-card/70 px-4 py-2.5 text-xs shadow-2xs backdrop-blur-sm">
+          <div className="flex items-center gap-2">
+            <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-muted-foreground">Active Operational Scope:</span>
+            <span className="font-bold text-foreground">
+              {isConsolidated ? "All Branches (Consolidated Rollup)" : selectedBranch?.name}
+            </span>
+            {!isConsolidated && selectedBranch?.code && (
+              <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-[10px] text-emerald-600 dark:text-emerald-400 py-0 px-1.5 font-bold">
+                {selectedBranch.code}
+              </Badge>
+            )}
+          </div>
+          <div className="text-[11px] text-muted-foreground">
+            {isConsolidated
+              ? "Aggregating revenue, orders, and inventory across all operational store hubs."
+              : `Filtered specifically to ${selectedBranch?.name} (${selectedBranch?.address || "Local Hub"}).`}
+          </div>
+        </div>
+
         {/* Quick Customer Storefront Tester Banner */}
         <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-card to-sky-500/10 p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-3">

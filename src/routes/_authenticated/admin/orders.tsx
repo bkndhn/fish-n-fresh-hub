@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { generateDueSubscriptionOrders } from "@/lib/subscriptions.functions";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { useAdminBranch } from "@/lib/branchContext";
 import { adminOrdersQuery, ORDER_STATUSES, type OrderRow } from "@/lib/admin";
 import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
 import { DeliveryPinVerificationModal } from "@/components/DeliveryPinVerificationModal";
@@ -66,7 +67,7 @@ export const Route = createFileRoute("/_authenticated/admin/orders")({
   component: OrdersAdmin,
 });
 
-function getLocalDateString(isoStr: string) {
+function getLocalDateString(isoStr: string): string {
   const d = new Date(isoStr);
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -76,7 +77,8 @@ function getLocalDateString(isoStr: string) {
 
 function OrdersAdmin() {
   const qc = useQueryClient();
-  const orders = useQuery(adminOrdersQuery);
+  const { selectedBranchId, selectedBranch, isConsolidated } = useAdminBranch();
+  const orders = useQuery(adminOrdersQuery(selectedBranchId));
   const { data: settings } = useQuery(settingsQuery);
 
   const todayStr = getLocalDateString(new Date().toISOString());
@@ -92,12 +94,16 @@ function OrdersAdmin() {
 
   // Subscriptions & MRR Pipeline State
   const { data: adminSubscriptions = [], refetch: refetchAdminSubs } = useQuery({
-    queryKey: ["admin", "all-subscriptions"],
+    queryKey: ["admin", "all-subscriptions", selectedBranchId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      let q = (supabase as any)
         .from("customer_subscriptions")
         .select("*")
         .order("created_at", { ascending: false });
+      if (selectedBranchId && selectedBranchId !== "all") {
+        q = q.eq("branch_id", selectedBranchId);
+      }
+      const { data, error } = await q;
       if (error) return [];
       return data || [];
     },

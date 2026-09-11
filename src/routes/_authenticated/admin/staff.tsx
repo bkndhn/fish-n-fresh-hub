@@ -19,6 +19,12 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
+  branchesQuery,
+  DEFAULT_MANAGER_PERMISSIONS,
+  FULL_MANAGER_PERMISSIONS,
+  type BranchManagerPermissions,
+} from "@/lib/multiBranch";
+import {
   listStaff,
   inviteStaff,
   setStaffRole,
@@ -82,6 +88,11 @@ function StaffPage() {
   const [newPhone, setNewPhone] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState<AppRole>("driver");
+
+  const { data: branches = [] } = useQuery(branchesQuery);
+  const [assignBranchId, setAssignBranchId] = useState<string>("all");
+  const [newAssignBranchId, setNewAssignBranchId] = useState<string>("all");
+  const [managerPermissions, setManagerPermissions] = useState<BranchManagerPermissions>(DEFAULT_MANAGER_PERMISSIONS);
 
   const staffQuery = useQuery({
     queryKey: ["admin", "staff"],
@@ -188,6 +199,23 @@ function StaffPage() {
                 />
               </div>
               <div className="space-y-1.5">
+                <Label>Assigned Branch / Hub</Label>
+                <Select value={assignBranchId} onValueChange={setAssignBranchId}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">🌐 All Branches (Global Headquarters)</SelectItem>
+                    {branches.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        📍 {b.name} ({b.code || "HUB"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
                 <Label>Role</Label>
                 <Select value={role} onValueChange={(v) => setRole(v as AppRole)}>
                   <SelectTrigger>
@@ -203,6 +231,73 @@ function StaffPage() {
                 </Select>
                 <p className="text-xs text-muted-foreground">{ROLE_HINT[role]}</p>
               </div>
+
+              {role === "manager" && (
+                <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-foreground">Full Branch Access Delegation</span>
+                    <Switch
+                      checked={managerPermissions.has_full_branch_access}
+                      onCheckedChange={(checked) =>
+                        setManagerPermissions((prev) =>
+                          checked ? FULL_MANAGER_PERMISSIONS : DEFAULT_MANAGER_PERMISSIONS
+                        )
+                      }
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Grant complete local control over store operations for this branch without granting access to company-wide settings or other hubs.
+                  </p>
+                  {!managerPermissions.has_full_branch_access && (
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/50 text-[11px]">
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={managerPermissions.can_manage_inventory}
+                          onChange={(e) =>
+                            setManagerPermissions((p) => ({ ...p, can_manage_inventory: e.target.checked }))
+                          }
+                          className="rounded text-primary"
+                        />
+                        <span>Inventory & Batches</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={managerPermissions.can_edit_prices}
+                          onChange={(e) =>
+                            setManagerPermissions((p) => ({ ...p, can_edit_prices: e.target.checked }))
+                          }
+                          className="rounded text-primary"
+                        />
+                        <span>Adjust Prices</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={managerPermissions.can_manage_local_staff}
+                          onChange={(e) =>
+                            setManagerPermissions((p) => ({ ...p, can_manage_local_staff: e.target.checked }))
+                          }
+                          className="rounded text-primary"
+                        />
+                        <span>Staff Rosters</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={managerPermissions.can_view_financial_reports}
+                          onChange={(e) =>
+                            setManagerPermissions((p) => ({ ...p, can_view_financial_reports: e.target.checked }))
+                          }
+                          className="rounded text-primary"
+                        />
+                        <span>Sales Reports</span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              )}
               <Button type="submit" className="w-full" disabled={inviteMutation.isPending}>
                 {inviteMutation.isPending ? (
                   <Loader2 className="mr-1.5 size-4 animate-spin" />
@@ -288,6 +383,23 @@ function StaffPage() {
                   </Button>
                 </div>
               </div>
+              <div className="space-y-1.5">
+                <Label>Assigned Branch / Hub</Label>
+                <Select value={newAssignBranchId} onValueChange={setNewAssignBranchId}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">🌐 All Branches (Global Headquarters)</SelectItem>
+                    {branches.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        📍 {b.name} ({b.code || "HUB"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-1.5">
                 <Label>Role</Label>
                 <Select value={newRole} onValueChange={(v) => setNewRole(v as AppRole)}>

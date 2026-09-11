@@ -39,6 +39,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { useAdminBranch } from "@/lib/branchContext";
 import { adminOrdersQuery, adminProductsQuery } from "@/lib/admin";
 import { settingsQuery } from "@/lib/queries";
 import { formatINR, formatIST, formatStockDisplay } from "@/lib/format";
@@ -117,8 +118,9 @@ function formatHourLabel(h: number): string {
 
 export function Reports() {
   const qc = useQueryClient();
-  const orders = useQuery(adminOrdersQuery);
-  const products = useQuery(adminProductsQuery);
+  const { selectedBranchId } = useAdminBranch();
+  const orders = useQuery(adminOrdersQuery(selectedBranchId));
+  const products = useQuery(adminProductsQuery(selectedBranchId));
   const settings = useQuery(settingsQuery);
 
   const [activeReportTab, setActiveReportTab] = useState<"analytics" | "pos_bills">("analytics");

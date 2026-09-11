@@ -26,6 +26,8 @@ import {
   Eye,
   ExternalLink,
 } from "lucide-react";
+import { AdminBranchProvider } from "@/lib/branchContext";
+import { AdminBranchSwitcher } from "@/components/admin/AdminBranchSwitcher";
 import { GoLiveChecklistModal } from "@/components/admin/GoLiveChecklistModal";
 import { supabase } from "@/integrations/supabase/client";
 import { myRolesQuery, type AppRole } from "@/lib/admin";
@@ -135,17 +137,20 @@ export function AdminShell({
   }
 
   return (
-    <div className="min-h-screen bg-muted/30 overflow-x-hidden w-full">
-      <header className="glass sticky top-0 z-50 border-b border-border">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4">
-          <Link to="/" className="flex items-center gap-2 font-display font-bold text-foreground">
-            <img 
-              src={settings?.logo_url || "/logo.png"} 
-              alt="Store Logo" 
-              className="h-8 w-auto rounded-xl object-contain shrink-0 shadow-2xs" 
-            />
-            <span>{settings?.store_name || "Fish N Fresh"}</span>
-          </Link>
+    <AdminBranchProvider>
+      <div className="min-h-screen bg-muted/30 overflow-x-hidden w-full">
+        <header className="glass sticky top-0 z-50 border-b border-border">
+          <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4">
+            <Link to="/" className="flex items-center gap-2 font-display font-bold text-foreground shrink-0">
+              <img 
+                src={settings?.logo_url || "/logo.png"} 
+                alt="Store Logo" 
+                className="h-8 w-auto rounded-xl object-contain shrink-0 shadow-2xs" 
+              />
+              <span className="hidden sm:inline">{settings?.store_name || "Fish N Fresh"}</span>
+            </Link>
+
+            <AdminBranchSwitcher />
           <div className="ml-auto flex items-center gap-2">
             <Button
               asChild
@@ -309,5 +314,6 @@ export function AdminShell({
       {/* Interactive Store Go-Live Readiness Modal */}
       <GoLiveChecklistModal open={goLiveOpen} onOpenChange={setGoLiveOpen} />
     </div>
+    </AdminBranchProvider>
   );
 }

@@ -72,36 +72,62 @@ export const adminRoleQuery = queryOptions({
   },
 });
 
-export const adminOrdersQuery = queryOptions({
-  queryKey: ["admin", "orders"],
-  queryFn: async (): Promise<OrderRow[]> => {
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(500);
-    if (error) throw error;
-    return (data ?? []) as unknown as OrderRow[];
-  },
-});
+export function getAdminOrdersQuery(branchId?: string | "all") {
+  const effectiveBranch = typeof branchId === "string" ? branchId : "all";
+  return queryOptions({
+    queryKey: ["admin", "orders", effectiveBranch],
+    queryFn: async (): Promise<OrderRow[]> => {
+      let q = supabase
+        .from("orders")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(500);
 
-export const adminProductsQuery = queryOptions({
-  queryKey: ["admin", "products"],
-  queryFn: async (): Promise<Product[]> => {
-    const { data, error } = await supabase.from("products").select("*").order("name");
-    if (error) throw error;
-    const defaultVanjaram = "https://images.unsplash.com/photo-1509722747041-616f39b57569?w=800";
-    return ((data ?? []) as unknown as Product[]).map((p) => {
-      if (
-        (p.name?.toLowerCase().includes("vanjaram") || p.name?.toLowerCase().includes("seer fish")) &&
-        (!p.image_url || p.image_url.includes("photo-1611171711791-b34fa42e9fc4"))
-      ) {
-        p.image_url = defaultVanjaram;
+      if (effectiveBranch !== "all") {
+        q = q.eq("branch_id", effectiveBranch);
       }
-      return p;
-    });
-  },
-});
+
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as unknown as OrderRow[];
+    },
+  });
+}
+
+export const adminOrdersQuery = Object.assign(
+  (branchId?: string | "all") => getAdminOrdersQuery(branchId),
+  getAdminOrdersQuery("all")
+);
+
+export function getAdminProductsQuery(branchId?: string | "all") {
+  const effectiveBranch = typeof branchId === "string" ? branchId : "all";
+  return queryOptions({
+    queryKey: ["admin", "products", effectiveBranch],
+    queryFn: async (): Promise<Product[]> => {
+      let q = supabase.from("products").select("*").order("name");
+      if (effectiveBranch !== "all") {
+        q = q.eq("branch_id", effectiveBranch);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      const defaultVanjaram = "https://images.unsplash.com/photo-1509722747041-616f39b57569?w=800";
+      return ((data ?? []) as unknown as Product[]).map((p) => {
+        if (
+          (p.name?.toLowerCase().includes("vanjaram") || p.name?.toLowerCase().includes("seer fish")) &&
+          (!p.image_url || p.image_url.includes("photo-1611171711791-b34fa42e9fc4"))
+        ) {
+          p.image_url = defaultVanjaram;
+        }
+        return p;
+      });
+    },
+  });
+}
+
+export const adminProductsQuery = Object.assign(
+  (branchId?: string | "all") => getAdminProductsQuery(branchId),
+  getAdminProductsQuery("all")
+);
 
 export const adminPromotionsQuery = queryOptions({
   queryKey: ["admin", "promotions"],
@@ -123,35 +149,49 @@ export type CustomerRow = {
   last_order: string;
 };
 
-export const adminCustomersQuery = queryOptions({
-  queryKey: ["admin", "customers"],
-  queryFn: async (): Promise<CustomerRow[]> => {
-    const { data, error } = await supabase
-      .from("orders")
-      .select("customer_name, customer_phone, total, created_at, status")
-      .order("created_at", { ascending: false })
-      .limit(1000);
-    if (error) throw error;
-    const map = new Map<string, CustomerRow>();
-    for (const row of data ?? []) {
-      const key = row.customer_phone;
-      const existing = map.get(key);
-      if (existing) {
-        existing.orders += 1;
-        if (row.status !== "cancelled") existing.spent += Number(row.total);
-      } else {
-        map.set(key, {
-          phone: key,
-          name: row.customer_name,
-          orders: 1,
-          spent: row.status === "cancelled" ? 0 : Number(row.total),
-          last_order: row.created_at as string,
-        });
+export function getAdminCustomersQuery(branchId?: string | "all") {
+  const effectiveBranch = typeof branchId === "string" ? branchId : "all";
+  return queryOptions({
+    queryKey: ["admin", "customers", effectiveBranch],
+    queryFn: async (): Promise<CustomerRow[]> => {
+      let q = supabase
+        .from("orders")
+        .select("customer_name, customer_phone, total, created_at, status, branch_id")
+        .order("created_at", { ascending: false })
+        .limit(1000);
+
+      if (effectiveBranch !== "all") {
+        q = q.eq("branch_id", effectiveBranch);
       }
-    }
-    return [...map.values()].sort((a, b) => b.spent - a.spent);
-  },
-});
+
+      const { data, error } = await q;
+      if (error) throw error;
+      const map = new Map<string, CustomerRow>();
+      for (const row of data ?? []) {
+        const key = row.customer_phone;
+        const existing = map.get(key);
+        if (existing) {
+          existing.orders += 1;
+          if (row.status !== "cancelled") existing.spent += Number(row.total);
+        } else {
+          map.set(key, {
+            phone: key,
+            name: row.customer_name,
+            orders: 1,
+            spent: row.status === "cancelled" ? 0 : Number(row.total),
+            last_order: row.created_at as string,
+          });
+        }
+      }
+      return [...map.values()].sort((a, b) => b.spent - a.spent);
+    },
+  });
+}
+
+export const adminCustomersQuery = Object.assign(
+  (branchId?: string | "all") => getAdminCustomersQuery(branchId),
+  getAdminCustomersQuery("all")
+);
 
 export const adminSuspensionsQuery = queryOptions({
   queryKey: ["admin", "suspensions"],

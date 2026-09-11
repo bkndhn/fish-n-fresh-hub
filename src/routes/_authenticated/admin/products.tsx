@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Plus, Trash2, Search, Edit, AlertTriangle, Zap, PackagePlus, CheckCircle2, X, CheckSquare, Square, Layers, ArrowUpCircle, Eye, EyeOff, Sparkles, Star, Flame, Camera, RefreshCw, Copy, Check, Printer, Hash } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { useAdminBranch } from "@/lib/branchContext";
 import { adminProductsQuery } from "@/lib/admin";
 import { categoriesQuery } from "@/lib/queries";
 import type { Product } from "@/lib/types";
@@ -69,7 +70,8 @@ const getRefillPresets = (unit: string) => {
 
 function ProductsAdmin() {
   const qc = useQueryClient();
-  const products = useQuery(adminProductsQuery);
+  const { selectedBranchId, selectedBranch, isConsolidated, branches } = useAdminBranch();
+  const products = useQuery(adminProductsQuery(selectedBranchId));
   const { data: categories } = useQuery(categoriesQuery);
   const allProducts = products.data ?? [];
 
