@@ -1400,40 +1400,40 @@ export function RetailPosCounterPage() {
           </div>
 
           {/* Right: Scale Controls */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="h-8 rounded-xl text-xs font-bold border-border/80 px-2.5"
+              className="h-8 rounded-xl text-xs font-bold border-border/80 px-2 sm:px-2.5"
               onClick={() => {
                 weighingScaleDriver.zero();
                 toast.success("Zero command sent to scale");
               }}
               title="Zero the scale"
             >
-              Zero (Z)
+              Zero
             </Button>
 
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="h-8 rounded-xl text-xs font-bold border-border/80 px-2.5"
+              className="h-8 rounded-xl text-xs font-bold border-border/80 px-2 sm:px-2.5"
               onClick={() => {
                 weighingScaleDriver.tare();
                 toast.success("Tare command sent to scale");
               }}
               title="Tare container weight"
             >
-              Tare (T)
+              Tare
             </Button>
 
             <Button
               type="button"
               variant={scaleConfig.handsFreeMode ? "default" : "outline"}
               size="sm"
-              className={`h-8 rounded-xl text-xs font-bold gap-1 px-2.5 ${
+              className={`h-8 rounded-xl text-xs font-bold gap-1 px-2 sm:px-2.5 ${
                 scaleConfig.handsFreeMode ? "bg-emerald-600 hover:bg-emerald-500 text-white" : ""
               }`}
               onClick={() => {
@@ -1445,14 +1445,14 @@ export function RetailPosCounterPage() {
               title="Automatically captures stable weight when seafood is placed on the plate"
             >
               <Zap className="size-3.5" />
-              <span>Hands-Free: {scaleConfig.handsFreeMode ? "ON" : "OFF"}</span>
+              <span>Auto: {scaleConfig.handsFreeMode ? "ON" : "OFF"}</span>
             </Button>
 
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="h-8 rounded-xl text-xs font-bold border-border/80 px-2.5 gap-1"
+              className="h-8 rounded-xl text-xs font-bold border-border/80 px-2 sm:px-2.5 gap-1 shrink-0"
               onClick={() => setScaleModalOpen(true)}
               title="Open scale configuration & diagnostics"
             >
@@ -1713,17 +1713,44 @@ export function RetailPosCounterPage() {
                       <span className="font-bold text-xs text-primary font-mono">
                         {formatINR(Number(prod.price))}/{prod.unit || "kg"}
                       </span>
-                      <span
-                        className={`size-6 rounded-lg flex items-center justify-center font-bold text-xs transition-colors ${
-                          isOutOfStock
-                            ? "bg-muted text-muted-foreground"
-                            : isInCart
-                            ? "bg-emerald-600 text-white shadow-2xs"
-                            : "bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground"
-                        }`}
-                      >
-                        {isOutOfStock ? "✕" : isInCart ? "✓" : "+"}
-                      </span>
+                      <div className="flex items-center gap-1">
+                        {isInCart && (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setCart((prev) => prev.filter((item) => item.productId !== prod.id));
+                              toast.success(`Removed "${prod.name}" from bill`);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setCart((prev) => prev.filter((item) => item.productId !== prod.id));
+                                toast.success(`Removed "${prod.name}" from bill`);
+                              }
+                            }}
+                            className="size-6 rounded-lg text-rose-500 hover:bg-rose-500/20 border border-rose-500/30 bg-rose-500/10 flex items-center justify-center transition-all active:scale-90 cursor-pointer"
+                            title={`Remove ${prod.name} from bill`}
+                            aria-label={`Remove ${prod.name} from bill`}
+                          >
+                            <Trash2 className="size-3 stroke-[2.2]" />
+                          </span>
+                        )}
+                        <span
+                          className={`size-6 rounded-lg flex items-center justify-center font-bold text-xs transition-colors ${
+                            isOutOfStock
+                              ? "bg-muted text-muted-foreground"
+                              : isInCart
+                              ? "bg-emerald-600 text-white shadow-2xs"
+                              : "bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground"
+                          }`}
+                        >
+                          {isOutOfStock ? "✕" : isInCart ? "✓" : "+"}
+                        </span>
+                      </div>
                     </div>
                   </button>
                 );

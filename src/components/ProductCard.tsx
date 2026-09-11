@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Minus, Plus, Star, Fish, Zap, Trash2 } from "lucide-react";
+import { Minus, Plus, Star, Fish, Zap, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -92,8 +92,22 @@ export function ProductCard({ product }: { product: Product }) {
         {/* Top Right: In-Cart Badge or Express SLA */}
         {cartItem ? (
           <div className="absolute top-2 right-2 z-10">
-            <span className="rounded-lg bg-primary text-primary-foreground px-2 py-0.5 text-[10px] font-bold shadow-md flex items-center gap-1 border border-white/20 animate-in fade-in">
-              ✓ In Cart: {cartItem.qty} {product.unit || "kg"}
+            <span className="rounded-lg bg-primary text-primary-foreground pl-2 pr-1.5 py-0.5 text-[10px] font-bold shadow-md flex items-center gap-1.5 border border-white/20 animate-in fade-in">
+              <span>✓ In Cart: {cartItem.qty} {product.unit || "kg"}</span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  remove(product.id);
+                  toast.success(`Removed "${product.name}" from cart`);
+                }}
+                className="size-3.5 rounded-full bg-white/20 hover:bg-rose-500 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                title="Remove from cart"
+                aria-label={`Remove ${product.name} from cart`}
+              >
+                <X className="size-2.5" />
+              </button>
             </span>
           </div>
         ) : !isOutOfStock && ((settings as any)?.express_delivery_enabled ?? true) ? (
@@ -147,89 +161,89 @@ export function ProductCard({ product }: { product: Product }) {
                 Sold Out
               </Button>
             ) : cartItem ? (
-              <div className="flex items-center gap-1">
-                {/* 1-Tap Quick Delete Trash Button */}
-                <button
-                  type="button"
-                  className="size-6 sm:size-6.5 rounded-full text-rose-500 hover:text-rose-600 hover:bg-rose-500/15 flex items-center justify-center transition-all active:scale-90 cursor-pointer border border-rose-500/25 bg-rose-500/10 shadow-2xs shrink-0"
-                  onClick={() => {
-                    remove(product.id);
-                    toast.success(`Removed "${product.name}" from cart`);
-                  }}
-                  title="Remove from cart"
-                  aria-label={`Remove ${product.name} from cart`}
-                >
-                  <Trash2 className="size-3 stroke-[2.2]" />
-                </button>
+              <div className="flex items-center gap-0.5 rounded-full border border-primary/40 bg-primary/10 dark:bg-primary/20 p-0.5 shadow-2xs">
+                {(() => {
+                  const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
+                  const step = isWeighted ? (cartItem.qty <= 1 ? 0.25 : 0.5) : 1;
+                  const isAtMin = cartItem.qty <= step;
 
-                <div className="flex items-center gap-0.5 rounded-full border border-primary/40 bg-primary/10 dark:bg-primary/20 p-0.5 shadow-2xs">
-                  <button
-                    type="button"
-                    className="size-5.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center transition-all active:scale-85 shadow-2xs cursor-pointer"
-                    onClick={() => {
-                      const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
-                      const step = isWeighted ? (cartItem.qty <= 1 ? 0.25 : 0.5) : 1;
-                      const next = Math.max(0, Math.round((cartItem.qty - step) * 100) / 100);
-                      if (next <= 0) {
-                        remove(product.id);
-                        toast.success(`Removed "${product.name}" from cart`);
-                      } else {
-                        setQty(product.id, next);
-                      }
-                    }}
-                    title="Decrease quantity"
-                  >
-                    <Minus className="size-3 stroke-[2.5]" />
-                  </button>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={localQtyStr}
-                    onChange={(e) => {
-                      const text = e.target.value;
-                      if (text === "" || /^\d*\.?\d*$/.test(text)) {
-                        setLocalQtyStr(text);
-                        const val = parseFloat(text);
-                        if (!isNaN(val) && val > 0) {
-                          if (product.stock !== null && val > Number(product.stock)) {
-                            toast.error(`Only ${product.stock} ${product.unit} available in stock`);
-                            setQty(product.id, Number(product.stock));
-                            setLocalQtyStr(String(product.stock));
-                          } else {
-                            setQty(product.id, val);
-                          }
+                  return (
+                    <button
+                      type="button"
+                      className={`size-5.5 sm:size-6 rounded-full flex items-center justify-center transition-all active:scale-85 shadow-2xs cursor-pointer ${
+                        isAtMin
+                          ? "bg-rose-500 text-white hover:bg-rose-600 shadow-rose-500/30"
+                          : "bg-primary text-primary-foreground hover:bg-primary/90"
+                      }`}
+                      onClick={() => {
+                        const next = Math.max(0, Math.round((cartItem.qty - step) * 100) / 100);
+                        if (next <= 0) {
+                          remove(product.id);
+                          toast.success(`Removed "${product.name}" from cart`);
+                        } else {
+                          setQty(product.id, next);
+                        }
+                      }}
+                      title={isAtMin ? "Remove from cart" : "Decrease quantity"}
+                    >
+                      {isAtMin ? (
+                        <Trash2 className="size-3 stroke-[2.2]" />
+                      ) : (
+                        <Minus className="size-3 stroke-[2.5]" />
+                      )}
+                    </button>
+                  );
+                })()}
+
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={localQtyStr}
+                  onChange={(e) => {
+                    const text = e.target.value;
+                    if (text === "" || /^\d*\.?\d*$/.test(text)) {
+                      setLocalQtyStr(text);
+                      const val = parseFloat(text);
+                      if (!isNaN(val) && val > 0) {
+                        if (product.stock !== null && val > Number(product.stock)) {
+                          toast.error(`Only ${product.stock} ${product.unit} available in stock`);
+                          setQty(product.id, Number(product.stock));
+                          setLocalQtyStr(String(product.stock));
+                        } else {
+                          setQty(product.id, val);
                         }
                       }
-                    }}
-                    onBlur={() => {
-                      const val = parseFloat(localQtyStr);
-                      if (isNaN(val) || val <= 0) {
-                        setLocalQtyStr(String(cartItem.qty));
-                      } else if (product.stock !== null && val > Number(product.stock)) {
-                        setQty(product.id, Number(product.stock));
-                        setLocalQtyStr(String(product.stock));
-                      }
-                    }}
-                    className="w-6.5 sm:w-7 bg-transparent text-center text-[11px] sm:text-xs font-black font-mono outline-none text-primary dark:text-primary-foreground select-all p-0 leading-none"
-                    title="Type custom quantity"
-                  />
-                  <button
-                    type="button"
-                    className="size-5.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center transition-all active:scale-85 shadow-2xs cursor-pointer"
-                    onClick={() => {
-                      const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
-                      const step = isWeighted ? 0.5 : 1;
-                      if (product.stock !== null && cartItem.qty + step > Number(product.stock)) {
-                        toast.error(`Only ${product.stock} ${product.unit} available in stock`);
-                        return;
-                      }
-                      setQty(product.id, Math.round((cartItem.qty + step) * 100) / 100);
-                    }}
-                    title="Increase quantity"
-                  >
-                    <Plus className="size-3 stroke-[2.5]" />
-                  </button>
-                </div>
+                    }
+                  }}
+                  onBlur={() => {
+                    const val = parseFloat(localQtyStr);
+                    if (isNaN(val) || val <= 0) {
+                      setLocalQtyStr(String(cartItem.qty));
+                    } else if (product.stock !== null && val > Number(product.stock)) {
+                      setQty(product.id, Number(product.stock));
+                      setLocalQtyStr(String(product.stock));
+                    }
+                  }}
+                  className="w-6.5 sm:w-7 bg-transparent text-center text-[11px] sm:text-xs font-black font-mono outline-none text-primary dark:text-primary-foreground select-all p-0 leading-none"
+                  title="Type custom quantity"
+                />
+
+                <button
+                  type="button"
+                  className="size-5.5 sm:size-6 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center transition-all active:scale-85 shadow-2xs cursor-pointer"
+                  onClick={() => {
+                    const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
+                    const step = isWeighted ? 0.5 : 1;
+                    if (product.stock !== null && cartItem.qty + step > Number(product.stock)) {
+                      toast.error(`Only ${product.stock} ${product.unit} available in stock`);
+                      return;
+                    }
+                    setQty(product.id, Math.round((cartItem.qty + step) * 100) / 100);
+                  }}
+                  title="Increase quantity"
+                >
+                  <Plus className="size-3 stroke-[2.5]" />
+                </button>
               </div>
             ) : (
               <Button

@@ -308,7 +308,9 @@ export function updateStatusBarColor(hexColor: string) {
 
   const metaTags = document.querySelectorAll("meta[name='theme-color']");
   if (metaTags.length > 0) {
-    metaTags.forEach((tag) => tag.setAttribute("content", hexColor));
+    metaTags.forEach((tag) => {
+      tag.setAttribute("content", hexColor);
+    });
   } else {
     const newTag = document.createElement("meta");
     newTag.name = "theme-color";

@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { formatIST } from "@/lib/format";
+import { settingsQuery } from "@/lib/queries";
 import { triggerLocalNotification } from "@/lib/fcm";
 import {
   DRIP_SEQUENCES,
@@ -218,6 +219,26 @@ function AdminBroadcastsPage() {
     },
   });
 
+  const { data: settings } = useQuery(settingsQuery);
+
+  const toggleMasterAlerts = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      if (!settings?.id) return;
+      const { error } = await supabase
+        .from("store_settings")
+        .update({ live_alerts_enabled: enabled } as any)
+        .eq("id", settings.id);
+      if (error) throw error;
+    },
+    onSuccess: (_, enabled) => {
+      qc.invalidateQueries({ queryKey: ["settings"] });
+      toast.success(enabled ? "Storefront Harbour Catch Alert Banner enabled" : "Storefront Harbour Catch Alert Banner disabled");
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to update banner setting");
+    },
+  });
+
   const applyTemplate = (tpl: typeof QUICK_TEMPLATES[0]) => {
     setTitle(tpl.title);
     setHarbour(tpl.harbour);
@@ -239,9 +260,21 @@ function AdminBroadcastsPage() {
                 Broadcast boat arrivals directly from Kasimedu & coastal docks to customer mobile devices and storefront announcement banner.
               </p>
             </div>
-            <Badge className="bg-sky-600 hover:bg-sky-700 text-white font-mono text-xs px-3 py-1 gap-1.5 self-start sm:self-auto">
-              <Radio className="size-3 animate-pulse" /> Live Broadcast Active
-            </Badge>
+            <div className="flex items-center gap-3 self-start sm:self-auto bg-background/80 backdrop-blur-xs border border-border/80 rounded-2xl px-3.5 py-2 shadow-2xs">
+              <div className="text-right">
+                <p className="text-xs font-bold leading-tight text-foreground">
+                  {(settings as any)?.live_alerts_enabled !== false ? "Store Banner Active" : "Store Banner Muted"}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {(settings as any)?.live_alerts_enabled !== false ? "Shown on top of store" : "Hidden from customers"}
+                </p>
+              </div>
+              <Switch
+                checked={(settings as any)?.live_alerts_enabled !== false}
+                onCheckedChange={(val) => toggleMasterAlerts.mutate(val)}
+                disabled={toggleMasterAlerts.isPending}
+              />
+            </div>
           </div>
         </div>
 

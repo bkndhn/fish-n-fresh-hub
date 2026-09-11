@@ -14,8 +14,24 @@ import { getVisitorVariant } from "@/lib/campaigns";
 export function CatchAlertBanner() {
   const { user } = useSessionUser();
   const { data: settings } = useQuery(settingsQuery);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const ts = localStorage.getItem("fnf_harbour_alert_dismissed");
+      if (!ts) return false;
+      return Date.now() - Number(ts) < 24 * 60 * 60 * 1000;
+    } catch {
+      return false;
+    }
+  });
   const [subscribed, setSubscribed] = useState(false);
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    try {
+      localStorage.setItem("fnf_harbour_alert_dismissed", String(Date.now()));
+    } catch {}
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -190,7 +206,7 @@ export function CatchAlertBanner() {
 
           <button
             type="button"
-            onClick={() => setDismissed(true)}
+            onClick={handleDismiss}
             className="size-7 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition"
             aria-label="Dismiss banner"
           >

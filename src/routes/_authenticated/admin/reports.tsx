@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   Calendar,
   Download,
@@ -28,14 +29,45 @@ import {
   Package,
   ArrowRight,
   ExternalLink,
+  Printer,
+  Share2,
+  ShieldAlert,
+  Check,
+  Banknote,
+  QrCode,
+  FileText,
+  Trash2,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery, adminProductsQuery } from "@/lib/admin";
+import { settingsQuery } from "@/lib/queries";
 import { formatINR, formatIST, formatStockDisplay } from "@/lib/format";
+import { supabase } from "@/integrations/supabase/client";
+import { restoreOrderStock } from "@/lib/inventorySync";
+import {
+  getSavedPrinterConfig,
+  sendEscPosToPrinter,
+  buildPosReceiptEscPos,
+  buildPosReceiptHtml,
+  getPosWhatsAppShareUrl,
+  type PosReceiptData,
+} from "@/lib/thermalPrinter";
+import { TaxInvoiceModal } from "@/components/TaxInvoiceModal";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { AnalyticsIntelligence } from "@/components/admin/AnalyticsIntelligence";
 import { ExportDropdown, type ExportColumn, type ExportOptions } from "@/lib/exportUtils";
 
@@ -84,8 +116,12 @@ function formatHourLabel(h: number): string {
 }
 
 export function Reports() {
+  const qc = useQueryClient();
   const orders = useQuery(adminOrdersQuery);
   const products = useQuery(adminProductsQuery);
+  const settings = useQuery(settingsQuery);
+
+  const [activeReportTab, setActiveReportTab] = useState<"analytics" | "pos_bills">("analytics");
   const [range, setRange] = useState<(typeof RANGES)[number]["key"]>("30");
 
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -94,7 +130,211 @@ export function Reports() {
   const [startDate, setStartDate] = useState(monthAgoIso);
   const [endDate, setEndDate] = useState(todayIso);
 
+  // Dedicated POS Bills State
+  const [posDateFilter, setPosDateFilter] = useState<"today" | "yesterday" | "week" | "month" | "all" | "custom">("today");
+  const [posStartDate, setPosStartDate] = useState(todayIso);
+  const [posEndDate, setPosEndDate] = useState(todayIso);
+  const [posSearchQuery, setPosSearchQuery] = useState("");
+  const [posPaymentFilter, setPosPaymentFilter] = useState<"all" | "cash" | "upi" | "card">("all");
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<any | null>(null);
+  const [voidConfirmOrder, setVoidConfirmOrder] = useState<any | null>(null);
+  const [voidReason, setVoidReason] = useState("");
+  const [reprintingId, setReprintingId] = useState<string | null>(null);
+
   const allOrders = orders.data ?? [];
+
+  const allPosOrders = useMemo(
+    () => (orders.data ?? []).filter((o) => o.fulfillment_type === "pos"),
+    [orders.data]
+  );
+
+  const filteredPosBills = useMemo(() => {
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+
+    return allPosOrders.filter((order) => {
+      const orderDate = (order.created_at || "").slice(0, 10);
+
+      // Date filtering
+      if (posDateFilter === "today" && orderDate !== today) return false;
+      if (posDateFilter === "yesterday" && orderDate !== yesterday) return false;
+      if (posDateFilter === "week" && orderDate < weekAgo) return false;
+      if (posDateFilter === "month" && orderDate < monthAgo) return false;
+      if (posDateFilter === "custom") {
+        if (posStartDate && orderDate < posStartDate) return false;
+        if (posEndDate && orderDate > posEndDate) return false;
+      }
+
+      // Payment method filtering
+      if (posPaymentFilter !== "all") {
+        const pm = (order.payment_method || "cash").toLowerCase();
+        if (posPaymentFilter === "cash" && !pm.includes("cash")) return false;
+        if (posPaymentFilter === "upi" && !pm.includes("upi")) return false;
+        if (posPaymentFilter === "card" && !pm.includes("card")) return false;
+      }
+
+      // Search query filtering
+      if (posSearchQuery.trim()) {
+        const q = posSearchQuery.toLowerCase();
+        const ref = (order.order_number || order.id || "").toLowerCase();
+        const cName = (order.customer_name || "").toLowerCase();
+        const cPhone = order.customer_phone || "";
+        const cashier = (order.driver_name || "").toLowerCase();
+        const hasItem = (order.items || []).some((i: any) =>
+          (i.name || "").toLowerCase().includes(q)
+        );
+        return ref.includes(q) || cName.includes(q) || cPhone.includes(q) || cashier.includes(q) || hasItem;
+      }
+
+      return true;
+    });
+  }, [allPosOrders, posDateFilter, posStartDate, posEndDate, posPaymentFilter, posSearchQuery]);
+
+  const filteredPosTotal = useMemo(
+    () => filteredPosBills.filter((b) => b.status !== "cancelled").reduce((acc, b) => acc + Number(b.total || 0), 0),
+    [filteredPosBills]
+  );
+  const posCashTotal = useMemo(
+    () => filteredPosBills.filter((b) => b.status !== "cancelled" && (b.payment_method || "").toLowerCase().includes("cash")).reduce((acc, b) => acc + Number(b.total || 0), 0),
+    [filteredPosBills]
+  );
+  const posUpiTotal = useMemo(
+    () => filteredPosBills.filter((b) => b.status !== "cancelled" && (b.payment_method || "").toLowerCase().includes("upi")).reduce((acc, b) => acc + Number(b.total || 0), 0),
+    [filteredPosBills]
+  );
+  const posCardTotal = useMemo(
+    () => filteredPosBills.filter((b) => b.status !== "cancelled" && (b.payment_method || "").toLowerCase().includes("card")).reduce((acc, b) => acc + Number(b.total || 0), 0),
+    [filteredPosBills]
+  );
+
+  const handlePrintPosReceipt = async (order: any) => {
+    try {
+      setReprintingId(order.id);
+      const cfg = getSavedPrinterConfig();
+      const receiptData: PosReceiptData = {
+        storeName: settings.data?.store_name || "FISH N FRESH HUB",
+        storeAddress: settings.data?.store_address || "Kasimedu Marine Terminal, Chennai",
+        storePhone: settings.data?.support_phone || "9843061919",
+        storeGstin: (settings.data as any)?.gst_number || undefined,
+        receiptNo: order.order_number || `POS-${order.id.slice(0, 8).toUpperCase()}`,
+        cashierName: order.pos_cashier_name || order.driver_name || "Counter Cashier",
+        date: formatIST(order.created_at),
+        customerName: order.customer_name || "Walk-in Guest",
+        customerPhone: order.customer_phone || undefined,
+        paymentMethod: (order.payment_method || "cash").toUpperCase(),
+        items: (order.items || []).map((i: any) => ({
+          name: i.name,
+          qty: Number(i.qty) || 1,
+          unit: i.unit || "kg",
+          unitPrice: Number(i.price) || 0,
+          totalPrice: (Number(i.qty) || 1) * (Number(i.price) || 0),
+        })),
+        subtotal: Number(order.subtotal || order.total || 0),
+        discount: Number(order.discount || 0),
+        gstAmount: Number(order.tax || order.gst_amount || 0),
+        total: Number(order.total || 0),
+      };
+
+      if (cfg.type === "browser_print") {
+        const html = buildPosReceiptHtml(receiptData, cfg);
+        const win = window.open("", "_blank", "width=380,height=600");
+        if (win) {
+          win.document.write(html);
+          win.document.close();
+          win.focus();
+          setTimeout(() => {
+            win.print();
+            win.close();
+          }, 350);
+        }
+      } else {
+        const bytes = buildPosReceiptEscPos(receiptData, cfg);
+        await sendEscPosToPrinter(bytes, cfg);
+      }
+      toast.success(`Receipt printed for Bill #${order.order_number || order.id.slice(0, 8)}`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to print POS receipt");
+    } finally {
+      setReprintingId(null);
+    }
+  };
+
+  const handleShareWhatsApp = (order: any) => {
+    const receiptData: PosReceiptData = {
+      storeName: settings.data?.store_name || "FISH N FRESH HUB",
+      storeAddress: settings.data?.store_address || "Kasimedu Marine Terminal, Chennai",
+      storePhone: settings.data?.support_phone || "9843061919",
+      storeGstin: (settings.data as any)?.gst_number || undefined,
+      receiptNo: order.order_number || `POS-${order.id.slice(0, 8).toUpperCase()}`,
+      cashierName: order.pos_cashier_name || order.driver_name || "Counter Cashier",
+      date: formatIST(order.created_at),
+      customerName: order.customer_name || "Walk-in Guest",
+      customerPhone: order.customer_phone || undefined,
+      paymentMethod: (order.payment_method || "cash").toUpperCase(),
+      items: (order.items || []).map((i: any) => ({
+        name: i.name,
+        qty: Number(i.qty) || 1,
+        unit: i.unit || "kg",
+        unitPrice: Number(i.price) || 0,
+        totalPrice: (Number(i.qty) || 1) * (Number(i.price) || 0),
+      })),
+      subtotal: Number(order.subtotal || order.total || 0),
+      discount: Number(order.discount || 0),
+      gstAmount: Number(order.tax || order.gst_amount || 0),
+      total: Number(order.total || 0),
+    };
+    const url = getPosWhatsAppShareUrl(order.customer_phone || "", receiptData, order.order_number || order.id);
+    window.open(url, "_blank");
+    toast.success(`Opening WhatsApp for Bill #${order.order_number || order.id.slice(0, 8)}`);
+  };
+
+  const voidBillMutation = useMutation({
+    mutationFn: async (order: any) => {
+      if (order.items && Array.isArray(order.items)) {
+        await restoreOrderStock(order.items);
+      }
+      const { error } = await supabase
+        .from("orders")
+        .update({
+          status: "cancelled",
+          cancel_reason: voidReason || "Voided from Counter Register",
+        } as any)
+        .eq("id", order.id);
+      if (error) throw error;
+    },
+    onSuccess: (_, order) => {
+      qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+      toast.success(`Bill #${order.order_number || order.id.slice(0, 8)} voided. Inventory restored.`);
+      setVoidConfirmOrder(null);
+      setVoidReason("");
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to void bill");
+    },
+  });
+
+  const posBillsExportOptions: ExportOptions = useMemo(() => {
+    const columns: ExportColumn[] = [
+      { key: "order_number", label: "Receipt #", type: "string" },
+      { key: "created_at", label: "Date & Time (IST)", type: "date", format: (v) => formatIST(v) },
+      { key: "customer_name", label: "Customer Name", type: "string" },
+      { key: "customer_phone", label: "Phone", type: "string" },
+      { key: "payment_method", label: "Payment Tender", type: "string" },
+      { key: "total", label: "Total Amount (₹)", type: "currency", format: (v) => formatINR(Number(v || 0)) },
+      { key: "driver_name", label: "Cashier", type: "string" },
+      { key: "status", label: "Status", type: "string" },
+    ];
+    return {
+      filename: `pos-counter-bills-${new Date().toISOString().slice(0, 10)}`,
+      title: "Fish N Fresh — POS Counter Bills & Receipts Register",
+      subtitle: `Exported on ${new Date().toLocaleDateString("en-IN")} | ${filteredPosBills.length} Bills | Total: ${formatINR(filteredPosTotal)}`,
+      columns,
+      data: filteredPosBills,
+    };
+  }, [filteredPosBills, filteredPosTotal]);
 
   const rows = useMemo(() => {
     if (range === "all") return allOrders;
@@ -773,7 +1013,34 @@ export function Reports() {
 
   return (
     <AdminShell title="Business Reports & AI Analytics" allow={["admin", "manager"]}>
-      {/* Date Range & Controls */}
+      {/* Top Level Navigation: Analytics vs Dedicated POS Bills Register */}
+      <div className="flex items-center justify-between gap-3 mb-4 border-b border-border/80 pb-3 flex-wrap">
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-muted/60">
+          <Button
+            size="sm"
+            variant={activeReportTab === "analytics" ? "default" : "ghost"}
+            className="rounded-xl h-8 text-xs font-bold gap-1.5"
+            onClick={() => setActiveReportTab("analytics")}
+          >
+            <BarChart3 className="size-3.5" /> Business Analytics &amp; AI
+          </Button>
+          <Button
+            size="sm"
+            variant={activeReportTab === "pos_bills" ? "default" : "ghost"}
+            className="rounded-xl h-8 text-xs font-bold gap-1.5"
+            onClick={() => setActiveReportTab("pos_bills")}
+          >
+            <Store className="size-3.5 text-primary" /> POS Counter Bills &amp; Receipts
+            <Badge className="ml-1 text-[10px] bg-primary/20 text-primary border-primary/30">
+              {allPosOrders.length}
+            </Badge>
+          </Button>
+        </div>
+      </div>
+
+      {activeReportTab === "analytics" ? (
+        <>
+          {/* Date Range & Controls */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
           {RANGES.map((r) => (
@@ -2096,6 +2363,341 @@ export function Reports() {
           </div>
         </CardContent>
       </Card>
+        </>
+      ) : (
+        /* DEDICATED POS COUNTER BILLS & RECEIPTS REGISTER */
+        <div className="space-y-4">
+          {/* POS Summary KPI Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Card className="rounded-2xl border-border/80 shadow-xs">
+              <CardContent className="p-4">
+                <p className="text-[11px] font-semibold text-muted-foreground">Total POS Bills</p>
+                <p className="text-xl font-black text-foreground mt-0.5">{filteredPosBills.length}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Matching active filter</p>
+              </CardContent>
+            </Card>
+            <Card className="rounded-2xl border-border/80 shadow-xs">
+              <CardContent className="p-4">
+                <p className="text-[11px] font-semibold text-muted-foreground">Gross POS Sales</p>
+                <p className="text-xl font-black text-primary mt-0.5">{formatINR(filteredPosTotal)}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Excludes voided bills</p>
+              </CardContent>
+            </Card>
+            <Card className="rounded-2xl border-border/80 shadow-xs">
+              <CardContent className="p-4">
+                <p className="text-[11px] font-semibold text-muted-foreground">Cash Collections</p>
+                <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{formatINR(posCashTotal)}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">In-drawer cash tender</p>
+              </CardContent>
+            </Card>
+            <Card className="rounded-2xl border-border/80 shadow-xs">
+              <CardContent className="p-4">
+                <p className="text-[11px] font-semibold text-muted-foreground">Digital (UPI &amp; Card)</p>
+                <p className="text-xl font-black text-blue-600 dark:text-blue-400 mt-0.5">{formatINR(posUpiTotal + posCardTotal)}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">UPI {formatINR(posUpiTotal)} · Card {formatINR(posCardTotal)}</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Controls Bar: Date Filters, Payment Tender, Search & Export */}
+          <div className="rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs space-y-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-wrap">
+              {/* Date Presets */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {(
+                  [
+                    { key: "today", label: "Today" },
+                    { key: "yesterday", label: "Yesterday" },
+                    { key: "week", label: "7 Days" },
+                    { key: "month", label: "30 Days" },
+                    { key: "all", label: "All Bills" },
+                    { key: "custom", label: "Custom" },
+                  ] as const
+                ).map((d) => (
+                  <Button
+                    key={d.key}
+                    size="sm"
+                    variant={posDateFilter === d.key ? "default" : "outline"}
+                    className="rounded-xl h-8 text-xs font-semibold"
+                    onClick={() => setPosDateFilter(d.key)}
+                  >
+                    {d.label}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Export Dropdown */}
+              <ExportDropdown options={posBillsExportOptions} buttonLabel="Export Bills" />
+            </div>
+
+            {posDateFilter === "custom" && (
+              <div className="flex items-center gap-2 rounded-xl border border-border/80 bg-muted/30 p-2 text-xs flex-wrap">
+                <Calendar className="size-3.5 text-primary" />
+                <span className="text-muted-foreground">From:</span>
+                <Input
+                  type="date"
+                  value={posStartDate}
+                  onChange={(e) => setPosStartDate(e.target.value)}
+                  className="h-7 w-32 rounded-lg text-xs"
+                />
+                <span className="text-muted-foreground">To:</span>
+                <Input
+                  type="date"
+                  value={posEndDate}
+                  onChange={(e) => setPosEndDate(e.target.value)}
+                  className="h-7 w-32 rounded-lg text-xs"
+                />
+              </div>
+            )}
+
+            {/* Search and Payment Tender Filter */}
+            <div className="flex flex-col sm:flex-row items-center gap-2 pt-2 border-t border-border/50">
+              <div className="relative flex-1 w-full">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search receipt #, customer name, phone, item name..."
+                  value={posSearchQuery}
+                  onChange={(e) => setPosSearchQuery(e.target.value)}
+                  className="pl-8 h-8 rounded-xl text-xs w-full"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
+                <span className="text-xs text-muted-foreground font-medium">Tender:</span>
+                <select
+                  value={posPaymentFilter}
+                  onChange={(e) => setPosPaymentFilter(e.target.value as any)}
+                  className="h-8 rounded-xl border border-input bg-transparent px-2.5 text-xs shadow-2xs"
+                >
+                  <option value="all">All Tenders</option>
+                  <option value="cash">Cash Only</option>
+                  <option value="upi">UPI / QR Only</option>
+                  <option value="card">Card Only</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* POS Bills List / Table */}
+          <div className="rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div>
+                <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2">
+                  <Store className="size-4 text-primary" />
+                  Counter Register Bills &amp; Receipts ({filteredPosBills.length})
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Complete transactional history of in-store seafood weighing scale counter sales.
+                </p>
+              </div>
+            </div>
+
+            {filteredPosBills.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground text-xs">
+                No POS counter bills found for this time period or search query.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredPosBills.map((bill) => {
+                  const isVoided = bill.status === "cancelled";
+                  const pm = (bill.payment_method || "cash").toLowerCase();
+
+                  return (
+                    <div
+                      key={bill.id}
+                      className={`p-4 rounded-2xl border transition-all space-y-3 ${
+                        isVoided
+                          ? "border-destructive/30 bg-destructive/5 opacity-70"
+                          : "border-border/80 bg-card hover:border-primary/40 shadow-xs"
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <span className="font-mono font-bold text-sm text-foreground">
+                            {bill.order_number || `POS-${bill.id.slice(0, 8).toUpperCase()}`}
+                          </span>
+                          <span className="text-xs text-muted-foreground font-mono">
+                            {formatIST(bill.created_at)}
+                          </span>
+
+                          <Badge
+                            className={
+                              isVoided
+                                ? "bg-destructive/20 text-destructive border-destructive/30 text-[10px]"
+                                : "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px]"
+                            }
+                          >
+                            {isVoided ? "Voided / Cancelled" : "✓ Paid / Settled"}
+                          </Badge>
+
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] font-mono gap-1 border-border/70 text-foreground uppercase"
+                          >
+                            {pm.includes("cash") ? (
+                              <Banknote className="size-3 text-emerald-500" />
+                            ) : pm.includes("upi") ? (
+                              <QrCode className="size-3 text-blue-500" />
+                            ) : (
+                              <CreditCard className="size-3 text-purple-500" />
+                            )}
+                            {bill.payment_method || "Cash"}
+                          </Badge>
+                        </div>
+
+                        <div className="text-left sm:text-right">
+                          <span className="text-base font-black text-foreground font-mono">
+                            {formatINR(Number(bill.total || 0))}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Items & Customer Breakdown */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-muted/25 border border-border/60 text-xs">
+                        <div>
+                          <p className="text-[11px] text-muted-foreground font-semibold">Customer &amp; Cashier:</p>
+                          <p className="font-bold text-foreground">
+                            {bill.customer_name || "Walk-in Customer"}{" "}
+                            {bill.customer_phone && <span className="font-mono text-muted-foreground">({bill.customer_phone})</span>}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Cashier: <strong>{bill.driver_name || "Counter 1"}</strong>
+                          </p>
+                          {isVoided && bill.cancel_reason && (
+                            <p className="text-[11px] text-destructive font-semibold mt-1">
+                              Void Reason: {bill.cancel_reason}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <p className="text-[11px] text-muted-foreground font-semibold">Items Billed ({bill.items?.length || 0}):</p>
+                          <div className="space-y-0.5 mt-0.5 max-h-24 overflow-y-auto pr-1">
+                            {(bill.items || []).map((it: any, idx: number) => (
+                              <p key={idx} className="text-foreground text-[11px] truncate flex justify-between">
+                                <span>• {it.name}</span>
+                                <span className="font-mono text-muted-foreground">
+                                  {it.qty} {it.unit || "kg"} × ₹{it.price} = ₹{(Number(it.qty) || 1) * (Number(it.price) || 0)}
+                                </span>
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Bar: Print, Invoice, WhatsApp, Void */}
+                      <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/40 flex-wrap">
+                        {/* Print Receipt */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-xl h-8 text-xs font-semibold gap-1.5"
+                          disabled={reprintingId === bill.id}
+                          onClick={() => handlePrintPosReceipt(bill)}
+                        >
+                          <Printer className="size-3.5 text-primary" />
+                          <span>{reprintingId === bill.id ? "Printing..." : "Print Receipt"}</span>
+                        </Button>
+
+                        {/* Tax Invoice Preview */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-xl h-8 text-xs font-semibold gap-1.5"
+                          onClick={() => setSelectedInvoiceOrder(bill)}
+                        >
+                          <FileText className="size-3.5 text-indigo-500" />
+                          <span>Tax Invoice</span>
+                        </Button>
+
+                        {/* WhatsApp Share */}
+                        {bill.customer_phone && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-xl h-8 text-xs font-semibold text-[#25D366] hover:bg-[#25D366]/10 border-[#25D366]/30 gap-1.5"
+                            onClick={() => handleShareWhatsApp(bill)}
+                          >
+                            <WhatsAppIcon className="size-3.5" />
+                            <span>WhatsApp</span>
+                          </Button>
+                        )}
+
+                        {/* Void Bill (with stock restore) */}
+                        {!isVoided && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="rounded-xl h-8 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 gap-1"
+                            onClick={() => {
+                              setVoidConfirmOrder(bill);
+                              setVoidReason("");
+                            }}
+                          >
+                            <Trash2 className="size-3.5" />
+                            <span>Void Bill</span>
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tax Invoice Full Preview Modal */}
+      {selectedInvoiceOrder && (
+        <TaxInvoiceModal
+          isOpen={!!selectedInvoiceOrder}
+          onClose={() => setSelectedInvoiceOrder(null)}
+          order={selectedInvoiceOrder}
+          settings={settings.data}
+        />
+      )}
+
+      {/* Void Confirmation Dialog with Inventory Restoration */}
+      <AlertDialog open={!!voidConfirmOrder} onOpenChange={(open) => !open && setVoidConfirmOrder(null)}>
+        <AlertDialogContent className="rounded-3xl max-w-md">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-2 text-destructive font-bold">
+              <ShieldAlert className="size-5" />
+              <AlertDialogTitle>Void / Cancel Counter Bill?</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-xs text-muted-foreground pt-1 space-y-2">
+              <p>
+                Are you sure you want to void Bill <strong className="text-foreground">#{voidConfirmOrder?.order_number || voidConfirmOrder?.id?.slice(0, 8)}</strong> for <strong className="text-foreground">{formatINR(Number(voidConfirmOrder?.total || 0))}</strong>?
+              </p>
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300">
+                ⚠️ All product inventory for this bill will be <strong>automatically restored</strong> back to real-time stock.
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="p-4 pt-0 space-y-2">
+            <label className="text-xs font-semibold text-muted-foreground">Reason for voiding (optional):</label>
+            <Input
+              placeholder="e.g. Customer returned, punch error, scale tare reweigh..."
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+              className="text-xs rounded-xl"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl text-xs" onClick={() => setVoidConfirmOrder(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-xl text-xs font-bold bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={voidBillMutation.isPending}
+              onClick={() => voidBillMutation.mutate(voidConfirmOrder)}
+            >
+              {voidBillMutation.isPending ? "Voiding..." : "Confirm Void & Restore Stock"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminShell>
   );
 }

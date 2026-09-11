@@ -1338,11 +1338,11 @@ function ProductsAdmin() {
                 </div>
 
                 {/* Bottom Tier: Native Action Bar */}
-                <div className="flex items-center gap-2 pt-0.5">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pt-0.5">
                   {/* Quick Refill Button */}
                   <Button
                     size="sm"
-                    className="flex-1 rounded-xl h-8 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-xs"
+                    className="flex-1 min-w-[100px] rounded-xl h-8 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-xs"
                     onClick={() => {
                       setRefillProduct(p);
                       setRefillQty("10");
@@ -1355,7 +1355,7 @@ function ProductsAdmin() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="flex-1 rounded-xl h-8 text-xs font-semibold"
+                    className="flex-1 min-w-[65px] rounded-xl h-8 text-xs font-semibold"
                     onClick={() => {
                       const isStandardUnit = UNIT_OPTIONS.includes(p.unit);
                       setEditingProduct({
@@ -1373,7 +1373,7 @@ function ProductsAdmin() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="rounded-xl h-8 px-2.5 text-primary border-primary/30 hover:bg-primary/10"
+                    className="rounded-xl h-8 px-2.5 text-primary border-primary/30 hover:bg-primary/10 shrink-0"
                     title="View / Pre-cache Multi-Language AI Profile"
                     onClick={() => setAiProduct(p)}
                   >
@@ -1384,7 +1384,7 @@ function ProductsAdmin() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="rounded-xl h-8 px-2.5 text-cyan-600 dark:text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/10 gap-1"
+                    className="rounded-xl h-8 px-2.5 text-cyan-600 dark:text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/10 gap-1 shrink-0"
                     title="100% Species Matched Visuals & Daily Image Perspectives"
                     onClick={() => setAiVisualProduct(p)}
                   >
@@ -1395,7 +1395,7 @@ function ProductsAdmin() {
                   {/* Delete Button */}
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button size="sm" variant="ghost" className="rounded-xl h-8 px-2.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                      <Button size="sm" variant="ghost" className="rounded-xl h-8 px-2.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0" title="Delete Product">
                         <Trash2 className="size-4" />
                       </Button>
                     </AlertDialogTrigger>

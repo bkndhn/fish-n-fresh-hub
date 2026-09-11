@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { MessageSquare, X, Send, Bot, User, Sparkles, Phone, ShieldCheck, Minimize2 } from "lucide-react";
+import { useLocation } from "@tanstack/react-router";
+import { useCart } from "@/lib/cart";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +36,15 @@ const INSTANT_FAQS = [
 
 export function CustomerSupportChatWidget() {
   const { user } = useSessionUser();
+  const { items } = useCart();
+  const location = useLocation();
+
+  const isCartVisible =
+    items.length > 0 &&
+    location.pathname !== "/cart" &&
+    location.pathname !== "/checkout" &&
+    !location.pathname.startsWith("/admin");
+
   const [isOpen, setIsOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -254,7 +265,11 @@ export function CustomerSupportChatWidget() {
   return (
     <>
       {/* Floating Trigger Button */}
-      <div className="fixed bottom-20 sm:bottom-6 right-5 z-40">
+      <div
+        className={`fixed z-40 right-4 sm:right-6 transition-all duration-300 ${
+          isCartVisible ? "bottom-38 sm:bottom-24" : "bottom-20 sm:bottom-6"
+        }`}
+      >
         {!isOpen && (
           <button
             onClick={() => setIsOpen(true)}
@@ -274,7 +289,11 @@ export function CustomerSupportChatWidget() {
 
       {/* Floating Chat Modal */}
       {isOpen && (
-        <div className="fixed bottom-20 sm:bottom-6 right-3 sm:right-6 z-50 w-[calc(100vw-24px)] sm:w-96 rounded-3xl border border-border/80 bg-card shadow-2xl overflow-hidden flex flex-col h-[520px] max-h-[82vh] animate-in slide-in-from-bottom-5">
+        <div
+          className={`fixed right-3 sm:right-6 z-50 w-[calc(100vw-24px)] sm:w-96 rounded-3xl border border-border/80 bg-card shadow-2xl overflow-hidden flex flex-col h-[520px] max-h-[82vh] animate-in slide-in-from-bottom-5 transition-all duration-300 ${
+            isCartVisible ? "bottom-38 sm:bottom-24" : "bottom-20 sm:bottom-6"
+          }`}
+        >
           {/* Header */}
           <div className="bg-primary px-4 py-3.5 text-primary-foreground flex items-center justify-between shadow-xs">
             <div className="flex items-center gap-2.5">

@@ -30,6 +30,13 @@ import {
   ShieldAlert,
   Snowflake,
   AlertOctagon,
+  TrendingUp,
+  Send,
+  Share2,
+  ShoppingCart,
+  Sparkles,
+  Clock,
+  Check,
 } from "lucide-react";
 import {
   createInwardBatch,
@@ -63,6 +70,85 @@ import {
   type SupplierStatementData,
 } from "@/lib/supplierLedgerPdf";
 import type { Supplier, PurchaseOrder, PurchaseItem, Product, SupplierPaymentRecord } from "@/lib/types";
+
+export interface PurchaseRequestOrder {
+  id: string;
+  po_number: string;
+  supplier_id: string;
+  supplier_name: string;
+  supplier_phone?: string;
+  supplier_whatsapp?: string;
+  expected_delivery_date: string;
+  status: "draft" | "sent" | "partially_received" | "completed" | "cancelled";
+  items: {
+    product_id: string;
+    product_name: string;
+    suggested_qty: number;
+    unit: string;
+    estimated_rate: number;
+    current_stock: number;
+  }[];
+  total_estimated_cost: number;
+  notes: string;
+  created_at: string;
+}
+
+const DEFAULT_PURCHASE_REQUESTS: PurchaseRequestOrder[] = [
+  {
+    id: "req-101",
+    po_number: "PO-2026-0901",
+    supplier_id: "sup-1",
+    supplier_name: "Kasimedu Deep Sea Fishermen Society",
+    supplier_phone: "9843061919",
+    supplier_whatsapp: "9843061919",
+    expected_delivery_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+    status: "sent",
+    items: [
+      {
+        product_id: "prod-vanjaram",
+        product_name: "Vanjaram / Seer Fish (Large King)",
+        suggested_qty: 35,
+        unit: "kg",
+        estimated_rate: 680,
+        current_stock: 4.5,
+      },
+      {
+        product_id: "prod-sanki",
+        product_name: "Sankara / Red Snapper (Whole)",
+        suggested_qty: 25,
+        unit: "kg",
+        estimated_rate: 340,
+        current_stock: 2,
+      },
+    ],
+    total_estimated_cost: 32300,
+    notes: "Direct Kasimedu landing 5:30 AM. Strictly chemical-free on crushed sea ice.",
+    created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
+  },
+  {
+    id: "req-102",
+    po_number: "PO-2026-0902",
+    supplier_id: "sup-3",
+    supplier_name: "Cochin Prawns & Crab Traders",
+    supplier_phone: "9847054321",
+    supplier_whatsapp: "9847054321",
+    expected_delivery_date: new Date(Date.now() + 86400000 * 2).toISOString().slice(0, 10),
+    status: "draft",
+    items: [
+      {
+        product_id: "prod-prawn",
+        product_name: "Tiger Prawns (Jumbo 20/30 count)",
+        suggested_qty: 30,
+        unit: "kg",
+        estimated_rate: 420,
+        current_stock: 0,
+      },
+    ],
+    total_estimated_cost: 12600,
+    notes: "High weekend demand anticipated. Export grade.",
+    created_at: new Date().toISOString(),
+  },
+];
 
 export const Route = createFileRoute("/_authenticated/admin/purchases")({
   head: () => ({
@@ -224,8 +310,148 @@ function PurchasesAdmin() {
   // Filter state for ledger and statements
   const [searchLedger, setSearchLedger] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "paid">("all");
-  const [activeTab, setActiveTab] = useState<"ledger" | "outstanding" | "new" | "suppliers" | "batches">("ledger");
+  const [activeTab, setActiveTab] = useState<"ledger" | "outstanding" | "new" | "po_requests" | "suppliers" | "batches">("ledger");
   const [statementSupplierFilter, setStatementSupplierFilter] = useState<string>("all");
+
+  // Purchase Orders & Demand Radar State
+  const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequestOrder[]>(() => {
+    try {
+      const saved = localStorage.getItem("fnf_purchase_orders");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_PURCHASE_REQUESTS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("fnf_purchase_orders", JSON.stringify(purchaseRequests));
+  }, [purchaseRequests]);
+
+  const [newPoModalOpen, setNewPoModalOpen] = useState(false);
+  const [selectedPoForView, setSelectedPoForView] = useState<PurchaseRequestOrder | null>(null);
+  const [poFormSupplierId, setPoFormSupplierId] = useState<string>(suppliers[0]?.id || "");
+  const [poFormDeliveryDate, setPoFormDeliveryDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  });
+  const [poFormNotes, setPoFormNotes] = useState<string>("Morning harbour landing 05:30 AM. Chemical-free on ice.");
+  const [poFormItems, setPoFormItems] = useState<
+    { product_id: string; product_name: string; suggested_qty: number; unit: string; estimated_rate: number; current_stock: number }[]
+  >([]);
+
+  // Calculate Demand Radar recommendations from active catalogue
+  const demandRadarItems = useMemo(() => {
+    return products
+      .filter((p) => Number(p.stock) <= 15 || p.is_bestseller || p.is_featured)
+      .map((p) => {
+        const stock = Number(p.stock) || 0;
+        let urgency: "critical" | "urgent" | "high_demand" = "high_demand";
+        let suggestedQty = 25;
+
+        if (stock === 0) {
+          urgency = "critical";
+          suggestedQty = 40;
+        } else if (stock <= 10) {
+          urgency = "urgent";
+          suggestedQty = 30;
+        } else if (p.is_bestseller) {
+          urgency = "high_demand";
+          suggestedQty = 25;
+        }
+
+        const pName = p.name.toLowerCase();
+        let matchedSupplier = suppliers[0];
+        if (pName.includes("prawn") || pName.includes("shrimp") || pName.includes("crab") || pName.includes("lobster")) {
+          matchedSupplier = suppliers.find((s) => s.id === "sup-3") || suppliers[0];
+        } else if (pName.includes("squid") || pName.includes("nethili") || pName.includes("anchovy") || pName.includes("sardine")) {
+          matchedSupplier = suppliers.find((s) => s.id === "sup-2") || suppliers[0];
+        } else {
+          matchedSupplier = suppliers.find((s) => s.id === "sup-1") || suppliers[0];
+        }
+
+        const estRate = (p as any).cost_price ? Number((p as any).cost_price) : Math.round(Number(p.price) * 0.7);
+
+        return {
+          product: p,
+          stock,
+          urgency,
+          suggestedQty,
+          matchedSupplier,
+          estRate,
+        };
+      })
+      .sort((a, b) => {
+        const order = { critical: 0, urgent: 1, high_demand: 2 };
+        return order[a.urgency] - order[b.urgency] || a.stock - b.stock;
+      });
+  }, [products, suppliers]);
+
+  const sendPoWhatsApp = (po: PurchaseRequestOrder) => {
+    const supplier = suppliers.find((s) => s.id === po.supplier_id);
+    const phone = supplier?.whatsapp || supplier?.phone || po.supplier_phone || "9843061919";
+    const cleaned = phone.replace(/\D/g, "");
+    const waNumber = cleaned.length === 10 ? `91${cleaned}` : cleaned;
+
+    const itemsText = po.items
+      .map((it, idx) => `${idx + 1}. *${it.product_name}* — ${it.suggested_qty} ${it.unit} (~₹${it.estimated_rate}/${it.unit})`)
+      .join("\n");
+
+    const text = `📋 *PURCHASE ORDER (P.O.) — FISH N FRESH CHENNAI*
+*PO Ref:* ${po.po_number}
+*Date:* ${new Date(po.created_at).toLocaleDateString("en-IN")}
+*Supplier:* ${po.supplier_name}
+*Required Arrival:* ${po.expected_delivery_date || "Tomorrow 06:00 AM Dock Landing"}
+
+*Requested Catch Items:*
+${itemsText}
+
+*Estimated Outlay:* ₹${po.total_estimated_cost.toLocaleString("en-IN")}
+*Quality Mandate:* 100% Chemical-free, strictly chilled on crushed sea-ice (0–4°C).
+*Instructions:* ${po.notes || "Please reply to confirm boat landing & dispatch rate."}
+
+_Generated via Fish N Fresh Hub Purchasing System_`;
+
+    const url = `https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank");
+    toast.success(`Opening WhatsApp to send PO #${po.po_number} to ${po.supplier_name}`);
+  };
+
+  const convertPoToInward = (po: PurchaseRequestOrder) => {
+    setSelectedSupplierId(po.supplier_id || suppliers[0]?.id || "");
+    setInwardItems(
+      po.items.map((it) => ({
+        product_id: it.product_id,
+        product_name: it.product_name,
+        quantity: String(it.suggested_qty),
+        unit: it.unit || "kg",
+        cost_per_unit: String(it.estimated_rate),
+      }))
+    );
+    setPurchaseNotes(`Inward fulfillment for Purchase Order #${po.po_number}.`);
+    setAutoRefillStock(true);
+
+    setPurchaseRequests((prev) =>
+      prev.map((p) => (p.id === po.id ? { ...p, status: "completed" } : p))
+    );
+
+    setActiveTab("new");
+    toast.success(`PO #${po.po_number} converted into Inward Catch form! Ready to record dock delivery.`);
+  };
+
+  const handleQuickAddDemandToPo = (item: (typeof demandRadarItems)[0]) => {
+    setPoFormSupplierId(item.matchedSupplier?.id || suppliers[0]?.id || "");
+    setPoFormItems([
+      {
+        product_id: item.product.id,
+        product_name: item.product.name,
+        suggested_qty: item.suggestedQty,
+        unit: item.product.unit || "kg",
+        estimated_rate: item.estRate,
+        current_stock: item.stock,
+      },
+    ]);
+    setNewPoModalOpen(true);
+  };
 
   // Batch Traceability & Food Safety State
   const { data: inventoryBatches = [], refetch: refetchBatches } = useQuery({
@@ -788,6 +1014,14 @@ function PurchasesAdmin() {
               </TabsTrigger>
               <TabsTrigger value="new" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0">
                 <PackagePlus className="mr-1.5 size-3.5" /> Inward Catch (New)
+              </TabsTrigger>
+              <TabsTrigger value="po_requests" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0 gap-1.5">
+                <TrendingUp className="size-3.5 text-indigo-500" /> Demand Radar &amp; P.O.
+                {demandRadarItems.filter((i) => i.urgency === "critical").length > 0 && (
+                  <span className="ml-1 rounded-full bg-rose-500 text-white px-1.5 py-0.2 text-[10px] font-extrabold animate-pulse">
+                    {demandRadarItems.filter((i) => i.urgency === "critical").length}
+                  </span>
+                )}
               </TabsTrigger>
               <TabsTrigger value="suppliers" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0">
                 <Building2 className="mr-1.5 size-3.5" /> Suppliers Directory ({suppliers.length})
@@ -1748,7 +1982,699 @@ function PurchasesAdmin() {
             </div>
           </div>
         </TabsContent>
+
+        {/* DEMAND RADAR & PURCHASE ORDERS (P.O.) TAB */}
+        <TabsContent value="po_requests" className="space-y-6">
+          {/* Hero Banner & KPI Summary */}
+          <div className="rounded-3xl border border-indigo-500/25 bg-gradient-to-br from-indigo-500/10 via-background to-purple-500/10 p-5 sm:p-6 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="size-9 rounded-2xl bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+                    <TrendingUp className="size-5" />
+                  </div>
+                  <div>
+                    <h2 className="font-display text-lg sm:text-xl font-bold text-foreground">
+                      Smart Demand Radar &amp; Purchase Orders (P.O.)
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                      AI replenishment radar flags depleted bestsellers, matches with harbour trawlers, and dispatches 1-tap WhatsApp purchase orders.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <Button
+                  className="rounded-xl h-9 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5 shadow-sm"
+                  onClick={() => {
+                    // Pre-fill with top critical item if any
+                    const topCrit = demandRadarItems[0];
+                    setPoFormSupplierId(topCrit?.matchedSupplier?.id || suppliers[0]?.id || "");
+                    setPoFormItems(
+                      topCrit
+                        ? [
+                            {
+                              product_id: topCrit.product.id,
+                              product_name: topCrit.product.name,
+                              suggested_qty: topCrit.suggestedQty,
+                              unit: topCrit.product.unit || "kg",
+                              estimated_rate: topCrit.estRate,
+                              current_stock: topCrit.stock,
+                            },
+                          ]
+                        : []
+                    );
+                    setNewPoModalOpen(true);
+                  }}
+                >
+                  <Plus className="size-4" /> Create New P.O.
+                </Button>
+              </div>
+            </div>
+
+            {/* Quick Metrics */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-border/50">
+              <div className="p-3 rounded-2xl bg-background/60 border border-border/70">
+                <p className="text-[11px] font-semibold text-muted-foreground">Critical Depleted Catch</p>
+                <p className="text-lg font-black text-rose-600 dark:text-rose-400 mt-0.5">
+                  {demandRadarItems.filter((i) => i.urgency === "critical").length} items
+                </p>
+              </div>
+              <div className="p-3 rounded-2xl bg-background/60 border border-border/70">
+                <p className="text-[11px] font-semibold text-muted-foreground">Low Stock On Radar</p>
+                <p className="text-lg font-black text-amber-600 dark:text-amber-400 mt-0.5">
+                  {demandRadarItems.filter((i) => i.urgency === "urgent").length} items
+                </p>
+              </div>
+              <div className="p-3 rounded-2xl bg-background/60 border border-border/70">
+                <p className="text-[11px] font-semibold text-muted-foreground">Active P.O. Orders</p>
+                <p className="text-lg font-black text-indigo-600 dark:text-indigo-400 mt-0.5">
+                  {purchaseRequests.filter((p) => p.status !== "completed" && p.status !== "cancelled").length} Active
+                </p>
+              </div>
+              <div className="p-3 rounded-2xl bg-background/60 border border-border/70">
+                <p className="text-[11px] font-semibold text-muted-foreground">Estimated P.O. Outlay</p>
+                <p className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  {formatINR(
+                    purchaseRequests
+                      .filter((p) => p.status !== "completed" && p.status !== "cancelled")
+                      .reduce((acc, p) => acc + p.total_estimated_cost, 0)
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 1: Demand Radar Recommendations */}
+          <div className="rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs space-y-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
+              <div>
+                <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2">
+                  <Sparkles className="size-4 text-amber-500" />
+                  Live Seafood Demand Radar — High-Velocity Replenishment Suggestions
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Products with high sales volume or low current dock inventory. Matched automatically to specialized supplier trawlers.
+                </p>
+              </div>
+              <Badge variant="outline" className="text-xs self-start sm:self-auto font-mono">
+                {demandRadarItems.length} Products Monitored
+              </Badge>
+            </div>
+
+            {demandRadarItems.length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground">
+                <CheckCircle2 className="size-8 text-emerald-500 mx-auto mb-2" />
+                <p className="font-bold text-sm">All Product Stocks Healthy!</p>
+                <p className="text-xs">No seafood items are currently critically low or depleted.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {demandRadarItems.map((item) => (
+                  <div
+                    key={item.product.id}
+                    className="p-3.5 rounded-2xl border border-border/80 bg-muted/20 hover:bg-muted/30 transition-all flex flex-col justify-between gap-3 group"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {item.product.image_url ? (
+                            <img
+                              src={item.product.image_url}
+                              alt=""
+                              className="size-10 rounded-xl object-cover border border-border/60 shrink-0"
+                            />
+                          ) : (
+                            <div className="size-10 rounded-xl bg-muted text-muted-foreground flex items-center justify-center font-bold text-xs shrink-0">
+                              🐟
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-bold text-xs text-foreground truncate">{item.product.name}</p>
+                            <p className="text-[11px] text-muted-foreground font-mono">
+                              Stock:{" "}
+                              <strong
+                                className={
+                                  item.stock === 0
+                                    ? "text-rose-600 font-black"
+                                    : item.stock <= 10
+                                    ? "text-amber-600 font-bold"
+                                    : "text-foreground"
+                                }
+                              >
+                                {item.stock} {item.product.unit || "kg"}
+                              </strong>
+                            </p>
+                          </div>
+                        </div>
+
+                        {item.urgency === "critical" ? (
+                          <Badge className="bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30 text-[10px] shrink-0 font-bold">
+                            Out of Stock
+                          </Badge>
+                        ) : item.urgency === "urgent" ? (
+                          <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] shrink-0 font-semibold">
+                            Low Stock
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30 text-[10px] shrink-0 font-semibold">
+                            Bestseller
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Recommended Supplier Matchmaker */}
+                      <div className="p-2 rounded-xl bg-background/80 border border-border/60 text-[11px] space-y-0.5">
+                        <p className="text-muted-foreground flex items-center gap-1 text-[10px]">
+                          <Anchor className="size-3 text-sky-600" /> Matched Sourcing Partner:
+                        </p>
+                        <p className="font-bold text-foreground truncate">
+                          {item.matchedSupplier?.name || "Kasimedu Harbour Partner"}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {item.matchedSupplier?.harbour || "Kasimedu Harbour, Chennai"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-border/50 flex items-center justify-between gap-2">
+                      <div className="text-[11px]">
+                        <span className="text-muted-foreground">Need: </span>
+                        <strong className="text-foreground">~{item.suggestedQty} kg</strong>
+                        <span className="text-muted-foreground text-[10px]"> (@ ~₹{item.estRate}/kg)</span>
+                      </div>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl h-7 text-[11px] font-bold border-indigo-500/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10 gap-1 px-2.5"
+                        onClick={() => handleQuickAddDemandToPo(item)}
+                      >
+                        <Plus className="size-3" /> Add to P.O.
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Section 2: Active Purchase Orders Pipeline */}
+          <div className="rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3">
+              <div>
+                <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2">
+                  <FileText className="size-4 text-indigo-500" />
+                  Purchase Orders Tracker &amp; Inward Conversion
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Track supplier commitments. Once the boat lands, click <strong>Convert to Inward</strong> to receive stock automatically.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-xl text-xs font-semibold h-8"
+                  onClick={() => {
+                    setPoFormSupplierId(suppliers[0]?.id || "");
+                    setPoFormItems([]);
+                    setNewPoModalOpen(true);
+                  }}
+                >
+                  <Plus className="size-3.5 mr-1" /> New P.O.
+                </Button>
+              </div>
+            </div>
+
+            {purchaseRequests.length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground">
+                <p className="text-xs">No purchase orders created yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {purchaseRequests.map((po) => {
+                  const isFinished = po.status === "completed";
+                  return (
+                    <div
+                      key={po.id}
+                      className={`p-4 rounded-2xl border transition-all space-y-3 ${
+                        isFinished
+                          ? "border-border/50 bg-muted/10 opacity-75"
+                          : "border-border/90 bg-card hover:border-indigo-500/40 shadow-xs"
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <span className="font-mono font-bold text-sm text-foreground">{po.po_number}</span>
+                          <span className="text-xs text-muted-foreground">
+                            Dated: {new Date(po.created_at).toLocaleDateString("en-IN")}
+                          </span>
+                          <Badge
+                            className={
+                              po.status === "completed"
+                                ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px]"
+                                : po.status === "sent"
+                                ? "bg-sky-500/20 text-sky-700 dark:text-sky-300 border-sky-500/30 text-[10px]"
+                                : "bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px]"
+                            }
+                          >
+                            {po.status === "completed"
+                              ? "✓ Inward Received"
+                              : po.status === "sent"
+                              ? "Sent to Supplier"
+                              : "Draft P.O."}
+                          </Badge>
+                        </div>
+
+                        <div className="flex items-center gap-2 self-end sm:self-auto">
+                          <span className="text-xs text-muted-foreground">Target Arrival:</span>
+                          <span className="text-xs font-bold font-mono text-foreground">
+                            {po.expected_delivery_date}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-muted/25 border border-border/60 text-xs">
+                        <div>
+                          <p className="text-[11px] text-muted-foreground">Supplier / Sourcing Terminal:</p>
+                          <p className="font-bold text-foreground">{po.supplier_name}</p>
+                          <p className="text-[10px] text-muted-foreground font-mono">
+                            WhatsApp / Phone: {po.supplier_whatsapp || po.supplier_phone || "Kasimedu Desk"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] text-muted-foreground">Requested Items ({po.items.length}):</p>
+                          <div className="space-y-0.5 mt-0.5">
+                            {po.items.map((it, idx) => (
+                              <p key={idx} className="text-foreground truncate font-medium">
+                                • {it.product_name} — <strong>{it.suggested_qty} {it.unit}</strong> (~₹{it.estimated_rate}/{it.unit})
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-t border-border/40">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">Estimated PO Total:</span>
+                          <span className="text-sm font-black text-foreground">
+                            {formatINR(po.total_estimated_cost)}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {/* 1-Tap WhatsApp Dispatch */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-xl h-8 text-xs font-semibold text-[#25D366] hover:bg-[#25D366]/10 border-[#25D366]/30 gap-1"
+                            onClick={() => sendPoWhatsApp(po)}
+                            title="Send Purchase Order to Supplier via WhatsApp"
+                          >
+                            <WhatsAppIcon className="size-3.5" />
+                            <span>WhatsApp P.O.</span>
+                          </Button>
+
+                          {/* View & Print Slip */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-xl h-8 text-xs font-semibold text-foreground gap-1"
+                            onClick={() => setSelectedPoForView(po)}
+                          >
+                            <Printer className="size-3.5" /> Slip
+                          </Button>
+
+                          {/* Convert to Inward Catch Landing */}
+                          {!isFinished && (
+                            <Button
+                              size="sm"
+                              className="rounded-xl h-8 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1 shadow-xs"
+                              onClick={() => convertPoToInward(po)}
+                              title="Boat has landed! Convert PO into Inward Stock Entry"
+                            >
+                              <PackagePlus className="size-3.5" /> Convert to Inward
+                            </Button>
+                          )}
+
+                          {/* Delete PO */}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="rounded-xl h-8 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              if (confirm(`Delete Purchase Order ${po.po_number}?`)) {
+                                setPurchaseRequests((prev) => prev.filter((p) => p.id !== po.id));
+                                toast.success("Purchase order removed");
+                              }
+                            }}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </TabsContent>
       </Tabs>
+
+      {/* CREATE NEW PURCHASE ORDER MODAL */}
+      <Dialog open={newPoModalOpen} onOpenChange={setNewPoModalOpen}>
+        <DialogContent className="max-w-2xl rounded-3xl p-5 sm:p-6 bg-card max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="border-b pb-3">
+            <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
+              <TrendingUp className="size-5 text-indigo-600" />
+              Create Supplier Purchase Order (P.O.)
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground">
+              Draft formal replenishment request for harbour trawlers or wholesale partners.
+            </p>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs font-semibold">Select Supplier / Trawler</Label>
+                <select
+                  value={poFormSupplierId}
+                  onChange={(e) => setPoFormSupplierId(e.target.value)}
+                  className="mt-1 w-full h-9 rounded-xl border border-input bg-transparent px-3 text-xs shadow-2xs"
+                >
+                  {suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.harbour || "Harbour"})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <Label className="text-xs font-semibold">Target Landing / Delivery Date</Label>
+                <Input
+                  type="date"
+                  value={poFormDeliveryDate}
+                  onChange={(e) => setPoFormDeliveryDate(e.target.value)}
+                  className="mt-1 h-9 rounded-xl text-xs"
+                />
+              </div>
+            </div>
+
+            {/* Item Rows */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold">Catch Items Requested</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="rounded-xl h-7 text-[11px]"
+                  onClick={() => {
+                    const firstProd = products[0];
+                    setPoFormItems([
+                      ...poFormItems,
+                      {
+                        product_id: firstProd?.id || "",
+                        product_name: firstProd?.name || "Fresh Fish",
+                        suggested_qty: 20,
+                        unit: firstProd?.unit || "kg",
+                        estimated_rate: (firstProd as any)?.cost_price ? Number((firstProd as any).cost_price) : Math.round(Number(firstProd?.price || 300) * 0.7),
+                        current_stock: Number(firstProd?.stock) || 0,
+                      },
+                    ]);
+                  }}
+                >
+                  <Plus className="size-3 mr-1" /> Add Item
+                </Button>
+              </div>
+
+              {poFormItems.length === 0 ? (
+                <div className="p-4 rounded-xl border border-dashed text-center text-xs text-muted-foreground">
+                  No items added yet. Click &quot;Add Item&quot; above or pick from Demand Radar.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {poFormItems.map((item, index) => (
+                    <div
+                      key={index}
+                      className="p-3 rounded-xl border border-border/70 bg-muted/20 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center"
+                    >
+                      <div className="sm:col-span-5">
+                        <select
+                          value={item.product_id}
+                          onChange={(e) => {
+                            const found = products.find((p) => p.id === e.target.value);
+                            const updated = [...poFormItems];
+                            const current = updated[index];
+                            if (current) {
+                              updated[index] = {
+                                ...current,
+                                product_id: e.target.value,
+                                product_name: found?.name || "Product",
+                                suggested_qty: current.suggested_qty || 20,
+                                unit: found?.unit || "kg",
+                                estimated_rate: (found as any)?.cost_price ? Number((found as any).cost_price) : Math.round(Number(found?.price || 300) * 0.7),
+                                current_stock: Number(found?.stock) || 0,
+                              };
+                              setPoFormItems(updated);
+                            }
+                          }}
+                          className="w-full h-8 rounded-lg border border-input bg-transparent px-2 text-xs"
+                        >
+                          {products.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name} (Stock: {p.stock || 0} {p.unit})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="sm:col-span-3 flex items-center gap-1">
+                        <Input
+                          type="number"
+                          value={item.suggested_qty}
+                          onChange={(e) => {
+                            const updated = [...poFormItems];
+                            if (updated[index]) {
+                              updated[index] = {
+                                ...updated[index]!,
+                                suggested_qty: Math.max(1, Number(e.target.value) || 1),
+                              };
+                              setPoFormItems(updated);
+                            }
+                          }}
+                          className="h-8 rounded-lg text-xs"
+                          placeholder="Qty"
+                        />
+                        <span className="text-xs text-muted-foreground">{item.unit}</span>
+                      </div>
+
+                      <div className="sm:col-span-3 flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground">₹</span>
+                        <Input
+                          type="number"
+                          value={item.estimated_rate}
+                          onChange={(e) => {
+                            const updated = [...poFormItems];
+                            if (updated[index]) {
+                              updated[index] = {
+                                ...updated[index]!,
+                                estimated_rate: Math.max(0, Number(e.target.value) || 0),
+                              };
+                              setPoFormItems(updated);
+                            }
+                          }}
+                          className="h-8 rounded-lg text-xs"
+                          placeholder="Rate/kg"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-1 text-right">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="size-7 p-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => setPoFormItems(poFormItems.filter((_, i) => i !== index))}
+                        >
+                          <X className="size-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Label className="text-xs font-semibold">Special Instructions / Cold Chain Notes</Label>
+              <Textarea
+                value={poFormNotes}
+                onChange={(e) => setPoFormNotes(e.target.value)}
+                placeholder="Morning landing time, chemical-free testing requirement, crushed sea-ice standards..."
+                rows={2}
+                className="mt-1 text-xs rounded-xl"
+              />
+            </div>
+
+            {/* Estimated Total Calculation */}
+            <div className="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-between">
+              <span className="text-xs font-bold text-foreground">Estimated P.O. Total Value:</span>
+              <span className="text-base font-black text-indigo-600 dark:text-indigo-400">
+                {formatINR(
+                  poFormItems.reduce((acc, it) => acc + (it.suggested_qty || 0) * (it.estimated_rate || 0), 0)
+                )}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 border-t pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl text-xs"
+              onClick={() => setNewPoModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
+              onClick={() => {
+                if (poFormItems.length === 0) {
+                  toast.error("Please add at least 1 item to the Purchase Order.");
+                  return;
+                }
+                const targetSupplier = suppliers.find((s) => s.id === poFormSupplierId);
+                const newPo: PurchaseRequestOrder = {
+                  id: `req-${Date.now()}`,
+                  po_number: `PO-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(
+                    Math.random() * 900 + 100
+                  )}`,
+                  supplier_id: poFormSupplierId,
+                  supplier_name: targetSupplier?.name || "Harbour Supplier",
+                  supplier_phone: targetSupplier?.phone || "",
+                  supplier_whatsapp: targetSupplier?.whatsapp || targetSupplier?.phone || "",
+                  expected_delivery_date: poFormDeliveryDate,
+                  status: "draft",
+                  items: poFormItems,
+                  total_estimated_cost: poFormItems.reduce(
+                    (acc, it) => acc + (it.suggested_qty || 0) * (it.estimated_rate || 0),
+                    0
+                  ),
+                  notes: poFormNotes,
+                  created_at: new Date().toISOString(),
+                };
+
+                setPurchaseRequests([newPo, ...purchaseRequests]);
+                setNewPoModalOpen(false);
+                toast.success(`Purchase Order ${newPo.po_number} created successfully!`);
+              }}
+            >
+              Create Purchase Order
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* VIEW & PRINT PURCHASE ORDER SLIP MODAL */}
+      <Dialog open={Boolean(selectedPoForView)} onOpenChange={(open) => !open && setSelectedPoForView(null)}>
+        <DialogContent className="max-w-lg rounded-3xl p-6 bg-card">
+          <DialogHeader className="border-b pb-3">
+            <DialogTitle className="text-base font-bold text-foreground flex items-center justify-between">
+              <span>Purchase Order Voucher</span>
+              <span className="font-mono text-xs text-muted-foreground">{selectedPoForView?.po_number}</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedPoForView && (
+            <div className="space-y-4 py-2 text-xs">
+              <div className="border-b pb-3 space-y-1">
+                <p className="font-bold text-sm text-foreground">FISH N FRESH HUB</p>
+                <p className="text-muted-foreground">Central Seafood Procurement &amp; Cold Storage Terminal</p>
+                <p className="text-muted-foreground font-mono">Date: {new Date(selectedPoForView.created_at).toLocaleDateString("en-IN")}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 border-b pb-3">
+                <div>
+                  <p className="text-muted-foreground text-[11px]">Supplier:</p>
+                  <p className="font-bold text-foreground">{selectedPoForView.supplier_name}</p>
+                  <p className="text-muted-foreground font-mono">{selectedPoForView.supplier_phone}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-[11px]">Expected Delivery:</p>
+                  <p className="font-bold text-foreground font-mono">{selectedPoForView.expected_delivery_date}</p>
+                  <p className="text-muted-foreground">Dock Landing / Central Hub</p>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <p className="font-bold text-foreground">Requested Items:</p>
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b text-muted-foreground text-[10px]">
+                      <th className="py-1">Item</th>
+                      <th className="py-1 text-center">Qty</th>
+                      <th className="py-1 text-right">Est. Rate</th>
+                      <th className="py-1 text-right">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedPoForView.items.map((it, i) => (
+                      <tr key={i} className="border-b border-border/40">
+                        <td className="py-1 font-medium">{it.product_name}</td>
+                        <td className="py-1 text-center font-mono">
+                          {it.suggested_qty} {it.unit}
+                        </td>
+                        <td className="py-1 text-right font-mono">₹{it.estimated_rate}</td>
+                        <td className="py-1 text-right font-mono">₹{it.suggested_qty * it.estimated_rate}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-between items-center pt-2 font-bold text-sm border-t">
+                <span>Total Estimated Outlay:</span>
+                <span className="text-indigo-600 dark:text-indigo-400 font-mono">
+                  {formatINR(selectedPoForView.total_estimated_cost)}
+                </span>
+              </div>
+
+              {selectedPoForView.notes && (
+                <div className="p-2.5 rounded-xl bg-muted/40 text-[11px] text-muted-foreground">
+                  <strong>Notes:</strong> {selectedPoForView.notes}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-xl text-xs gap-1"
+                  onClick={() => window.print()}
+                >
+                  <Printer className="size-3.5" /> Print Voucher
+                </Button>
+                <Button
+                  size="sm"
+                  className="rounded-xl text-xs font-bold bg-[#25D366] hover:bg-[#25D366]/90 text-white gap-1"
+                  onClick={() => {
+                    sendPoWhatsApp(selectedPoForView);
+                  }}
+                >
+                  <WhatsAppIcon className="size-3.5" /> WhatsApp to Supplier
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* FOOD SAFETY BATCH RECALL TOOL MODAL */}
       <Dialog open={batchRecallModalOpen} onOpenChange={setBatchRecallModalOpen}>
