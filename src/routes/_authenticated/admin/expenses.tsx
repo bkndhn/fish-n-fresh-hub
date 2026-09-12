@@ -151,7 +151,7 @@ export function ExpensesAdmin() {
     queryKey: ["admin", "expenses", selectedBranchId, startDate, endDate],
     queryFn: async (): Promise<Expense[]> => {
       let q = supabase
-        .from("expenses" as any)
+        .from("expenses")
         .select("*, branches(name)")
         .order("expense_date", { ascending: false })
         .order("created_at", { ascending: false });
@@ -279,10 +279,10 @@ export function ExpensesAdmin() {
       };
 
       if (editingExpense) {
-        const { error } = await supabase.from("expenses" as any).update(payload).eq("id", editingExpense.id);
+        const { error } = await supabase.from("expenses").update(payload).eq("id", editingExpense.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("expenses" as any).insert(payload);
+        const { error } = await supabase.from("expenses").insert(payload);
         if (error) throw error;
       }
     },
@@ -300,7 +300,7 @@ export function ExpensesAdmin() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("expenses" as any).delete().eq("id", id);
+      const { error } = await supabase.from("expenses").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

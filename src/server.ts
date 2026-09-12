@@ -18,6 +18,58 @@ async function getServerEntry(): Promise<ServerEntry> {
   return serverEntryPromise;
 }
 
+// ── Rate Limiter ──────────────────────────────────────────────────
+// Sliding-window in-memory rate limiter. On Cloudflare Workers each
+// isolate has its own Map, so this is per-edge-node (good enough for
+// DDoS mitigation; for stricter limits use Cloudflare Rate Limiting).
+const RATE_WINDOW_MS = 60_000; // 1 minute window
+const API_RATE_LIMIT = 100;    // 100 requests per minute for API/pages
+const STATIC_RATE_LIMIT = 500; // 500 requests per minute for static assets
+const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function isRateLimited(ip: string, isStatic: boolean): boolean {
+  const now = Date.now();
+  const limit = isStatic ? STATIC_RATE_LIMIT : API_RATE_LIMIT;
+  const bucket = rateBuckets.get(ip);
+
+  if (!bucket || now > bucket.resetAt) {
+    rateBuckets.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return false;
+  }
+
+  bucket.count++;
+  if (bucket.count > limit) return true;
+  return false;
+}
+
+// Periodic cleanup to prevent memory leaks (runs every 1000 requests)
+let requestCounter = 0;
+function maybeCleanupBuckets(): void {
+  if (++requestCounter % 1000 !== 0) return;
+  const now = Date.now();
+  for (const [ip, bucket] of rateBuckets) {
+    if (now > bucket.resetAt) rateBuckets.delete(ip);
+  }
+}
+
+// ── Health Check Endpoint ─────────────────────────────────────────
+function handleHealthCheck(): Response {
+  return new Response(
+    JSON.stringify({
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      uptime: Math.floor(performance.now() / 1000),
+    }),
+    {
+      status: 200,
+      headers: {
+        "content-type": "application/json",
+        "cache-control": "no-store",
+      },
+    }
+  );
+}
+
 // h3 swallows in-handler throws into a normal 500 Response with body
 // {"unhandled":true,"message":"HTTPError"} — try/catch alone never fires for those.
 async function normalizeCatastrophicSsrResponse(response: Response): Promise<Response> {
@@ -97,6 +149,38 @@ function applySecurityAndCdnHeaders(response: Response, url: string): Response {
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    const url = new URL(request.url);
+
+    // ── Health check endpoint ──
+    if (url.pathname === "/health" || url.pathname === "/ping") {
+      return handleHealthCheck();
+    }
+
+    // ── Rate limiting ──
+    maybeCleanupBuckets();
+    const clientIp =
+      request.headers.get("cf-connecting-ip") ??
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      "unknown";
+    const isStatic =
+      url.pathname.includes("/assets/") ||
+      url.pathname.includes("/_build/") ||
+      /\.(js|css|png|jpg|webp|svg|woff2|ico)$/.test(url.pathname);
+
+    if (isRateLimited(clientIp, isStatic)) {
+      return new Response(
+        JSON.stringify({ error: "Too many requests. Please try again later." }),
+        {
+          status: 429,
+          headers: {
+            "content-type": "application/json",
+            "retry-after": "60",
+            "cache-control": "no-store",
+          },
+        }
+      );
+    }
+
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);

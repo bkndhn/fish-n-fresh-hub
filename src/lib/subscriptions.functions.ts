@@ -87,7 +87,7 @@ export const createSubscription = createServerFn({ method: "POST" })
       payment_method: "cod",
     };
 
-    const { data: created, error } = await (supabaseAdmin as any)
+    const { data: created, error } = await supabaseAdmin
       .from("customer_subscriptions")
       .insert(payload)
       .select("*")
@@ -102,7 +102,7 @@ export const updateSubscriptionStatus = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { error } = await (supabaseAdmin as any)
+    const { error } = await supabaseAdmin
       .from("customer_subscriptions")
       .update({ status: data.status, updated_at: new Date().toISOString() })
       .eq("id", data.subscriptionId);
@@ -118,7 +118,7 @@ export const generateDueSubscriptionOrders = createServerFn({ method: "POST" }).
     const todayStr = new Date().toISOString().slice(0, 10);
 
     // 1. Fetch active subscriptions whose next_delivery_date is today or in the past
-    const { data: dueSubs = [], error } = await (supabaseAdmin as any)
+    const { data: dueSubs = [], error } = await supabaseAdmin
       .from("customer_subscriptions")
       .select("*")
       .eq("status", "active")
@@ -162,7 +162,7 @@ export const generateDueSubscriptionOrders = createServerFn({ method: "POST" }).
         created_at: new Date().toISOString(),
       };
 
-      const { data: createdOrder } = await (supabaseAdmin as any)
+      const { data: createdOrder } = await supabaseAdmin
         .from("orders")
         .insert(orderPayload)
         .select("id, order_number")
@@ -179,7 +179,7 @@ export const generateDueSubscriptionOrders = createServerFn({ method: "POST" }).
         new Date(Date.now() + 24 * 3600 * 1000)
       );
 
-      await (supabaseAdmin as any)
+      await supabaseAdmin
         .from("customer_subscriptions")
         .update({
           next_delivery_date: nextDate,

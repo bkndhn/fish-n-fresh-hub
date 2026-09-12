@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 export type AppRole =
   | "admin"
   | "staff"
@@ -43,7 +44,7 @@ async function assertAdmin(context: { supabase: any; userId: string }) {
 export const listStaff = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<StaffMember[]> => {
-    await assertAdmin(context as never);
+    await assertAdmin(context as unknown);
 
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -72,7 +73,7 @@ export const listStaff = createServerFn({ method: "GET" })
     }
 
     // Graceful fallback: query user_roles table directly with authenticated client
-    const ctx = context as any;
+    const ctx = context as { supabase: SupabaseClient<Database>; userId: string };
     const { data: roleRows } = await ctx.supabase.from("user_roles").select("user_id, role, created_at");
     
     // Also try to get customer/user info from orders
@@ -125,7 +126,7 @@ export const inviteStaff = createServerFn({ method: "POST" })
     return { email, fullName: input.fullName?.trim() || null, role: input.role, redirectTo: input.redirectTo };
   })
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as never);
+    await assertAdmin(context as unknown);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Find or invite the user.
@@ -160,7 +161,7 @@ export const inviteStaff = createServerFn({ method: "POST" })
 
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
-      .upsert({ user_id: user.id, role: data.role as any }, { onConflict: "user_id,role" });
+      .upsert({ user_id: user.id, role: data.role as Database["public"]["Enums"]["app_role"] }, { onConflict: "user_id,role" });
     if (roleError) throw new Error(roleError.message);
 
     return { userId: user.id, email: data.email, role: data.role, invited, tempPassword };
@@ -174,7 +175,7 @@ export const setStaffRole = createServerFn({ method: "POST" })
     return { userId: input.userId, role: input.role, enabled: Boolean(input.enabled) };
   })
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as never);
+    await assertAdmin(context as unknown);
     if (data.userId === (context as { userId: string }).userId && data.role === "admin" && !data.enabled) {
       throw new Error("You cannot remove your own admin role");
     }
@@ -183,31 +184,31 @@ export const setStaffRole = createServerFn({ method: "POST" })
       if (data.enabled) {
         const { error } = await supabaseAdmin
           .from("user_roles")
-          .upsert({ user_id: data.userId, role: data.role as any }, { onConflict: "user_id,role" });
+          .upsert({ user_id: data.userId, role: data.role as Database["public"]["Enums"]["app_role"] }, { onConflict: "user_id,role" });
         if (error) throw new Error(error.message);
       } else {
         const { error } = await supabaseAdmin
           .from("user_roles")
           .delete()
           .eq("user_id", data.userId)
-          .eq("role", data.role as any);
+          .eq("role", data.role as Database["public"]["Enums"]["app_role"]);
         if (error) throw new Error(error.message);
       }
       return { ok: true };
     } catch {
       // Fallback to authenticated client
-      const ctx = context as any;
+      const ctx = context as { supabase: SupabaseClient<Database>; userId: string };
       if (data.enabled) {
         const { error } = await ctx.supabase
           .from("user_roles")
-          .upsert({ user_id: data.userId, role: data.role as any }, { onConflict: "user_id,role" });
+          .upsert({ user_id: data.userId, role: data.role as Database["public"]["Enums"]["app_role"] }, { onConflict: "user_id,role" });
         if (error) throw new Error(error.message);
       } else {
         const { error } = await ctx.supabase
           .from("user_roles")
           .delete()
           .eq("user_id", data.userId)
-          .eq("role", data.role as any);
+          .eq("role", data.role as Database["public"]["Enums"]["app_role"]);
         if (error) throw new Error(error.message);
       }
       return { ok: true };
@@ -275,7 +276,7 @@ export const createStaffAccount = createServerFn({ method: "POST" })
     };
   })
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as never);
+    await assertAdmin(context as unknown);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: existing } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
@@ -308,7 +309,7 @@ export const createStaffAccount = createServerFn({ method: "POST" })
 
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
-      .upsert({ user_id: userId, role: data.role as any }, { onConflict: "user_id,role" });
+      .upsert({ user_id: userId, role: data.role as Database["public"]["Enums"]["app_role"] }, { onConflict: "user_id,role" });
     if (roleError) throw new Error(roleError.message);
 
     return { userId, email: data.email, role: data.role, updatedExisting };

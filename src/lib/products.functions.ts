@@ -214,17 +214,17 @@ export const applyRealProductsCatalog = createServerFn({ method: "POST" })
       ];
 
       for (const cat of categoriesToUpsert) {
-        await (supabaseAdmin as any).from("categories").upsert(cat, { onConflict: "slug" });
+        await supabaseAdmin.from("categories").upsert(cat, { onConflict: "slug" });
       }
 
       // 2. Map Categories to IDs
-      const { data: catRows } = await (supabaseAdmin as any).from("categories").select("id, slug");
+      const { data: catRows } = await supabaseAdmin.from("categories").select("id, slug");
       const catMap = new Map(((catRows as Array<{ id: string; slug: string }>) || []).map((c) => [c.slug, c.id]));
 
       // 3. Optionally archive old mock products
       if (data.archiveExisting) {
         const realIds = REAL_SEAFOOD_PRODUCTS.map((p) => p.id);
-        await (supabaseAdmin as any)
+        await supabaseAdmin
           .from("products")
           .update({ is_active: false })
           .not("id", "in", `(${realIds.join(",")})`);
@@ -253,7 +253,7 @@ export const applyRealProductsCatalog = createServerFn({ method: "POST" })
           hsn_code: p.hsn_code,
         };
 
-        const { error } = await (supabaseAdmin as any).from("products").upsert(payload, { onConflict: "id" });
+        const { error } = await supabaseAdmin.from("products").upsert(payload, { onConflict: "id" });
         if (!error) count++;
       }
 

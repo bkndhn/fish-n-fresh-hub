@@ -62,7 +62,7 @@ export const createInwardBatch = createServerFn({ method: "POST" })
       status: "active",
     };
 
-    const { data: created, error } = await (supabaseAdmin as any)
+    const { data: created, error } = await supabaseAdmin
       .from("inventory_batches")
       .upsert(payload, { onConflict: "batch_number" })
       .select("*")
@@ -77,7 +77,7 @@ export const updateBatchStatus = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { error } = await (supabaseAdmin as any)
+    const { error } = await supabaseAdmin
       .from("inventory_batches")
       .update({ status: data.status, updated_at: new Date().toISOString() })
       .eq("id", data.batchId);
@@ -92,7 +92,7 @@ export const executeBatchRecall = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // 1. Fetch batch details
-    const { data: batch, error: bErr } = await (supabaseAdmin as any)
+    const { data: batch, error: bErr } = await supabaseAdmin
       .from("inventory_batches")
       .select("*")
       .eq("batch_number", data.batchNumber)
@@ -103,7 +103,7 @@ export const executeBatchRecall = createServerFn({ method: "POST" })
     }
 
     // Mark batch as recalled
-    await (supabaseAdmin as any)
+    await supabaseAdmin
       .from("inventory_batches")
       .update({ status: "recalled", updated_at: new Date().toISOString() })
       .eq("id", batch.id);
@@ -112,7 +112,7 @@ export const executeBatchRecall = createServerFn({ method: "POST" })
     const catchStart = new Date(batch.catch_date).toISOString();
     const expiryEnd = new Date(batch.expiry_date).toISOString();
 
-    const { data: orders = [] } = await (supabaseAdmin as any)
+    const { data: orders = [] } = await supabaseAdmin
       .from("orders")
       .select("id, order_number, customer_name, customer_phone, customer_email, created_at, total, items")
       .gte("created_at", catchStart)

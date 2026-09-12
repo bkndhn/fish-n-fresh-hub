@@ -18,6 +18,14 @@ export interface DriverGeoCoordinate {
 }
 
 let activeWakeLock: any = null;
+declare global {
+  interface Navigator {
+    wakeLock: {
+      request(type: "screen"): Promise<any>;
+    };
+  }
+}
+
 let activeWatchId: number | null = null;
 let lastKnownLocation: DriverGeoCoordinate | null = null;
 let keepAliveAudioCtx: any = null;
@@ -37,7 +45,7 @@ export async function requestScreenWakeLock(): Promise<boolean> {
 
   try {
     if (!activeWakeLock) {
-      activeWakeLock = await (navigator as any).wakeLock.request("screen");
+      activeWakeLock = await navigator.wakeLock.request("screen");
       activeWakeLock.addEventListener("release", () => {
         activeWakeLock = null;
       });
@@ -46,7 +54,7 @@ export async function requestScreenWakeLock(): Promise<boolean> {
       document.addEventListener("visibilitychange", async () => {
         if (document.visibilityState === "visible" && !activeWakeLock) {
           try {
-            activeWakeLock = await (navigator as any).wakeLock.request("screen");
+            activeWakeLock = await navigator.wakeLock.request("screen");
           } catch {
             // Ignored
           }
@@ -83,7 +91,7 @@ export function startKeepAliveAudioBeacon(): void {
   if (isAudioBeaconActive || typeof window === "undefined") return;
 
   try {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtx) return;
 
     keepAliveAudioCtx = new AudioCtx();

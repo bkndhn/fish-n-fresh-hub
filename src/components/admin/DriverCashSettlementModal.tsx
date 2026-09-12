@@ -122,21 +122,21 @@ export function DriverCashSettlementModal({
 
       // 1. Attempt atomic stored procedure with row-level mutex (FOR UPDATE)
       try {
-        const { data: rpcData, error: rpcError } = await (supabase as any).rpc(
+        const { data: rpcData, error: rpcError } = await supabase.rpc(
           "settle_driver_cod_orders_atomic",
           {
             p_settlement_number: settlementNumber,
             p_driver_name: driverName,
-            p_driver_phone: driverPhone || null,
-            p_driver_id: driverId || null,
+            p_driver_phone: driverPhone || "",
+            p_driver_id: driverId || "",
             p_order_ids: selectedOrderIds,
             p_amount_collected: selectedTotal,
             p_amount_settled: settledNum,
             p_balance_remaining: balanceRemaining,
             p_settled_by_name: collectorName.trim() || "Store Admin",
-            p_settled_by_id: user?.id || null,
+            p_settled_by_id: user?.id || "",
             p_payment_mode: paymentMode,
-            p_notes: notes.trim() || null,
+            p_notes: notes.trim() || "",
           }
         );
 
@@ -152,22 +152,22 @@ export function DriverCashSettlementModal({
 
       // 2. Fallback transaction if RPC not yet deployed
       if (!record) {
-        const { data: insertRec, error: insertError } = await (supabase as any)
+        const { data: insertRec, error: insertError } = await supabase
           .from("driver_cash_settlements")
           .insert({
             settlement_number: settlementNumber,
             driver_name: driverName,
-            driver_phone: driverPhone || null,
-            driver_id: driverId || null,
+            driver_phone: driverPhone || "",
+            driver_id: driverId || "",
             amount_collected: selectedTotal,
             amount_settled: settledNum,
             balance_remaining: balanceRemaining,
             orders_count: selectedOrderIds.length,
             order_ids: selectedOrderIds,
             settled_by_name: collectorName.trim() || "Store Admin",
-            settled_by_id: user?.id || null,
+            settled_by_id: user?.id || "",
             payment_mode: paymentMode,
-            notes: notes.trim() || null,
+            notes: notes.trim() || "",
             settled_at: new Date().toISOString(),
           })
           .select()
@@ -176,7 +176,7 @@ export function DriverCashSettlementModal({
         if (insertError) throw insertError;
         record = insertRec;
 
-        const { error: updateOrdersError } = await (supabase as any)
+        const { error: updateOrdersError } = await supabase
           .from("orders")
           .update({
             cod_settled: true,
@@ -544,3 +544,4 @@ export function DriverCashSettlementModal({
     </Dialog>
   );
 }
+

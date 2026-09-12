@@ -10,8 +10,8 @@ describe("Format Utilities", () => {
   });
 
   it("handles null or undefined amounts gracefully", () => {
-    expect(formatINR(null as any)).toBe("₹0");
-    expect(formatINR(undefined as any)).toBe("₹0");
+    expect(formatINR(null as unknown as number)).toBe("₹0");
+    expect(formatINR(undefined as unknown as number)).toBe("₹0");
   });
 
   it("formats stock display properly for kg and pcs", () => {

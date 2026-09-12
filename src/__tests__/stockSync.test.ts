@@ -24,13 +24,13 @@ describe("Atomic Stock Synchronization Logic", () => {
   });
 
   it("handles both product_id (snake_case) and productId (camelCase) keys", () => {
-    const items = [
+    const items: Array<{ product_id?: string; productId?: string; qty: number; name: string }> = [
       { product_id: "uuid-1", qty: 2, name: "Vanjaram" },
       { productId: "uuid-2", qty: 1, name: "White Pomfret" },
     ];
 
     const extracted = items.map((i) => ({
-      pid: i.product_id || (i as any).productId,
+      pid: i.product_id || i.productId,
       qty: i.qty,
     }));
 

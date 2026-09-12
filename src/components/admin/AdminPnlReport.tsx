@@ -143,7 +143,7 @@ export function AdminPnlReport() {
     queryKey: ["admin", "pnl-expenses", selectedBranchId, startDate, endDate],
     queryFn: async (): Promise<Expense[]> => {
       let q = supabase
-        .from("expenses" as any)
+        .from("expenses")
         .select("*, branches(name)")
         .order("expense_date", { ascending: false });
 
@@ -184,7 +184,7 @@ export function AdminPnlReport() {
     queryKey: ["admin", "pnl-waste", selectedBranchId, startDate, endDate],
     queryFn: async () => {
       let q = supabase
-        .from("waste_entries" as any)
+        .from("waste_entries")
         .select("*");
 
       if (selectedBranchId !== "all") {
@@ -266,7 +266,7 @@ export function AdminPnlReport() {
 
       const { error } = await supabase
         .from("products")
-        .update({ cost_price: val } as any)
+        .update({ cost_price: val })
         .eq("id", editingCostProduct.id);
 
       if (error) throw error;
@@ -887,3 +887,4 @@ export function AdminPnlReport() {
     </div>
   );
 }
+

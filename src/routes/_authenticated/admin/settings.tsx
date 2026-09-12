@@ -92,7 +92,7 @@ function AdminSettings() {
     queryKey: ["schema_version_current"],
     queryFn: async () => {
       try {
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
           .from("schema_version")
           .select("*")
           .order("applied_at", { ascending: false })
@@ -125,18 +125,18 @@ function AdminSettings() {
         { data: wasteLogs },
         { data: deliveryWindows },
       ] = await Promise.all([
-        (supabase as any).from("products").select("*"),
-        (supabase as any).from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(2000),
-        (supabase as any).from("categories").select("*"),
-        (supabase as any).from("marketing_campaigns").select("*"),
-        (supabase as any).from("inventory_batches").select("*"),
-        (supabase as any).from("customer_subscriptions").select("*"),
-        (supabase as any).from("customers").select("*"),
-        (supabase as any).from("promotions").select("*"),
-        (supabase as any).from("suppliers").select("*"),
-        (supabase as any).from("purchases").select("*, purchase_items(*)"),
-        (supabase as any).from("waste_logs").select("*"),
-        (supabase as any).from("delivery_windows").select("*"),
+        supabase.from("products").select("*"),
+        supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(2000),
+        supabase.from("categories").select("*"),
+        supabase.from("marketing_campaigns").select("*"),
+        supabase.from("inventory_batches").select("*"),
+        supabase.from("customer_subscriptions").select("*"),
+        supabase.from("customers").select("*"),
+        supabase.from("promotions").select("*"),
+        supabase.from("suppliers").select("*"),
+        supabase.from("purchases").select("*, purchase_items(*)"),
+        supabase.from("waste_logs").select("*"),
+        supabase.from("delivery_windows").select("*"),
       ]);
 
       const backupPayload = {
@@ -201,7 +201,7 @@ function AdminSettings() {
   const handleExportOrdersCsv = async () => {
     try {
       toast.info("Preparing orders ledger CSV...");
-      const { data: orders, error } = await (supabase as any)
+      const { data: orders, error } = await supabase
         .from("orders")
         .select("id, created_at, status, payment_status, payment_method, total, subtotal, delivery_fee, discount, customer_name, customer_phone, delivery_address")
         .order("created_at", { ascending: false })
@@ -214,7 +214,7 @@ function AdminSettings() {
       }
 
       const headers = ["Order ID", "Date", "Customer Name", "Customer Phone", "Status", "Payment Method", "Payment Status", "Subtotal (INR)", "Delivery Fee (INR)", "Discount (INR)", "Total (INR)", "Delivery Address"];
-      const rows = (orders as any[]).map((o) => [
+      const rows = (orders as Database["public"]["Tables"]["orders"]["Row"][]).map((o) => [
         o.id,
         new Date(o.created_at).toLocaleString("en-IN"),
         `"${(o.customer_name || "").replace(/"/g, '""')}"`,
@@ -246,7 +246,7 @@ function AdminSettings() {
   const handleExportProductsCsv = async () => {
     try {
       toast.info("Preparing catalog CSV...");
-      const { data: products, error } = await (supabase as any)
+      const { data: products, error } = await supabase
         .from("products")
         .select("id, name, price, cost_price, hsn_code, stock, is_available")
         .order("name", { ascending: true });
@@ -258,7 +258,7 @@ function AdminSettings() {
       }
 
       const headers = ["Product ID", "Item Name", "Retail Price (INR)", "Inward Cost (INR)", "HSN Code", "Stock", "Available"];
-      const rows = (products as any[]).map((p) => [
+      const rows = (products as Database["public"]["Tables"]["products"]["Row"][]).map((p) => [
         p.id,
         `"${(p.name || "").replace(/"/g, '""')}"`,
         p.price || 0,

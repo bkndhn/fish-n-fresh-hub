@@ -113,7 +113,7 @@ function PromotionsAdmin() {
   const campaigns = useQuery({
     queryKey: ["admin", "marketing-campaigns"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("marketing_campaigns")
         .select("*")
         .order("created_at", { ascending: false });
@@ -173,7 +173,7 @@ function PromotionsAdmin() {
 
   const toggleCampaign = useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("marketing_campaigns")
         .update({ is_active })
         .eq("id", id);
@@ -222,7 +222,7 @@ function PromotionsAdmin() {
         conversions_b: 0,
       };
 
-      const { error } = await (supabase as any).from("marketing_campaigns").insert([record]);
+      const { error } = await supabase.from("marketing_campaigns").insert([record]);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -249,7 +249,7 @@ function PromotionsAdmin() {
   // Toggle quick active status
   const toggle = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      const { error } = await (supabase as any).from("promotions").update({ active }).eq("id", id);
+      const { error } = await supabase.from("promotions").update({ active }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -276,10 +276,10 @@ function PromotionsAdmin() {
       };
 
       if (data.id) {
-        const { error } = await (supabase as any).from("promotions").update(payload).eq("id", data.id);
+        const { error } = await supabase.from("promotions").update(payload).eq("id", data.id);
         if (error) throw error;
       } else {
-        const { error } = await (supabase as any).from("promotions").insert([payload]);
+        const { error } = await supabase.from("promotions").insert([payload]);
         if (error) throw error;
       }
     },
@@ -297,7 +297,7 @@ function PromotionsAdmin() {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any).from("promotions").delete().eq("id", id);
+      const { error } = await supabase.from("promotions").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

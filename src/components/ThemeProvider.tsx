@@ -79,7 +79,7 @@ export function ThemeProvider({
 
     const syncColors = () => {
       const isDark = root.classList.contains("dark");
-      const dailyEnabled = isDailyAtmosphereEnabled(settings);
+      const dailyEnabled = settings ? isDailyAtmosphereEnabled(settings) : false;
 
       if (dailyEnabled) {
         // Procedural daily atmosphere theme (different every single day)
@@ -103,7 +103,7 @@ export function ThemeProvider({
     return () => {
       window.removeEventListener("daily-atmosphere-changed", onAtmosphereChanged);
     };
-  }, [settings?.theme_color, settings?.logo_url, (settings as any)?.daily_atmosphere_enabled, theme]);
+  }, [settings?.theme_color, settings?.logo_url, (settings as import("@/lib/types").SiteSettings & { daily_atmosphere_enabled?: boolean })?.daily_atmosphere_enabled, theme]);
 
   const value = {
     theme,

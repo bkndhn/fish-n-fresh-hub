@@ -151,7 +151,7 @@ function DeliveryTracking() {
 
   const update = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: Partial<OrderRow> }) => {
-      const { error } = await supabase.from("orders").update(patch as never).eq("id", id);
+      const { error } = await supabase.from("orders").update(patch).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -173,7 +173,7 @@ function DeliveryTracking() {
   const applyPresetMessage = (type: "dispatched" | "arrived" | "packed" | "cold_chain") => {
     if (!selected) return;
     const ref = selected.order_number ?? selected.id.slice(0, 8);
-    const pin = (selected as any).delivery_pin || (selected as any).otp_code || selected.id.slice(-4).toUpperCase();
+    const pin = (selected as Database["public"]["Tables"]["orders"]["Row"]).delivery_pin || (selected as Database["public"]["Tables"]["orders"]["Row"]).otp_code || selected.id.slice(-4).toUpperCase();
     const dName = driverName || selected.driver_name || "Assigned Dispatch Executive";
     const etaMins = eta || selected.eta_minutes || "25–35";
 
@@ -414,7 +414,7 @@ function DeliveryTracking() {
                           Doorstep Delivery PIN
                         </p>
                         <p className="text-sm font-black font-mono tracking-widest text-amber-900 dark:text-amber-200">
-                          {(selected as any).delivery_pin || (selected as any).otp_code || selected.id.slice(-4).toUpperCase()}
+                          {(selected as Database["public"]["Tables"]["orders"]["Row"]).delivery_pin || (selected as Database["public"]["Tables"]["orders"]["Row"]).otp_code || selected.id.slice(-4).toUpperCase()}
                         </p>
                       </div>
                     </div>

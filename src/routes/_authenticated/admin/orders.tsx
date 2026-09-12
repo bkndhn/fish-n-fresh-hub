@@ -52,6 +52,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import type { SiteSettings } from '@/lib/types';
 
 export const Route = createFileRoute("/_authenticated/admin/orders")({
   head: () => ({
@@ -96,7 +97,7 @@ function OrdersAdmin() {
   const { data: adminSubscriptions = [], refetch: refetchAdminSubs } = useQuery({
     queryKey: ["admin", "all-subscriptions", selectedBranchId],
     queryFn: async () => {
-      let q = (supabase as any)
+      let q = supabase
         .from("customer_subscriptions")
         .select("*")
         .order("created_at", { ascending: false });
@@ -696,9 +697,9 @@ function OrdersAdmin() {
                         <span className="text-foreground font-medium">{i.name}</span>
                         <div className="flex items-center gap-1">
                           <span className="font-semibold text-foreground">× {i.qty} {i.unit || "kg"}</span>
-                          {(i as any).cut_preference && (
+                          {(i as CartItem).cut_preference && (
                             <span className="rounded-md bg-primary/10 px-1.5 py-0.2 text-[10px] text-primary font-bold">
-                              {(i as any).cut_preference}
+                              {(i as CartItem).cut_preference}
                             </span>
                           )}
                         </div>
@@ -716,14 +717,14 @@ function OrdersAdmin() {
                       </span>
                     ) : o.payment_method === "upi" ? (
                       <div className="flex flex-wrap items-center gap-1.5">
-                        {(o as any).upi_paid || o.payment_status === "paid" ? (
+                        {(o as Database["public"]["Tables"]["orders"]["Row"]).upi_paid || o.payment_status === "paid" ? (
                           <span className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                            ✅ UPI Verified Paid {(o as any).actual_payment_ref ? `(UTR: ${(o as any).actual_payment_ref})` : ""}
+                            ✅ UPI Verified Paid {(o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref ? `(UTR: ${(o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref})` : ""}
                           </span>
                         ) : (
                           <>
                             <span className="rounded-xl bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-300">
-                              ⏳ UPI Verification Pending {(o as any).actual_payment_ref ? `(UTR: ${(o as any).actual_payment_ref})` : ""}
+                              ⏳ UPI Verification Pending {(o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref ? `(UTR: ${(o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref})` : ""}
                             </span>
                             <Button
                               type="button"
@@ -880,7 +881,7 @@ function OrdersAdmin() {
           {printOrder && (
             <div id="thermal-receipt" className="border rounded-xl p-4 bg-white text-black font-mono text-xs space-y-3">
               <div className="text-center border-b pb-2">
-                <h2 className="font-bold text-sm uppercase">{(settings as any)?.firm_name || "Fish N Fresh Seafood Hub"}</h2>
+                <h2 className="font-bold text-sm uppercase">{(settings as SiteSettings)?.firm_name || "Fish N Fresh Seafood Hub"}</h2>
                 {settings?.store_address && <p className="text-[10px] text-gray-600">{settings.store_address}</p>}
                 {settings?.support_phone && <p className="text-[10px] text-gray-600">Ph: {settings.support_phone}</p>}
                 {settings?.fssai_number && <p className="text-[10px] text-gray-600">FSSAI: {settings.fssai_number}</p>}
@@ -918,8 +919,8 @@ function OrdersAdmin() {
                       <tr key={idx} className="border-b border-gray-100">
                         <td className="py-1">
                           <p className="font-bold">{it.name}</p>
-                          {(it as any).cut_preference && (
-                            <p className="text-[10px] text-gray-500">Cut: {(it as any).cut_preference}</p>
+                          {(it as CartItem).cut_preference && (
+                            <p className="text-[10px] text-gray-500">Cut: {(it as CartItem).cut_preference}</p>
                           )}
                         </td>
                         <td className="py-1 text-center">{it.qty} {it.unit || "kg"}</td>

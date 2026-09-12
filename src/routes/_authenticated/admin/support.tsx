@@ -81,12 +81,12 @@ export function AdminSupportPage() {
     queryKey: ["admin", "support-conversations"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("support_conversations" as any)
+        .from("support_conversations")
         .select("*")
         .order("last_message_at", { ascending: false });
 
       if (error) return [];
-      return (data as any) || [];
+      return data || [];
     },
     refetchInterval: 4000,
   });
@@ -119,13 +119,13 @@ export function AdminSupportPage() {
     queryFn: async () => {
       if (!activeConvId) return [];
       const { data, error } = await supabase
-        .from("support_messages" as any)
+        .from("support_messages")
         .select("*")
         .eq("conversation_id", activeConvId)
         .order("created_at", { ascending: true });
 
       if (error) return [];
-      return (data as any) || [];
+      return data || [];
     },
     enabled: Boolean(activeConvId),
     refetchInterval: 3000,
@@ -192,23 +192,23 @@ export function AdminSupportPage() {
       const staffName =
         (user?.user_metadata?.["full_name"] as string) || (user?.email?.split("@")[0]) || "Store Staff";
 
-      const { error } = await supabase.from("support_messages" as any).insert({
+      const { error } = await supabase.from("support_messages").insert({
         conversation_id: activeConvId,
         sender_type: "staff",
         sender_id: user?.id || null,
         sender_name: staffName,
         message: text.trim(),
-      } as any);
+      });
 
       if (error) throw error;
 
       // Update conversation status to in_progress & last_message_at
       await supabase
-        .from("support_conversations" as any)
+        .from("support_conversations")
         .update({
           last_message_at: new Date().toISOString(),
           status: activeConv?.status === "open" ? "in_progress" : activeConv?.status,
-        } as any)
+        })
         .eq("id", activeConvId);
     },
     onSuccess: () => {
@@ -223,8 +223,8 @@ export function AdminSupportPage() {
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "open" | "in_progress" | "resolved" }) => {
       const { error } = await supabase
-        .from("support_conversations" as any)
-        .update({ status } as any)
+        .from("support_conversations")
+        .update({ status })
         .eq("id", id);
       if (error) throw error;
     },

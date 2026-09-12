@@ -10,6 +10,23 @@ import { useSessionUser } from "@/lib/session";
 import { settingsQuery } from "@/lib/queries";
 import { getVerticalConfig } from "@/lib/verticals";
 import { getVisitorVariant } from "@/lib/campaigns";
+import type { SiteSettings } from "@/lib/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+
+type CustomDB = Database & {
+  public: {
+    Tables: Database["public"]["Tables"] & {
+      marketing_campaigns: {
+        Row: { id: string; is_active: boolean; created_at: string; variant_b_code?: string | null; variant_a_code?: string | null; banner_headline?: string | null; title: string; banner_subtext?: string | null; description?: string | null; type: string; };
+        Insert: any;
+        Update: any;
+      };
+    };
+  };
+};
+
+const customSupabase = supabase as unknown as SupabaseClient<CustomDB>;
 
 export function CatchAlertBanner() {
   const { user } = useSessionUser();
@@ -45,7 +62,7 @@ export function CatchAlertBanner() {
     queryKey: ["active-marketing-campaign-banner"],
     queryFn: async () => {
       try {
-        const { data, error } = await (supabase as any)
+        const { data, error } = await customSupabase
           .from("marketing_campaigns")
           .select("*")
           .eq("is_active", true)
@@ -80,12 +97,14 @@ export function CatchAlertBanner() {
     },
   });
 
+  const s = settings as SiteSettings | undefined;
+
   // Admin Killswitch / Toggle: If live alerts are disabled in store settings, do not display!
-  const isAlertsEnabled = (settings as any)?.live_alerts_enabled ?? true;
+  const isAlertsEnabled = s?.live_alerts_enabled ?? true;
   if (!isAlertsEnabled || dismissed) return null;
 
   // Determine if active marketing campaign takes precedence
-  const vertical = getVerticalConfig((settings as any)?.business_vertical);
+  const vertical = getVerticalConfig(s?.business_vertical as string);
 
   let title = "";
   let message = "";
@@ -111,7 +130,7 @@ export function CatchAlertBanner() {
   } else {
     title =
       latestBroadcast?.title ||
-      (settings as any)?.harbour_alert_title ||
+      s?.harbour_alert_title ||
       (vertical.id === "chicken_meat"
         ? "🍗 Morning Fresh Farm Harvest Arrival"
         : vertical.id === "all_meat"
@@ -120,7 +139,7 @@ export function CatchAlertBanner() {
 
     message =
       latestBroadcast?.message ||
-      (settings as any)?.harbour_alert_message ||
+      s?.harbour_alert_message ||
       (vertical.id === "chicken_meat"
         ? "Daily morning harvest of antibiotic-free broiler & country chicken just arrived fresh at our counter."
         : vertical.id === "all_meat"
@@ -129,7 +148,7 @@ export function CatchAlertBanner() {
 
     badgeLabel =
       latestBroadcast?.harbour_source ||
-      (settings as any)?.harbour_source_name ||
+      s?.harbour_source_name ||
       (vertical.id === "chicken_meat"
         ? "Bio-Secure Farm Hub"
         : vertical.id === "all_meat"

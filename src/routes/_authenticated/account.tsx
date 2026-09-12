@@ -116,7 +116,7 @@ function AccountPage() {
     queryFn: async (): Promise<AccountOrder[]> => {
       if (!user?.id) return [];
       const storedPhone = typeof window !== "undefined" ? localStorage.getItem("fnf_phone") : null;
-      const userPhone = (user.user_metadata as any)?.phone || storedPhone;
+      const userPhone = (user.user_metadata as Record<string, any>)?.phone || storedPhone;
 
       let query = supabase
         .from("orders")
@@ -163,7 +163,7 @@ function AccountPage() {
     queryKey: ["account", "subscriptions", user?.id],
     enabled: Boolean(user?.id),
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("customer_subscriptions")
         .select("*")
         .order("created_at", { ascending: false });
@@ -178,13 +178,13 @@ function AccountPage() {
     enabled: Boolean(user?.id),
     queryFn: async () => {
       if (!user?.id) return { wallet: null, txns: [] };
-      const { data } = await (supabase as any)
+      const { data } = await supabase
         .from("customer_wallets")
         .select("balance, referral_code, total_earned, total_redeemed")
         .eq("user_id", user.id)
         .maybeSingle();
 
-      const { data: txnRows } = await (supabase as any)
+      const { data: txnRows } = await supabase
         .from("wallet_transactions")
         .select("id, amount, type, description, created_at")
         .eq("wallet_id", user.id)
@@ -277,7 +277,7 @@ function AccountPage() {
             )}
             {tab === "subscriptions" && (
               <SubscriptionsTab
-                subscriptions={(subscriptionsQ.data ?? []) as any[]}
+                subscriptions={subscriptionsQ.data ?? []}
                 onRefresh={() => subscriptionsQ.refetch()}
               />
             )}
@@ -286,15 +286,15 @@ function AccountPage() {
             )}
             {tab === "addresses" && (
               <AddressesTab
-                addresses={(addressesQ.data ?? []) as any[]}
+                addresses={addressesQ.data ?? []}
                 userId={user?.id}
                 onRefresh={() => addressesQ.refetch()}
               />
             )}
             {tab === "wallet" && (
               <WalletTab
-                wallet={walletQ.data?.wallet as any}
-                txns={(walletQ.data?.txns ?? []) as any[]}
+                wallet={walletQ.data?.wallet as unknown as CustomerWallet}
+                txns={walletQ.data?.txns ?? []}
               />
             )}
           </div>
@@ -351,7 +351,7 @@ function OrdersTab({
           price: Number(it.price),
           unit: it.unit || "kg",
           image_url: null,
-        } as any,
+        },
         Number(it.qty) || 1,
         it.cut_preference || "Curry Cut",
         it.branch_id ? { id: it.branch_id, name: it.branch_name || "Hub" } : undefined

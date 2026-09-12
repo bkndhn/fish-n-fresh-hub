@@ -7,6 +7,10 @@
  * financial P&L reporting, hardware telemetry, and procurement accounting.
  */
 
+import type { Database } from '@/integrations/supabase/types';
+export type SiteSettings = Database['public']['Tables']['store_settings']['Row'];
+
+
 /**
  * 2D Matrix Product Variant for size, color, SKU, and barcode.
  */

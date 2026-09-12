@@ -32,6 +32,7 @@ import { notifyOrderStatusChange } from "@/lib/fcm";
 import { checkCartStockAvailability, deductOrderStock } from "@/lib/inventorySync";
 import { sendOrderConfirmedEmailServer } from "@/lib/emails.functions";
 import { evaluateCartRewardRule, recordCampaignConversion, type MarketingCampaign } from "@/lib/campaigns";
+import type { SiteSettings } from '@/lib/types';
 
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371; // Radius of the earth in km
@@ -46,7 +47,7 @@ function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
 
 function playOrderSuccessChime() {
   try {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
     const ctx = new AudioContextClass();
     const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
@@ -160,8 +161,8 @@ function Checkout() {
   const storeStatus = getStoreStatus(settings);
   const selectedHoliday = isDateHoliday(
     deliveryDate,
-    (settings as any)?.working_days,
-    (settings as any)?.custom_holidays
+    (settings as SiteSettings)?.working_days,
+    (settings as SiteSettings)?.custom_holidays
   );
 
   // Auto-adjust delivery date to next working date if store is closed or current selection is a holiday
@@ -184,8 +185,8 @@ function Checkout() {
   const isExpressActive =
     fulfillment === "delivery" &&
     deliverySpeed === "express" &&
-    ((settings as any)?.express_delivery_enabled ?? true);
-  const expressFee = isExpressActive ? Number((settings as any)?.express_delivery_fee ?? 25) : 0;
+    ((settings as SiteSettings)?.express_delivery_enabled ?? true);
+  const expressFee = isExpressActive ? Number((settings as SiteSettings)?.express_delivery_fee ?? 25) : 0;
 
   // Dynamic Delivery Fee
   let deliveryFee = 0;
@@ -213,7 +214,7 @@ function Checkout() {
     queryKey: ["checkout-active-campaigns"],
     queryFn: async () => {
       try {
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
           .from("marketing_campaigns")
           .select("*")
           .eq("is_active", true);
@@ -231,8 +232,8 @@ function Checkout() {
   const autoRewardDiscount = autoCartReward.eligible ? autoCartReward.discountAmount : 0;
 
   // FreshCash Wallet calculations
-  const walletEnabled = (settings as any)?.wallet_enabled ?? true;
-  const maxBurnPercent = Number((settings as any)?.max_wallet_burn_percent ?? 50);
+  const walletEnabled = (settings as SiteSettings)?.wallet_enabled ?? true;
+  const maxBurnPercent = Number((settings as SiteSettings)?.max_wallet_burn_percent ?? 50);
   const availableWalletBal = Number(userWallet?.balance || 0);
   const maxRedeemableFreshCash = calculateMaxRedeemable(availableWalletBal, subtotal, maxBurnPercent);
   const walletDiscount = useWalletBalance && walletEnabled ? maxRedeemableFreshCash : 0;
@@ -247,7 +248,7 @@ function Checkout() {
     try {
       const res = await validateReferralCode(referralInput, user?.id);
       if (res.valid) {
-        const bonus = Number((settings as any)?.referral_reward_referee ?? 50);
+        const bonus = Number((settings as SiteSettings)?.referral_reward_referee ?? 50);
         setAppliedReferral({ code: referralInput.trim().toUpperCase(), bonus });
         toast.success(`Referral code ${referralInput.trim().toUpperCase()} applied! -${inr(bonus)} discount`);
       } else {
@@ -395,7 +396,7 @@ function Checkout() {
     const finalSlot =
       fulfillment === "delivery"
         ? deliverySpeed === "express"
-          ? `⚡ Express (30–${(settings as any)?.express_sla_mins || 35} Mins Priority Dispatch)`
+          ? `⚡ Express (30–${(settings as SiteSettings)?.express_sla_mins || 35} Mins Priority Dispatch)`
           : slot || null
         : null;
 
@@ -436,7 +437,7 @@ function Checkout() {
         customer_address: fulfillment === "delivery" ? address : null,
         location_lat: fulfillment === "delivery" ? finalLat : null,
         location_lng: fulfillment === "delivery" ? finalLng : null,
-        items: items as unknown as never,
+        items: items as unknown as Database["public"]["Tables"]["orders"]["Insert"]["items"],
         subtotal,
         delivery_fee: deliveryFee,
         gst_amount: gstAmount,
@@ -945,10 +946,10 @@ function Checkout() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs sm:text-sm text-foreground">
-                      ⚡ Express ({(settings as any)?.express_sla_mins || 35} Mins)
+                      ⚡ Express ({(settings as SiteSettings)?.express_sla_mins || 35} Mins)
                     </span>
                     <span className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400">
-                      +{inr(Number((settings as any)?.express_delivery_fee ?? 25))}
+                      +{inr(Number((settings as SiteSettings)?.express_delivery_fee ?? 25))}
                     </span>
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-0.5">

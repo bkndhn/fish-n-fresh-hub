@@ -234,13 +234,13 @@ export function InlineDeliveryRouteMap({
           .bindPopup(`<strong>🏡 Delivery Destination</strong><br/>${customerName || "Customer"}<br/>${destAddress || ""}`);
 
         // Route Polyline: dual-layer road route
-        const coords = roadRoute ? roadRoute.coordinates : [
+        const coords = (roadRoute ? roadRoute.coordinates : [
           [effectiveStoreLat, effectiveStoreLng],
           [targetLat, targetLng],
-        ];
+        ]) as import("leaflet").LatLngExpression[];
 
         // Outer glow/casing
-        L.polyline(coords as any, {
+        L.polyline(coords, {
           color: "#38bdf8",
           weight: 6.5,
           opacity: 0.45,
@@ -249,7 +249,7 @@ export function InlineDeliveryRouteMap({
         }).addTo(map);
 
         // Core driving line
-        L.polyline(coords as any, {
+        L.polyline(coords, {
           color: "#0284c7",
           weight: 4,
           opacity: 0.95,
@@ -257,7 +257,7 @@ export function InlineDeliveryRouteMap({
           lineJoin: "round",
         }).addTo(map);
 
-        const bounds = L.latLngBounds(coords as any);
+        const bounds = L.latLngBounds(coords);
         map.fitBounds(bounds, { padding: [40, 40] });
 
         leafletMapRef.current = map;

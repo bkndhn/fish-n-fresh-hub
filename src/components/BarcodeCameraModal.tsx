@@ -6,6 +6,16 @@ import { Camera, RefreshCw, X, Zap, ScanLine } from "lucide-react";
 import { parseBarcode, type ParsedBarcode } from "@/lib/barcodeScanner";
 import { soundEngine } from "@/lib/realtime";
 
+declare global {
+  interface Window {
+    BarcodeDetector?: {
+      new (options?: { formats: string[] }): {
+        detect(image: HTMLVideoElement): Promise<Array<{ rawValue: string }>>;
+      };
+    };
+  }
+}
+
 interface BarcodeCameraModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -50,9 +60,10 @@ export function BarcodeCameraModal({ isOpen, onClose, onScan }: BarcodeCameraMod
         await videoRef.current.play();
         setIsScanning(true);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn("Camera access failed:", err);
-      setError(err?.message || "Could not access camera. You can type or paste the barcode below.");
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg || "Could not access camera. You can type or paste the barcode below.");
     }
   };
 
@@ -68,7 +79,7 @@ export function BarcodeCameraModal({ isOpen, onClose, onScan }: BarcodeCameraMod
   useEffect(() => {
     if (!isScanning || !videoRef.current) return;
 
-    const BarcodeDetectorClass = (window as any).BarcodeDetector;
+    const BarcodeDetectorClass = window.BarcodeDetector;
     if (!BarcodeDetectorClass) return;
 
     let active = true;
@@ -80,7 +91,7 @@ export function BarcodeCameraModal({ isOpen, onClose, onScan }: BarcodeCameraMod
       if (!active || !videoRef.current || videoRef.current.readyState < 2) return;
       try {
         const barcodes = await detector.detect(videoRef.current);
-        if (barcodes.length > 0 && barcodes[0].rawValue) {
+        if (barcodes.length > 0 && barcodes[0] && barcodes[0].rawValue) {
           active = false;
           const raw = barcodes[0].rawValue;
           soundEngine.playScannerBeep();

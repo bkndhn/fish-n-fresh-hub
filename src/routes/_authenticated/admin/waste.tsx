@@ -167,7 +167,7 @@ function WasteAdmin() {
       const newStock = Math.max(0, currentStock - qty);
       await supabase
         .from("products")
-        .update({ stock: newStock } as any)
+        .update({ stock: newStock })
         .eq("id", selectedProductId);
 
       qc.invalidateQueries({ queryKey: ["admin", "products"] });
@@ -431,7 +431,7 @@ function WasteAdmin() {
               <Label className="text-xs font-bold">Reason for Loss *</Label>
               <select
                 value={wasteReason}
-                onChange={(e) => setWasteReason(e.target.value as any)}
+                onChange={(e) => setWasteReason(e.target.value as "daily" | "weekly" | "custom")}
                 className="flex h-9 w-full rounded-xl border border-input bg-background px-3 py-1 text-xs shadow-xs"
               >
                 {REASONS.map((r) => (

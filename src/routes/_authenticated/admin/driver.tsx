@@ -101,7 +101,7 @@ export function DriverDispatchPage() {
   const settlementsQuery = useQuery({
     queryKey: ["driver_cash_settlements"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("driver_cash_settlements")
         .select("*")
         .order("settled_at", { ascending: false });
@@ -155,7 +155,7 @@ export function DriverDispatchPage() {
 
   const updateOrder = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: Partial<OrderRow> }) => {
-      const { error } = await supabase.from("orders").update(patch as never).eq("id", id);
+      const { error } = await supabase.from("orders").update(patch).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -318,14 +318,14 @@ export function DriverDispatchPage() {
         cur.completedRuns++;
         const orderTotal = Number(o.total || 0);
         const isBankDirect = Boolean(
-          (o as any).paid_to_bank_directly ||
-          (o as any).actual_payment_method === "upi_qr"
+          (o as Database["public"]["Tables"]["orders"]["Row"]).paid_to_bank_directly ||
+          (o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_method === "upi_qr"
         );
 
         if (isBankDirect) {
           cur.codTotal += orderTotal;
           // Direct bank UPI - driver has zero physical cash liability for this order
-        } else if (o.payment_method === "cod" || (o as any).actual_payment_method === "cash") {
+        } else if (o.payment_method === "cod" || (o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_method === "cash") {
           cur.codTotal += orderTotal;
           if (o.cod_settled) {
             cur.codSettled += orderTotal;
@@ -338,8 +338,8 @@ export function DriverDispatchPage() {
         }
 
         const createdTime = new Date(o.created_at).getTime();
-        const deliveredTime = (o as any).delivered_at
-          ? new Date((o as any).delivered_at).getTime()
+        const deliveredTime = (o as Database["public"]["Tables"]["orders"]["Row"]).delivered_at
+          ? new Date((o as Database["public"]["Tables"]["orders"]["Row"]).delivered_at).getTime()
           : null;
         const durationMinutes = deliveredTime
           ? Math.max(5, Math.round((deliveredTime - createdTime) / 60000))
@@ -394,7 +394,7 @@ export function DriverDispatchPage() {
   return (
     <AdminShell title="Driver Dispatch & Fleet Management" allow={["admin", "driver", "staff"]}>
       {/* Tab Controls & Auto-Assign Header */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4 w-full min-w-0 max-w-full">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="space-y-4 w-full min-w-0 max-w-full">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3 w-full min-w-0">
           <div className="w-full min-w-0 overflow-x-auto no-scrollbar touch-pan-x scroll-smooth pb-0.5">
             <TabsList className="h-9 rounded-xl p-1 bg-muted/60 flex-nowrap w-max">

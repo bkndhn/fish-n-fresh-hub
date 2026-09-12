@@ -31,9 +31,11 @@ export function ProductCard({ product }: { product: Product }) {
     ? Math.round(((Number(product.old_price) - Number(product.price)) / Number(product.old_price)) * 100)
     : 0;
 
+  const s = settings as import("@/lib/types").SiteSettings | undefined;
+
   const isOutOfStock = (product.stock !== null && Number(product.stock) <= 0) || product.is_available === false;
-  const showStockToCustomer = (settings as any)?.show_stock_to_customers ?? true;
-  const urgencyThreshold = Number((settings as any)?.stock_urgency_threshold ?? 5);
+  const showStockToCustomer = s?.show_stock_to_customers ?? true;
+  const urgencyThreshold = Number(s?.stock_urgency_threshold ?? 5);
   const isLowStock =
     showStockToCustomer &&
     !isOutOfStock &&
@@ -119,11 +121,11 @@ export function ProductCard({ product }: { product: Product }) {
               </button>
             </span>
           </div>
-        ) : !isOutOfStock && ((settings as any)?.express_delivery_enabled ?? true) ? (
+        ) : !isOutOfStock && (s?.express_delivery_enabled ?? true) ? (
           <div className="absolute top-2 right-2 pointer-events-none">
             <span className="rounded-md bg-black/65 backdrop-blur-md px-1.5 py-0.5 text-[9px] font-mono font-bold text-amber-300 flex items-center gap-0.5 shadow-xs border border-white/10">
               <Zap className="size-2.5 fill-amber-400 text-amber-400" />
-              {(settings as any)?.express_sla_mins || 35}m
+              {s?.express_sla_mins || 35}m
             </span>
           </div>
         ) : null}

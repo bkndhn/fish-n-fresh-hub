@@ -81,7 +81,7 @@ export async function recordCampaignConversion(
 ): Promise<void> {
   try {
     const column = variant === "A" ? "variant_a_orders" : "variant_b_orders";
-    const { data: current } = await (supabase as any)
+    const { data: current } = await supabase
       .from("marketing_campaigns")
       .select(`id, ${column}`)
       .eq("id", campaignId)
@@ -89,7 +89,7 @@ export async function recordCampaignConversion(
 
     if (current) {
       const newVal = (Number(current[column]) || 0) + 1;
-      await (supabase as any)
+      await supabase
         .from("marketing_campaigns")
         .update({ [column]: newVal, updated_at: new Date().toISOString() })
         .eq("id", campaignId);

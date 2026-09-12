@@ -19,7 +19,7 @@ async function markPaid(session: any) {
       payment_status: "paid",
       stripe_session_id: session.id,
       updated_at: new Date().toISOString(),
-    } as never)
+    } as Database["public"]["Tables"]["orders"]["Update"])
     .eq("id", orderId);
 }
 
@@ -28,7 +28,7 @@ async function markFailed(session: any) {
   if (!orderId) return;
   await getSupabase()
     .from("orders")
-    .update({ payment_status: "failed", updated_at: new Date().toISOString() } as never)
+    .update({ payment_status: "failed", updated_at: new Date().toISOString() } as Database["public"]["Tables"]["orders"]["Update"])
     .eq("id", orderId);
 }
 

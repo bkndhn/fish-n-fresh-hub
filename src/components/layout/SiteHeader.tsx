@@ -18,6 +18,12 @@ import { ReferralModal } from "@/components/ReferralModal";
 import { getVerticalConfig } from "@/lib/verticals";
 import { getDailyAtmosphere, isDailyAtmosphereEnabled } from "@/lib/dailyAtmosphere";
 
+declare global {
+  interface Navigator {
+    standalone?: boolean;
+  }
+}
+
 export function SiteHeader() {
   const { count } = useCart();
   const { data: settings } = useQuery(settingsQuery);
@@ -25,7 +31,7 @@ export function SiteHeader() {
   const { lang, setLang } = useTranslation();
   const { activeBranch, setIsLocationModalOpen } = useCustomerBranch();
   const [isStandalone, setIsStandalone] = useState(false);
-  const [atmosphereActive, setAtmosphereActive] = useState(() => isDailyAtmosphereEnabled(settings));
+  const [atmosphereActive, setAtmosphereActive] = useState(() => settings ? isDailyAtmosphereEnabled(settings) : false);
   const todayMood = getDailyAtmosphere();
 
   useEffect(() => {
@@ -34,7 +40,7 @@ export function SiteHeader() {
     const checkInstalled = () => {
       const standalone =
         window.matchMedia("(display-mode: standalone)").matches ||
-        (window.navigator as any).standalone === true ||
+        window.navigator.standalone === true ||
         document.referrer.includes("android-app://") ||
         (typeof localStorage !== "undefined" && localStorage.getItem("fnf_pwa_installed") === "true");
       setIsStandalone(standalone);
@@ -44,8 +50,9 @@ export function SiteHeader() {
     window.addEventListener("appinstalled", checkInstalled);
     window.addEventListener("pwa-app-installed", checkInstalled);
 
-    const onAtmosphereChanged = (e: any) => {
-      setAtmosphereActive(Boolean(e.detail?.enabled ?? isDailyAtmosphereEnabled(settings)));
+    const onAtmosphereChanged = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setAtmosphereActive(Boolean(detail?.enabled ?? (settings ? isDailyAtmosphereEnabled(settings) : false)));
     };
     window.addEventListener("daily-atmosphere-changed", onAtmosphereChanged);
 
@@ -164,7 +171,7 @@ export function SiteHeader() {
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <select 
             value={lang} 
-            onChange={(e) => setLang(e.target.value as any)}
+            onChange={(e) => setLang(e.target.value as "en" | "ta" | "hi")}
             className="h-8 rounded-lg sm:rounded-xl border border-input bg-card/70 px-1.5 sm:px-2 text-[11px] sm:text-xs text-foreground focus:outline-none shadow-2xs"
             aria-label="Select Language"
           >

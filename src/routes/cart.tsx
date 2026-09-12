@@ -21,6 +21,7 @@ import { inr } from "@/lib/format";
 import { settingsQuery, productsQuery } from "@/lib/queries";
 import { getStoreStatus } from "@/lib/storeSchedule";
 import type { Product } from "@/lib/types";
+import type { SiteSettings } from '@/lib/types';
 
 export const Route = createFileRoute("/cart")({
   head: () => ({
@@ -92,11 +93,11 @@ function CartPage() {
       )}
 
       {/* Express Delivery Callout */}
-      {((settings as any)?.express_delivery_enabled ?? true) && (
+      {((settings as SiteSettings)?.express_delivery_enabled ?? true) && (
         <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-amber-500/20 bg-amber-50/50 dark:bg-amber-950/20 p-2.5 text-xs text-amber-800 dark:text-amber-300">
           <span className="flex items-center gap-1.5 font-medium">
             <Zap className="size-3.5 fill-amber-500 text-amber-500" />
-            Express 30–{(settings as any)?.express_sla_mins || 35} Mins Priority Dispatch available
+            Express 30–{(settings as SiteSettings)?.express_sla_mins || 35} Mins Priority Dispatch available
           </span>
           <span className="font-mono font-bold text-[11px] text-amber-700 dark:text-amber-400">
             Ice-Packed

@@ -167,7 +167,11 @@ export function AddressBook({ selectedAddress, onSelect }: AddressBookProps) {
 
   const openEditModal = (addr: SavedAddress) => {
     setEditingAddress(addr);
-    setLabel((addr.label as any) || "Home");
+    setLabel(
+      (addr.label === "Home" || addr.label === "Office" || addr.label === "Other")
+        ? addr.label
+        : "Home"
+    );
     setDoorNo(addr.door_no || "");
     setStreet(addr.street || addr.address);
     setLandmark(addr.landmark || "");
@@ -578,18 +582,20 @@ export function AddressBook({ selectedAddress, onSelect }: AddressBookProps) {
             <div>
               <Label className="text-xs font-semibold">Address Type</Label>
               <div className="mt-1.5 flex gap-2">
-                {[
-                  { id: "Home", label: "Home", icon: Home },
-                  { id: "Office", label: "Work / Office", icon: Building },
-                  { id: "Other", label: "Other", icon: MapPin },
-                ].map((item) => {
+                {(
+                  [
+                    { id: "Home", label: "Home", icon: Home },
+                    { id: "Office", label: "Work / Office", icon: Building },
+                    { id: "Other", label: "Other", icon: MapPin },
+                  ] as const
+                ).map((item) => {
                   const Icon = item.icon;
                   const active = label === item.id;
                   return (
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => setLabel(item.id as any)}
+                      onClick={() => setLabel(item.id)}
                       className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-semibold transition-all ${
                         active
                           ? "border-primary bg-primary text-primary-foreground shadow-xs"

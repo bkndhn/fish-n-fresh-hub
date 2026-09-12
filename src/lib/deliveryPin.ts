@@ -49,7 +49,7 @@ export async function registerOrderDeliveryPin(
   }
 
   try {
-    const { error } = await supabase.from("order_delivery_pins" as any).upsert(
+    const { error } = await supabase.from("order_delivery_pins").upsert(
       {
         order_id: orderId,
         customer_id: customerId,
@@ -57,7 +57,7 @@ export async function registerOrderDeliveryPin(
         pin_hash: pinHash,
         attempts: 0,
         max_attempts: 5,
-      } as any,
+      },
       { onConflict: "order_id" }
     );
 
@@ -89,19 +89,19 @@ export async function getCustomerOrderDeliveryPin(
 
   try {
     const { data, error } = await supabase
-      .from("order_delivery_pins" as any)
+      .from("order_delivery_pins")
       .select("pin_code, attempts, max_attempts, verified_at")
       .eq("order_id", orderId)
       .maybeSingle();
 
-    if (data && (data as any).pin_code) {
+    if (data && data.pin_code) {
       // Sync local cache
       try {
-        localStorage.setItem(`fnf_order_pin_${orderId}`, (data as any).pin_code);
+        localStorage.setItem(`fnf_order_pin_${orderId}`, data.pin_code);
       } catch {
         // ignore
       }
-      return data as unknown as DeliveryPinData;
+      return data as DeliveryPinData;
     }
 
     if (error) {
@@ -151,7 +151,7 @@ export async function verifyAndDeliverOrder(
 
   // Try PostgreSQL RPC function first
   try {
-    const { data, error } = await supabase.rpc("verify_and_deliver_order" as any, {
+    const { data, error } = await supabase.rpc("verify_and_deliver_order", {
       p_order_id: orderId,
       p_entered_pin: cleanPin,
       p_is_admin_override: isAdminOverride,
@@ -172,16 +172,16 @@ export async function verifyAndDeliverOrder(
   // Graceful client fallback:
   // Query order to check status and handle direct verification
   try {
-    const updatePayload: Record<string, any> = {
+    const updatePayload: import("@/integrations/supabase/types").Database["public"]["Tables"]["orders"]["Update"] = {
       status: "delivered",
       delivered_at: new Date().toISOString(),
       payment_status: "paid",
     };
 
     if (paymentDetails) {
-      updatePayload['actual_payment_method'] = paymentDetails.actualMethod;
-      updatePayload['actual_payment_ref'] = paymentDetails.actualRef || null;
-      updatePayload['paid_to_bank_directly'] = paymentDetails.paidToBankDirectly;
+      updatePayload.actual_payment_method = paymentDetails.actualMethod;
+      updatePayload.actual_payment_ref = paymentDetails.actualRef || null;
+      updatePayload.paid_to_bank_directly = paymentDetails.paidToBankDirectly;
     }
 
     // If admin emergency override
@@ -189,7 +189,7 @@ export async function verifyAndDeliverOrder(
       updatePayload['delivery_note'] = overrideReason ? `ADMIN BYPASS: ${overrideReason}` : "ADMIN OVERRIDE";
       const { error: updErr } = await supabase
         .from("orders")
-        .update(updatePayload as any)
+        .update(updatePayload)
         .eq("id", orderId);
 
       if (updErr) throw updErr;
@@ -198,13 +198,13 @@ export async function verifyAndDeliverOrder(
 
     // Check against order_delivery_pins if accessible or hashed
     const { data: pinRow } = await supabase
-      .from("order_delivery_pins" as any)
+      .from("order_delivery_pins")
       .select("pin_code, pin_hash, attempts, max_attempts")
       .eq("order_id", orderId)
       .maybeSingle();
 
     if (pinRow) {
-      const p = pinRow as any;
+      const p = pinRow;
       if (p.attempts >= (p.max_attempts || 5)) {
         return {
           success: false,
@@ -218,8 +218,8 @@ export async function verifyAndDeliverOrder(
       if (!isMatch) {
         // Increment attempts
         await supabase
-          .from("order_delivery_pins" as any)
-          .update({ attempts: (p.attempts || 0) + 1 } as any)
+          .from("order_delivery_pins")
+          .update({ attempts: (p.attempts || 0) + 1 })
           .eq("order_id", orderId);
 
         const remaining = (p.max_attempts || 5) - ((p.attempts || 0) + 1);
@@ -231,15 +231,15 @@ export async function verifyAndDeliverOrder(
 
       // Mark verified
       await supabase
-        .from("order_delivery_pins" as any)
-        .update({ verified_at: new Date().toISOString() } as any)
+        .from("order_delivery_pins")
+        .update({ verified_at: new Date().toISOString() })
         .eq("order_id", orderId);
     }
 
     // Mark order as delivered with payment details
     const { error: orderErr } = await supabase
       .from("orders")
-      .update(updatePayload as any)
+      .update(updatePayload)
       .eq("id", orderId);
 
     if (orderErr) throw orderErr;

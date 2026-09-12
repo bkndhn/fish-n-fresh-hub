@@ -369,7 +369,7 @@ function PurchasesAdmin() {
           matchedSupplier = suppliers.find((s) => s.id === "sup-1") || suppliers[0];
         }
 
-        const estRate = (p as any).cost_price ? Number((p as any).cost_price) : Math.round(Number(p.price) * 0.7);
+        const estRate = (p as ProductVariant).cost_price ? Number((p as ProductVariant).cost_price) : Math.round(Number(p.price) * 0.7);
 
         return {
           product: p,
@@ -457,7 +457,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
   const { data: inventoryBatches = [], refetch: refetchBatches } = useQuery({
     queryKey: ["admin", "inventory-batches"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("inventory_batches")
         .select("*")
         .order("created_at", { ascending: false });
@@ -612,7 +612,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
             const newStock = currentStock + Number(itm.quantity);
             await supabase
               .from("products")
-              .update({ stock: newStock, is_available: true } as any)
+              .update({ stock: newStock, is_available: true })
               .eq("id", itm.product_id);
           }
         }
@@ -997,7 +997,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
         </Card>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full min-w-0 max-w-full">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full min-w-0 max-w-full">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 w-full min-w-0">
           <div className="w-full min-w-0 overflow-x-auto no-scrollbar touch-pan-x scroll-smooth pb-0.5">
             <TabsList className="rounded-2xl p-1 bg-muted/60 flex-nowrap w-max">
@@ -1512,7 +1512,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
                   <Label className="text-xs font-bold">Payment Method</Label>
                   <select
                     value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value as any)}
+                    onChange={(e) => setPaymentMethod(e.target.value as "daily" | "weekly" | "custom")}
                     className="flex h-9 w-full rounded-xl border border-input bg-background px-3 py-1 text-xs shadow-xs"
                   >
                     <option value="cash">Cash on Dock</option>
@@ -2404,7 +2404,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
                         product_name: firstProd?.name || "Fresh Fish",
                         suggested_qty: 20,
                         unit: firstProd?.unit || "kg",
-                        estimated_rate: (firstProd as any)?.cost_price ? Number((firstProd as any).cost_price) : Math.round(Number(firstProd?.price || 300) * 0.7),
+                        estimated_rate: (firstProd as Product)?.cost_price ? Number((firstProd as Product).cost_price) : Math.round(Number(firstProd?.price || 300) * 0.7),
                         current_stock: Number(firstProd?.stock) || 0,
                       },
                     ]);
@@ -2439,7 +2439,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
                                 product_name: found?.name || "Product",
                                 suggested_qty: current.suggested_qty || 20,
                                 unit: found?.unit || "kg",
-                                estimated_rate: (found as any)?.cost_price ? Number((found as any).cost_price) : Math.round(Number(found?.price || 300) * 0.7),
+                                estimated_rate: (found as Product)?.cost_price ? Number((found as Product).cost_price) : Math.round(Number(found?.price || 300) * 0.7),
                                 current_stock: Number(found?.stock) || 0,
                               };
                               setPoFormItems(updated);
@@ -3103,7 +3103,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
                     <Label className="text-xs font-bold">Payment Method</Label>
                     <select
                       value={paymentDisburseMethod}
-                      onChange={(e) => setPaymentDisburseMethod(e.target.value as any)}
+                      onChange={(e) => setPaymentDisburseMethod(e.target.value as "daily" | "weekly" | "custom")}
                       className="flex h-9 w-full rounded-xl border border-input bg-background px-3 py-1 text-xs font-semibold shadow-2xs"
                     >
                       <option value="upi">Direct UPI Transfer</option>

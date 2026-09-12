@@ -28,7 +28,7 @@ interface SeoStructuredDataProps {
 
 export function SeoStructuredData({ product, breadcrumbs, faqs }: SeoStructuredDataProps) {
   const { data: settings } = useQuery(settingsQuery);
-  const s = settings as any;
+  const s = settings as import("@/lib/types").SiteSettings | undefined;
   const [origin, setOrigin] = useState("");
 
   const customDomain = s?.custom_domain;
@@ -72,11 +72,11 @@ export function SeoStructuredData({ product, breadcrumbs, faqs }: SeoStructuredD
 
   return (
     <>
-      {schemas.map((s, idx) => (
+      {schemas.map((schemaObj, idx) => (
         <script
-          key={s["@id"] || s["@type"] || idx}
+          key={schemaObj["@id"] || schemaObj["@type"] || idx}
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(s) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaObj).replace(/<\/script/gi, '<\\/script').replace(/<!--/g, '<\\!--') }}
         />
       ))}
     </>

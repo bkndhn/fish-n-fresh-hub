@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 export type PurchaseTier = "frequent" | "sometimes" | "one_time" | "never";
 
@@ -20,7 +22,7 @@ export type RegisteredCustomer = {
 export const listAllCustomersDetailed = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<RegisteredCustomer[]> => {
-    const ctx = context as any;
+    const ctx = context as { supabase: SupabaseClient<Database> };
 
     // 1. Fetch all orders to compute order statistics per user/phone
     const { data: orders, error: ordersError } = await ctx.supabase
@@ -104,7 +106,7 @@ export const listAllCustomersDetailed = createServerFn({ method: "GET" })
             stats?.name ||
             (u.email ? u.email.split("@")[0] : "Customer"));
 
-          const customerPhone: string = metaPhone || (stats && "phone" in stats ? (stats as any).phone : cleanPhone) || "";
+          const customerPhone: string = metaPhone || (stats && "phone" in stats ? (stats as { phone: string }).phone : cleanPhone) || "";
 
           return {
             id: u.id,

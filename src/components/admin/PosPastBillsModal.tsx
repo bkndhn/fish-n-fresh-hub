@@ -82,7 +82,7 @@ export function PosPastBillsModal({
   const { data: posOrders = [], isLoading } = useQuery({
     queryKey: ["admin", "pos_past_bills_register"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("orders")
         .select("*, order_items(*)")
         .eq("fulfillment_type", "pos")
@@ -90,7 +90,7 @@ export function PosPastBillsModal({
         .limit(300);
 
       if (error) throw error;
-      return (data || []) as any[];
+      return (data || []) as import("@/lib/admin").OrderRow[];
     },
     enabled: open,
   });
@@ -166,7 +166,7 @@ export function PosPastBillsModal({
   const voidOrderMutation = useMutation({
     mutationFn: async ({ order, reason }: { order: any; reason: string }) => {
       // 1. Update order status to cancelled
-      const { error: updateErr } = await (supabase as any)
+      const { error: updateErr } = await supabase
         .from("orders")
         .update({
           status: "cancelled",
@@ -200,7 +200,7 @@ export function PosPastBillsModal({
       const reprintCount = Number(order.reprint_count || 0) + 1;
 
       // Increment reprint counter in database for audit trail
-      await (supabase as any)
+      await supabase
         .from("orders")
         .update({
           reprint_count: reprintCount,
@@ -660,3 +660,5 @@ export function PosPastBillsModal({
     </>
   );
 }
+
+

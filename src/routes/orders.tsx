@@ -69,7 +69,7 @@ function MyOrders() {
             price: Number(it.price),
             unit: it.unit || "kg",
             image_url: it.image_url || null,
-          } as any,
+          },
           Number(it.qty) || 1,
           it.cut_preference || "Curry Cut",
           it.branch_id ? { id: it.branch_id, name: it.branch_name || "Hub" } : undefined
@@ -199,7 +199,7 @@ function MyOrders() {
                   size="sm"
                   variant="outline"
                   className="rounded-xl h-8 px-2.5 sm:px-3 text-xs"
-                  onClick={() => handleReorder(o.items as any[])}
+                  onClick={() => handleReorder(o.items as CartItem[])}
                 >
                   <RotateCcw className="mr-1 size-3.5" /> Reorder
                 </Button>

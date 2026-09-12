@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CartProvider } from "@/lib/cart";
 import { Toaster } from "@/components/ui/sonner";
+import { initSentry, captureException } from "@/lib/sentry";
 
 function NotFoundComponent() {
   return (
@@ -41,6 +42,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    captureException(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
 
   return (
@@ -161,7 +163,7 @@ function RootShell({ children }: { children: ReactNode }) {
 import { LanguageProvider } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 
-function RealtimeSubscriber({ queryClient }: { queryClient: any }) {
+function RealtimeSubscriber({ queryClient }: { queryClient: QueryClient }) {
   useEffect(() => {
     const channel = supabase
       .channel("public-db-changes")
@@ -198,7 +200,7 @@ function RealtimeSubscriber({ queryClient }: { queryClient: any }) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "platform_revocations" },
         async (payload) => {
-          const revocation = payload.new as any;
+          const revocation = payload.new as { token_id?: string };
           if (!revocation) return;
 
           const { data: authData } = await supabase.auth.getUser();
@@ -227,7 +229,7 @@ function RealtimeSubscriber({ queryClient }: { queryClient: any }) {
     const killswitchChannel = supabase
       .channel("security_killswitch")
       .on("broadcast", { event: "force_logout" }, async (event) => {
-        const payload = (event as Record<string, any>)['payload'];
+        const payload = (event as Record<string, unknown>)['payload'] as { scope?: string; target_id?: string; reason?: string } | undefined;
         if (!payload) return;
 
         const { data: authData } = await supabase.auth.getUser();
@@ -268,6 +270,9 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   useEffect(() => {
+    // Initialize error monitoring
+    initSentry();
+
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       navigator.serviceWorker
         .register("/sw.js")

@@ -234,26 +234,26 @@ export async function getOrGenerateProductAiBenefits(product: Product): Promise<
   try {
     // 1. Check if benefits already exist in PostgreSQL
     const { data: existing, error } = await supabase
-      .from("product_ai_benefits" as any)
+      .from("product_ai_benefits")
       .select("*")
       .eq("product_id", product.id)
       .maybeSingle();
 
     if (!error && existing) {
       return {
-        id: (existing as any).id,
-        product_id: (existing as any).product_id,
-        product_name: (existing as any).product_name || product.name,
-        omega3_level: (existing as any).omega3_level || "High",
-        protein_per_100g: (existing as any).protein_per_100g || "22g",
-        calories_per_100g: (existing as any).calories_per_100g || "115 kcal",
-        benefits_en: Array.isArray((existing as any).benefits_en) ? (existing as any).benefits_en : [],
-        benefits_ta: Array.isArray((existing as any).benefits_ta) ? (existing as any).benefits_ta : [],
-        benefits_hi: Array.isArray((existing as any).benefits_hi) ? (existing as any).benefits_hi : [],
-        cooking_tips: Array.isArray((existing as any).cooking_tips) ? (existing as any).cooking_tips : [],
-        disclaimer: (existing as any).disclaimer || AI_BENEFITS_DISCLAIMER,
-        generated_at: (existing as any).generated_at,
-        model_used: (existing as any).model_used || "lovable-ai-v1",
+        id: existing.id,
+        product_id: existing.product_id,
+        product_name: existing.product_name || product.name,
+        omega3_level: existing.omega3_level || "High",
+        protein_per_100g: existing.protein_per_100g || "22g",
+        calories_per_100g: existing.calories_per_100g || "115 kcal",
+        benefits_en: Array.isArray(existing.benefits_en) ? existing.benefits_en as string[] : [],
+        benefits_ta: Array.isArray(existing.benefits_ta) ? existing.benefits_ta as string[] : [],
+        benefits_hi: Array.isArray(existing.benefits_hi) ? existing.benefits_hi as string[] : [],
+        cooking_tips: Array.isArray(existing.cooking_tips) ? existing.cooking_tips as string[] : [],
+        disclaimer: existing.disclaimer || AI_BENEFITS_DISCLAIMER,
+        generated_at: existing.generated_at || undefined,
+        model_used: existing.model_used || "lovable-ai-v1",
       };
     }
 
@@ -261,17 +261,17 @@ export async function getOrGenerateProductAiBenefits(product: Product): Promise<
     const generated = generateSeafoodAiProfile(product);
 
     // 3. Persist to DB for all future customer/admin visits
-    await supabase.from("product_ai_benefits" as any).upsert(
+    await supabase.from("product_ai_benefits").upsert(
       {
         product_id: generated.product_id,
         product_name: generated.product_name,
         omega3_level: generated.omega3_level,
         protein_per_100g: generated.protein_per_100g,
         calories_per_100g: generated.calories_per_100g,
-        benefits_en: generated.benefits_en as any,
-        benefits_ta: generated.benefits_ta as any,
-        benefits_hi: generated.benefits_hi as any,
-        cooking_tips: generated.cooking_tips as any,
+        benefits_en: generated.benefits_en,
+        benefits_ta: generated.benefits_ta,
+        benefits_hi: generated.benefits_hi,
+        cooking_tips: generated.cooking_tips,
         disclaimer: generated.disclaimer,
         model_used: generated.model_used,
         generated_at: generated.generated_at,

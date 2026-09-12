@@ -545,10 +545,10 @@ function TrackPage() {
         <Card className="border-border/70 shadow-xs">
           <CardContent className="p-4 space-y-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Fish className="size-3.5 text-primary" /> Items in this Order ({(order.items as any[])?.length || 0})
+              <Fish className="size-3.5 text-primary" /> Items in this Order ({(order.items as CartItem[])?.length || 0})
             </p>
             <div className="divide-y divide-border/50">
-              {((order.items as any[]) ?? []).map((it, idx) => (
+              {((order.items as CartItem[]) ?? []).map((it, idx) => (
                 <div key={idx} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0 text-xs">
                   <div>
                     <p className="font-semibold text-foreground text-sm">{it.name}</p>

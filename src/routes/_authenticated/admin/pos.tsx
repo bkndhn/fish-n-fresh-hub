@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import type { SiteSettings } from "@/lib/types";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -545,7 +546,7 @@ export function RetailPosCounterPage() {
           cuttingStyle: "Curry Cut",
           totalPrice,
           image: matched.image_url,
-          gstPercent: (matched as any).gst_percent || 0,
+          gstPercent: (matched as Product).gst_percent || 0,
         };
 
         setCart((prev) => [...prev, newItem]);
@@ -569,8 +570,8 @@ export function RetailPosCounterPage() {
     const matched = products.find(
       (p, idx) =>
         p.id === parsed.productIdOrCode ||
-        (p as any).barcode === parsed.productIdOrCode ||
-        (p as any).sku === parsed.productIdOrCode ||
+        (p as Product & { barcode?: string }).barcode === parsed.productIdOrCode ||
+        (p as Product & { sku?: string }).sku === parsed.productIdOrCode ||
         p.pos_code === parseInt(parsed.productIdOrCode, 10) ||
         (!p.pos_code && (idx + 1) === parseInt(parsed.productIdOrCode, 10))
     );
@@ -709,7 +710,7 @@ export function RetailPosCounterPage() {
 
     for (const item of queue) {
       try {
-        const { data: orderRes, error: orderErr } = await (supabase as any)
+        const { data: orderRes, error: orderErr } = await supabase
           .from("orders")
           .insert(item.orderPayload)
           .select("id, order_number")
@@ -837,7 +838,7 @@ export function RetailPosCounterPage() {
       cuttingStyle: modalCutting,
       totalPrice,
       image: activeItemModal.image_url,
-      gstPercent: (activeItemModal as any).gst_percent || 0,
+      gstPercent: (activeItemModal as Product).gst_percent || 0,
       serialNumbers: serialList.length > 0 ? serialList : undefined,
       variant: selectedVar
         ? {
@@ -1093,8 +1094,8 @@ export function RetailPosCounterPage() {
       } : undefined,
       storeName: settings?.store_name || "Universal Retail Hub",
       storeAddress: settings?.store_address || undefined,
-      storePhone: (settings as any)?.contact_phone || undefined,
-      storeGstin: (settings as any)?.gst_number || undefined,
+      storePhone: (settings as SiteSettings)?.contact_phone || undefined,
+      storeGstin: (settings as SiteSettings)?.gst_number || undefined,
       copyType: "ORIGINAL",
       isReprint: false,
     };
@@ -1130,7 +1131,7 @@ export function RetailPosCounterPage() {
           variant: it.variant || null,
           warranty_months: it.warrantyMonths || 0,
           aisle_location: it.aisleLocation || null,
-        })) as any,
+        })) as unknown as Record<string, unknown>[],
         pos_cashier_id: cashierId,
         pos_cashier_name: cashierName,
         pos_amount_tendered: paymentMode === "cash" ? (tenderedNum || totalPayable) : null,
@@ -1145,7 +1146,7 @@ export function RetailPosCounterPage() {
 
       if (navigator.onLine) {
         try {
-          const { data: orderRes, error: orderErr } = await (supabase as any)
+          const { data: orderRes, error: orderErr } = await supabase
             .from("orders")
             .insert(orderPayload)
             .select("id, order_number")

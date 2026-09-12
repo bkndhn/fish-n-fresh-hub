@@ -9,11 +9,29 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
+declare global {
+  interface BeforeInstallPromptEvent extends Event {
+    readonly platforms: string[];
+    readonly userChoice: Promise<{
+      outcome: "accepted" | "dismissed";
+      platform: string;
+    }>;
+    prompt(): Promise<void>;
+  }
+
+  interface WindowEventMap {
+    beforeinstallprompt: BeforeInstallPromptEvent;
+  }
+  interface Window {
+    __pwaInstallPrompt?: BeforeInstallPromptEvent | null;
+  }
+}
+
 // Global listener to capture beforeinstallprompt as early as script execution
 if (typeof window !== "undefined") {
-  window.addEventListener("beforeinstallprompt", (e: any) => {
+  window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
-    (window as any).__pwaInstallPrompt = e;
+    window.__pwaInstallPrompt = e;
     window.dispatchEvent(new CustomEvent("pwa-prompt-ready"));
   });
 }
@@ -22,12 +40,12 @@ if (typeof window !== "undefined") {
 // Reads window.__pwaInstallPrompt at call time — never a stale closure.
 export function promptPwaInstall() {
   if (typeof window !== "undefined") {
-    const prompt = (window as any).__pwaInstallPrompt;
+    const prompt = window.__pwaInstallPrompt;
     if (prompt) {
       prompt.prompt();
-      prompt.userChoice.then((choice: any) => {
+      prompt.userChoice.then((choice) => {
         if (choice.outcome === "accepted") {
-          (window as any).__pwaInstallPrompt = null;
+          window.__pwaInstallPrompt = null;
           try {
             localStorage.setItem("fnf_pwa_installed", "true");
           } catch (_) {}
@@ -42,7 +60,7 @@ export function promptPwaInstall() {
 }
 
 export function PwaPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isIos, setIsIos] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
@@ -58,7 +76,7 @@ export function PwaPrompt() {
     // 2. Already installed / standalone — hide everything
     const standaloneCheck =
       window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as any).standalone === true ||
+      window.navigator.standalone === true ||
       document.referrer.includes("android-app://") ||
       (typeof localStorage !== "undefined" && localStorage.getItem("fnf_pwa_installed") === "true");
     setIsStandalone(standaloneCheck);
@@ -72,8 +90,8 @@ export function PwaPrompt() {
     const dismissed = sessionStorage.getItem("pwa_banner_dismissed");
 
     // 4. Pick up prompt that already fired before this component mounted
-    if ((window as any).__pwaInstallPrompt) {
-      setDeferredPrompt((window as any).__pwaInstallPrompt);
+    if (window.__pwaInstallPrompt) {
+      setDeferredPrompt(window.__pwaInstallPrompt);
       if (!dismissed) setShowBanner(true);
     }
 
@@ -85,8 +103,9 @@ export function PwaPrompt() {
     // 6. beforeinstallprompt arrives AFTER mount (most common on Android / Desktop)
     const installHandler = (e: Event) => {
       e.preventDefault();
-      (window as any).__pwaInstallPrompt = e;
-      setDeferredPrompt(e);
+      const bEvent = e as BeforeInstallPromptEvent;
+      window.__pwaInstallPrompt = bEvent;
+      setDeferredPrompt(bEvent);
       if (!sessionStorage.getItem("pwa_banner_dismissed")) {
         setShowBanner(true);
       }
@@ -99,7 +118,7 @@ export function PwaPrompt() {
       setShowBanner(false);
       setShowIosGuide(false);
       setShowDesktopGuide(false);
-      (window as any).__pwaInstallPrompt = null;
+      window.__pwaInstallPrompt = null;
       setDeferredPrompt(null);
       try {
         localStorage.setItem("fnf_pwa_installed", "true");
@@ -110,18 +129,18 @@ export function PwaPrompt() {
 
     // 8. Sync state when global store is updated
     const onPromptReady = () => {
-      if ((window as any).__pwaInstallPrompt) {
-        setDeferredPrompt((window as any).__pwaInstallPrompt);
+      if (window.__pwaInstallPrompt) {
+        setDeferredPrompt(window.__pwaInstallPrompt);
       }
     };
     window.addEventListener("pwa-prompt-ready", onPromptReady);
 
     // 9. Global trigger from promptPwaInstall() helper.
     const manualOpenHandler = () => {
-      const activePrompt = (window as any).__pwaInstallPrompt;
+      const activePrompt = window.__pwaInstallPrompt;
       if (activePrompt) {
         activePrompt.prompt();
-        activePrompt.userChoice.then((choice: any) => {
+        activePrompt.userChoice.then((choice) => {
           if (choice.outcome === "accepted") {
             onAppInstalled();
           }
@@ -145,7 +164,7 @@ export function PwaPrompt() {
 
   // Always pull the freshest prompt — avoids any residual stale-state issues
   const getActivePrompt = () =>
-    (typeof window !== "undefined" && (window as any).__pwaInstallPrompt) || deferredPrompt;
+    (typeof window !== "undefined" && window.__pwaInstallPrompt) || deferredPrompt;
 
   const handleNativeInstall = async () => {
     const activePrompt = getActivePrompt();
@@ -159,7 +178,7 @@ export function PwaPrompt() {
     if (outcome === "accepted") {
       setShowBanner(false);
       setShowDesktopGuide(false);
-      (window as any).__pwaInstallPrompt = null;
+      window.__pwaInstallPrompt = null;
       setDeferredPrompt(null);
       setIsStandalone(true);
       try {

@@ -96,7 +96,7 @@ export const getDripEvaluationSummary = createServerFn({ method: "GET" }).handle
     const threeDaysAgo = new Date(now - 3 * 24 * 3600 * 1000).toISOString();
 
     // 1. Inactive customers (orders between 7 and 21 days ago)
-    const { data: inactiveOrders = [] } = await (supabaseAdmin as any)
+    const { data: inactiveOrders = [] } = await supabaseAdmin
       .from("orders")
       .select("customer_name, customer_email, customer_phone, created_at")
       .lte("created_at", sevenDaysAgo)
@@ -104,7 +104,7 @@ export const getDripEvaluationSummary = createServerFn({ method: "GET" }).handle
       .limit(50);
 
     // 2. 48h delivered check-in
-    const { data: deliveredRecent = [] } = await (supabaseAdmin as any)
+    const { data: deliveredRecent = [] } = await supabaseAdmin
       .from("orders")
       .select("order_number, customer_name, customer_email, customer_phone, created_at")
       .eq("status", "delivered")
@@ -117,7 +117,7 @@ export const getDripEvaluationSummary = createServerFn({ method: "GET" }).handle
       {
         sequenceId: "winback_7d",
         eligibleCount: Math.max(inactiveOrders.length, 6),
-        sampleAudience: (inactiveOrders.slice(0, 3) as any[]).map((o) => ({
+        sampleAudience: (inactiveOrders.slice(0, 3) as Record<string, unknown>[]).map((o) => ({
           name: o.customer_name || "Customer",
           phoneOrEmail: o.customer_email || o.customer_phone || "-",
           reason: "Last purchase > 7 days ago",
@@ -126,7 +126,7 @@ export const getDripEvaluationSummary = createServerFn({ method: "GET" }).handle
       {
         sequenceId: "review_48h",
         eligibleCount: Math.max(deliveredRecent.length, 4),
-        sampleAudience: (deliveredRecent.slice(0, 3) as any[]).map((o) => ({
+        sampleAudience: (deliveredRecent.slice(0, 3) as Record<string, unknown>[]).map((o) => ({
           name: o.customer_name || "Customer",
           phoneOrEmail: o.customer_email || o.customer_phone || "-",
           reason: `Delivered order #${o.order_number || "recent"}`,
@@ -166,7 +166,7 @@ export const dispatchDripCycle = createServerFn({ method: "POST" })
     if (!seq) throw new Error("Sequence not found");
 
     // Record the drip dispatch in catch_broadcasts for history
-    const { data: record, error } = await (supabaseAdmin as any)
+    const { data: record, error } = await supabaseAdmin
       .from("catch_broadcasts")
       .insert({
         title: `[AUTOMATED DRIP] ${seq.name}`,

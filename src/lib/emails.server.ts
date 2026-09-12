@@ -63,7 +63,7 @@ async function dispatchOrderEmail(
       return { success: false, error: "Order not found", mode: "simulated" };
     }
 
-    const recipient = overrideRecipient || order.customer_email || (order as any).user_email || "";
+    const recipient = overrideRecipient || order.customer_email || "";
     const orderNumber = order.order_number || order.id.slice(0, 8);
 
     // 2. Fetch Store Settings (Real store details)
@@ -72,19 +72,19 @@ async function dispatchOrderEmail(
       .select("*")
       .maybeSingle();
 
-    const storeName = (settings as any)?.store_name || "Fish N Fresh Hub";
-    const storePhone = (settings as any)?.store_phone || (settings as any)?.phone || "9843061919";
-    const storeAddress = (settings as any)?.store_address || (settings as any)?.address_line || "Main Beach Road, Chennai, Tamil Nadu";
+    const storeName = settings?.store_name || "Fish N Fresh Hub";
+    const storePhone = settings?.contact_phone || settings?.support_phone || "9843061919";
+    const storeAddress = settings?.address_line || "Main Beach Road, Chennai, Tamil Nadu";
 
     // 3. Format Items
-    const rawItems = (Array.isArray(order.items) ? order.items : []) as any[];
+    const rawItems = (Array.isArray(order.items) ? order.items : []) as Record<string, unknown>[];
     const items: EmailOrderItem[] = rawItems.map((it) => ({
-      name: it.name || "Seafood Item",
+      name: (it.name as string) || "Seafood Item",
       qty: Number(it.qty) || 1,
-      unit: it.unit || "kg",
+      unit: (it.unit as string) || "kg",
       price: Number(it.price) || 0,
       total: (Number(it.qty) || 1) * (Number(it.price) || 0),
-      cuttingStyle: it.cuttingStyle || it.cut_preference || undefined,
+      cuttingStyle: (it.cuttingStyle as string) || (it.cut_preference as string) || undefined,
     }));
 
     // 4. Construct Email Payload
@@ -96,10 +96,11 @@ async function dispatchOrderEmail(
       customerPhone: order.customer_phone || "",
       deliveryAddress: order.customer_address || "Pickup from Store",
       deliverySlot: order.delivery_slot || undefined,
-      deliveryPin: (order as any).delivery_pin || undefined,
-      driverName: driver?.name || (order as any).driver_name || undefined,
-      driverPhone: driver?.phone || (order as any).driver_phone || undefined,
+      deliveryPin: (order as unknown as { delivery_pin?: string }).delivery_pin || undefined,
+      driverName: driver?.name || (order as unknown as { driver_name?: string }).driver_name || undefined,
+      driverPhone: driver?.phone || (order as unknown as { driver_phone?: string }).driver_phone || undefined,
       items,
+
       subtotal: Number(order.subtotal) || Number(order.total) || 0,
       discount: Number(order.discount) || 0,
       deliveryFee: Number(order.delivery_fee) || 0,
@@ -137,12 +138,12 @@ async function dispatchOrderEmail(
         stateCode: "33",
         reverseCharge: false,
         sellerTradeName: storeName,
-        sellerLegalName: (settings as any)?.gst_legal_name || storeName,
-        sellerGstin: (settings as any)?.gstin || "33AAAAA0000A1Z5",
-        sellerFssai: (settings as any)?.fssai_license_no || "12423008000123",
+        sellerLegalName: settings?.gst_legal_name || storeName,
+        sellerGstin: settings?.gstin || "33AAAAA0000A1Z5",
+        sellerFssai: settings?.fssai_license_no || "12423008000123",
         sellerAddress: storeAddress,
         sellerPhone: storePhone,
-        sellerEmail: (settings as any)?.contact_email || (settings as any)?.sender_email || "orders@fishnfresh.in",
+        sellerEmail: settings?.contact_email || settings?.sender_email || "orders@fishnfresh.in",
         buyerName: order.customer_name || "Valued Customer",
         buyerPhone: order.customer_phone || "",
         buyerAddress: order.customer_address || "Pickup from Store",
@@ -163,7 +164,7 @@ async function dispatchOrderEmail(
         total: emailData.total,
         paymentMethod: order.payment_method || "COD",
         paymentStatus: order.payment_status || "confirmed",
-        paymentRef: order.stripe_session_id || (order as any).razorpay_payment_id || undefined,
+        paymentRef: order.stripe_session_id || (order as unknown as { razorpay_payment_id?: string }).razorpay_payment_id || undefined,
       };
       invoiceHtml = generateTaxInvoiceHtml(invoiceData);
     } catch (invErr) {
@@ -171,9 +172,9 @@ async function dispatchOrderEmail(
     }
 
     // 6. Dynamic Sender & Resend API Key resolution (Database store_settings > Process.env)
-    const resendApiKey = (settings as any)?.resend_api_key || process.env['RESEND_API_KEY'];
-    const fromEmail = (settings as any)?.sender_email || process.env['MAIL_FROM'] || `orders@${process.env['RESEND_DOMAIN'] || "resend.dev"}`;
-    const fromName = (settings as any)?.sender_name || storeName;
+    const resendApiKey = settings?.resend_api_key || process.env['RESEND_API_KEY'];
+    const fromEmail = settings?.sender_email || process.env['MAIL_FROM'] || `orders@${process.env['RESEND_DOMAIN'] || "resend.dev"}`;
+    const fromName = settings?.sender_name || storeName;
 
     if (resendApiKey && recipient) {
       try {
@@ -203,7 +204,7 @@ async function dispatchOrderEmail(
         });
 
         if (res.ok) {
-          const json = (await res.json()) as any;
+          const json = (await res.json()) as { id: string };
           console.log(`[Email Engine] Sent real email via Resend to ${recipient}: ${json.id}`);
           return {
             success: true,
@@ -240,9 +241,9 @@ export async function sendTestStoreEmail(targetEmail: string): Promise<{ success
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: settings } = await supabaseAdmin.from("store_settings").select("*").maybeSingle();
 
-    const resendApiKey = (settings as any)?.resend_api_key || process.env['RESEND_API_KEY'];
-    const fromEmail = (settings as any)?.sender_email || process.env['MAIL_FROM'] || "orders@resend.dev";
-    const fromName = (settings as any)?.sender_name || (settings as any)?.store_name || "Fish N Fresh Hub";
+    const resendApiKey = settings?.resend_api_key || process.env['RESEND_API_KEY'];
+    const fromEmail = settings?.sender_email || process.env['MAIL_FROM'] || "orders@resend.dev";
+    const fromName = settings?.sender_name || settings?.store_name || "Fish N Fresh Hub";
 
     if (!resendApiKey) {
       return {

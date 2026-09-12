@@ -10,6 +10,19 @@
  * - Hardware Zero/Tare & software tare offset management
  */
 
+declare global {
+  interface Window {
+    webkitAudioContext: typeof AudioContext;
+  }
+  interface Navigator {
+    serial: {
+      addEventListener(type: string, listener: (e: Event) => void): void;
+      getPorts(): Promise<any[]>;
+      requestPort(): Promise<any>;
+    };
+  }
+}
+
 export type ScaleProtocol = "auto" | "essae" | "cas" | "toledo" | "nci" | "avery";
 
 export interface ScaleSerialConfig {
@@ -73,7 +86,7 @@ export function playScaleCaptureChime(): void {
     return;
   }
   try {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
     const ctx = new AudioCtx();
     const now = ctx.currentTime;
 
@@ -213,13 +226,13 @@ class WeighingScaleDriver {
   private initHotPlugListeners() {
     if (typeof navigator !== "undefined" && "serial" in navigator) {
       try {
-        (navigator as any).serial.addEventListener("connect", (e: any) => {
+        navigator.serial.addEventListener("connect", (e: Event) => {
           console.info("[Scale Driver] USB scale device plugged in:", e);
           if (this.config.autoReconnect && this.connectionState === "disconnected") {
             this.autoConnect();
           }
         });
-        (navigator as any).serial.addEventListener("disconnect", (e: any) => {
+        navigator.serial.addEventListener("disconnect", (e: Event) => {
           console.warn("[Scale Driver] USB scale device unplugged:", e);
           this.disconnect();
         });
@@ -233,7 +246,7 @@ class WeighingScaleDriver {
   async autoConnect(): Promise<boolean> {
     if (!this.isSerialSupported()) return false;
     try {
-      const ports = await (navigator as any).serial.getPorts();
+      const ports = await navigator.serial.getPorts();
       if (ports && ports.length > 0) {
         console.info(`[Scale Driver] Found ${ports.length} remembered serial port(s). Auto-connecting...`);
         return await this.openPort(ports[0]);
@@ -266,7 +279,7 @@ class WeighingScaleDriver {
     try {
       this.setStatus("connecting");
       // Request user to pick physical serial COM port
-      const port = await (navigator as any).serial.requestPort();
+      const port = await navigator.serial.requestPort();
       return await this.openPort(port);
     } catch (err: any) {
       console.warn("[Scale Driver] Connection cancelled or port request error:", err);

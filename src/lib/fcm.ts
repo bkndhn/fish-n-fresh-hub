@@ -70,7 +70,7 @@ export async function registerPushNotification(
     // Generate or fetch push subscription
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
-      const vapidKey = (import.meta as any).env?.VITE_VAPID_PUBLIC_KEY || null;
+      const vapidKey = import.meta.env?.VITE_VAPID_PUBLIC_KEY || null;
       if (vapidKey) {
         try {
           sub = await reg.pushManager.subscribe({
@@ -88,7 +88,7 @@ export async function registerPushNotification(
       : `web_push_${Math.random().toString(36).slice(2)}_${Date.now()}`;
 
     // Store in Supabase fcm_tokens
-    await (supabase as any).from("fcm_tokens").upsert(
+    await supabase.from("fcm_tokens").upsert(
       {
         user_id: userId || null,
         token: tokenStr,

@@ -51,7 +51,7 @@ export const deductOrderStockServerFn = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: result, error } = await (supabaseAdmin as any).rpc("deduct_order_stock_atomic", {
+    const { data: result, error } = await supabaseAdmin.rpc("deduct_order_stock_atomic", {
       p_order_id: data.orderId,
     });
     if (error) {
@@ -69,7 +69,7 @@ export const restoreOrderStockServerFn = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: result, error } = await (supabaseAdmin as any).rpc("restore_order_stock_atomic", {
+    const { data: result, error } = await supabaseAdmin.rpc("restore_order_stock_atomic", {
       p_order_id: data.orderId,
     });
     if (error) {
@@ -89,12 +89,12 @@ export const updateOrderStatusWithEmail = createServerFn({ method: "POST" })
     if (data.status === "delivered") {
       patch['delivered_at'] = new Date().toISOString();
     }
-    const { error } = await (supabaseAdmin as any).from("orders").update(patch).eq("id", data.orderId);
+    const { error } = await supabaseAdmin.from("orders").update(patch).eq("id", data.orderId);
     if (error) throw new Error(error.message);
 
     // Automatically restore stock if order is cancelled or rejected (idempotent in SQL)
     if (data.status === "cancelled" || data.status === "rejected") {
-      const { error: rpcErr } = await (supabaseAdmin as any).rpc("restore_order_stock_atomic", {
+      const { error: rpcErr } = await supabaseAdmin.rpc("restore_order_stock_atomic", {
         p_order_id: data.orderId,
       });
       if (rpcErr) console.warn("[Orders] Stock restoral notice:", rpcErr.message);

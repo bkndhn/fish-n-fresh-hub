@@ -44,6 +44,7 @@ import {
   type DripEvaluationSummary,
 } from "@/lib/marketingDrips.server";
 import type { CatchBroadcast } from "@/lib/types";
+import type { SiteSettings } from '@/lib/types';
 
 export const Route = createFileRoute("/_authenticated/admin/broadcasts")({
   head: () => ({
@@ -226,7 +227,7 @@ function AdminBroadcastsPage() {
       if (!settings?.id) return;
       const { error } = await supabase
         .from("store_settings")
-        .update({ live_alerts_enabled: enabled } as any)
+        .update({ live_alerts_enabled: enabled })
         .eq("id", settings.id);
       if (error) throw error;
     },
@@ -263,14 +264,14 @@ function AdminBroadcastsPage() {
             <div className="flex items-center gap-3 self-start sm:self-auto bg-background/80 backdrop-blur-xs border border-border/80 rounded-2xl px-3.5 py-2 shadow-2xs">
               <div className="text-right">
                 <p className="text-xs font-bold leading-tight text-foreground">
-                  {(settings as any)?.live_alerts_enabled !== false ? "Store Banner Active" : "Store Banner Muted"}
+                  {(settings as SiteSettings)?.live_alerts_enabled !== false ? "Store Banner Active" : "Store Banner Muted"}
                 </p>
                 <p className="text-[10px] text-muted-foreground">
-                  {(settings as any)?.live_alerts_enabled !== false ? "Shown on top of store" : "Hidden from customers"}
+                  {(settings as SiteSettings)?.live_alerts_enabled !== false ? "Shown on top of store" : "Hidden from customers"}
                 </p>
               </div>
               <Switch
-                checked={(settings as any)?.live_alerts_enabled !== false}
+                checked={(settings as SiteSettings)?.live_alerts_enabled !== false}
                 onCheckedChange={(val) => toggleMasterAlerts.mutate(val)}
                 disabled={toggleMasterAlerts.isPending}
               />
@@ -278,7 +279,7 @@ function AdminBroadcastsPage() {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full min-w-0 max-w-full space-y-4">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full min-w-0 max-w-full space-y-4">
           <div className="w-full min-w-0 overflow-x-auto no-scrollbar touch-pan-x pb-0.5">
             <TabsList className="rounded-2xl p-1 bg-muted/60 flex-nowrap w-max">
               <TabsTrigger value="broadcasts" className="rounded-xl text-xs font-bold gap-1.5 whitespace-nowrap shrink-0">

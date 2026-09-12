@@ -27,6 +27,7 @@ import { ProductAiBenefitsCard } from "@/components/ProductAiBenefitsCard";
 import { SeoStructuredData } from "@/components/SeoStructuredData";
 import { createSubscription } from "@/lib/subscriptions.functions";
 import { useCustomerBranch } from "@/lib/customerBranchContext";
+import type { SiteSettings } from '@/lib/types';
 
 const PORTION_CHIPS = [
   { label: "250g", val: 0.25 },
@@ -126,8 +127,8 @@ function ProductPage() {
   const related = (all ?? []).filter((p) => p.category === product.category && p.id !== product.id).slice(0, 3);
 
   const isOutOfStock = (product.stock !== null && effectiveStock <= 0) || product.is_available === false;
-  const showStockToCustomer = (settings as any)?.show_stock_to_customers ?? true;
-  const urgencyThreshold = Number((settings as any)?.stock_urgency_threshold ?? 5);
+  const showStockToCustomer = (settings as SiteSettings)?.show_stock_to_customers ?? true;
+  const urgencyThreshold = Number((settings as SiteSettings)?.stock_urgency_threshold ?? 5);
   const isLowStock =
     showStockToCustomer &&
     !isOutOfStock &&
@@ -538,7 +539,7 @@ function ProductPage() {
                     <Label className="text-xs font-semibold">Frequency</Label>
                     <select
                       value={subFrequency}
-                      onChange={(e) => setSubFrequency(e.target.value as any)}
+                      onChange={(e) => setSubFrequency(e.target.value as "daily" | "weekly" | "custom")}
                       className="w-full h-9 rounded-xl border border-border bg-background px-2 text-xs mt-1"
                     >
                       <option value="weekly">Weekly (Recommended)</option>
@@ -550,7 +551,7 @@ function ProductPage() {
                     <Label className="text-xs font-semibold">Delivery Day</Label>
                     <select
                       value={subDay}
-                      onChange={(e) => setSubDay(e.target.value as any)}
+                      onChange={(e) => setSubDay(e.target.value as "daily" | "weekly" | "custom")}
                       className="w-full h-9 rounded-xl border border-border bg-background px-2 text-xs mt-1 capitalize"
                     >
                       <option value="sunday">Sunday (Morning Catch)</option>

@@ -324,8 +324,8 @@ export function AnalyticsIntelligence({
       const dailyBurn = Math.round((soldQty / daysCount) * 10) / 10;
       const stock = Number(p.stock || 0);
       const unit = p.unit || "kg";
-      const costPrice = Number((p as any).cost_price) || Math.round(Number(p.price || 0) * 0.68);
-      const lowThreshold = (p as any).low_stock_threshold ?? 5;
+      const costPrice = Number(p.cost_price) || Math.round(Number(p.price || 0) * 0.68);
+      const lowThreshold = p.low_stock_threshold ?? 5;
 
       // Runway in days
       const daysRemaining = dailyBurn > 0 ? Math.round((stock / dailyBurn) * 10) / 10 : stock > 0 ? 99 : 0;

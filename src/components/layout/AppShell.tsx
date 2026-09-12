@@ -46,7 +46,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <BottomNav />
 
       {/* Unified Live Customer Support Desk & WhatsApp Speed-Dial */}
-      {(settings as any)?.feature_live_chat_enabled !== false ? (
+      {(settings as import("@/lib/types").SiteSettings)?.feature_live_chat_enabled !== false ? (
         <CustomerSupportChatWidget />
       ) : waUrl ? (
         <a

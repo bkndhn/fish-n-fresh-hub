@@ -192,7 +192,7 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
                 onValueChange={(v) => {
                   setTestFormat(v as PrintFormat);
                   if (v === "58mm" || v === "80mm") {
-                    setConfig({ ...config, paperWidth: v as any, defaultFormat: v as PrintFormat });
+                    setConfig({ ...config, paperWidth: v as "58mm" | "80mm", defaultFormat: v as PrintFormat });
                   } else {
                     setConfig({ ...config, defaultFormat: v as PrintFormat });
                   }
@@ -215,7 +215,7 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
               <Label className="text-[11px] font-bold">Printer Connection</Label>
               <Select
                 value={config.type}
-                onValueChange={(v) => setConfig({ ...config, type: v as any })}
+                onValueChange={(v) => setConfig({ ...config, type: v as "bluetooth" | "serial_usb" | "network_ip" | "browser_print" })}
               >
                 <SelectTrigger className="rounded-xl h-8 text-xs font-semibold">
                   <SelectValue />

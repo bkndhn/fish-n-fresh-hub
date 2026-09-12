@@ -27,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import type { SiteSettings } from '@/lib/types';
 
 export const Route = createFileRoute("/_authenticated/admin/onboarding")({
   head: () => ({
@@ -53,22 +54,22 @@ export function OnboardingWizard() {
 
   // Form State
   const [storeName, setStoreName] = useState(settings?.store_name || "Fish N Fresh Seafood Hub");
-  const [legalName, setLegalName] = useState((settings as any)?.gst_legal_name || "Fish N Fresh Hyperlocal Enterprise LLP");
+  const [legalName, setLegalName] = useState((settings as SiteSettings)?.gst_legal_name || "Fish N Fresh Hyperlocal Enterprise LLP");
   const [phone, setPhone] = useState(settings?.contact_phone || settings?.support_phone || "9843061919");
   const [email, setEmail] = useState(settings?.contact_email || "billing@fishnfresh.in");
   const [address, setAddress] = useState(settings?.store_address || "Harbour Bypass Road, Thoothukudi - 628001");
 
   const [vertical, setVertical] = useState("seafood");
 
-  const [gstin, setGstin] = useState((settings as any)?.gst_number || "33AAAAF0000A1Z5");
-  const [fssai, setFssai] = useState((settings as any)?.fssai_license_no || "12423008000451");
+  const [gstin, setGstin] = useState((settings as SiteSettings)?.gst_number || "33AAAAF0000A1Z5");
+  const [fssai, setFssai] = useState((settings as SiteSettings)?.fssai_license_no || "12423008000451");
   const [upiId, setUpiId] = useState(settings?.upi_id || "9843061919@upi");
   const [upiName, setUpiName] = useState(settings?.upi_name || "Fish N Fresh");
 
   const [radiusKm, setRadiusKm] = useState(Number(settings?.delivery_radius_km) || 15);
   const [deliveryFee, setDeliveryFee] = useState(Number(settings?.delivery_fee) || 40);
-  const [freeThreshold, setFreeThreshold] = useState(Number((settings as any)?.free_delivery_over || (settings as any)?.free_delivery_threshold) || 499);
-  const [expressSla, setExpressSla] = useState(Number((settings as any)?.express_sla_mins) || 35);
+  const [freeThreshold, setFreeThreshold] = useState(Number((settings as SiteSettings)?.free_delivery_over || (settings as SiteSettings)?.free_delivery_threshold) || 499);
+  const [expressSla, setExpressSla] = useState(Number((settings as SiteSettings)?.express_sla_mins) || 35);
 
   const [featurePos, setFeaturePos] = useState(true);
   const [featureLiveChat, setFeatureLiveChat] = useState(true);

@@ -102,7 +102,7 @@ export const verifyOrderPaymentSession = createServerFn({ method: "POST" })
             payment_method: "card",
             status: order.status === "pending" ? "confirmed" : order.status,
             updated_at: new Date().toISOString(),
-          } as never)
+          } as Record<string, unknown>)
           .eq("id", order.id);
 
         // Dispatch Order Confirmed Transactional Email

@@ -9,8 +9,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSessionUser } from "@/lib/session";
 import { playOrderNotificationSound } from "@/lib/realtime";
 import { toast } from "sonner";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
-interface ChatMessage {
+export interface ChatMessage {
   id: string;
   conversation_id: string;
   sender_type: "customer" | "staff" | "system" | "bot";
@@ -18,6 +20,25 @@ interface ChatMessage {
   message: string;
   created_at: string;
 }
+
+type CustomDB = Database & {
+  public: {
+    Tables: Database["public"]["Tables"] & {
+      support_conversations: {
+        Row: { id: string; customer_id: string | null; customer_name: string; customer_phone: string; subject: string; status: string; last_message_at: string; };
+        Insert: { id?: string; customer_id?: string | null; customer_name: string; customer_phone: string; subject: string; status: string; last_message_at: string; };
+        Update: { id?: string; customer_id?: string | null; customer_name?: string; customer_phone?: string; subject?: string; status?: string; last_message_at?: string; };
+      };
+      support_messages: {
+        Row: { id: string; conversation_id: string; sender_type: string; sender_name: string; sender_id?: string | null; message: string; created_at: string; };
+        Insert: { id?: string; conversation_id: string; sender_type: string; sender_name: string; sender_id?: string | null; message: string; created_at?: string; };
+        Update: { id?: string; conversation_id?: string; sender_type?: string; sender_name?: string; sender_id?: string | null; message?: string; created_at?: string; };
+      };
+    };
+  };
+};
+
+const customSupabase = supabase as unknown as SupabaseClient<CustomDB>;
 
 const INSTANT_FAQS = [
   {
@@ -87,7 +108,7 @@ export function CustomerSupportChatWidget() {
         const name = guestName.trim() || (user?.user_metadata?.["name"] as string) || "Guest Shopper";
 
         // Find existing open conversation
-        const { data: convs } = await (supabase as any)
+        const { data: convs } = await customSupabase
           .from("support_conversations")
           .select("id")
           .eq("customer_phone", phone)
@@ -98,7 +119,7 @@ export function CustomerSupportChatWidget() {
         let convId = convs?.[0]?.id;
 
         if (!convId) {
-          const { data: newConv, error: createErr } = await (supabase as any)
+          const { data: newConv, error: createErr } = await customSupabase
             .from("support_conversations")
             .insert({
               customer_id: user?.id || null,
@@ -114,7 +135,7 @@ export function CustomerSupportChatWidget() {
           if (!createErr && newConv) {
             convId = newConv.id;
             // Welcome system message
-            await (supabase as any).from("support_messages").insert({
+            await customSupabase.from("support_messages").insert({
               conversation_id: convId,
               sender_type: "staff",
               sender_name: "Fish N Fresh Support",
@@ -127,13 +148,13 @@ export function CustomerSupportChatWidget() {
           setConversationId(convId);
 
           // Fetch messages
-          const { data: msgs } = await (supabase as any)
+          const { data: msgs } = await customSupabase
             .from("support_messages")
             .select("*")
             .eq("conversation_id", convId)
             .order("created_at", { ascending: true });
 
-          if (msgs) setMessages(msgs);
+          if (msgs) setMessages(msgs as ChatMessage[]);
         }
       } catch (err) {
         console.warn("Support chat initialization notice:", err);
@@ -183,20 +204,21 @@ export function CustomerSupportChatWidget() {
     const interval = setInterval(async () => {
       if (!conversationId || !isOpen) return;
       try {
-        const { data: latestMsgs } = await (supabase as any)
+        const { data: latestMsgs } = await customSupabase
           .from("support_messages")
           .select("*")
           .eq("conversation_id", conversationId)
           .order("created_at", { ascending: true });
 
         if (latestMsgs && latestMsgs.length > 0) {
+          const typedMsgs = latestMsgs as ChatMessage[];
           setMessages((prev) => {
-            if (latestMsgs.length > prev.length) {
-              const last = latestMsgs[latestMsgs.length - 1];
+            if (typedMsgs.length > prev.length) {
+              const last = typedMsgs[typedMsgs.length - 1];
               if (last && last.sender_type !== "customer" && !prev.some((m) => m.id === last.id)) {
                 playOrderNotificationSound("status");
               }
-              return latestMsgs;
+              return typedMsgs;
             }
             return prev;
           });
@@ -232,7 +254,7 @@ export function CustomerSupportChatWidget() {
     setMessages((prev) => [...prev, clientMsg]);
 
     try {
-      await (supabase as any).from("support_messages").insert({
+      await customSupabase.from("support_messages").insert({
         conversation_id: conversationId,
         sender_type: "customer",
         sender_name: guestName || "Customer",
@@ -240,7 +262,7 @@ export function CustomerSupportChatWidget() {
         message: text,
       });
 
-      await (supabase as any)
+      await customSupabase
         .from("support_conversations")
         .update({ last_message_at: new Date().toISOString() })
         .eq("id", conversationId);

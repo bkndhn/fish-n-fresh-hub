@@ -33,13 +33,13 @@ export function createStripeClient(env: StripeEnv): Stripe {
   // If standard direct Stripe key or no Lovable API key, connect directly to Stripe API
   if (!lovableApiKey || connectionApiKey.startsWith('sk_') || connectionApiKey.startsWith('rk_')) {
     return new Stripe(connectionApiKey, {
-      apiVersion: '2026-03-25.dahlia' as any,
+      apiVersion: '2026-03-25.dahlia' as string,
     });
   }
 
   // Fallback to Lovable Gateway proxy if Lovable API key is present
   return new Stripe(connectionApiKey, {
-    apiVersion: '2026-03-25.dahlia' as any,
+    apiVersion: '2026-03-25.dahlia' as string,
     httpClient: Stripe.createFetchHttpClient((input, init) => {
       const stripeUrl = input instanceof Request ? input.url : input.toString();
       const gatewayUrl = stripeUrl.replace('https://api.stripe.com', GATEWAY_STRIPE_BASE);

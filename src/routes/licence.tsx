@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
+import type { SiteSettings } from '@/lib/types';
 
 export const Route = createFileRoute("/licence")({
   head: () => ({
@@ -39,9 +40,9 @@ function LicencePage() {
   const { data: settings } = useQuery(settingsQuery);
   const tenant = getCurrentTenant();
   const storeName = settings?.store_name || "Fish N Fresh Hub";
-  const firmName = (settings as any)?.firm_name || storeName;
-  const legalName = (settings as any)?.gst_legal_name || firmName;
-  const gstin = (settings as any)?.gstin || "Available upon request";
+  const firmName = (settings as SiteSettings)?.firm_name || storeName;
+  const legalName = (settings as SiteSettings)?.gst_legal_name || firmName;
+  const gstin = (settings as SiteSettings)?.gstin || "Available upon request";
   const dateStr = new Date().toLocaleDateString("en-IN", {
     day: "numeric",
     month: "long",

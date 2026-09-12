@@ -6,6 +6,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { ShieldCheck, Snowflake, Scale, KeyRound, RotateCcw, ReceiptText, PhoneCall, ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { SiteSettings } from '@/lib/types';
 
 export const Route = createFileRoute("/terms")({
   head: () => ({
@@ -18,11 +19,11 @@ function TermsPage() {
   const { data: settings } = useQuery(settingsQuery);
   const tenant = getCurrentTenant();
   const storeName = settings?.store_name || "Fish N Fresh Hub";
-  const legalName = (settings as any)?.gst_legal_name || (settings as any)?.firm_name || storeName;
-  const gstin = (settings as any)?.gstin || "Available on Tax Invoice";
-  const fssai = (settings as any)?.fssai_license_no || (settings as any)?.fssai_number || "FSSAI Certified";
+  const legalName = (settings as SiteSettings)?.gst_legal_name || (settings as SiteSettings)?.firm_name || storeName;
+  const gstin = (settings as SiteSettings)?.gstin || "Available on Tax Invoice";
+  const fssai = (settings as SiteSettings)?.fssai_license_no || (settings as SiteSettings)?.fssai_number || "FSSAI Certified";
   const supportPhone = settings?.support_phone || settings?.whatsapp_number || "+91 98430 61919";
-  const supportEmail = (settings as any)?.support_email || (settings as any)?.sender_email || "support@fishnfresh.in";
+  const supportEmail = (settings as SiteSettings)?.support_email || (settings as SiteSettings)?.sender_email || "support@fishnfresh.in";
   const address = settings?.store_address || "Coastal Retail Store Hub, Tamil Nadu, India";
 
   return (

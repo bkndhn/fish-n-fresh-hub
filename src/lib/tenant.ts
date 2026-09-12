@@ -44,7 +44,7 @@ export function getCurrentTenant(): TenantInfo {
     domain = window.location.hostname;
   }
 
-  const defaultVertical = (envVertical as any) || "seafood";
+  const defaultVertical = (envVertical as string) || "seafood";
   const clientName = envName || "Fish N Fresh Hub";
   const isCustomBackend = Boolean(import.meta.env['VITE_SUPABASE_URL']);
 

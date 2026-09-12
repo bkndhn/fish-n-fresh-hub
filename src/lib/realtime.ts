@@ -18,7 +18,7 @@ class SoundEngine {
   private getContext(): AudioContext | null {
     if (typeof window === "undefined") return null;
     if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) this.ctx = new AudioCtx();
     }
     if (this.ctx && this.ctx.state === "suspended") {
@@ -154,7 +154,7 @@ export function subscribeToOrderRealtime(
         filter: `id=eq.${orderId}`,
       },
       (payload) => {
-        const row = payload.new as any;
+        const row = payload.new as Record<string, unknown>;
         callbacks.onAnyUpdate?.(row);
 
         if (row?.status && row.status !== lastStatus) {

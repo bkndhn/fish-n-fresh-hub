@@ -32,6 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { settingsQuery } from "@/lib/queries";
 import { adminProductsQuery } from "@/lib/admin";
 import { isPaymentsConfigured, getStripeEnvironment } from "@/lib/stripe";
+import type { SiteSettings } from "@/lib/types";
 
 export function GoLiveChecklistModal({
   open,
@@ -75,15 +76,15 @@ export function GoLiveChecklistModal({
   const hasStoreName = Boolean(settings?.store_name && settings.store_name !== "Fish N Fresh");
   const hasStorePhone = Boolean(settings?.support_phone || settings?.contact_phone || settings?.whatsapp_number);
   const hasStoreAddress = Boolean(settings?.store_address);
-  const hasGstin = Boolean((settings as any)?.gstin);
-  const hasFssai = Boolean((settings as any)?.fssai_license_no || (settings as any)?.fssai_number);
+  const hasGstin = Boolean((settings as SiteSettings)?.gstin);
+  const hasFssai = Boolean((settings as SiteSettings)?.fssai_license_no || (settings as SiteSettings)?.fssai_number);
 
   const paymentsConfigured = isPaymentsConfigured();
   const stripeEnv = getStripeEnvironment();
-  const stripeKey = String((settings as any)?.stripe_publishable_key || "");
+  const stripeKey = String((settings as Record<string, unknown>)?.stripe_publishable_key || "");
   const isLiveKeys = stripeKey.startsWith("pk_live_") || stripeKey.startsWith("rzp_live_") || stripeEnv === "live";
 
-  const hasEmailSender = Boolean((settings as any)?.resend_api_key || (settings as any)?.sender_email);
+  const hasEmailSender = Boolean((settings as SiteSettings)?.resend_api_key || (settings as SiteSettings)?.sender_email);
   const hasProducts = products.length >= 5;
   const inStockProducts = products.filter((p) => Number(p.stock || 0) > 0).length;
 
@@ -343,3 +344,4 @@ export function GoLiveChecklistModal({
     </Dialog>
   );
 }
+

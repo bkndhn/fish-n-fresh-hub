@@ -10,23 +10,23 @@ describe("Daily Coastal Atmosphere & Mood Engine", () => {
   const store: Record<string, string> = {};
 
   beforeAll(() => {
-    (globalThis as any).localStorage = {
+    vi.stubGlobal("localStorage", {
       getItem: (k: string) => store[k] ?? null,
       setItem: (k: string, v: string) => { store[k] = String(v); },
       removeItem: (k: string) => { delete store[k]; },
       clear: () => { Object.keys(store).forEach((k) => delete store[k]); },
-    };
-    (globalThis as any).window = {
+    });
+    vi.stubGlobal("window", {
       dispatchEvent: () => true,
-    };
-    (globalThis as any).CustomEvent = class {
+    });
+    vi.stubGlobal("CustomEvent", class {
       type: string;
       detail: any;
       constructor(type: string, opts?: any) {
         this.type = type;
         this.detail = opts?.detail;
       }
-    };
+    });
   });
 
   beforeEach(() => {

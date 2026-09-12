@@ -239,19 +239,21 @@ export function getDailyAtmosphere(date: Date = new Date()): DailyAtmosphere {
   };
 }
 
+import type { SiteSettings } from "./types";
+
 /**
  * Checks whether Daily Atmosphere is enabled.
  * Respects customer local preference if set, falling back to store settings (default true).
  */
-export function isDailyAtmosphereEnabled(settings?: any): boolean {
+export function isDailyAtmosphereEnabled(settings?: SiteSettings): boolean {
   if (typeof window === "undefined") return true;
   const localPref = localStorage.getItem("fnf_daily_atmosphere_enabled");
   if (localPref !== null) {
     return localPref === "true";
   }
   // Store setting fallback (defaults to true for world-class daily experience)
-  if (settings && (settings as any).daily_atmosphere_enabled !== undefined) {
-    return Boolean((settings as any).daily_atmosphere_enabled);
+  if (settings && settings.daily_atmosphere_enabled !== undefined) {
+    return Boolean(settings.daily_atmosphere_enabled);
   }
   return true;
 }

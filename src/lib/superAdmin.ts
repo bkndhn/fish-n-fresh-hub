@@ -106,7 +106,7 @@ export const tenantQuotasQuery = queryOptions({
   queryKey: ["super-admin", "tenant-quotas"],
   queryFn: async (): Promise<TenantQuota> => {
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("tenant_quotas")
         .select("*")
         .limit(1)
@@ -131,7 +131,7 @@ export const platformRevocationsQuery = queryOptions({
   queryKey: ["super-admin", "revocations"],
   queryFn: async (): Promise<PlatformRevocation[]> => {
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("platform_revocations")
         .select("*")
         .order("revoked_at", { ascending: false })
@@ -153,7 +153,7 @@ export const platformAuditLogsQuery = queryOptions({
   queryKey: ["super-admin", "audit-logs"],
   queryFn: async (): Promise<PlatformAuditLog[]> => {
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("platform_audit_logs")
         .select("*")
         .order("created_at", { ascending: false })
@@ -182,7 +182,7 @@ export const superAdminStatsQuery = queryOptions({
         .eq("is_active", true);
 
       // 2. Fetch staff members
-      const { count: staffCount } = await (supabase as any)
+      const { count: staffCount } = await supabase
         .from("user_roles")
         .select("*", { count: "exact", head: true })
         .in("role", ["admin", "manager", "staff", "driver", "cashier", "inventory_manager"]);
@@ -198,7 +198,7 @@ export const superAdminStatsQuery = queryOptions({
         .gte("created_at", startOfMonth.toISOString());
 
       // 4. Fetch tenant quota
-      const { data: quotaData } = await (supabase as any)
+      const { data: quotaData } = await supabase
         .from("tenant_quotas")
         .select("*")
         .limit(1)
@@ -208,7 +208,7 @@ export const superAdminStatsQuery = queryOptions({
 
       // 5. Fetch recent kill switch events count (last 24 hours)
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { count: revocationsCount } = await (supabase as any)
+      const { count: revocationsCount } = await supabase
         .from("platform_revocations")
         .select("*", { count: "exact", head: true })
         .gte("revoked_at", oneDayAgo);
@@ -260,14 +260,14 @@ export const superAdminStatsQuery = queryOptions({
  */
 export async function updateTenantQuotas(updates: Partial<TenantQuota>): Promise<{ success: boolean; message?: string }> {
   try {
-    const { data: current } = await (supabase as any)
+    const { data: current } = await supabase
       .from("tenant_quotas")
       .select("id")
       .limit(1)
       .maybeSingle();
 
     if (current?.id) {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("tenant_quotas")
         .update({
           ...updates,
@@ -277,7 +277,7 @@ export async function updateTenantQuotas(updates: Partial<TenantQuota>): Promise
 
       if (error) throw error;
     } else {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("tenant_quotas")
         .insert({
           ...DEFAULT_TENANT_QUOTA,
@@ -290,7 +290,7 @@ export async function updateTenantQuotas(updates: Partial<TenantQuota>): Promise
     // Log to platform audit trail
     try {
       const { data: user } = await supabase.auth.getUser();
-      await (supabase as any).from("platform_audit_logs").insert({
+      await supabase.from("platform_audit_logs").insert({
         actor_id: user.user?.id || null,
         actor_role: "super_admin",
         action: "UPDATE_TENANT_QUOTA",
@@ -320,7 +320,7 @@ export async function executeKillSwitch(
     const actorId = authUser.user?.id || null;
 
     // 1. Insert into platform_revocations
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from("platform_revocations")
       .insert({
         scope,
@@ -349,7 +349,7 @@ export async function executeKillSwitch(
 
     // 3. Log to platform audit trail
     try {
-      await (supabase as any).from("platform_audit_logs").insert({
+      await supabase.from("platform_audit_logs").insert({
         actor_id: actorId,
         actor_role: "super_admin",
         action: "force_logout",
@@ -380,7 +380,7 @@ export async function createBranchWithQuotaGuard(
       .select("*", { count: "exact", head: true })
       .eq("is_active", true);
 
-    const { data: quotaData } = await (supabase as any)
+    const { data: quotaData } = await supabase
       .from("tenant_quotas")
       .select("max_branches, is_locked")
       .limit(1)
@@ -411,7 +411,7 @@ export async function createBranchWithQuotaGuard(
     // 3. Audit log
     try {
       const { data: user } = await supabase.auth.getUser();
-      await (supabase as any).from("platform_audit_logs").insert({
+      await supabase.from("platform_audit_logs").insert({
         actor_id: user.user?.id || null,
         actor_role: "super_admin",
         action: "CREATE_BRANCH",

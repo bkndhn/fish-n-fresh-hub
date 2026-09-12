@@ -1,15 +1,17 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { settingsQuery } from "@/lib/queries";
+import type { SiteSettings } from "@/lib/types";
 
 export function AnalyticsTracker() {
   const { data: settings } = useQuery(settingsQuery);
 
   useEffect(() => {
     if (typeof window === "undefined" || !settings) return;
+    const s = settings as SiteSettings;
 
     // 1. Google Analytics 4 (GA4) Injection
-    const gaId = (settings as any)?.ga4_measurement_id;
+    const gaId = s.ga4_measurement_id;
     if (gaId && gaId.trim() && !document.getElementById("ga4-script")) {
       const script = document.createElement("script");
       script.id = "ga4-script";
@@ -29,7 +31,7 @@ export function AnalyticsTracker() {
     }
 
     // 2. Meta (Facebook) Pixel Injection
-    const pixelId = (settings as any)?.meta_pixel_id;
+    const pixelId = s.meta_pixel_id;
     if (pixelId && pixelId.trim() && !document.getElementById("meta-pixel-script")) {
       const pixelScript = document.createElement("script");
       pixelScript.id = "meta-pixel-script";

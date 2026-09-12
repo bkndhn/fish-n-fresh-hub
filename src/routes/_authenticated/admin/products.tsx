@@ -244,7 +244,7 @@ function ProductsAdmin() {
         aisle_location: newProduct.aisle_location?.trim() || null,
         specifications: parseSpecsText(newProduct.specifications_text),
         cost_price: newProduct.cost_price ? Number(newProduct.cost_price) : null,
-      } as any);
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -337,7 +337,7 @@ function ProductsAdmin() {
         cost_price: editingProduct.cost_price !== undefined && editingProduct.cost_price !== "" && editingProduct.cost_price !== null
           ? Number(editingProduct.cost_price)
           : null,
-      } as any).eq("id", editingProduct.id);
+      }).eq("id", editingProduct.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -452,7 +452,7 @@ function ProductsAdmin() {
     if (selectedProductIds.length === 0) return;
     setBulkProcessing(true);
     try {
-      const { error } = await (supabase.from("products") as any)
+      const { error } = await supabase.from("products")
         .update({ is_bestseller })
         .in("id", selectedProductIds);
       if (error) throw error;
@@ -2234,7 +2234,7 @@ function ProductsAdmin() {
                     const chunkSize = 50;
                     for (let i = 0; i < toInsert.length; i += chunkSize) {
                       const chunk = toInsert.slice(i, i + chunkSize);
-                      const { error } = await supabase.from("products").insert(chunk as any);
+                      const { error } = await supabase.from("products").insert(chunk as Database["public"]["Tables"]["products"]["Insert"][]);
                       if (error) throw error;
                     }
                     toast.success(`Successfully imported ${toInsert.length} products!`);

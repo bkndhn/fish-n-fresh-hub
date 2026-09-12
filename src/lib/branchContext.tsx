@@ -52,18 +52,18 @@ export function AdminBranchProvider({ children }: { children: ReactNode }) {
       if (!uid) return null;
 
       const { data, error } = await supabase
-        .from("user_roles" as any)
+        .from("user_roles")
         .select("branch_id, role")
         .eq("user_id", uid);
 
       if (error || !data || !data.length) return null;
 
       // If user has a global admin role with null branch_id, they have full access
-      const hasGlobalAdmin = (data as any[]).some((r: any) => r.role === "admin" && !r.branch_id);
+      const hasGlobalAdmin = data.some((r) => r.role === "admin" && !r.branch_id);
       if (hasGlobalAdmin) return null;
 
       // Otherwise, return first specific branch assignment
-      const specific = (data as any[]).find((r: any) => Boolean(r.branch_id));
+      const specific = data.find((r) => Boolean(r.branch_id));
       return specific ? (specific.branch_id as string) : null;
     },
   });
