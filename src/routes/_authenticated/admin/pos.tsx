@@ -75,9 +75,17 @@ import {
   buildPosReceiptHtml,
   generatePosWhatsAppText,
   getPosWhatsAppShareUrl,
+  isHardwarePrinterConnected,
   type PosReceiptData,
   type PosReceiptItem,
 } from "@/lib/thermalPrinter";
+import { useAdminBranch } from "@/lib/branchContext";
+import {
+  getStorePaymentConfig,
+  playCashRegisterChime,
+  type CustomPaymentMethod,
+  type StorePaymentConfig,
+} from "@/lib/storePayments";
 import {
   weighingScaleDriver,
   playScaleCaptureChime,
@@ -199,6 +207,7 @@ function getNextPosReceiptNo(prefix = "POS-", dailyReset = true): string {
 
 export function RetailPosCounterPage() {
   const qc = useQueryClient();
+  const { selectedBranchId, selectedBranch } = useAdminBranch();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const quickCodeInputRef = useRef<HTMLInputElement>(null);
   const [quickCodeInput, setQuickCodeInput] = useState("");
@@ -358,8 +367,22 @@ export function RetailPosCounterPage() {
     toast.success("Quick chips reset to standard presets");
   };
 
-  // Payment states (Single or Multi-payment / Split)
-  const [paymentMode, setPaymentMode] = useState<"cash" | "upi" | "card" | "split">("cash");
+  // Multi-Tenant Isolated Store Payment Configuration (Default & Custom Methods)
+  const [storePaymentConfig, setStorePaymentConfig] = useState<StorePaymentConfig>(() =>
+    getStorePaymentConfig(selectedBranchId && selectedBranchId !== "all" ? selectedBranchId : undefined)
+  );
+
+  useEffect(() => {
+    const cfg = getStorePaymentConfig(selectedBranchId && selectedBranchId !== "all" ? selectedBranchId : undefined);
+    setStorePaymentConfig(cfg);
+    if (cfg.defaultMethod) {
+      setPaymentMode(cfg.defaultMethod);
+    }
+  }, [selectedBranchId]);
+
+  // Payment states (Single, Multi-payment / Split, or Custom method)
+  const [paymentMode, setPaymentMode] = useState<string>(() => storePaymentConfig.defaultMethod || "cash");
+  const [customPaymentRef, setCustomPaymentRef] = useState<string>("");
   const [tenderedAmount, setTenderedAmount] = useState<string>("");
   const [upiUtr, setUpiUtr] = useState<string>("");
 
@@ -1093,6 +1116,16 @@ export function RetailPosCounterPage() {
       toast.error("Billing cart is empty! Add products first.");
       return;
     }
+
+    const activeCustom = storePaymentConfig.customMethods.find((m) => m.id === paymentMode);
+    const isCustom = Boolean(activeCustom);
+    const paymentLabel = isCustom ? activeCustom!.name : (paymentMode === "upi" ? "upi_qr" : paymentMode);
+
+    if (isCustom && activeCustom?.requiresRef && !customPaymentRef.trim()) {
+      toast.error(`Please enter ${activeCustom.refPlaceholder || "reference / slip #"} for ${activeCustom.name}`);
+      return;
+    }
+
     if (paymentMode === "cash" && tenderedNum > 0 && tenderedNum < totalPayable) {
       toast.error(`Cash tendered (₹${tenderedNum}) is less than total payable (₹${totalPayable})`);
       return;
@@ -1140,10 +1173,10 @@ export function RetailPosCounterPage() {
       discount: discountAmount,
       gstAmount: gstTotal,
       total: totalPayable,
-      paymentMethod: paymentMode,
+      paymentMethod: paymentLabel,
       amountTendered: paymentMode === "cash" ? (tenderedNum || totalPayable) : undefined,
       changeDue: paymentMode === "cash" ? changeDue : undefined,
-      upiRef: paymentMode === "upi" ? (upiUtr.trim() || undefined) : (paymentMode === "split" && splitUtr.trim() ? splitUtr.trim() : undefined),
+      upiRef: paymentMode === "upi" ? (upiUtr.trim() || undefined) : (paymentMode === "split" && splitUtr.trim() ? splitUtr.trim() : (customPaymentRef.trim() || undefined)),
       splitPayments: paymentMode === "split" ? {
         cash: splitCashNum,
         upi: splitUpiNum,
@@ -1152,25 +1185,24 @@ export function RetailPosCounterPage() {
       storeName: settings?.store_name || "Universal Retail Hub",
       storeAddress: settings?.store_address || undefined,
       storePhone: (settings as SiteSettings)?.contact_phone || undefined,
-      storeGstin: (settings as SiteSettings)?.gst_number || undefined,
+      storeGstin: (settings as SiteSettings)?.gstin || undefined,
       copyType: "ORIGINAL",
       isReprint: false,
     };
 
     try {
-      // 1. Create order in orders table
+      // 1. Create order in orders table (valid schema only - no pos_split_payments column)
       const orderPayload = {
         order_number: orderNumber,
         customer_name: customerName.trim() || "Walk-in Customer",
         customer_phone: customerPhone.trim() || "9999999999",
         fulfillment_type: "pos",
         status: "delivered",
-        payment_method: paymentMode,
+        payment_method: paymentLabel,
         payment_status: "paid",
-        actual_payment_method: paymentMode === "upi" ? "upi_qr" : paymentMode,
-        actual_payment_ref: paymentMode === "upi" ? (upiUtr.trim() || null) : (paymentMode === "split" ? (splitUtr.trim() || null) : null),
+        actual_payment_method: paymentMode === "upi" ? "upi_qr" : paymentLabel,
+        actual_payment_ref: paymentMode === "upi" ? (upiUtr.trim() || null) : (paymentMode === "split" ? (splitUtr.trim() || null) : (customPaymentRef.trim() || null)),
         paid_to_bank_directly: paymentMode === "upi" || (paymentMode === "split" && splitUpiNum > 0),
-        pos_split_payments: paymentMode === "split" ? { cash: splitCashNum, upi: splitUpiNum, card: splitCardNum } : null,
         subtotal,
         discount: discountAmount,
         gst_amount: gstTotal,
@@ -1193,6 +1225,9 @@ export function RetailPosCounterPage() {
         pos_cashier_name: cashierName,
         pos_amount_tendered: paymentMode === "cash" ? (tenderedNum || totalPayable) : null,
         pos_change_due: paymentMode === "cash" ? changeDue : null,
+        branch_id: selectedBranchId && selectedBranchId !== "all" ? selectedBranchId : null,
+        branch_name: selectedBranch?.name || null,
+        notes: `In-Store POS Counter Bill${paymentMode === "split" ? ` | Split: Cash ₹${splitCashNum}, UPI ₹${splitUpiNum}, Card ₹${splitCardNum}` : ""}${customPaymentRef ? ` | Ref: ${customPaymentRef}` : ""}`,
         delivered_at: nowIso,
       };
 
@@ -1210,12 +1245,12 @@ export function RetailPosCounterPage() {
             .single();
 
           if (orderErr) {
-            console.warn("Could not insert order:", orderErr.message);
+            throw new Error(`Database error saving POS bill: ${orderErr.message}`);
           }
 
           // Real-time Atomic Inventory Deduction
           await deductOrderStock(orderRes?.id || orderNumber, stockItems);
-        } catch (netErr) {
+        } catch (netErr: any) {
           console.warn("Falling back to offline queue:", netErr);
           const queue = loadOfflineQueue();
           queue.push({ orderPayload, stockItems });
@@ -1234,30 +1269,43 @@ export function RetailPosCounterPage() {
         toast.info("Offline: Bill queued in local register. Will auto-sync when online.");
       }
 
-      // 3. Print ESC/POS thermal receipt (multi-copies support)
-      const copies = Math.min(3, Math.max(1, printerConfig.printCopies || 1));
-      const copyLabels: ("ORIGINAL" | "KITCHEN TOKEN" | "STORE RECORD")[] = [
-        "ORIGINAL",
-        "KITCHEN TOKEN",
-        "STORE RECORD",
-      ];
+      // 3. Print ESC/POS thermal receipt or play crisp cash register chime
+      const hasHardwarePrinter = isHardwarePrinterConnected();
+      const isBrowserPrintConfigured = printerConfig.type === "browser_print";
 
-      for (let i = 0; i < copies; i++) {
-        const copyData: PosReceiptData = {
-          ...receiptData,
-          copyType: copyLabels[i] || "ORIGINAL",
-        };
-        const escPosBytes = buildPosReceiptEscPos(copyData, printerConfig);
-        const fallbackHtml = buildPosReceiptHtml(copyData, printerConfig);
-        try {
-          await sendEscPosToPrinter(escPosBytes, printerConfig, fallbackHtml);
-        } catch (printErr) {
-          console.warn("Direct thermal print notice:", printErr);
+      if (hasHardwarePrinter || isBrowserPrintConfigured) {
+        const copies = Math.min(3, Math.max(1, printerConfig.printCopies || 1));
+        const copyLabels: ("ORIGINAL" | "KITCHEN TOKEN" | "STORE RECORD")[] = [
+          "ORIGINAL",
+          "KITCHEN TOKEN",
+          "STORE RECORD",
+        ];
+
+        for (let i = 0; i < copies; i++) {
+          const copyData: PosReceiptData = {
+            ...receiptData,
+            copyType: copyLabels[i] || "ORIGINAL",
+          };
+          const escPosBytes = buildPosReceiptEscPos(copyData, printerConfig);
+          const fallbackHtml = buildPosReceiptHtml(copyData, printerConfig);
+          try {
+            await sendEscPosToPrinter(escPosBytes, printerConfig, fallbackHtml);
+          } catch (printErr) {
+            console.warn("Direct thermal print notice:", printErr);
+          }
         }
+        playCashRegisterChime();
+        toast.success(`Bill #${orderNumber} completed & printed! Net: ${formatINR(totalPayable)}`);
+      } else {
+        // Silent headless register save with "Ka-Ching!" sound
+        playCashRegisterChime();
+        toast.success(`Bill #${orderNumber} saved! (No printer connected)`, {
+          description: `Total: ${formatINR(totalPayable)} • Synced to Reports & Dashboard`,
+        });
       }
 
       setLastReceipt(receiptData);
-      toast.success(`Bill #${orderNumber} completed! Net: ${formatINR(totalPayable)}`);
+      setCustomPaymentRef("");
 
       // Auto WhatsApp prompt if enabled
       if (printerConfig.autoWhatsAppPrompt && customerPhone.trim().length >= 10) {
@@ -1270,6 +1318,7 @@ export function RetailPosCounterPage() {
       qc.invalidateQueries({ queryKey: ["admin", "products"] });
       qc.invalidateQueries({ queryKey: ["admin", "pos-orders-today"] });
       qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+      qc.invalidateQueries({ queryKey: ["admin", "reports"] });
     } catch (err: any) {
       toast.error(err.message || "Failed to complete POS sale");
     } finally {
@@ -1683,6 +1732,14 @@ export function RetailPosCounterPage() {
                   placeholder="Fast search seafood / meat by name (English or Tamil) [F1]..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (displayedProducts.length === 1) {
+                        handleOpenItem(displayedProducts[0]);
+                      }
+                    }
+                  }}
                   className="pl-9 pr-8 h-9 text-xs rounded-xl bg-background"
                 />
                 {searchQuery && (
@@ -2093,11 +2150,11 @@ export function RetailPosCounterPage() {
                 {/* Payment Selection Tabs */}
                 {cart.length > 0 && (
                   <div className="space-y-3 pt-2">
-                    <div className="grid grid-cols-4 gap-1 bg-muted/40 p-1 rounded-xl border border-border/60">
+                    <div className="flex flex-wrap gap-1 bg-muted/40 p-1 rounded-xl border border-border/60">
                       <button
                         type="button"
                         onClick={() => setPaymentMode("cash")}
-                        className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        className={`flex-1 min-w-[65px] flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
                           paymentMode === "cash"
                             ? "bg-amber-600 text-white shadow-xs"
                             : "text-muted-foreground hover:text-foreground"
@@ -2109,7 +2166,7 @@ export function RetailPosCounterPage() {
                       <button
                         type="button"
                         onClick={() => setPaymentMode("upi")}
-                        className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        className={`flex-1 min-w-[65px] flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
                           paymentMode === "upi"
                             ? "bg-emerald-600 text-white shadow-xs"
                             : "text-muted-foreground hover:text-foreground"
@@ -2121,7 +2178,7 @@ export function RetailPosCounterPage() {
                       <button
                         type="button"
                         onClick={() => setPaymentMode("card")}
-                        className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        className={`flex-1 min-w-[65px] flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
                           paymentMode === "card"
                             ? "bg-primary text-primary-foreground shadow-xs"
                             : "text-muted-foreground hover:text-foreground"
@@ -2133,7 +2190,7 @@ export function RetailPosCounterPage() {
                       <button
                         type="button"
                         onClick={() => setPaymentMode("split")}
-                        className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        className={`flex-1 min-w-[65px] flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
                           paymentMode === "split"
                             ? "bg-indigo-600 text-white shadow-xs"
                             : "text-muted-foreground hover:text-foreground"
@@ -2142,6 +2199,23 @@ export function RetailPosCounterPage() {
                       >
                         <Layers className="size-3.5" /> Split
                       </button>
+                      {storePaymentConfig.customMethods
+                        .filter((m) => m.isEnabled)
+                        .map((cm) => (
+                          <button
+                            key={cm.id}
+                            type="button"
+                            onClick={() => setPaymentMode(cm.id)}
+                            className={`flex-1 min-w-[85px] flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
+                              paymentMode === cm.id
+                                ? "bg-purple-600 text-white shadow-xs"
+                                : "text-muted-foreground hover:text-foreground"
+                            }`}
+                            title={cm.description || cm.name}
+                          >
+                            <CreditCard className="size-3.5" /> {cm.name}
+                          </button>
+                        ))}
                     </div>
 
                     {/* Cash Tender Calculation */}
@@ -2348,23 +2422,63 @@ export function RetailPosCounterPage() {
                       </div>
                     )}
 
+                    {/* Custom Payment Tender Panel */}
+                    {(() => {
+                      const activeCustom = storePaymentConfig.customMethods.find((m) => m.id === paymentMode);
+                      if (!activeCustom) return null;
+                      return (
+                        <div className="space-y-2.5 rounded-2xl bg-purple-500/10 border border-purple-500/25 p-3.5 text-xs">
+                          <div className="flex items-center justify-between font-bold text-purple-950 dark:text-purple-200">
+                            <span className="flex items-center gap-1.5">
+                              <CreditCard className="size-4 text-purple-600 dark:text-purple-400" />
+                              {activeCustom.name}
+                            </span>
+                            <span className="font-mono text-foreground font-extrabold">{formatINR(totalPayable)}</span>
+                          </div>
+                          {activeCustom.description && (
+                            <p className="text-[11px] text-muted-foreground">{activeCustom.description}</p>
+                          )}
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-foreground">
+                                {activeCustom.refPlaceholder || "Slip / Voucher / Reference #"}
+                              </span>
+                              {activeCustom.requiresRef ? (
+                                <Badge variant="outline" className="text-[9px] px-1 py-0 border-destructive/50 text-destructive">
+                                  Required
+                                </Badge>
+                              ) : (
+                                <span className="text-[9px] text-muted-foreground">Optional</span>
+                              )}
+                            </div>
+                            <Input
+                              placeholder={activeCustom.refPlaceholder || "Enter reference #..."}
+                              value={customPaymentRef}
+                              onChange={(e) => setCustomPaymentRef(e.target.value)}
+                              className="h-8 text-xs font-mono rounded-xl bg-background border-purple-500/30"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     {/* One-Click Complete & Print Bill */}
                     <Button
                       type="button"
                       disabled={processingOrder}
                       onClick={completeSale}
                       className="w-full rounded-2xl h-12 text-sm font-bold shadow-md bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
-                      title="Complete and print bill [F12]"
+                      title="Complete and save / print bill [F12]"
                     >
                       {processingOrder ? (
                         <span className="flex items-center gap-2">
                           <RefreshCw className="size-4 animate-spin" />
-                          Printing Receipt & Deducting Stock...
+                          Saving Bill & Updating Stock...
                         </span>
                       ) : (
                         <>
-                          <Printer className="size-4.5" />
-                          <span>Complete &amp; Print Bill ({formatINR(totalPayable)}) [F12]</span>
+                          <CheckCircle2 className="size-4.5" />
+                          <span>Complete &amp; Save Bill ({formatINR(totalPayable)}) [F12]</span>
                         </>
                       )}
                     </Button>
@@ -2552,6 +2666,13 @@ export function RetailPosCounterPage() {
                         setModalWeightInput(val);
                       }
                     }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddToCart();
+                      }
+                    }}
+                    autoFocus
                     placeholder="1.0"
                     className="h-12 text-center font-mono text-2xl font-black rounded-xl"
                   />

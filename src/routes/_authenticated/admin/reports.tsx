@@ -142,7 +142,7 @@ export function Reports() {
   const [posStartDate, setPosStartDate] = useState(todayIso);
   const [posEndDate, setPosEndDate] = useState(todayIso);
   const [posSearchQuery, setPosSearchQuery] = useState("");
-  const [posPaymentFilter, setPosPaymentFilter] = useState<"all" | "cash" | "upi" | "card">("all");
+  const [posPaymentFilter, setPosPaymentFilter] = useState<string>("all");
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<any | null>(null);
   const [voidConfirmOrder, setVoidConfirmOrder] = useState<any | null>(null);
   const [voidReason, setVoidReason] = useState("");
@@ -154,6 +154,16 @@ export function Reports() {
     () => (orders.data ?? []).filter((o) => o.fulfillment_type === "pos"),
     [orders.data]
   );
+
+  const distinctPosPaymentMethods = useMemo(() => {
+    const set = new Set<string>();
+    for (const o of allPosOrders) {
+      if (o.payment_method) {
+        set.add(o.payment_method);
+      }
+    }
+    return Array.from(set);
+  }, [allPosOrders]);
 
   const filteredPosBills = useMemo(() => {
     const now = new Date();
@@ -178,9 +188,12 @@ export function Reports() {
       // Payment method filtering
       if (posPaymentFilter !== "all") {
         const pm = (order.payment_method || "cash").toLowerCase();
-        if (posPaymentFilter === "cash" && !pm.includes("cash")) return false;
-        if (posPaymentFilter === "upi" && !pm.includes("upi")) return false;
-        if (posPaymentFilter === "card" && !pm.includes("card")) return false;
+        const f = posPaymentFilter.toLowerCase();
+        if (f === "cash" && !pm.includes("cash")) return false;
+        else if (f === "upi" && !pm.includes("upi")) return false;
+        else if (f === "card" && !pm.includes("card")) return false;
+        else if (f === "split" && !pm.includes("split")) return false;
+        else if (!["cash", "upi", "card", "split"].includes(f) && pm !== f) return false;
       }
 
       // Search query filtering
@@ -214,6 +227,17 @@ export function Reports() {
   );
   const posCardTotal = useMemo(
     () => filteredPosBills.filter((b) => b.status !== "cancelled" && (b.payment_method || "").toLowerCase().includes("card")).reduce((acc, b) => acc + Number(b.total || 0), 0),
+    [filteredPosBills]
+  );
+  const posOtherTotal = useMemo(
+    () =>
+      filteredPosBills
+        .filter((b) => {
+          if (b.status === "cancelled") return false;
+          const pm = (b.payment_method || "").toLowerCase();
+          return !pm.includes("cash") && !pm.includes("upi") && !pm.includes("card");
+        })
+        .reduce((acc, b) => acc + Number(b.total || 0), 0),
     [filteredPosBills]
   );
 
@@ -3744,9 +3768,14 @@ export function Reports() {
             </Card>
             <Card className="rounded-2xl border-border/80 shadow-xs">
               <CardContent className="p-4">
-                <p className="text-[11px] font-semibold text-muted-foreground">Digital (UPI &amp; Card)</p>
-                <p className="text-xl font-black text-blue-600 dark:text-blue-400 mt-0.5">{formatINR(posUpiTotal + posCardTotal)}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">UPI {formatINR(posUpiTotal)} · Card {formatINR(posCardTotal)}</p>
+                <p className="text-[11px] font-semibold text-muted-foreground">Digital &amp; Custom Tenders</p>
+                <p className="text-xl font-black text-blue-600 dark:text-blue-400 mt-0.5">
+                  {formatINR(posUpiTotal + posCardTotal + posOtherTotal)}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                  UPI {formatINR(posUpiTotal)} · Card {formatINR(posCardTotal)}
+                  {posOtherTotal > 0 ? ` · Custom ${formatINR(posOtherTotal)}` : ""}
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -3818,13 +3847,21 @@ export function Reports() {
                 <span className="text-xs text-muted-foreground font-medium">Tender:</span>
                 <select
                   value={posPaymentFilter}
-                  onChange={(e) => setPosPaymentFilter(e.target.value as "daily" | "weekly" | "custom")}
-                  className="h-8 rounded-xl border border-input bg-transparent px-2.5 text-xs shadow-2xs"
+                  onChange={(e) => setPosPaymentFilter(e.target.value)}
+                  className="h-8 rounded-xl border border-input bg-transparent px-2.5 text-xs shadow-2xs font-semibold"
                 >
                   <option value="all">All Tenders</option>
                   <option value="cash">Cash Only</option>
                   <option value="upi">UPI / QR Only</option>
                   <option value="card">Card Only</option>
+                  <option value="split">Split Tender Only</option>
+                  {distinctPosPaymentMethods
+                    .filter((m) => !["cash", "upi", "card", "split"].includes(m.toLowerCase()))
+                    .map((m) => (
+                      <option key={m} value={m}>
+                        {m} Only
+                      </option>
+                    ))}
                 </select>
               </div>
             </div>

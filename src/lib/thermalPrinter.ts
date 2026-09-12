@@ -10,7 +10,7 @@
  * - Hardware cash drawer kick & paper auto-cutter
  */
 
-export type PrinterType = "bluetooth" | "serial_usb" | "network_ip" | "browser_print";
+export type PrinterType = "none" | "bluetooth" | "serial_usb" | "network_ip" | "browser_print";
 export type PaperWidth = "58mm" | "80mm";
 export type PrintFormat = "58mm" | "80mm" | "a4" | "a5" | "kot";
 
@@ -35,7 +35,7 @@ export interface ThermalPrinterConfig {
 }
 
 export const DEFAULT_PRINTER_CONFIG: ThermalPrinterConfig = {
-  type: "browser_print",
+  type: "none",
   paperWidth: "58mm",
   defaultFormat: "58mm",
   autoCut: true,
@@ -282,8 +282,15 @@ export async function connectSerialUsbPrinter(): Promise<string> {
 }
 
 /**
+ * Check if a physical ESC/POS hardware printer (Bluetooth or USB Serial) is actively connected.
+ */
+export function isHardwarePrinterConnected(): boolean {
+  return Boolean(activeBluetoothCharacteristic || activeSerialWriter);
+}
+
+/**
  * Send raw ESC/POS byte array to currently connected thermal printer,
- * or automatically trigger styled browser print if no hardware device is paired.
+ * or trigger styled browser print only if explicitly configured.
  */
 export async function sendEscPosToPrinter(
   bytes: Uint8Array,
@@ -301,7 +308,7 @@ export async function sendEscPosToPrinter(
       }
       return true;
     } catch (err) {
-      console.warn("Bluetooth raw send failed, falling back:", err);
+      console.warn("Bluetooth raw send failed:", err);
     }
   }
 
@@ -311,19 +318,20 @@ export async function sendEscPosToPrinter(
       await activeSerialWriter.write(bytes);
       return true;
     } catch (err) {
-      console.warn("Serial USB raw send failed, falling back:", err);
+      console.warn("Serial USB raw send failed:", err);
     }
   }
 
-  // 3. Fallback: Styled Browser Thermal Print
-  if (fallbackPrintHtml) {
+  // 3. Trigger Styled Browser Thermal Print ONLY if explicitly configured by user
+  if (config.type === "browser_print" && fallbackPrintHtml) {
     printThermalHtmlRoll(fallbackPrintHtml, config.paperWidth);
     return true;
-  } else {
-    window.print();
-    return true;
   }
+
+  // If type is "none" or no printer is connected, return false without popping up print dialog
+  return false;
 }
+
 
 /**
  * Render and print a high-contrast 58mm/80mm receipt inside an isolated iframe

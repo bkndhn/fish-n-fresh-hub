@@ -139,8 +139,12 @@ function Dashboard() {
   const netMargin = grossRevenue > 0 ? Math.round((netProfit / grossRevenue) * 100) : 0;
 
   // POS vs Online breakdown
-  const posOrders = activeOrders.filter((o) => (o as Database["public"]["Tables"]["orders"]["Row"]).source === "pos" || (o.notes || "").toLowerCase().includes("pos"));
-  const onlineOrders = activeOrders.filter((o) => (o as Database["public"]["Tables"]["orders"]["Row"]).source !== "pos" && !(o.notes || "").toLowerCase().includes("pos"));
+  const isPosOrder = (o: any) =>
+    (o as Database["public"]["Tables"]["orders"]["Row"]).source === "pos" ||
+    o.fulfillment_type === "pos" ||
+    (o.notes || "").toLowerCase().includes("pos");
+  const posOrders = activeOrders.filter(isPosOrder);
+  const onlineOrders = activeOrders.filter((o) => !isPosOrder(o));
   const posRevenue = posOrders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + Number(o.total || 0), 0);
   const onlineRevenue = onlineOrders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + Number(o.total || 0), 0);
 

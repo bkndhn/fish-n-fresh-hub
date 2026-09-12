@@ -52,6 +52,12 @@ import { MapPinPickerModal } from "@/components/MapPinPickerModal";
 import { getGoogleMapsDirUrl, type GeocodedAddress } from "@/lib/maps";
 import { VERTICAL_CONFIGS, getVerticalConfig, type BusinessVertical } from "@/lib/verticals";
 import { getCurrentTenant } from "@/lib/tenant";
+import {
+  getStorePaymentConfig,
+  saveStorePaymentConfig,
+  type CustomPaymentMethod,
+  type StorePaymentConfig,
+} from "@/lib/storePayments";
 import { SeoSettingsManager } from "@/components/admin/SeoSettingsManager";
 import { BranchManagement } from "@/components/admin/BranchManagement";
 import { getDailyAtmosphere, isDailyAtmosphereEnabled, setDailyAtmosphereEnabled } from "@/lib/dailyAtmosphere";
@@ -72,6 +78,69 @@ function AdminSettings() {
   const [exportingBackup, setExportingBackup] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
   const [testEmailAddress, setTestEmailAddress] = useState("");
+
+  // POS Multi-Tenant Isolated Payment Methods & Default Tender
+  const [paymentConfig, setPaymentConfig] = useState<StorePaymentConfig>(() =>
+    getStorePaymentConfig(tenant.tenantId)
+  );
+  const [newMethodName, setNewMethodName] = useState("");
+  const [newMethodDesc, setNewMethodDesc] = useState("");
+  const [newMethodRequiresRef, setNewMethodRequiresRef] = useState(true);
+  const [newMethodRefPlaceholder, setNewMethodRefPlaceholder] = useState("");
+
+  const handleSavePaymentConfig = (updated: StorePaymentConfig) => {
+    setPaymentConfig(updated);
+    saveStorePaymentConfig(updated, tenant.tenantId);
+    toast.success("POS Payment Configuration saved!");
+  };
+
+  const handleAddCustomMethod = () => {
+    if (!newMethodName.trim()) {
+      toast.error("Please enter a payment method name");
+      return;
+    }
+    const id = newMethodName.trim().toLowerCase().replace(/[^a-z0-9]/g, "_");
+    if (["cash", "upi", "card", "split"].includes(id) || paymentConfig.customMethods.some((m) => m.id === id)) {
+      toast.error("A payment method with this name already exists");
+      return;
+    }
+    const newMethod: CustomPaymentMethod = {
+      id,
+      name: newMethodName.trim(),
+      description: newMethodDesc.trim() || undefined,
+      requiresRef: newMethodRequiresRef,
+      refPlaceholder: newMethodRefPlaceholder.trim() || "Transaction / Slip #",
+      isEnabled: true,
+    };
+    const updated: StorePaymentConfig = {
+      ...paymentConfig,
+      customMethods: [...paymentConfig.customMethods, newMethod],
+    };
+    handleSavePaymentConfig(updated);
+    setNewMethodName("");
+    setNewMethodDesc("");
+    setNewMethodRequiresRef(true);
+    setNewMethodRefPlaceholder("");
+  };
+
+  const handleToggleCustomMethod = (id: string, isEnabled: boolean) => {
+    const updated: StorePaymentConfig = {
+      ...paymentConfig,
+      customMethods: paymentConfig.customMethods.map((m) =>
+        m.id === id ? { ...m, isEnabled } : m
+      ),
+    };
+    handleSavePaymentConfig(updated);
+  };
+
+  const handleDeleteCustomMethod = (id: string) => {
+    const updated: StorePaymentConfig = {
+      ...paymentConfig,
+      defaultMethod: paymentConfig.defaultMethod === id ? "cash" : paymentConfig.defaultMethod,
+      customMethods: paymentConfig.customMethods.filter((m) => m.id !== id),
+    };
+    handleSavePaymentConfig(updated);
+  };
 
   const handleTestEmail = async () => {
     if (!testEmailAddress.trim() || !testEmailAddress.includes("@")) {
@@ -1297,6 +1366,200 @@ function AdminSettings() {
         </CardContent>
       </Card>
       )
+    },
+    {
+      id: "pos_payments",
+      tab: "payments" as const,
+      tabLabel: "Payments & Tax",
+      title: "POS Counter Payment Methods & Tenders (Store-Isolated)",
+      description: "Default checkout tender selection and custom payment modes (Sodexo, Khata, Swiggy POS, Cheque) isolated per tenant store.",
+      keywords: ["pos payment", "tender", "sodexo", "khata", "credit", "custom payment", "default payment", "payment method", "pos tender", "split payment"],
+      content: (
+        <Card className="mt-4 border-primary/40 shadow-xs">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CreditCard className="size-5 text-primary" />
+                  POS Counter Payment Tenders &amp; Custom Methods
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Tenant-isolated payment modes. Default tender is pre-selected on the counter billing drawer.
+                </p>
+              </div>
+              <Badge variant="outline" className="text-xs font-mono">
+                Store ID: {tenant.tenantId}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Default Method Selector */}
+            <div className="p-4 rounded-2xl bg-muted/40 border border-border/80 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <Label className="text-xs font-bold text-foreground">Default POS Counter Payment Tender</Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Pre-selected payment method when opening the counter bill drawer for fast 1-click checkout.
+                  </p>
+                </div>
+                <div className="w-full sm:w-56">
+                  <select
+                    value={paymentConfig.defaultMethod}
+                    onChange={(e) => {
+                      const updated = { ...paymentConfig, defaultMethod: e.target.value };
+                      handleSavePaymentConfig(updated);
+                    }}
+                    className="flex h-9 w-full rounded-xl border border-input bg-background px-3 py-1 text-xs font-bold shadow-xs focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="cash">Cash (Default)</option>
+                    <option value="upi">UPI QR Payment</option>
+                    <option value="card">Card Swipe</option>
+                    <option value="split">Split Tender</option>
+                    {paymentConfig.customMethods
+                      .filter((m) => m.isEnabled)
+                      .map((cm) => (
+                        <option key={cm.id} value={cm.id}>
+                          {cm.name} (Custom)
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Custom Payment Methods List */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-bold text-foreground">Store Custom Payment Methods</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Define client-specific tenders like Sodexo/Pluxee, Khata/Store Credit, Swiggy POS, Cheques, etc.
+                  </p>
+                </div>
+                <Badge variant="secondary" className="text-xs font-bold">
+                  {paymentConfig.customMethods.length} Configured
+                </Badge>
+              </div>
+
+              <div className="space-y-2">
+                {paymentConfig.customMethods.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-muted-foreground border border-dashed rounded-2xl">
+                    No custom payment methods defined. Add one below to offer custom billing tenders at the counter.
+                  </div>
+                ) : (
+                  paymentConfig.customMethods.map((cm) => (
+                    <div
+                      key={cm.id}
+                      className={`p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                        cm.isEnabled ? "bg-card border-border/80 shadow-2xs" : "bg-muted/20 border-dashed opacity-60"
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-xs text-foreground">{cm.name}</span>
+                          {cm.requiresRef && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/40 text-primary">
+                              Ref Slip Mandatory
+                            </Badge>
+                          )}
+                          {paymentConfig.defaultMethod === cm.id && (
+                            <Badge className="bg-primary/20 text-primary hover:bg-primary/30 text-[10px] px-1.5 py-0">
+                              Default Tender
+                            </Badge>
+                          )}
+                        </div>
+                        {cm.description && (
+                          <p className="text-[11px] text-muted-foreground">{cm.description}</p>
+                        )}
+                        <p className="text-[10px] font-mono text-muted-foreground">
+                          ID: <code className="text-foreground">{cm.id}</code> • Placeholder: "{cm.refPlaceholder || 'Ref #'}"
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-muted-foreground">
+                            {cm.isEnabled ? "Active" : "Disabled"}
+                          </span>
+                          <Switch
+                            checked={cm.isEnabled}
+                            onCheckedChange={(checked) => handleToggleCustomMethod(cm.id, checked)}
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteCustomMethod(cm.id)}
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive rounded-xl"
+                          title="Delete payment method"
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Add New Custom Payment Method Form */}
+            <div className="p-4 rounded-2xl border border-primary/20 bg-primary/5 space-y-3.5">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                <Sparkles className="size-3.5" />
+                Add New Custom Payment Tender
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Payment Tender Name *</Label>
+                  <Input
+                    placeholder="e.g. Sodexo / Pluxee, Swiggy POS, Cheque"
+                    value={newMethodName}
+                    onChange={(e) => setNewMethodName(e.target.value)}
+                    className="h-8.5 rounded-xl text-xs bg-background"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Description / Instruction</Label>
+                  <Input
+                    placeholder="e.g. Meal card / customer credit account"
+                    value={newMethodDesc}
+                    onChange={(e) => setNewMethodDesc(e.target.value)}
+                    className="h-8.5 rounded-xl text-xs bg-background"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Reference / Slip Field Placeholder</Label>
+                  <Input
+                    placeholder="e.g. Card Slip # / Khata Mobile #"
+                    value={newMethodRefPlaceholder}
+                    onChange={(e) => setNewMethodRefPlaceholder(e.target.value)}
+                    className="h-8.5 rounded-xl text-xs bg-background"
+                  />
+                </div>
+                <div className="flex items-center justify-between p-2 rounded-xl bg-background border border-border/80 self-end h-8.5">
+                  <span className="text-xs font-medium">Require Ref # before billing</span>
+                  <Switch
+                    checked={newMethodRequiresRef}
+                    onCheckedChange={setNewMethodRequiresRef}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end pt-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleAddCustomMethod}
+                  className="rounded-xl h-8 text-xs font-bold gap-1.5 px-4"
+                >
+                  <Sparkles className="size-3.5" />
+                  Add Custom Payment Tender
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ),
     },
     {
       id: "legal_tax",

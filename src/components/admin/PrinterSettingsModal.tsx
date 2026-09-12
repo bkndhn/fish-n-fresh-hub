@@ -215,12 +215,13 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
               <Label className="text-[11px] font-bold">Printer Connection</Label>
               <Select
                 value={config.type}
-                onValueChange={(v) => setConfig({ ...config, type: v as "bluetooth" | "serial_usb" | "network_ip" | "browser_print" })}
+                onValueChange={(v) => setConfig({ ...config, type: v as any })}
               >
                 <SelectTrigger className="rounded-xl h-8 text-xs font-semibold">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
+                  <SelectItem value="none">No Physical Printer (Headless Sound Only)</SelectItem>
                   <SelectItem value="browser_print">Universal Browser Print (All Printers)</SelectItem>
                   <SelectItem value="bluetooth">Bluetooth ESC/POS (BLE Mobile/Tablet)</SelectItem>
                   <SelectItem value="serial_usb">USB Serial ESC/POS (Desktop Windows)</SelectItem>
