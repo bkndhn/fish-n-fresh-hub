@@ -1517,14 +1517,27 @@ function AdminSettings() {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3">
             <div className="space-y-0.5">
-              <Label className="text-sm font-semibold">Enable FreshCash Wallet & Referral Program</Label>
+              <Label className="text-sm font-semibold">Enable FreshCash Loyalty Wallet</Label>
               <p className="text-xs text-muted-foreground">
-                When enabled, customers get personal invite codes, cashback on delivered orders, and can redeem balance at checkout.
+                When enabled, customers get cashback credited on delivered orders, and can redeem balance at checkout.
               </p>
             </div>
             <Switch
               checked={form.wallet_enabled ?? true}
               onCheckedChange={(val) => setForm({ ...form, wallet_enabled: val })}
+            />
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-semibold">Customer Refer & Earn Program</Label>
+              <p className="text-xs text-muted-foreground">
+                When turned OFF, all referral modals, invite chips, account referral cards, and checkout invite code inputs are completely hidden from customers.
+              </p>
+            </div>
+            <Switch
+              checked={((form as any).referral_program_enabled ?? form.wallet_enabled) ?? true}
+              onCheckedChange={(val) => setForm({ ...form, referral_program_enabled: val } as any)}
             />
           </div>
 

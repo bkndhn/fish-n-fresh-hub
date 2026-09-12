@@ -239,13 +239,15 @@ function RealtimeSubscriber({ queryClient }: { queryClient: QueryClient }) {
         const isGlobal = payload.scope === "global";
         const isTargetUser = payload.scope === "user" && payload.target_id === currentUserId;
         const isTargetBranch = payload.scope === "branch" && payload.target_id === adminBranch;
+        const currentTenant = typeof window !== "undefined" ? (localStorage.getItem("fnf_client_tenant_id") || "FNF-MAIN") : "FNF-MAIN";
+        const isTargetClient = payload.scope === "client" && (payload.target_id === currentTenant || payload.target_id === "all");
 
-        if (isGlobal || isTargetUser || isTargetBranch) {
+        if (isGlobal || isTargetUser || isTargetBranch || isTargetClient) {
           await supabase.auth.signOut();
           localStorage.removeItem("fnf_phone");
           localStorage.removeItem("fnf_admin_selected_branch");
           window.location.href = "/auth?revocation=1";
-          alert(`Security Notice: Platform Administrator triggered an emergency session reset.\nReason: ${payload.reason || "Security maintenance"}`);
+          alert(`Security Notice: Platform Administrator triggered an emergency session reset for your organization.\nReason: ${payload.reason || "Security policy enforcement"}`);
         }
       })
       .subscribe();

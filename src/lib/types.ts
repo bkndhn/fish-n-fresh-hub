@@ -10,6 +10,17 @@
 import type { Database } from '@/integrations/supabase/types';
 export type SiteSettings = Database['public']['Tables']['store_settings']['Row'];
 
+/**
+ * Checks whether the Refer & Earn customer program is currently active.
+ * Controlled by the client admin in Settings.
+ */
+export function isReferralProgramActive(settings?: Partial<SiteSettings> | null): boolean {
+  if (!settings) return true;
+  if ((settings as any).referral_program_enabled === false) return false;
+  if (settings.wallet_enabled === false) return false;
+  return true;
+}
+
 
 /**
  * 2D Matrix Product Variant for size, color, SKU, and barcode.

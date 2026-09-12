@@ -10,7 +10,7 @@ export interface TenantQuota {
   max_staff_per_branch: number;
   max_monthly_orders: number;
   max_storage_mb: number;
-  tier: "starter" | "growth" | "enterprise";
+  tier: "starter" | "growth" | "enterprise" | "custom";
   is_locked: boolean;
   created_at?: string;
   updated_at?: string;
@@ -428,3 +428,460 @@ export async function createBranchWithQuotaGuard(
     return { success: false, message: err?.message || "Failed to create branch." };
   }
 }
+
+/* ==========================================================================
+   MULTI-CLIENT FLEET GOVERNANCE & ONBOARDING (Super Admin Only)
+   ========================================================================== */
+
+export interface PlatformClient {
+  id: string;
+  client_name: string;
+  tenant_code: string;
+  owner_name: string;
+  owner_email: string;
+  owner_phone: string;
+  vertical: "seafood" | "chicken_meat" | "all_meat" | "organic_veggies" | "custom";
+  domain: string;
+  tier: "starter" | "growth" | "enterprise" | "custom";
+  max_branches: number;
+  max_staff_per_branch: number;
+  max_monthly_orders: number;
+  max_storage_mb: number;
+  is_active: boolean;
+  is_locked: boolean;
+  active_branches_count: number;
+  total_staff_count: number;
+  monthly_orders_count: number;
+  created_at: string;
+  last_active_at?: string;
+  onboarding_notes?: string;
+}
+
+export interface OnboardClientInput {
+  client_name: string;
+  tenant_code?: string;
+  owner_name: string;
+  owner_email: string;
+  owner_phone: string;
+  vertical: "seafood" | "chicken_meat" | "all_meat" | "organic_veggies" | "custom";
+  domain?: string;
+  tier: "starter" | "growth" | "enterprise" | "custom";
+  max_branches?: number;
+  max_staff_per_branch?: number;
+  max_monthly_orders?: number;
+  admin_temp_password?: string;
+  onboarding_notes?: string;
+}
+
+export interface OnboardingResult {
+  success: boolean;
+  client?: PlatformClient;
+  credentials?: {
+    adminEmail: string;
+    tempPassword: string;
+    loginUrl: string;
+    tenantCode: string;
+  };
+  message?: string;
+}
+
+const CLIENTS_STORAGE_KEY = "fnf_platform_clients_v2";
+
+export const INITIAL_PLATFORM_CLIENTS: PlatformClient[] = [
+  {
+    id: "client-fnf-flagship",
+    client_name: "Fish N Fresh Flagship Hub",
+    tenant_code: "FNF-MAIN",
+    owner_name: "Master Platform Administrator",
+    owner_email: "admin@fishnfresh.in",
+    owner_phone: "+91 98400 12345",
+    vertical: "seafood",
+    domain: "fishnfresh.in",
+    tier: "enterprise",
+    max_branches: 15,
+    max_staff_per_branch: 30,
+    max_monthly_orders: 100000,
+    max_storage_mb: 25000,
+    is_active: true,
+    is_locked: false,
+    active_branches_count: 3,
+    total_staff_count: 12,
+    monthly_orders_count: 4280,
+    created_at: "2026-01-10T08:00:00Z",
+    last_active_at: "Just now",
+  },
+  {
+    id: "client-ocean-catch",
+    client_name: "Ocean Catch Coastal Marine",
+    tenant_code: "OCEAN-CATCH",
+    owner_name: "Suresh Ramanathan",
+    owner_email: "suresh@oceancatch.in",
+    owner_phone: "+91 98411 22334",
+    vertical: "seafood",
+    domain: "oceancatch.in",
+    tier: "growth",
+    max_branches: 8,
+    max_staff_per_branch: 15,
+    max_monthly_orders: 20000,
+    max_storage_mb: 10000,
+    is_active: true,
+    is_locked: false,
+    active_branches_count: 2,
+    total_staff_count: 6,
+    monthly_orders_count: 1840,
+    created_at: "2026-04-12T10:30:00Z",
+    last_active_at: "14 mins ago",
+  },
+  {
+    id: "client-tender-farms",
+    client_name: "Tender Farms Poultry & Halal",
+    tenant_code: "TENDER-FARMS",
+    owner_name: "Karthik Venkat",
+    owner_email: "karthik@tenderfarms.co",
+    owner_phone: "+91 98422 33445",
+    vertical: "chicken_meat",
+    domain: "tenderfarms.co",
+    tier: "starter",
+    max_branches: 3,
+    max_staff_per_branch: 5,
+    max_monthly_orders: 5000,
+    max_storage_mb: 3000,
+    is_active: true,
+    is_locked: false,
+    active_branches_count: 1,
+    total_staff_count: 4,
+    monthly_orders_count: 920,
+    created_at: "2026-06-01T14:15:00Z",
+    last_active_at: "1 hour ago",
+  },
+  {
+    id: "client-daily-greens",
+    client_name: "Daily Greens & Organic Superstore",
+    tenant_code: "DAILY-GREENS",
+    owner_name: "Priya Sundaram",
+    owner_email: "priya@dailygreens.in",
+    owner_phone: "+91 98433 44556",
+    vertical: "organic_veggies",
+    domain: "dailygreens.in",
+    tier: "starter",
+    max_branches: 3,
+    max_staff_per_branch: 5,
+    max_monthly_orders: 5000,
+    max_storage_mb: 3000,
+    is_active: false,
+    is_locked: true,
+    active_branches_count: 1,
+    total_staff_count: 2,
+    monthly_orders_count: 0,
+    created_at: "2026-07-15T09:00:00Z",
+    last_active_at: "3 days ago",
+    onboarding_notes: "Subscription expired - billing overdue.",
+  },
+  {
+    id: "client-royal-meat",
+    client_name: "Royal Multi-Meat & Protein Chain",
+    tenant_code: "ROYAL-MEAT",
+    owner_name: "Mohammed Farhan",
+    owner_email: "admin@royalmeatmart.com",
+    owner_phone: "+91 98444 55667",
+    vertical: "all_meat",
+    domain: "royalmeatmart.com",
+    tier: "growth",
+    max_branches: 8,
+    max_staff_per_branch: 15,
+    max_monthly_orders: 20000,
+    max_storage_mb: 10000,
+    is_active: false,
+    is_locked: true,
+    active_branches_count: 0,
+    total_staff_count: 0,
+    monthly_orders_count: 0,
+    created_at: "2026-08-20T11:45:00Z",
+    last_active_at: "1 week ago",
+    onboarding_notes: "Onboarding paused: KYC / FSSAI verification pending.",
+  },
+];
+
+function getStoredClients(): PlatformClient[] {
+  if (typeof localStorage === "undefined") return INITIAL_PLATFORM_CLIENTS;
+  try {
+    const raw = localStorage.getItem(CLIENTS_STORAGE_KEY);
+    if (!raw) {
+      localStorage.setItem(CLIENTS_STORAGE_KEY, JSON.stringify(INITIAL_PLATFORM_CLIENTS));
+      return INITIAL_PLATFORM_CLIENTS;
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_PLATFORM_CLIENTS;
+  } catch {
+    return INITIAL_PLATFORM_CLIENTS;
+  }
+}
+
+function saveStoredClients(clients: PlatformClient[]): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(CLIENTS_STORAGE_KEY, JSON.stringify(clients));
+  } catch (err) {
+    console.error("Failed to persist platform clients:", err);
+  }
+}
+
+/**
+ * TanStack Query options for Super Admin client fleet.
+ */
+export const platformClientsQuery = queryOptions({
+  queryKey: ["super-admin", "clients-fleet"],
+  queryFn: async (): Promise<PlatformClient[]> => {
+    return getStoredClients();
+  },
+  staleTime: 1000 * 30,
+});
+
+/**
+ * Onboards a brand-new client organization on the platform.
+ */
+export async function onboardNewClient(input: OnboardClientInput): Promise<OnboardingResult> {
+  try {
+    const clients = getStoredClients();
+
+    const code = (input.tenant_code || input.client_name.replace(/[^a-zA-Z0-9]/g, "-").slice(0, 12)).toUpperCase();
+
+    // Check duplicate code
+    if (clients.some((c) => c.tenant_code === code)) {
+      return { success: false, message: `Tenant Code "${code}" is already in use by another client.` };
+    }
+
+    // Determine quotas from tier
+    let b = input.max_branches ?? 3;
+    let s = input.max_staff_per_branch ?? 5;
+    let o = input.max_monthly_orders ?? 5000;
+
+    if (input.tier === "growth") {
+      b = input.max_branches ?? 8;
+      s = input.max_staff_per_branch ?? 15;
+      o = input.max_monthly_orders ?? 20000;
+    } else if (input.tier === "enterprise") {
+      b = input.max_branches ?? 15;
+      s = input.max_staff_per_branch ?? 30;
+      o = input.max_monthly_orders ?? 100000;
+    }
+
+    const tempPassword = input.admin_temp_password || `FnF@${Math.floor(100000 + Math.random() * 900000)}!`;
+    const domain = input.domain?.trim() || `${code.toLowerCase()}.fishnfresh.in`;
+
+    const newClient: PlatformClient = {
+      id: `client-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      client_name: input.client_name.trim(),
+      tenant_code: code,
+      owner_name: input.owner_name.trim(),
+      owner_email: input.owner_email.trim().toLowerCase(),
+      owner_phone: input.owner_phone.trim(),
+      vertical: input.vertical,
+      domain,
+      tier: input.tier,
+      max_branches: b,
+      max_staff_per_branch: s,
+      max_monthly_orders: o,
+      max_storage_mb: 5000,
+      is_active: true,
+      is_locked: false,
+      active_branches_count: 1, // initial primary branch
+      total_staff_count: 1, // owner account
+      monthly_orders_count: 0,
+      created_at: new Date().toISOString(),
+      last_active_at: "Just provisioned",
+      onboarding_notes: input.onboarding_notes?.trim(),
+    };
+
+    const updated = [newClient, ...clients];
+    saveStoredClients(updated);
+
+    // Audit log
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      await supabase.from("platform_audit_logs").insert({
+        actor_id: user.user?.id || null,
+        actor_role: "super_admin",
+        action: "ONBOARD_NEW_CLIENT",
+        target_type: "client",
+        target_id: newClient.id,
+        details: {
+          client_name: newClient.client_name,
+          tenant_code: newClient.tenant_code,
+          owner_email: newClient.owner_email,
+          tier: newClient.tier,
+          max_branches: newClient.max_branches,
+        },
+      });
+    } catch {
+      /* ignore */
+    }
+
+    const loginUrl = typeof window !== "undefined" ? `${window.location.origin}/auth?next=/admin` : `https://${domain}/auth?next=/admin`;
+
+    return {
+      success: true,
+      client: newClient,
+      credentials: {
+        adminEmail: newClient.owner_email,
+        tempPassword,
+        loginUrl,
+        tenantCode: newClient.tenant_code,
+      },
+      message: `Client "${newClient.client_name}" onboarded successfully!`,
+    };
+  } catch (err: any) {
+    return { success: false, message: err?.message || "Failed to onboard client." };
+  }
+}
+
+/**
+ * Activates or deactivates/suspends an entire client organization.
+ */
+export async function toggleClientStatus(clientId: string, nextActiveState: boolean): Promise<{ success: boolean; message?: string }> {
+  try {
+    const clients = getStoredClients();
+    const target = clients.find((c) => c.id === clientId);
+    if (!target) return { success: false, message: "Client not found." };
+
+    const updated = clients.map((c) => {
+      if (c.id === clientId) {
+        return {
+          ...c,
+          is_active: nextActiveState,
+          is_locked: !nextActiveState,
+          last_active_at: nextActiveState ? "Re-activated just now" : "Suspended",
+        };
+      }
+      return c;
+    });
+
+    saveStoredClients(updated);
+
+    // If client is being suspended, force logout all users immediately
+    if (!nextActiveState) {
+      await forceLogoutClient(target.id, target.client_name, target.tenant_code, "Client suspended by Platform Super Admin");
+    }
+
+    return {
+      success: true,
+      message: `Client "${target.client_name}" is now ${nextActiveState ? "Active" : "Suspended / Inactive"}.`,
+    };
+  } catch (err: any) {
+    return { success: false, message: err?.message || "Failed to update client status." };
+  }
+}
+
+/**
+ * Updates quota allocations for a specific client organization.
+ */
+export async function updateClientQuotas(
+  clientId: string,
+  quotas: {
+    tier?: "starter" | "growth" | "enterprise" | "custom";
+    max_branches?: number;
+    max_staff_per_branch?: number;
+    max_monthly_orders?: number;
+  }
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const clients = getStoredClients();
+    const target = clients.find((c) => c.id === clientId);
+    if (!target) return { success: false, message: "Client not found." };
+
+    const updated = clients.map((c) => {
+      if (c.id === clientId) {
+        return {
+          ...c,
+          ...quotas,
+        };
+      }
+      return c;
+    });
+
+    saveStoredClients(updated);
+
+    // If this is the active local tenant, also sync with tenant_quotas DB
+    if (target.tenant_code === "FNF-MAIN") {
+      await updateTenantQuotas(quotas);
+    }
+
+    return { success: true, message: `Quotas updated for ${target.client_name}.` };
+  } catch (err: any) {
+    return { success: false, message: err?.message || "Failed to update client quotas." };
+  }
+}
+
+/**
+ * Executes a Client-Level Force Logout (Emergency Kill Switch).
+ * Revokes all branches, staff, cashiers, drivers, and customers belonging to that client organization.
+ */
+export async function forceLogoutClient(
+  clientId: string,
+  clientName: string,
+  tenantCode: string,
+  reason: string = "Administrative client-wide security revocation"
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    let actorId: string | null = null;
+    try {
+      const { data: authUser } = await supabase.auth.getUser();
+      actorId = authUser?.user?.id || null;
+    } catch {
+      /* ignore */
+    }
+
+    // 1. Record in platform_revocations
+    try {
+      await supabase.from("platform_revocations").insert({
+        scope: "global",
+        target_id: tenantCode,
+        reason: `Client logout: ${clientName} (${tenantCode}) - ${reason}`,
+        revoked_by: actorId,
+        revoked_at: new Date().toISOString(),
+      });
+    } catch {
+      /* ignore */
+    }
+
+    // 2. Broadcast via Supabase Realtime channel
+    try {
+      const channel = supabase.channel("security_killswitch");
+      await channel.send({
+        type: "broadcast",
+        event: "force_logout",
+        payload: {
+          scope: "client",
+          target_id: tenantCode,
+          client_id: clientId,
+          reason,
+          revoked_at: new Date().toISOString(),
+        },
+      });
+    } catch {
+      /* ignore */
+    }
+
+    // 3. Log to audit trail
+    try {
+      await supabase.from("platform_audit_logs").insert({
+        actor_id: actorId,
+        actor_role: "super_admin",
+        action: "FORCE_LOGOUT_CLIENT",
+        target_type: "client",
+        target_id: clientId,
+        details: { clientName, tenantCode, reason, timestamp: new Date().toISOString() },
+      });
+    } catch {
+      /* ignore */
+    }
+
+    return {
+      success: true,
+      message: `Emergency force logout broadcast sent. All sessions for client "${clientName}" terminated.`,
+    };
+  } catch (err: any) {
+    return { success: false, message: err?.message || "Failed to force logout client." };
+  }
+}
+

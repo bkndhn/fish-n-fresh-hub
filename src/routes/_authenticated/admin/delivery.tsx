@@ -33,6 +33,8 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
+import { settingsQuery } from "@/lib/queries";
+import { shareInvoiceToWhatsApp } from "@/lib/invoicePdf";
 import { DeliveryPinVerificationModal } from "@/components/DeliveryPinVerificationModal";
 import {
   Dialog,
@@ -107,6 +109,7 @@ function DeliveryTracking() {
 
   const roles = useQuery(myRolesQuery);
   const isAdmin = (roles.data ?? []).includes("admin");
+  const { data: settings } = useQuery(settingsQuery);
   const refundFn = useServerFn(cancelAndRefundOrder);
 
   const refund = useMutation({
@@ -602,6 +605,21 @@ function DeliveryTracking() {
                   >
                     <WhatsAppIcon className="size-3.5" /> WhatsApp Update
                   </Button>
+
+                  {selected.status === "delivered" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-xl h-8 text-xs font-bold gap-1.5 text-[#25D366] border-[#25D366]/40 hover:bg-[#25D366]/10"
+                      onClick={() => {
+                        shareInvoiceToWhatsApp(selected, settings);
+                        toast.success("Opening WhatsApp with digital GST Tax Invoice!");
+                      }}
+                      title="Share official Tax Invoice to customer WhatsApp"
+                    >
+                      <WhatsAppIcon className="size-3.5" /> Share Tax Invoice
+                    </Button>
+                  )}
 
                   {selected.customer_address && (
                     <Button

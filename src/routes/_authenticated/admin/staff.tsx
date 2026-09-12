@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { KeyRound, Loader2, UserPlus } from "lucide-react";
+import { KeyRound, Loader2, UserPlus, AlertTriangle, ShieldCheck } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,7 @@ import {
   type StaffMember,
 } from "@/lib/staff.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { tenantQuotasQuery, checkStaffQuotaAvailable } from "@/lib/superAdmin";
 
 export const Route = createFileRoute("/_authenticated/admin/staff")({
   head: () => ({
@@ -227,7 +228,13 @@ function StaffPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const { data: quotas } = useQuery(tenantQuotasQuery);
+  const activeHubs = Math.max(1, branches.filter((b) => b.is_active).length);
+  const maxStaffPerHub = quotas?.max_staff_per_branch ?? 15;
+  const totalMaxStaffSeats = maxStaffPerHub * activeHubs;
   const members = staffQuery.data ?? [];
+  const staffQuotaCheck = checkStaffQuotaAvailable(members.length, totalMaxStaffSeats);
+  const isTenantLocked = quotas?.is_locked ?? false;
 
   return (
     <AdminShell title="Team & roles">
@@ -235,14 +242,43 @@ function StaffPage() {
         <div className="space-y-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Invite a teammate</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Invite a teammate</CardTitle>
+              <Badge
+                variant="outline"
+                className={
+                  staffQuotaCheck.allowed
+                    ? "border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-[10px]"
+                    : "border-destructive text-destructive text-[10px]"
+                }
+              >
+                {members.length} / {totalMaxStaffSeats} Seats Used
+              </Badge>
+            </div>
             <CardDescription>They get their own login with the role you pick.</CardDescription>
           </CardHeader>
           <CardContent>
+            {!staffQuotaCheck.allowed && (
+              <div className="mb-3 rounded-xl border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive flex items-start gap-2">
+                <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                <div>
+                  <strong>Staff Seat Quota Reached:</strong> Your organization has allocated all {totalMaxStaffSeats} team member seats permitted under your current plan ({quotas?.tier || "Enterprise"}). Contact your Platform Super Admin to increase staff capacity.
+                </div>
+              </div>
+            )}
+            {isTenantLocked && (
+              <div className="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-800 dark:text-amber-300">
+                <strong>Tenant Locked:</strong> Staff provisioning is temporarily paused by Platform Super Admin.
+              </div>
+            )}
             <form
               className="space-y-3"
               onSubmit={(e) => {
                 e.preventDefault();
+                if (!staffQuotaCheck.allowed) {
+                  toast.error(staffQuotaCheck.message || "Staff quota limit reached");
+                  return;
+                }
                 inviteMutation.mutate({ email, fullName, role });
               }}
             >
@@ -366,7 +402,7 @@ function StaffPage() {
                   )}
                 </div>
               )}
-              <Button type="submit" className="w-full" disabled={inviteMutation.isPending}>
+              <Button type="submit" className="w-full" disabled={inviteMutation.isPending || !staffQuotaCheck.allowed || isTenantLocked}>
                 {inviteMutation.isPending ? (
                   <Loader2 className="mr-1.5 size-4 animate-spin" />
                 ) : (
@@ -380,7 +416,19 @@ function StaffPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Create an account with a password</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Create an account with a password</CardTitle>
+              <Badge
+                variant="outline"
+                className={
+                  staffQuotaCheck.allowed
+                    ? "border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-[10px]"
+                    : "border-destructive text-destructive text-[10px]"
+                }
+              >
+                {members.length} / {totalMaxStaffSeats} Seats
+              </Badge>
+            </div>
             <CardDescription>
               No email needed — set the password yourself and hand it to your driver or staff member.
             </CardDescription>
@@ -390,6 +438,10 @@ function StaffPage() {
               className="space-y-3"
               onSubmit={(e) => {
                 e.preventDefault();
+                if (!staffQuotaCheck.allowed) {
+                  toast.error(staffQuotaCheck.message || "Staff quota limit reached");
+                  return;
+                }
                 createMutation.mutate({
                   email: newEmail,
                   password: newPassword,
@@ -484,7 +536,7 @@ function StaffPage() {
                 </Select>
                 <p className="text-xs text-muted-foreground">{ROLE_HINT[newRole]}</p>
               </div>
-              <Button type="submit" className="w-full" disabled={createMutation.isPending}>
+              <Button type="submit" className="w-full" disabled={createMutation.isPending || !staffQuotaCheck.allowed || isTenantLocked}>
                 {createMutation.isPending ? (
                   <Loader2 className="mr-1.5 size-4 animate-spin" />
                 ) : (

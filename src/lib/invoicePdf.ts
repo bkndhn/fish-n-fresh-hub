@@ -515,3 +515,60 @@ export function printOrDownloadTaxInvoice(data: TaxInvoiceData): void {
     }, 250);
   };
 }
+
+/**
+ * Formats a clean, professional WhatsApp Tax Invoice message with item breakdown and direct PDF link.
+ */
+export function formatWhatsAppInvoiceText(order: any, settings?: any): string {
+  const storeName = settings?.firm_name || settings?.store_name || "Fish N Fresh Seafood Hub";
+  const ref = order.order_number || order.id.slice(0, 8);
+  const total = Number(order.total || 0).toLocaleString("en-IN", { style: "currency", currency: "INR" });
+  const paymentMethod = (order.payment_method || "Online").toUpperCase();
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const invoiceLink = `${origin}/orders?invoice=${order.id}`;
+
+  const itemsList = (order.items || [])
+    .slice(0, 5)
+    .map((item: any) => `• ${item.name || item.product_name} (${item.qty} ${item.unit || "pack"}) - ₹${item.price * item.qty}`)
+    .join("\n");
+
+  const moreItemsText = (order.items || []).length > 5 ? `\n...and ${(order.items || []).length - 5} more item(s)` : "";
+
+  return `🧾 *OFFICIAL GST TAX INVOICE* — ${storeName}
+━━━━━━━━━━━━━━━━━━
+Hello *${order.customer_name}*, thank you for shopping with us! Your fresh order has been successfully delivered.
+
+📦 *Order / Invoice:* #${ref}
+📅 *Delivered:* ${new Date(order.delivered_at || order.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+💳 *Payment:* ${paymentMethod} (${order.payment_status === "paid" ? "Paid ✅" : "Collected at Doorstep ✅"})
+💰 *Total Amount:* ${total}
+
+📋 *Order Summary:*
+${itemsList}${moreItemsText}
+
+📄 *Download Digital Tax Invoice (PDF):*
+${invoiceLink}
+${settings?.gstin ? `\n🏢 GSTIN: ${settings.gstin}` : ""}${settings?.fssai_license_no || settings?.fssai_number ? `\n📜 FSSAI: ${settings.fssai_license_no || settings.fssai_number}` : ""}
+
+100% Chemical-free, harbour-fresh seafood. Customer Care: ${settings?.contact_phone || settings?.support_phone || "+91 98400 12345"}`;
+}
+
+/**
+ * Triggers WhatsApp Invoice sharing via deep link (manual) or automated API.
+ */
+export function shareInvoiceToWhatsApp(
+  order: any,
+  settings?: any
+): { url: string; opened: boolean } {
+  const text = formatWhatsAppInvoiceText(order, settings);
+  const phone = (order.customer_phone || "").replace(/\D/g, "");
+  const to = phone.length === 10 ? `91${phone}` : phone;
+  const deepLink = `https://wa.me/${to}?text=${encodeURIComponent(text)}`;
+
+  if (typeof window !== "undefined") {
+    window.open(deepLink, "_blank", "noopener,noreferrer");
+  }
+
+  return { url: deepLink, opened: true };
+}
+

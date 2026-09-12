@@ -17,6 +17,7 @@ import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { ReferralModal } from "@/components/ReferralModal";
 import { getVerticalConfig } from "@/lib/verticals";
 import { getDailyAtmosphere, isDailyAtmosphereEnabled } from "@/lib/dailyAtmosphere";
+import { isReferralProgramActive } from "@/lib/types";
 
 declare global {
   interface Navigator {
@@ -226,7 +227,7 @@ export function SiteHeader() {
             </Link>
 
 
-            <ReferralModal />
+            {isReferralProgramActive(settings) && <ReferralModal />}
 
             {/* Install PWA button (hidden when already in standalone mode) */}
             {!isStandalone && (

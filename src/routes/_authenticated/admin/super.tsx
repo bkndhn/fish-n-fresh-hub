@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   ShieldAlert,
   ShieldCheck,
@@ -23,758 +23,1272 @@ import {
   Sliders,
   Sparkles,
   Search,
+  Building2,
+  Globe,
+  Mail,
+  Phone,
+  Copy,
+  Check,
+  LogOut,
+  ExternalLink,
+  ChevronRight,
+  Filter,
+  UserCheck,
+  Clock,
+  ShieldX,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { myRolesQuery } from "@/lib/admin";
-import { branchesQuery, type Branch } from "@/lib/multiBranch";
 import {
-  tenantQuotasQuery,
-  platformRevocationsQuery,
+  platformClientsQuery,
   platformAuditLogsQuery,
-  superAdminStatsQuery,
-  updateTenantQuotas,
+  platformRevocationsQuery,
+  onboardNewClient,
+  toggleClientStatus,
+  updateClientQuotas,
+  forceLogoutClient,
   executeKillSwitch,
-  checkBranchQuotaAvailable,
-  type TenantQuota,
+  type PlatformClient,
+  type OnboardClientInput,
 } from "@/lib/superAdmin";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Switch } from "@/components/ui/switch";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/super")({
   head: () => ({
     meta: [
-      { title: "Super Admin Governance | Fish N Fresh" },
-      { name: "description", content: "Master governance, tenant quotas, emergency kill switch, and anti-takeover control." },
+      { title: "Super Admin Platform Governance | Fish N Fresh" },
+      { name: "description", content: "Master platform client management, multi-client onboarding, quota enforcement, and emergency kill switch." },
     ],
   }),
   component: SuperAdminDashboard,
 });
 
+const VERTICAL_LABELS: Record<string, { label: string; color: string }> = {
+  seafood: { label: "Coastal Seafood & Fish", color: "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300" },
+  chicken_meat: { label: "Poultry & Halal Mutton", color: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300" },
+  all_meat: { label: "Multi-Meat Superstore", color: "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300" },
+  organic_veggies: { label: "Organic Produce & Greens", color: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" },
+  custom: { label: "Custom Vertical", color: "border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300" },
+};
+
 function SuperAdminDashboard() {
   const qc = useQueryClient();
   const navigate = useNavigate();
 
-  // Role verification
-  const { data: myRoles = [], isLoading: rolesLoading } = useQuery(myRolesQuery);
-  const isSuperAdmin = myRoles.includes("super_admin") || myRoles.includes("admin");
+  // Role verification - strictly super_admin
+  const { data: myRoles = [] } = useQuery(myRolesQuery);
+  const isSuperAdmin = myRoles.includes("super_admin");
 
   // Platform queries
-  const { data: stats, isLoading: statsLoading } = useQuery(superAdminStatsQuery);
-  const { data: quotas, isLoading: quotasLoading } = useQuery(tenantQuotasQuery);
-  const { data: branches = [] } = useQuery(branchesQuery);
-  const { data: revocations = [] } = useQuery(platformRevocationsQuery);
+  const { data: clients = [], isLoading: clientsLoading } = useQuery(platformClientsQuery);
   const { data: auditLogs = [] } = useQuery(platformAuditLogsQuery);
+  const { data: revocations = [] } = useQuery(platformRevocationsQuery);
 
-  // Quota editor state
-  const [maxBranchesInput, setMaxBranchesInput] = useState<number | null>(null);
-  const [maxStaffInput, setMaxStaffInput] = useState<number | null>(null);
-  const [maxOrdersInput, setMaxOrdersInput] = useState<number | null>(null);
+  // Filter & Search states
+  const [activeTab, setActiveTab] = useState<"active" | "inactive" | "audit">("active");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [verticalFilter, setVerticalFilter] = useState<string>("all");
+
+  // Onboarding Modal State
+  const [onboardModalOpen, setOnboardModalOpen] = useState(false);
+  const [onboardForm, setOnboardForm] = useState<OnboardClientInput>({
+    client_name: "",
+    tenant_code: "",
+    owner_name: "",
+    owner_email: "",
+    owner_phone: "",
+    vertical: "seafood",
+    domain: "",
+    tier: "growth",
+    max_branches: 8,
+    max_staff_per_branch: 15,
+    max_monthly_orders: 20000,
+    onboarding_notes: "",
+  });
+  const [submittingOnboard, setSubmittingOnboard] = useState(false);
+
+  // Handover Credentials Modal
+  const [handoverModal, setHandoverModal] = useState<{
+    open: boolean;
+    credentials?: {
+      adminEmail: string;
+      tempPassword: string;
+      loginUrl: string;
+      tenantCode: string;
+    };
+    clientName?: string;
+  }>({ open: false });
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Client-Level Force Logout State
+  const [killClientModal, setKillClientModal] = useState<{
+    open: boolean;
+    client: PlatformClient | null;
+  }>({ open: false, client: null });
+  const [killReason, setKillReason] = useState("Administrative client session revocation");
+  const [killConfirmText, setKillConfirmText] = useState("");
+  const [executingClientKill, setExecutingClientKill] = useState(false);
+
+  // Global Kill Switch Modal State
+  const [globalKillModalOpen, setGlobalKillModalOpen] = useState(false);
+  const [globalConfirmText, setGlobalConfirmText] = useState("");
+  const [globalKillReason, setGlobalKillReason] = useState("Platform emergency maintenance");
+  const [executingGlobalKill, setExecutingGlobalKill] = useState(false);
+
+  // Quotas Edit Modal State
+  const [quotaModal, setQuotaModal] = useState<{
+    open: boolean;
+    client: PlatformClient | null;
+  }>({ open: false, client: null });
+  const [quotaInputs, setQuotaInputs] = useState<{
+    max_branches: number;
+    max_staff_per_branch: number;
+    max_monthly_orders: number;
+    tier: "starter" | "growth" | "enterprise" | "custom";
+  }>({
+    max_branches: 8,
+    max_staff_per_branch: 15,
+    max_monthly_orders: 20000,
+    tier: "growth",
+  });
   const [savingQuotas, setSavingQuotas] = useState(false);
 
-  // Emergency Kill Switch modal states
-  const [globalKillModalOpen, setGlobalKillModalOpen] = useState(false);
-  const [confirmText, setConfirmText] = useState("");
-  const [killReason, setKillReason] = useState("Security policy enforcement");
-  const [executingKill, setExecutingKill] = useState(false);
-
-  // Branch-specific kill switch
-  const [targetBranchId, setTargetBranchId] = useState<string>("");
-
-  const effectiveMaxBranches = maxBranchesInput ?? quotas?.max_branches ?? 10;
-  const effectiveMaxStaff = maxStaffInput ?? quotas?.max_staff_per_branch ?? 15;
-  const effectiveMaxOrders = maxOrdersInput ?? quotas?.max_monthly_orders ?? 25000;
-
-  const quotaCheck = checkBranchQuotaAvailable(
-    branches.filter((b) => b.is_active).length,
-    quotas?.max_branches ?? 10
-  );
-
-  // Save Tenant Quota updates
-  const handleSaveQuotas = async () => {
-    setSavingQuotas(true);
-    try {
-      const res = await updateTenantQuotas({
-        max_branches: effectiveMaxBranches,
-        max_staff_per_branch: effectiveMaxStaff,
-        max_monthly_orders: effectiveMaxOrders,
-      });
-
-      if (res.success) {
-        toast.success("Tenant quotas updated successfully");
-        qc.invalidateQueries({ queryKey: ["super-admin"] });
-      } else {
-        toast.error(res.message || "Failed to update quotas");
-      }
-    } finally {
-      setSavingQuotas(false);
-    }
+  // Copy helper
+  const handleCopy = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    toast.success("Copied to clipboard!");
+    setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  // Apply Tier Preset
-  const handleApplyPreset = async (tier: "starter" | "growth" | "enterprise") => {
-    let b = 3;
-    let s = 5;
-    let o = 5000;
-    if (tier === "growth") {
-      b = 8;
-      s = 15;
-      o = 20000;
-    } else if (tier === "enterprise") {
-      b = 15;
-      s = 30;
-      o = 100000;
-    }
+  // Rollup KPI stats across all clients
+  const stats = useMemo(() => {
+    const activeClients = clients.filter((c) => c.is_active);
+    const inactiveClients = clients.filter((c) => !c.is_active);
+    const totalHubs = clients.reduce((sum, c) => sum + c.active_branches_count, 0);
+    const totalStaff = clients.reduce((sum, c) => sum + c.total_staff_count, 0);
+    const totalMonthlyOrders = clients.reduce((sum, c) => sum + c.monthly_orders_count, 0);
 
-    setMaxBranchesInput(b);
-    setMaxStaffInput(s);
-    setMaxOrdersInput(o);
+    return {
+      totalClients: clients.length,
+      activeClientsCount: activeClients.length,
+      inactiveClientsCount: inactiveClients.length,
+      totalHubs,
+      totalStaff,
+      totalMonthlyOrders,
+    };
+  }, [clients]);
 
-    setSavingQuotas(true);
-    try {
-      await updateTenantQuotas({
-        tier,
-        max_branches: b,
-        max_staff_per_branch: s,
-        max_monthly_orders: o,
-      });
-      toast.success(`Applied ${tier.toUpperCase()} plan preset (${b} hubs limit)`);
-      qc.invalidateQueries({ queryKey: ["super-admin"] });
-    } finally {
-      setSavingQuotas(false);
-    }
-  };
+  // Filtered clients list
+  const filteredClients = useMemo(() => {
+    return clients.filter((c) => {
+      // Tab matching
+      if (activeTab === "active" && !c.is_active) return false;
+      if (activeTab === "inactive" && c.is_active) return false;
 
-  // Toggle Tenant Lock / Freeze
-  const handleToggleLock = async () => {
-    const next = !quotas?.is_locked;
-    setSavingQuotas(true);
-    try {
-      await updateTenantQuotas({ is_locked: next });
-      toast.warning(next ? "Tenant locked. Branch and user creation frozen." : "Tenant unlocked.");
-      qc.invalidateQueries({ queryKey: ["super-admin"] });
-    } finally {
-      setSavingQuotas(false);
-    }
-  };
+      // Vertical matching
+      if (verticalFilter !== "all" && c.vertical !== verticalFilter) return false;
 
-  // Execute Global Kill Switch
-  const handleExecuteGlobalKill = async () => {
-    if (confirmText !== "CONFIRM-RESET") {
-      toast.error("Please type CONFIRM-RESET to authorize emergency logout.");
+      // Search matching
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        c.client_name.toLowerCase().includes(q) ||
+        c.tenant_code.toLowerCase().includes(q) ||
+        c.owner_name.toLowerCase().includes(q) ||
+        c.owner_email.toLowerCase().includes(q) ||
+        c.domain.toLowerCase().includes(q)
+      );
+    });
+  }, [clients, activeTab, verticalFilter, searchQuery]);
+
+  // Handle Onboard New Client
+  const handleOnboardSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onboardForm.client_name.trim() || !onboardForm.owner_email.trim()) {
+      toast.error("Client Name and Owner Email are required.");
       return;
     }
 
-    setExecutingKill(true);
+    setSubmittingOnboard(true);
     try {
-      const res = await executeKillSwitch("global", null, killReason);
-      if (res.success) {
-        toast.success("🚨 GLOBAL KILL SWITCH TRIGGERED", {
-          description: "Revocation broadcast sent. All active user sessions terminated.",
+      const res = await onboardNewClient(onboardForm);
+      if (res.success && res.client && res.credentials) {
+        toast.success(res.message);
+        setOnboardModalOpen(false);
+        setHandoverModal({
+          open: true,
+          credentials: res.credentials,
+          clientName: res.client.client_name,
         });
-        setGlobalKillModalOpen(false);
-        setConfirmText("");
-        qc.invalidateQueries({ queryKey: ["super-admin"] });
+        qc.invalidateQueries({ queryKey: ["super-admin", "clients-fleet"] });
       } else {
-        toast.error(res.message || "Failed to execute kill switch");
+        toast.error(res.message || "Failed to onboard client.");
       }
     } finally {
-      setExecutingKill(false);
+      setSubmittingOnboard(false);
     }
   };
 
-  // Execute Branch Kill Switch
-  const handleExecuteBranchKill = async (branchId: string, branchName: string) => {
-    if (!confirm(`Force logout all staff and terminal sessions assigned to ${branchName}?`)) return;
+  // Handle Client Status Toggle (Activate / Suspend)
+  const handleToggleClient = async (client: PlatformClient) => {
+    const nextState = !client.is_active;
+    const confirmMsg = nextState
+      ? `Re-activate client "${client.client_name}"? All branch operations will resume.`
+      : `⚠️ SUSPEND CLIENT "${client.client_name}"?\n\nThis will immediately freeze client access and force logout all branch terminals, staff, and customers.`;
 
+    if (!window.confirm(confirmMsg)) return;
+
+    const res = await toggleClientStatus(client.id, nextState);
+    if (res.success) {
+      toast.success(res.message);
+      qc.invalidateQueries({ queryKey: ["super-admin", "clients-fleet"] });
+    } else {
+      toast.error(res.message);
+    }
+  };
+
+  // Open Quotas Edit Modal
+  const handleOpenQuotaModal = (client: PlatformClient) => {
+    setQuotaModal({ open: true, client });
+    setQuotaInputs({
+      max_branches: client.max_branches,
+      max_staff_per_branch: client.max_staff_per_branch,
+      max_monthly_orders: client.max_monthly_orders,
+      tier: client.tier,
+    });
+  };
+
+  // Save Quotas
+  const handleSaveQuotas = async () => {
+    if (!quotaModal.client) return;
+    setSavingQuotas(true);
     try {
-      const res = await executeKillSwitch(
-        "branch",
-        branchId,
-        `Emergency logout for hub: ${branchName}`
-      );
+      const res = await updateClientQuotas(quotaModal.client.id, quotaInputs);
       if (res.success) {
-        toast.success(`Sessions revoked for ${branchName}`);
+        toast.success(res.message);
+        setQuotaModal({ open: false, client: null });
+        qc.invalidateQueries({ queryKey: ["super-admin", "clients-fleet"] });
+      } else {
+        toast.error(res.message);
+      }
+    } finally {
+      setSavingQuotas(false);
+    }
+  };
+
+  // Execute Client-Level Force Logout
+  const handleExecuteClientKill = async () => {
+    if (killConfirmText !== "LOGOUT") {
+      toast.error("Type LOGOUT to confirm emergency client revocation.");
+      return;
+    }
+    if (!killClientModal.client) return;
+
+    setExecutingClientKill(true);
+    try {
+      const res = await forceLogoutClient(
+        killClientModal.client.id,
+        killClientModal.client.client_name,
+        killClientModal.client.tenant_code,
+        killReason
+      );
+
+      if (res.success) {
+        toast.success(`🚨 ${res.message}`);
+        setKillClientModal({ open: false, client: null });
+        setKillConfirmText("");
+        qc.invalidateQueries({ queryKey: ["super-admin", "clients-fleet"] });
+      } else {
+        toast.error(res.message);
+      }
+    } finally {
+      setExecutingClientKill(false);
+    }
+  };
+
+  // Execute Platform-Wide Global Kill Switch
+  const handleExecuteGlobalKill = async () => {
+    if (globalConfirmText !== "CONFIRM-RESET") {
+      toast.error("Type CONFIRM-RESET to authorize emergency platform logout.");
+      return;
+    }
+
+    setExecutingGlobalKill(true);
+    try {
+      const res = await executeKillSwitch("global", null, globalKillReason);
+      if (res.success) {
+        toast.success("🚨 PLATFORM GLOBAL KILL SWITCH TRIGGERED", {
+          description: "All sessions across all clients terminated immediately.",
+        });
+        setGlobalKillModalOpen(false);
+        setGlobalConfirmText("");
         qc.invalidateQueries({ queryKey: ["super-admin"] });
       } else {
-        toast.error(res.message || "Failed to revoke branch sessions");
+        toast.error(res.message || "Failed to trigger global kill switch.");
       }
-    } catch {
-      toast.error("Error executing branch kill switch");
+    } finally {
+      setExecutingGlobalKill(false);
     }
   };
 
   return (
-    <AdminShell title="Super Admin" allow={["admin", "super_admin"]}>
-      <div className="space-y-6 max-w-6xl mx-auto pb-12">
-        {/* Header Title & Security Status */}
+    <AdminShell title="Super Admin Platform Governance" allow={["super_admin"]}>
+      <div className="space-y-6 max-w-7xl mx-auto pb-16">
+        {/* Header Title & Platform Operations Bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border pb-4">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2 min-w-0">
-              <span className="flex size-7 items-center justify-center rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 shrink-0">
-                <ShieldAlert className="size-4.5" />
+              <span className="flex size-8 items-center justify-center rounded-xl bg-red-500/10 text-red-600 dark:text-red-400 shrink-0">
+                <ShieldAlert className="size-5" />
               </span>
               <h1 className="text-xl sm:text-2xl font-black font-display tracking-tight text-foreground">
                 Super Admin Platform Governance
               </h1>
               <Badge variant="outline" className="border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300 text-[10px] uppercase font-bold shrink-0">
-                Tier 0 Clearance
+                Tier 0 Platform Clearance
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground">
-              Master administration: enforce tenant quotas, set $N$ branch limits, execute emergency kill switches, and inspect audit logs.
+              Master organization governance: manage active/inactive clients, provision new white-label tenants, enforce quota ceilings, and trigger client force logouts.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Button
               variant="outline"
               size="sm"
               onClick={() => qc.invalidateQueries({ queryKey: ["super-admin"] })}
-              className="rounded-xl text-xs gap-1.5 h-8"
+              className="rounded-xl text-xs gap-1.5 h-8.5"
             >
               <RefreshCw className="size-3.5" /> Refresh
             </Button>
 
             <Button
-              variant={quotas?.is_locked ? "default" : "outline"}
               size="sm"
-              onClick={handleToggleLock}
-              disabled={savingQuotas}
-              className={`rounded-xl text-xs gap-1.5 h-8 ${
-                quotas?.is_locked ? "bg-red-600 hover:bg-red-700 text-white" : "border-amber-500/40 text-amber-700 dark:text-amber-300"
-              }`}
+              onClick={() => {
+                setOnboardForm({
+                  client_name: "",
+                  tenant_code: "",
+                  owner_name: "",
+                  owner_email: "",
+                  owner_phone: "",
+                  vertical: "seafood",
+                  domain: "",
+                  tier: "growth",
+                  max_branches: 8,
+                  max_staff_per_branch: 15,
+                  max_monthly_orders: 20000,
+                  onboarding_notes: "",
+                });
+                setOnboardModalOpen(true);
+              }}
+              className="rounded-xl text-xs font-bold gap-1.5 h-8.5 bg-primary hover:bg-primary/90 shadow-2xs"
             >
-              {quotas?.is_locked ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
-              {quotas?.is_locked ? "Tenant Frozen" : "Freeze Tenant"}
+              <Plus className="size-3.5" /> Onboard New Client
             </Button>
           </div>
         </div>
 
-        {/* Top KPI Metrics */}
+        {/* Top Rollup Platform KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <Card className="rounded-2xl border-border bg-card/60 shadow-2xs">
+          <Card className="rounded-2xl border-border bg-card/70 shadow-2xs">
             <CardHeader className="pb-1 pt-3.5 px-4">
-              <CardDescription className="text-[11px] font-semibold flex items-center justify-between">
-                <span>Active Hubs vs Quota</span>
-                <Store className="size-3.5 text-primary" />
+              <CardDescription className="text-[11px] font-semibold flex items-center justify-between text-muted-foreground">
+                <span>Active Clients</span>
+                <Building2 className="size-3.5 text-primary" />
               </CardDescription>
               <CardTitle className="text-xl sm:text-2xl font-bold font-display">
-                {stats?.activeBranchesCount ?? 0}
+                {stats.activeClientsCount}
                 <span className="text-xs font-normal text-muted-foreground ml-1">
-                  / {stats?.maxBranchesQuota ?? 10} allowed
+                  / {stats.totalClients} total clients
                 </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-3 pt-0">
-              <div className="w-full bg-muted rounded-full h-1.5 mt-1 overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${
-                    (stats?.branchQuotaUtilizationPct ?? 0) >= 90
-                      ? "bg-destructive"
-                      : "bg-primary"
-                  }`}
-                  style={{ width: `${stats?.branchQuotaUtilizationPct ?? 10}%` }}
-                />
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-1.5">
-                {stats?.branchQuotaUtilizationPct ?? 0}% quota consumed
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mt-1 flex items-center gap-1">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                {stats.activeClientsCount} live organizations operational
               </p>
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-border bg-card/60 shadow-2xs">
+          <Card className="rounded-2xl border-border bg-card/70 shadow-2xs">
             <CardHeader className="pb-1 pt-3.5 px-4">
-              <CardDescription className="text-[11px] font-semibold flex items-center justify-between">
-                <span>Staff Seats Quota</span>
-                <Users className="size-3.5 text-emerald-600" />
+              <CardDescription className="text-[11px] font-semibold flex items-center justify-between text-muted-foreground">
+                <span>Total Active Hubs</span>
+                <Store className="size-3.5 text-emerald-600" />
               </CardDescription>
               <CardTitle className="text-xl sm:text-2xl font-bold font-display">
-                {stats?.totalStaffCount ?? 0}
+                {stats.totalHubs}
                 <span className="text-xs font-normal text-muted-foreground ml-1">
-                  / {stats?.maxStaffQuota ?? 15} capacity
+                  store branches
                 </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-3 pt-0">
-              <p className="text-[10px] text-muted-foreground mt-2.5">
-                Max {quotas?.max_staff_per_branch ?? 15} seats per active hub
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Distributed across {stats.activeClientsCount} client fleets
               </p>
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-border bg-card/60 shadow-2xs">
+          <Card className="rounded-2xl border-border bg-card/70 shadow-2xs">
             <CardHeader className="pb-1 pt-3.5 px-4">
-              <CardDescription className="text-[11px] font-semibold flex items-center justify-between">
+              <CardDescription className="text-[11px] font-semibold flex items-center justify-between text-muted-foreground">
+                <span>Platform Staff Seats</span>
+                <Users className="size-3.5 text-sky-600" />
+              </CardDescription>
+              <CardTitle className="text-xl sm:text-2xl font-bold font-display">
+                {stats.totalStaff}
+                <span className="text-xs font-normal text-muted-foreground ml-1">
+                  authorized team members
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-3 pt-0">
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Store admins, cashiers, &amp; drivers
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-border bg-card/70 shadow-2xs">
+            <CardHeader className="pb-1 pt-3.5 px-4">
+              <CardDescription className="text-[11px] font-semibold flex items-center justify-between text-muted-foreground">
                 <span>Monthly Orders Volume</span>
-                <Activity className="size-3.5 text-sky-600" />
+                <Activity className="size-3.5 text-purple-600" />
               </CardDescription>
               <CardTitle className="text-xl sm:text-2xl font-bold font-display">
-                {stats?.totalOrdersThisMonth ?? 0}
+                {stats.totalMonthlyOrders.toLocaleString()}
                 <span className="text-xs font-normal text-muted-foreground ml-1">
-                  / {(stats?.maxMonthlyOrdersQuota ?? 25000).toLocaleString()}
+                  orders (current cycle)
                 </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-3 pt-0">
-              <div className="w-full bg-muted rounded-full h-1.5 mt-1 overflow-hidden">
-                <div
-                  className="h-full bg-sky-500 rounded-full transition-all"
-                  style={{ width: `${Math.max(5, stats?.ordersQuotaUtilizationPct ?? 0)}%` }}
-                />
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-1.5">
-                Current billing cycle quota
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Platform aggregate transactions
               </p>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl border-border bg-card/60 shadow-2xs">
-            <CardHeader className="pb-1 pt-3.5 px-4">
-              <CardDescription className="text-[11px] font-semibold flex items-center justify-between">
-                <span>Kill Switch Status</span>
-                <Power className="size-3.5 text-red-600" />
-              </CardDescription>
-              <CardTitle className="text-xl sm:text-2xl font-bold font-display text-red-600 dark:text-red-400">
-                {stats?.activeKillSwitchesCount ?? 0}
-                <span className="text-xs font-normal text-muted-foreground ml-1">
-                  revocations (24h)
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-3 pt-0">
-              <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400 mt-2 font-medium">
-                <span className="size-1.5 rounded-full bg-emerald-500 animate-ping" />
-                <span>Anti-takeover shield active</span>
-              </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Row 2: Tenant Quotas & Limits Configuration */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <Card className="lg:col-span-2 rounded-2xl border-border bg-card shadow-2xs">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Sliders className="size-4.5 text-primary" />
-                  <CardTitle className="text-base font-bold">Tenant Limits &amp; Quota Controls</CardTitle>
+        {/* Emergency Kill Switch Banner */}
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-red-500/10 text-red-600 shrink-0 mt-0.5">
+              <Power className="size-4.5" />
+            </span>
+            <div className="space-y-0.5">
+              <h3 className="text-sm font-bold text-foreground">Global Platform Emergency Reset</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Revoke all active sessions platform-wide across all clients in the event of severe security incidents or maintenance. For individual clients, use the <strong>Force Logout Client</strong> action on the respective client card below.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setGlobalKillModalOpen(true)}
+            className="rounded-xl text-xs font-bold shrink-0 bg-red-600 hover:bg-red-700 h-8.5"
+          >
+            <Power className="size-3.5 mr-1.5" /> Platform Global Kill Switch
+          </Button>
+        </div>
+
+        {/* Client Fleet Management Tabs & Filters */}
+        <Card className="rounded-2xl border-border bg-card shadow-xs overflow-hidden">
+          <CardHeader className="pb-3 border-b border-border/80 bg-muted/20">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <Tabs
+                value={activeTab}
+                onValueChange={(val) => setActiveTab(val as "active" | "inactive" | "audit")}
+                className="w-full md:w-auto"
+              >
+                <TabsList className="grid grid-cols-3 w-full md:w-[420px] rounded-xl">
+                  <TabsTrigger value="active" className="text-xs font-bold rounded-lg gap-1.5">
+                    <CheckCircle2 className="size-3.5 text-emerald-500" />
+                    Active Clients ({stats.activeClientsCount})
+                  </TabsTrigger>
+                  <TabsTrigger value="inactive" className="text-xs font-bold rounded-lg gap-1.5">
+                    <ShieldX className="size-3.5 text-amber-500" />
+                    Inactive ({stats.inactiveClientsCount})
+                  </TabsTrigger>
+                  <TabsTrigger value="audit" className="text-xs font-bold rounded-lg gap-1.5">
+                    <Clock className="size-3.5 text-sky-500" />
+                    Audit Logs
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {/* Search & Vertical Filter */}
+              {activeTab !== "audit" && (
+                <div className="flex items-center gap-2 flex-1 md:max-w-md">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by client name, code, domain, or email..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8 h-8.5 rounded-xl text-xs"
+                    />
+                  </div>
+
+                  <select
+                    value={verticalFilter}
+                    onChange={(e) => setVerticalFilter(e.target.value)}
+                    className="h-8.5 rounded-xl border border-input bg-card px-2.5 text-xs text-foreground font-medium"
+                  >
+                    <option value="all">All Verticals</option>
+                    <option value="seafood">Seafood &amp; Fish</option>
+                    <option value="chicken_meat">Poultry &amp; Halal</option>
+                    <option value="all_meat">Multi-Meat Superstore</option>
+                    <option value="organic_veggies">Organic Produce</option>
+                  </select>
                 </div>
-                <Badge variant="outline" className="capitalize text-[11px] border-primary/30 text-primary">
-                  {quotas?.tier || "Enterprise"} Plan
-                </Badge>
-              </div>
-              <CardDescription className="text-xs">
-                Configure platform limits for branch provisioning, team seat quotas, and order caps.
-              </CardDescription>
-            </CardHeader>
+              )}
+            </div>
+          </CardHeader>
 
-            <CardContent className="space-y-4">
-              {/* Plan Presets */}
-              <div className="flex items-center gap-2 flex-wrap pb-2 border-b">
-                <span className="text-xs text-muted-foreground font-semibold">Tier Presets:</span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleApplyPreset("starter")}
-                  className="rounded-xl text-[11px] h-7 px-2.5"
-                >
-                  Starter (3 Hubs)
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleApplyPreset("growth")}
-                  className="rounded-xl text-[11px] h-7 px-2.5"
-                >
-                  Growth (8 Hubs)
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleApplyPreset("enterprise")}
-                  className="rounded-xl text-[11px] h-7 px-2.5 border-primary/40 bg-primary/5 text-primary font-bold"
-                >
-                  Enterprise (15 Hubs)
-                </Button>
+          <CardContent className="p-0">
+            {/* Audit Logs Tab View */}
+            {activeTab === "audit" ? (
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between text-xs text-muted-foreground pb-2 border-b">
+                  <span className="font-semibold text-foreground">Immutable Platform Audit Trail</span>
+                  <span>Showing recent {auditLogs.length} events</span>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border border-border">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-muted/50 border-b border-border text-[11px] font-bold text-muted-foreground uppercase">
+                      <tr>
+                        <th className="p-3">Timestamp</th>
+                        <th className="p-3">Action</th>
+                        <th className="p-3">Actor</th>
+                        <th className="p-3">Target</th>
+                        <th className="p-3">Details</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {auditLogs.map((log) => (
+                        <tr key={log.id} className="hover:bg-muted/30">
+                          <td className="p-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
+                            {new Date(log.created_at).toLocaleString("en-IN", {
+                              day: "2-digit",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              second: "2-digit",
+                            })}
+                          </td>
+                          <td className="p-3">
+                            <Badge variant="outline" className="font-mono text-[10px] uppercase font-bold">
+                              {log.action}
+                            </Badge>
+                          </td>
+                          <td className="p-3 font-medium text-foreground">{log.actor_role}</td>
+                          <td className="p-3 text-muted-foreground">{log.target_type || "—"}</td>
+                          <td className="p-3 font-mono text-[10px] text-muted-foreground max-w-xs truncate">
+                            {JSON.stringify(log.details)}
+                          </td>
+                        </tr>
+                      ))}
+                      {auditLogs.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="p-6 text-center text-muted-foreground">
+                            No audit log events recorded yet.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              /* Active / Inactive Clients List */
+              <div className="divide-y divide-border">
+                {filteredClients.map((client) => {
+                  const verticalInfo = VERTICAL_LABELS[client.vertical] || VERTICAL_LABELS.custom;
+                  const hubsUtilizationPct = Math.round((client.active_branches_count / client.max_branches) * 100);
+
+                  return (
+                    <div
+                      key={client.id}
+                      className="p-4 sm:p-5 hover:bg-muted/10 transition-colors flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                    >
+                      {/* Left Block: Client Info & Vertical */}
+                      <div className="space-y-2 flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-bold text-base text-foreground font-display">
+                            {client.client_name}
+                          </h3>
+                          <Badge variant="outline" className="font-mono text-[11px] font-bold">
+                            {client.tenant_code}
+                          </Badge>
+                          <Badge variant="outline" className={`text-[10px] font-semibold ${verticalInfo.color}`}>
+                            {verticalInfo.label}
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className={
+                              client.is_active
+                                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[10px]"
+                                : "border-destructive/40 bg-destructive/10 text-destructive text-[10px]"
+                            }
+                          >
+                            {client.is_active ? "Active" : "Suspended"}
+                          </Badge>
+                          <Badge variant="outline" className="capitalize text-[10px] border-primary/30 text-primary font-bold">
+                            {client.tier} Plan
+                          </Badge>
+                        </div>
+
+                        {/* Owner Details & Contact */}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <UserCheck className="size-3.5 text-foreground" />
+                            <strong>Owner:</strong> {client.owner_name}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Mail className="size-3.5" />
+                            {client.owner_email}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Phone className="size-3.5" />
+                            {client.owner_phone}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Globe className="size-3.5 text-sky-500" />
+                            {client.domain}
+                          </span>
+                        </div>
+
+                        {client.onboarding_notes && (
+                          <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1 inline-block">
+                            📌 <strong>Note:</strong> {client.onboarding_notes}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Middle Block: Live Quotas & Utilization */}
+                      <div className="grid grid-cols-3 gap-3 sm:gap-4 lg:w-[360px] bg-muted/30 p-3 rounded-2xl border border-border/60 shrink-0">
+                        <div>
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase">Hubs</p>
+                          <p className="text-sm font-bold font-mono text-foreground">
+                            {client.active_branches_count}{" "}
+                            <span className="text-[11px] font-normal text-muted-foreground">/ {client.max_branches}</span>
+                          </p>
+                          <div className="w-full bg-muted rounded-full h-1 mt-1 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${hubsUtilizationPct >= 100 ? "bg-destructive" : "bg-primary"}`}
+                              style={{ width: `${Math.min(100, hubsUtilizationPct)}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase">Staff Seats</p>
+                          <p className="text-sm font-bold font-mono text-foreground">
+                            {client.total_staff_count}{" "}
+                            <span className="text-[11px] font-normal text-muted-foreground">
+                              / {client.max_staff_per_branch * Math.max(1, client.active_branches_count)}
+                            </span>
+                          </p>
+                          <p className="text-[9px] text-muted-foreground mt-1">
+                            max {client.max_staff_per_branch}/hub
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase">Orders/Mo</p>
+                          <p className="text-sm font-bold font-mono text-foreground">
+                            {client.monthly_orders_count.toLocaleString()}{" "}
+                            <span className="text-[11px] font-normal text-muted-foreground">
+                              / {client.max_monthly_orders >= 1000 ? `${client.max_monthly_orders / 1000}k` : client.max_monthly_orders}
+                            </span>
+                          </p>
+                          <p className="text-[9px] text-muted-foreground mt-1 truncate">
+                            Active billing
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Right Block: Actions */}
+                      <div className="flex flex-wrap items-center gap-1.5 shrink-0 justify-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenQuotaModal(client)}
+                          className="rounded-xl text-xs h-8 gap-1"
+                        >
+                          <Sliders className="size-3" /> Limits
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleClient(client)}
+                          className={`rounded-xl text-xs h-8 gap-1 ${
+                            client.is_active
+                              ? "text-amber-700 border-amber-500/30 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                              : "text-emerald-700 border-emerald-500/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                          }`}
+                        >
+                          {client.is_active ? <Lock className="size-3" /> : <Unlock className="size-3" />}
+                          {client.is_active ? "Suspend" : "Activate"}
+                        </Button>
+
+                        {/* Direct Client-Level Force Logout (Kill Switch) */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setKillClientModal({ open: true, client });
+                            setKillConfirmText("");
+                            setKillReason("Administrative client session reset");
+                          }}
+                          className="rounded-xl text-xs h-8 gap-1 border-red-500/30 text-red-600 hover:bg-red-500/10"
+                        >
+                          <Power className="size-3" /> Force Logout Client
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {filteredClients.length === 0 && (
+                  <div className="py-12 text-center text-sm text-muted-foreground">
+                    <p className="font-semibold text-foreground">No {activeTab} clients found</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {searchQuery ? "Try clearing your search criteria or vertical filter." : 'Click "+ Onboard New Client" above to provision the first client.'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Guided Client Onboarding Modal */}
+        <Dialog open={onboardModalOpen} onOpenChange={setOnboardModalOpen}>
+          <DialogContent className="max-w-xl rounded-3xl p-6 max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Sparkles className="size-4.5" />
+                </span>
+                <div>
+                  <DialogTitle className="text-lg font-bold">Onboard New Client Organization</DialogTitle>
+                  <DialogDescription className="text-xs">
+                    Provision a complete multi-client tenant with business profile, vertical preset, quota limits, and initial admin credentials.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <form onSubmit={handleOnboardSubmit} className="space-y-4 pt-2">
+              {/* Step 1: Business Profile */}
+              <div className="space-y-3 border-b pb-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">1. Business Profile</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Business / Client Name *</Label>
+                    <Input
+                      required
+                      placeholder="e.g. Coastal Catch Seafoods"
+                      value={onboardForm.client_name}
+                      onChange={(e) => {
+                        const name = e.target.value;
+                        const code = name.replace(/[^a-zA-Z0-9]/g, "-").slice(0, 10).toUpperCase();
+                        setOnboardForm({
+                          ...onboardForm,
+                          client_name: name,
+                          tenant_code: onboardForm.tenant_code ? onboardForm.tenant_code : code,
+                          domain: onboardForm.domain ? onboardForm.domain : `${code.toLowerCase()}.fishnfresh.in`,
+                        });
+                      }}
+                      className="rounded-xl text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Tenant Code (Slug) *</Label>
+                    <Input
+                      required
+                      placeholder="e.g. COASTAL-CAT"
+                      value={onboardForm.tenant_code}
+                      onChange={(e) => setOnboardForm({ ...onboardForm, tenant_code: e.target.value.toUpperCase() })}
+                      className="rounded-xl text-xs font-mono font-bold uppercase"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Business Vertical Preset</Label>
+                    <select
+                      value={onboardForm.vertical}
+                      onChange={(e) => setOnboardForm({ ...onboardForm, vertical: e.target.value as any })}
+                      className="w-full h-9 rounded-xl border border-input bg-card px-2.5 text-xs text-foreground font-medium"
+                    >
+                      <option value="seafood">Coastal Seafood &amp; Fresh Fish Chain</option>
+                      <option value="chicken_meat">Farm Chicken &amp; Halal Mutton</option>
+                      <option value="all_meat">Multi-Meat &amp; Protein Superstore</option>
+                      <option value="organic_veggies">Organic Vegetables &amp; Greens</option>
+                      <option value="custom">Custom Specialty Retail</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Primary Store Domain</Label>
+                    <Input
+                      placeholder="e.g. coastalcatch.in"
+                      value={onboardForm.domain}
+                      onChange={(e) => setOnboardForm({ ...onboardForm, domain: e.target.value })}
+                      className="rounded-xl text-xs"
+                    />
+                  </div>
+                </div>
               </div>
 
-              {/* Sliders / Inputs */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-foreground">
-                    Branch Limit ($N$)
-                  </Label>
+              {/* Step 2: Owner & Admin Credentials */}
+              <div className="space-y-3 border-b pb-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">2. Client Owner &amp; Admin Credentials</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Owner Full Name *</Label>
+                    <Input
+                      required
+                      placeholder="e.g. Rajesh Kumar"
+                      value={onboardForm.owner_name}
+                      onChange={(e) => setOnboardForm({ ...onboardForm, owner_name: e.target.value })}
+                      className="rounded-xl text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Owner Admin Email *</Label>
+                    <Input
+                      required
+                      type="email"
+                      placeholder="owner@clientdomain.com"
+                      value={onboardForm.owner_email}
+                      onChange={(e) => setOnboardForm({ ...onboardForm, owner_email: e.target.value })}
+                      className="rounded-xl text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Primary Phone *</Label>
+                    <Input
+                      required
+                      placeholder="+91 98400 12345"
+                      value={onboardForm.owner_phone}
+                      onChange={(e) => setOnboardForm({ ...onboardForm, owner_phone: e.target.value })}
+                      className="rounded-xl text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 3: Plan Tier & Quota Limits */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">3. Subscription Tier &amp; Quotas</h4>
+                <div className="flex gap-2 pb-1">
+                  {(["starter", "growth", "enterprise"] as const).map((tier) => (
+                    <Button
+                      key={tier}
+                      type="button"
+                      size="sm"
+                      variant={onboardForm.tier === tier ? "default" : "outline"}
+                      onClick={() => {
+                        let b = 3;
+                        let s = 5;
+                        let o = 5000;
+                        if (tier === "growth") {
+                          b = 8;
+                          s = 15;
+                          o = 20000;
+                        } else if (tier === "enterprise") {
+                          b = 15;
+                          s = 30;
+                          o = 100000;
+                        }
+                        setOnboardForm({
+                          ...onboardForm,
+                          tier,
+                          max_branches: b,
+                          max_staff_per_branch: s,
+                          max_monthly_orders: o,
+                        });
+                      }}
+                      className="rounded-xl text-xs capitalize flex-1 h-8 font-semibold"
+                    >
+                      {tier}
+                    </Button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">Max Hubs ($N$)</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={onboardForm.max_branches}
+                      onChange={(e) => setOnboardForm({ ...onboardForm, max_branches: Number(e.target.value) })}
+                      className="rounded-xl text-xs font-mono font-bold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">Staff Seats/Hub</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={onboardForm.max_staff_per_branch}
+                      onChange={(e) => setOnboardForm({ ...onboardForm, max_staff_per_branch: Number(e.target.value) })}
+                      className="rounded-xl text-xs font-mono font-bold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">Monthly Orders Cap</Label>
+                    <Input
+                      type="number"
+                      min={500}
+                      step={1000}
+                      value={onboardForm.max_monthly_orders}
+                      onChange={(e) => setOnboardForm({ ...onboardForm, max_monthly_orders: Number(e.target.value) })}
+                      className="rounded-xl text-xs font-mono font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1 pt-1">
+                  <Label className="text-xs font-semibold">Onboarding Notes / KYC Remarks</Label>
+                  <Textarea
+                    placeholder="Optional onboarding notes, GSTIN, FSSAI verification details..."
+                    value={onboardForm.onboarding_notes}
+                    onChange={(e) => setOnboardForm({ ...onboardForm, onboarding_notes: e.target.value })}
+                    rows={2}
+                    className="rounded-xl text-xs resize-none"
+                  />
+                </div>
+              </div>
+
+              <DialogFooter className="pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setOnboardModalOpen(false)}
+                  className="rounded-xl text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={submittingOnboard}
+                  className="rounded-xl text-xs font-bold bg-primary hover:bg-primary/90"
+                >
+                  {submittingOnboard ? "Provisioning Client..." : "Complete Client Onboarding"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Client Handover Kit Modal (Credentials & Setup Instructions) */}
+        <Dialog open={handoverModal.open} onOpenChange={(open) => setHandoverModal({ ...handoverModal, open })}>
+          <DialogContent className="max-w-md rounded-3xl p-6">
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <span className="flex size-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
+                  <CheckCircle2 className="size-5" />
+                </span>
+                <div>
+                  <DialogTitle className="text-lg font-bold">Client Handover Kit</DialogTitle>
+                  <DialogDescription className="text-xs">
+                    Client provisioned! Share these credentials with the client owner to access their store console.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            {handoverModal.credentials && (
+              <div className="space-y-3 pt-2">
+                <div className="rounded-2xl border border-border/80 bg-muted/30 p-4 space-y-2.5 font-mono text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground font-sans text-[11px]">Organization:</span>
+                    <strong className="text-foreground font-sans">{handoverModal.clientName}</strong>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground font-sans text-[11px]">Tenant Code:</span>
+                    <strong className="text-foreground">{handoverModal.credentials.tenantCode}</strong>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground font-sans text-[11px]">Admin Login Email:</span>
+                    <strong className="text-foreground">{handoverModal.credentials.adminEmail}</strong>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground font-sans text-[11px]">Temporary Password:</span>
+                    <strong className="text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
+                      {handoverModal.credentials.tempPassword}
+                    </strong>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 border-t border-border/60">
+                    <span className="text-muted-foreground font-sans text-[11px]">Console URL:</span>
+                    <a
+                      href={handoverModal.credentials.loginUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary hover:underline flex items-center gap-1 font-sans text-xs"
+                    >
+                      Open Login <ExternalLink className="size-3" />
+                    </a>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={() => {
+                    const c = handoverModal.credentials!;
+                    const handoverText = `🎉 Welcome to your new store platform on Fish N Fresh Multi-Tenant Engine!\n\n🏢 Client Organization: ${handoverModal.clientName}\n🔑 Tenant Code: ${c.tenantCode}\n📧 Admin Login: ${c.adminEmail}\n🔐 Temp Password: ${c.tempPassword}\n🌐 Console Login Link: ${c.loginUrl}\n\nPlease sign in and update your password in Settings.`;
+                    handleCopy(handoverText, "handover");
+                  }}
+                  className="w-full rounded-xl text-xs font-bold gap-1.5 h-9"
+                >
+                  {copiedKey === "handover" ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                  {copiedKey === "handover" ? "Handover Kit Copied!" : "Copy Full Handover Kit"}
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Client-Level Force Logout (Kill Switch) Modal */}
+        <Dialog open={killClientModal.open} onOpenChange={(open) => setKillClientModal({ ...killClientModal, open })}>
+          <DialogContent className="max-w-md rounded-3xl p-6 border-red-500/30">
+            <DialogHeader>
+              <div className="flex items-center gap-2 text-red-600">
+                <span className="flex size-8 items-center justify-center rounded-xl bg-red-500/10 text-red-600">
+                  <Power className="size-4.5" />
+                </span>
+                <div>
+                  <DialogTitle className="text-lg font-bold">Client Force Logout</DialogTitle>
+                  <DialogDescription className="text-xs text-muted-foreground">
+                    Emergency session revocation for client organization.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            {killClientModal.client && (
+              <div className="space-y-3 pt-2 text-xs">
+                <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-red-800 dark:text-red-300 leading-relaxed">
+                  ⚠️ This action will immediately terminate <strong>ALL active user sessions</strong> across <strong>{killClientModal.client.client_name}</strong> ({killClientModal.client.tenant_code}). All branch cash registers, staff logins, delivery drivers, and logged-in customers for this organization will be forcefully signed out.
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Reason for Client Force Logout</Label>
+                  <Input
+                    value={killReason}
+                    onChange={(e) => setKillReason(e.target.value)}
+                    className="rounded-xl text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1 pt-1">
+                  <Label className="text-xs font-semibold">Type <strong className="text-red-600">LOGOUT</strong> to authorize</Label>
+                  <Input
+                    placeholder="LOGOUT"
+                    value={killConfirmText}
+                    onChange={(e) => setKillConfirmText(e.target.value)}
+                    className="rounded-xl text-xs font-mono font-bold"
+                  />
+                </div>
+
+                <DialogFooter className="pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setKillClientModal({ open: false, client: null })}
+                    className="rounded-xl text-xs"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled={killConfirmText !== "LOGOUT" || executingClientKill}
+                    onClick={handleExecuteClientKill}
+                    className="rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700"
+                  >
+                    {executingClientKill ? "Revoking Sessions..." : "Authorize Force Logout"}
+                  </Button>
+                </DialogFooter>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Global Platform Kill Switch Modal */}
+        <Dialog open={globalKillModalOpen} onOpenChange={setGlobalKillModalOpen}>
+          <DialogContent className="max-w-md rounded-3xl p-6 border-red-600">
+            <DialogHeader>
+              <div className="flex items-center gap-2 text-red-600">
+                <Power className="size-5" />
+                <div>
+                  <DialogTitle className="text-lg font-bold">PLATFORM GLOBAL KILL SWITCH</DialogTitle>
+                  <DialogDescription className="text-xs text-muted-foreground">
+                    Highest-clearance emergency platform session revocation.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="space-y-3 pt-2 text-xs">
+              <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-red-900 dark:text-red-200">
+                🚨 <strong>CAUTION:</strong> This will terminate all authenticated sessions across <strong>EVERY client organization</strong> on the platform simultaneously.
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Type <strong className="text-red-600">CONFIRM-RESET</strong> to authorize</Label>
+                <Input
+                  placeholder="CONFIRM-RESET"
+                  value={globalConfirmText}
+                  onChange={(e) => setGlobalConfirmText(e.target.value)}
+                  className="rounded-xl text-xs font-mono font-bold"
+                />
+              </div>
+
+              <DialogFooter className="pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setGlobalKillModalOpen(false)}
+                  className="rounded-xl text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  disabled={globalConfirmText !== "CONFIRM-RESET" || executingGlobalKill}
+                  onClick={handleExecuteGlobalKill}
+                  className="rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700"
+                >
+                  {executingGlobalKill ? "Resetting..." : "TRIGGER GLOBAL KILL SWITCH"}
+                </Button>
+              </DialogFooter>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Quota Limits Editor Modal */}
+        <Dialog open={quotaModal.open} onOpenChange={(open) => setQuotaModal({ ...quotaModal, open })}>
+          <DialogContent className="max-w-md rounded-3xl p-6">
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <Sliders className="size-4.5 text-primary" />
+                <div>
+                  <DialogTitle className="text-lg font-bold">Adjust Client Quotas</DialogTitle>
+                  <DialogDescription className="text-xs">
+                    Configure branch limits ($N$), staff seat caps, and transaction ceilings for {quotaModal.client?.client_name}.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="space-y-3 pt-2">
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Subscription Tier</Label>
+                <select
+                  value={quotaInputs.tier}
+                  onChange={(e) => setQuotaInputs({ ...quotaInputs, tier: e.target.value as any })}
+                  className="w-full h-8.5 rounded-xl border border-input bg-card px-2.5 text-xs text-foreground font-medium"
+                >
+                  <option value="starter">Starter Plan</option>
+                  <option value="growth">Growth Plan</option>
+                  <option value="enterprise">Enterprise Plan</option>
+                  <option value="custom">Custom Enterprise</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-semibold">Max Hubs ($N$)</Label>
                   <Input
                     type="number"
                     min={1}
-                    max={100}
-                    value={effectiveMaxBranches}
-                    onChange={(e) => setMaxBranchesInput(parseInt(e.target.value) || 1)}
+                    value={quotaInputs.max_branches}
+                    onChange={(e) => setQuotaInputs({ ...quotaInputs, max_branches: Number(e.target.value) })}
                     className="rounded-xl text-xs font-mono font-bold"
                   />
-                  <p className="text-[10px] text-muted-foreground">Max allowed physical / dark store hubs</p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-foreground">
-                    Staff Seats Per Hub
-                  </Label>
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-semibold">Staff Seats/Hub</Label>
                   <Input
                     type="number"
                     min={1}
-                    max={100}
-                    value={effectiveMaxStaff}
-                    onChange={(e) => setMaxStaffInput(parseInt(e.target.value) || 1)}
+                    value={quotaInputs.max_staff_per_branch}
+                    onChange={(e) => setQuotaInputs({ ...quotaInputs, max_staff_per_branch: Number(e.target.value) })}
                     className="rounded-xl text-xs font-mono font-bold"
                   />
-                  <p className="text-[10px] text-muted-foreground">Max team members per branch</p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-foreground">
-                    Monthly Orders Cap
-                  </Label>
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-semibold">Monthly Orders</Label>
                   <Input
                     type="number"
                     min={500}
                     step={1000}
-                    value={effectiveMaxOrders}
-                    onChange={(e) => setMaxOrdersInput(parseInt(e.target.value) || 1000)}
+                    value={quotaInputs.max_monthly_orders}
+                    onChange={(e) => setQuotaInputs({ ...quotaInputs, max_monthly_orders: Number(e.target.value) })}
                     className="rounded-xl text-xs font-mono font-bold"
                   />
-                  <p className="text-[10px] text-muted-foreground">Monthly transaction ceiling</p>
                 </div>
               </div>
 
-              <div className="flex justify-end pt-2">
+              <DialogFooter className="pt-2">
                 <Button
-                  onClick={handleSaveQuotas}
-                  disabled={savingQuotas}
-                  className="rounded-xl text-xs font-bold px-4 h-9 shadow-2xs"
-                >
-                  {savingQuotas ? "Saving Quotas..." : "Save Quota Limits"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Emergency Kill Switch Command Card */}
-          <Card className="rounded-2xl border-red-500/30 bg-red-500/5 dark:bg-red-950/15 shadow-2xs">
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
-                <Power className="size-4.5" />
-                <CardTitle className="text-base font-bold">Emergency Session Kill Switch</CardTitle>
-              </div>
-              <CardDescription className="text-xs text-muted-foreground">
-                Instantly revoke authentication tokens across devices in case of security breaches or compromised staff.
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent className="space-y-3 pt-1">
-              {/* 1-Click Global Force Logout */}
-              <Button
-                variant="destructive"
-                onClick={() => setGlobalKillModalOpen(true)}
-                className="w-full rounded-xl text-xs font-bold gap-1.5 h-9 bg-red-600 hover:bg-red-700 shadow-xs"
-              >
-                <Power className="size-3.5" /> Global Emergency Force Logout
-              </Button>
-
-              <div className="pt-2 border-t border-red-500/20 space-y-2">
-                <Label className="text-xs font-bold text-foreground">
-                  Per-Branch Session Kill Switch
-                </Label>
-                <div className="flex gap-1.5">
-                  <select
-                    value={targetBranchId}
-                    onChange={(e) => setTargetBranchId(e.target.value)}
-                    className="h-8 rounded-xl border border-input bg-card px-2 text-xs flex-1"
-                  >
-                    <option value="">Select a Hub to logout...</option>
-                    {branches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name} ({b.code})
-                      </option>
-                    ))}
-                  </select>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!targetBranchId}
-                    onClick={() => {
-                      const matched = branches.find((b) => b.id === targetBranchId);
-                      if (matched) handleExecuteBranchKill(matched.id, matched.name);
-                    }}
-                    className="rounded-xl text-xs border-red-500/40 text-red-600 hover:bg-red-500/10 h-8"
-                  >
-                    Revoke
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Row 3: Client Branch Quotas & Usage Monitor */}
-        <Card className="rounded-2xl border-border bg-card shadow-2xs">
-          <CardHeader className="pb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <Store className="size-4.5 text-primary" />
-                <CardTitle className="text-base font-bold">Client Branch Quotas &amp; Usage Monitor</CardTitle>
-                <Badge
                   variant="outline"
-                  className={
-                    quotaCheck.allowed
-                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[10px]"
-                      : "border-destructive/40 bg-destructive/10 text-destructive text-[10px]"
-                  }
+                  onClick={() => setQuotaModal({ open: false, client: null })}
+                  className="rounded-xl text-xs"
                 >
-                  {branches.filter((b) => b.is_active).length} / {quotas?.max_branches ?? 10} Hubs in Use
-                </Badge>
-              </div>
-              <CardDescription className="text-xs mt-0.5">
-                Master platform governance monitor. Displays client-created store branches against the configured $N$ quota limit.
-              </CardDescription>
+                  Cancel
+                </Button>
+                <Button
+                  disabled={savingQuotas}
+                  onClick={handleSaveQuotas}
+                  className="rounded-xl text-xs font-bold"
+                >
+                  {savingQuotas ? "Saving..." : "Save Quota Changes"}
+                </Button>
+              </DialogFooter>
             </div>
-
-            <Badge variant="outline" className="text-xs border-primary/30 text-primary bg-primary/5 py-1 px-2.5">
-              Client Self-Service Active
-            </Badge>
-          </CardHeader>
-
-          <CardContent>
-            {/* Operational Data & Activity Isolation Callout */}
-            <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-3.5 text-xs flex items-start gap-2.5">
-              <ShieldCheck className="size-4 text-primary shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <span className="font-bold text-foreground">Tenant Operational Isolation Active</span>
-                <p className="text-muted-foreground leading-relaxed">
-                  Super Admin strictly governs client quota limits ($N$ branch limit, staff seats, monthly transaction caps, and tenant freeze). Branch creation, store catalog, inventory, and fulfillment operations are self-managed exclusively by the Client Admin in Store Settings.
-                </p>
-              </div>
-            </div>
-
-            {!quotaCheck.allowed && (
-              <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
-                <AlertTriangle className="size-4 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold">Branch Quota Ceiling Reached:</span> Client has reached the maximum allowed branches ({quotas?.max_branches}). Increase the quota limit above if client requires additional hub headroom.
-                </div>
-              </div>
-            )}
-
-            <div className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-muted/50 border-b border-border text-[11px] font-bold text-muted-foreground uppercase">
-                  <tr>
-                    <th className="p-3">Store Hub</th>
-                    <th className="p-3">Code / Slug</th>
-                    <th className="p-3">Delivery Zone</th>
-                    <th className="p-3">Hours</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3">Operational Ownership</th>
-                    <th className="p-3 text-right">Emergency Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {branches.map((branch) => (
-                    <tr key={branch.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="p-3 font-semibold text-foreground">
-                        <div className="flex items-center gap-1.5">
-                          <span>{branch.name}</span>
-                          {branch.is_default && (
-                            <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary text-[9px] py-0 px-1 font-bold">
-                              Flagship Dock
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-muted-foreground line-clamp-1">{branch.address || "Tamil Nadu, India"}</p>
-                      </td>
-                      <td className="p-3 font-mono text-[11px]">
-                        <span className="font-bold">{branch.code}</span>
-                        <span className="text-muted-foreground block text-[10px]">/{branch.slug}</span>
-                      </td>
-                      <td className="p-3">{branch.delivery_radius_km} km SLA</td>
-                      <td className="p-3 text-muted-foreground">
-                        {branch.open_time} – {branch.close_time}
-                      </td>
-                      <td className="p-3">
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] ${
-                            branch.is_active
-                              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                              : "border-muted text-muted-foreground"
-                          }`}
-                        >
-                          {branch.is_active ? "Active" : "Paused"}
-                        </Badge>
-                      </td>
-                      <td className="p-3">
-                        <Badge variant="outline" className="border-muted bg-muted/40 text-muted-foreground text-[10px]">
-                          Client Admin Managed
-                        </Badge>
-                      </td>
-                      <td className="p-3 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleExecuteBranchKill(branch.id, branch.name)}
-                          className="h-7 text-[11px] text-red-600 hover:bg-red-500/10 rounded-lg font-medium px-2"
-                          title="Emergency Force Logout Sessions for this Hub"
-                        >
-                          Revoke Sessions
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Row 4: Security Audit & Anti-Impersonation Log */}
-        <Card className="rounded-2xl border-border bg-card shadow-2xs">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="size-4.5 text-emerald-600" />
-              <CardTitle className="text-base font-bold">Security Audit &amp; Governance Trail</CardTitle>
-            </div>
-            <CardDescription className="text-xs">
-              Live tamper-evident log of administrative operations, quota modifications, and security revocations.
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent>
-            {auditLogs.length === 0 ? (
-              <div className="p-6 text-center text-muted-foreground text-xs">
-                No recent security incidents or governance changes logged.
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                {auditLogs.slice(0, 15).map((log) => (
-                  <div
-                    key={log.id}
-                    className="rounded-xl border border-border p-2.5 text-xs flex items-center justify-between gap-3 bg-muted/20"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 font-mono font-bold">
-                        <Badge
-                          variant="outline"
-                          className={
-                            log.action.includes("KILL") || log.action.includes("BLOCKED")
-                              ? "border-red-500/40 bg-red-500/10 text-red-600 text-[10px]"
-                              : "border-primary/40 bg-primary/10 text-primary text-[10px]"
-                          }
-                        >
-                          {log.action}
-                        </Badge>
-                        <span className="text-[11px] text-muted-foreground truncate">
-                          Target: {log.target_type} ({log.target_id || "global"})
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mt-1">
-                        {log.details ? JSON.stringify(log.details) : "No details"}
-                      </p>
-                    </div>
-
-                    <span className="text-[10px] font-mono text-muted-foreground shrink-0">
-                      {new Date(log.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          </DialogContent>
+        </Dialog>
       </div>
-
-      {/* Global Kill Switch Confirmation Alert Dialog */}
-      <AlertDialog open={globalKillModalOpen} onOpenChange={setGlobalKillModalOpen}>
-        <AlertDialogContent className="rounded-2xl max-w-md">
-          <AlertDialogHeader>
-            <div className="mx-auto size-12 rounded-2xl bg-red-500/10 text-red-600 flex items-center justify-center mb-1">
-              <ShieldAlert className="size-6" />
-            </div>
-            <AlertDialogTitle className="text-center text-lg text-destructive font-black">
-              EXECUTE GLOBAL KILL SWITCH?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-xs text-center leading-relaxed">
-              This will <span className="font-bold text-foreground">instantly revoke ALL sessions</span> for every customer, cashier, cutter, driver, and manager across all branches. All active browsers will be force-logged out immediately.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <div className="space-y-3 py-2 text-xs">
-            <div>
-              <Label className="text-xs font-bold text-foreground">Revocation Reason</Label>
-              <Input
-                value={killReason}
-                onChange={(e) => setKillReason(e.target.value)}
-                className="mt-1 rounded-xl text-xs"
-                placeholder="e.g. Critical security rotation or suspected intrusion"
-              />
-            </div>
-
-            <div>
-              <Label className="text-xs font-bold text-destructive">
-                Type <span className="font-mono bg-destructive/10 px-1 rounded">CONFIRM-RESET</span> to proceed:
-              </Label>
-              <Input
-                value={confirmText}
-                onChange={(e) => setConfirmText(e.target.value)}
-                className="mt-1 rounded-xl text-xs font-mono font-bold"
-                placeholder="CONFIRM-RESET"
-              />
-            </div>
-          </div>
-
-          <AlertDialogFooter className="grid grid-cols-2 gap-2 mt-2">
-            <AlertDialogCancel
-              onClick={() => {
-                setGlobalKillModalOpen(false);
-                setConfirmText("");
-              }}
-              className="rounded-xl text-xs"
-            >
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleExecuteGlobalKill}
-              disabled={confirmText !== "CONFIRM-RESET" || executingKill}
-              className="rounded-xl text-xs bg-red-600 hover:bg-red-700 text-white font-bold"
-            >
-              {executingKill ? "Executing..." : "🚨 WIPE ALL SESSIONS"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Edit and Delete operations are self-managed exclusively by Client Admins in Store Settings */}
     </AdminShell>
   );
 }

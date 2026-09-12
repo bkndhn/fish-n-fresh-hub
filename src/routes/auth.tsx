@@ -370,8 +370,7 @@ function AuthPage() {
           <span className="ocean-gradient mx-auto flex size-12 items-center justify-center rounded-2xl text-primary-foreground shadow-sm">
             <Fish className="size-6" />
           </span>
-          <CardTitle className="mt-3 font-display text-2xl">Fish N Fresh Console</CardTitle>
-          <CardDescription>Customers, staff &amp; admin</CardDescription>
+          <CardTitle className="mt-3 font-display text-2xl">Fish N Fresh</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin">
