@@ -546,7 +546,7 @@ function Checkout() {
       total,
       phone: cleanPhone,
       name: cleanName,
-      branch_name: activeBranch?.name,
+      ...(activeBranch?.name ? { branch_name: activeBranch.name } : {}),
     });
     toast.success("Order placed successfully!");
   }
