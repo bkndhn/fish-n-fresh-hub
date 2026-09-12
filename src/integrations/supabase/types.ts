@@ -60,50 +60,74 @@ export type Database = {
         Row: {
           address: string | null
           close_time: string | null
+          code: string | null
           created_at: string
           delivery_radius_km: number
+          fssai_license: string | null
+          gstin: string | null
           id: string
           is_active: boolean
+          is_default: boolean
           lat: number | null
           lng: number | null
           manager: string | null
+          manager_user_id: string | null
+          min_order_amount: number
           name: string
           open_time: string | null
           phone: string | null
+          slug: string | null
           sort_order: number
           updated_at: string
+          upi_id: string | null
         }
         Insert: {
           address?: string | null
           close_time?: string | null
+          code?: string | null
           created_at?: string
           delivery_radius_km?: number
+          fssai_license?: string | null
+          gstin?: string | null
           id?: string
           is_active?: boolean
+          is_default?: boolean
           lat?: number | null
           lng?: number | null
           manager?: string | null
+          manager_user_id?: string | null
+          min_order_amount?: number
           name: string
           open_time?: string | null
           phone?: string | null
+          slug?: string | null
           sort_order?: number
           updated_at?: string
+          upi_id?: string | null
         }
         Update: {
           address?: string | null
           close_time?: string | null
+          code?: string | null
           created_at?: string
           delivery_radius_km?: number
+          fssai_license?: string | null
+          gstin?: string | null
           id?: string
           is_active?: boolean
+          is_default?: boolean
           lat?: number | null
           lng?: number | null
           manager?: string | null
+          manager_user_id?: string | null
+          min_order_amount?: number
           name?: string
           open_time?: string | null
           phone?: string | null
+          slug?: string | null
           sort_order?: number
           updated_at?: string
+          upi_id?: string | null
         }
         Relationships: []
       }
@@ -208,6 +232,7 @@ export type Database = {
       }
       customer_subscriptions: {
         Row: {
+          branch_id: string | null
           created_at: string
           customer_address: string
           customer_email: string | null
@@ -232,6 +257,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          branch_id?: string | null
           created_at?: string
           customer_address: string
           customer_email?: string | null
@@ -256,6 +282,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          branch_id?: string | null
           created_at?: string
           customer_address?: string
           customer_email?: string | null
@@ -280,6 +307,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "customer_subscriptions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "customer_subscriptions_product_id_fkey"
             columns: ["product_id"]
@@ -387,6 +421,7 @@ export type Database = {
           amount_collected: number
           amount_settled: number
           balance_remaining: number
+          branch_id: string | null
           created_at: string
           driver_id: string | null
           driver_name: string
@@ -405,6 +440,7 @@ export type Database = {
           amount_collected: number
           amount_settled: number
           balance_remaining?: number
+          branch_id?: string | null
           created_at?: string
           driver_id?: string | null
           driver_name: string
@@ -423,6 +459,7 @@ export type Database = {
           amount_collected?: number
           amount_settled?: number
           balance_remaining?: number
+          branch_id?: string | null
           created_at?: string
           driver_id?: string | null
           driver_name?: string
@@ -437,7 +474,71 @@ export type Database = {
           settled_by_name?: string
           settlement_number?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "driver_cash_settlements_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expenses: {
+        Row: {
+          amount: number
+          branch_id: string | null
+          category: string
+          created_at: string
+          created_by: string | null
+          expense_date: string
+          id: string
+          notes: string | null
+          payment_method: string
+          receipt_url: string | null
+          title: string
+          updated_at: string
+          vendor_name: string | null
+        }
+        Insert: {
+          amount: number
+          branch_id?: string | null
+          category: string
+          created_at?: string
+          created_by?: string | null
+          expense_date?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          receipt_url?: string | null
+          title: string
+          updated_at?: string
+          vendor_name?: string | null
+        }
+        Update: {
+          amount?: number
+          branch_id?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          expense_date?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          receipt_url?: string | null
+          title?: string
+          updated_at?: string
+          vendor_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fcm_tokens: {
         Row: {
@@ -521,6 +622,7 @@ export type Database = {
         Row: {
           batch_number: string
           boat_number: string | null
+          branch_id: string | null
           catch_date: string
           catch_harbour: string
           cold_chain_temp_celsius: number
@@ -543,6 +645,7 @@ export type Database = {
         Insert: {
           batch_number: string
           boat_number?: string | null
+          branch_id?: string | null
           catch_date?: string
           catch_harbour?: string
           cold_chain_temp_celsius?: number
@@ -565,6 +668,7 @@ export type Database = {
         Update: {
           batch_number?: string
           boat_number?: string | null
+          branch_id?: string | null
           catch_date?: string
           catch_harbour?: string
           cold_chain_temp_celsius?: number
@@ -585,6 +689,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "inventory_batches_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "inventory_batches_product_id_fkey"
             columns: ["product_id"]
@@ -988,6 +1099,69 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_audit_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_role: string
+          created_at: string
+          details: Json
+          id: string
+          target_id: string | null
+          target_type: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_role?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_role?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Relationships: []
+      }
+      platform_revocations: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string
+          revoked_at: string
+          revoked_by: string | null
+          scope: string
+          target_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason?: string
+          revoked_at?: string
+          revoked_by?: string | null
+          scope: string
+          target_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string
+          revoked_at?: string
+          revoked_by?: string | null
+          scope?: string
+          target_id?: string | null
+        }
+        Relationships: []
+      }
       product_ai_benefits: {
         Row: {
           benefits_en: Json
@@ -1076,10 +1250,12 @@ export type Database = {
       }
       products: {
         Row: {
+          aisle_location: string | null
           allow_custom_qty: boolean
           benefits: string[] | null
           best_for: string | null
           branch_id: string | null
+          brand: string | null
           calories: number | null
           catch_date: string | null
           category: string | null
@@ -1096,6 +1272,7 @@ export type Database = {
           is_featured: boolean
           lab_tested: boolean
           low_stock_threshold: number | null
+          model_number: string | null
           name: string
           name_tamil: string | null
           old_price: number | null
@@ -1106,19 +1283,25 @@ export type Database = {
           rating: number
           recipe_steps: string | null
           recipe_title: string | null
+          requires_serial: boolean | null
           source_origin: string | null
+          specifications: Json | null
           stock: number
           storage: string | null
           tags: string[] | null
           traceability: string | null
           unit: string
           updated_at: string
+          variants: Json | null
+          warranty_period_months: number | null
         }
         Insert: {
+          aisle_location?: string | null
           allow_custom_qty?: boolean
           benefits?: string[] | null
           best_for?: string | null
           branch_id?: string | null
+          brand?: string | null
           calories?: number | null
           catch_date?: string | null
           category?: string | null
@@ -1135,6 +1318,7 @@ export type Database = {
           is_featured?: boolean
           lab_tested?: boolean
           low_stock_threshold?: number | null
+          model_number?: string | null
           name: string
           name_tamil?: string | null
           old_price?: number | null
@@ -1145,19 +1329,25 @@ export type Database = {
           rating?: number
           recipe_steps?: string | null
           recipe_title?: string | null
+          requires_serial?: boolean | null
           source_origin?: string | null
+          specifications?: Json | null
           stock?: number
           storage?: string | null
           tags?: string[] | null
           traceability?: string | null
           unit?: string
           updated_at?: string
+          variants?: Json | null
+          warranty_period_months?: number | null
         }
         Update: {
+          aisle_location?: string | null
           allow_custom_qty?: boolean
           benefits?: string[] | null
           best_for?: string | null
           branch_id?: string | null
+          brand?: string | null
           calories?: number | null
           catch_date?: string | null
           category?: string | null
@@ -1174,6 +1364,7 @@ export type Database = {
           is_featured?: boolean
           lab_tested?: boolean
           low_stock_threshold?: number | null
+          model_number?: string | null
           name?: string
           name_tamil?: string | null
           old_price?: number | null
@@ -1184,13 +1375,17 @@ export type Database = {
           rating?: number
           recipe_steps?: string | null
           recipe_title?: string | null
+          requires_serial?: boolean | null
           source_origin?: string | null
+          specifications?: Json | null
           stock?: number
           storage?: string | null
           tags?: string[] | null
           traceability?: string | null
           unit?: string
           updated_at?: string
+          variants?: Json | null
+          warranty_period_months?: number | null
         }
         Relationships: [
           {
@@ -1295,6 +1490,7 @@ export type Database = {
       purchase_orders: {
         Row: {
           balance_due: number
+          branch_id: string | null
           catch_date: string
           created_at: string
           harbour_location: string | null
@@ -1311,6 +1507,7 @@ export type Database = {
         }
         Insert: {
           balance_due?: number
+          branch_id?: string | null
           catch_date?: string
           created_at?: string
           harbour_location?: string | null
@@ -1327,6 +1524,7 @@ export type Database = {
         }
         Update: {
           balance_due?: number
+          branch_id?: string | null
           catch_date?: string
           created_at?: string
           harbour_location?: string | null
@@ -1342,6 +1540,13 @@ export type Database = {
           voucher_number?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "purchase_orders_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "purchase_orders_supplier_id_fkey"
             columns: ["supplier_id"]
@@ -2016,6 +2221,48 @@ export type Database = {
           },
         ]
       }
+      tenant_quotas: {
+        Row: {
+          created_at: string
+          id: string
+          is_locked: boolean
+          max_branches: number
+          max_monthly_orders: number
+          max_staff_per_branch: number
+          max_storage_mb: number
+          tenant_code: string
+          tenant_name: string
+          tier: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_locked?: boolean
+          max_branches?: number
+          max_monthly_orders?: number
+          max_staff_per_branch?: number
+          max_storage_mb?: number
+          tenant_code?: string
+          tenant_name?: string
+          tier?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_locked?: boolean
+          max_branches?: number
+          max_monthly_orders?: number
+          max_staff_per_branch?: number
+          max_storage_mb?: number
+          tenant_code?: string
+          tenant_name?: string
+          tier?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       trust_badges: {
         Row: {
           active: boolean
@@ -2048,24 +2295,35 @@ export type Database = {
       }
       user_roles: {
         Row: {
+          branch_id: string | null
           created_at: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
+          branch_id?: string | null
           created_at?: string
           id?: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
+          branch_id?: string | null
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wallet_transactions: {
         Row: {
@@ -2115,6 +2373,7 @@ export type Database = {
       waste_entries: {
         Row: {
           action_taken: string
+          branch_id: string | null
           cost_loss: number
           created_at: string
           entry_number: string
@@ -2129,6 +2388,7 @@ export type Database = {
         }
         Insert: {
           action_taken?: string
+          branch_id?: string | null
           cost_loss?: number
           created_at?: string
           entry_number: string
@@ -2143,6 +2403,7 @@ export type Database = {
         }
         Update: {
           action_taken?: string
+          branch_id?: string | null
           cost_loss?: number
           created_at?: string
           entry_number?: string
@@ -2156,6 +2417,13 @@ export type Database = {
           unit?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "waste_entries_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "waste_entries_product_id_fkey"
             columns: ["product_id"]
@@ -2171,6 +2439,7 @@ export type Database = {
     }
     Functions: {
       deduct_order_stock_atomic: { Args: { p_order_id: string }; Returns: Json }
+      get_auth_branch_id: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2179,7 +2448,10 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
+      is_admin_or_super: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
+      is_super_admin: { Args: never; Returns: boolean }
+      is_team_member: { Args: never; Returns: boolean }
       restore_order_stock_atomic: {
         Args: { p_order_id: string }
         Returns: Json
@@ -2200,6 +2472,14 @@ export type Database = {
           p_settlement_number: string
         }
         Returns: Json
+      }
+      trigger_security_revocation: {
+        Args: { p_reason?: string; p_scope: string; p_target_id?: string }
+        Returns: string
+      }
+      user_has_branch_access: {
+        Args: { p_branch_id: string }
+        Returns: boolean
       }
       verify_and_deliver_order: {
         Args: {

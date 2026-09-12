@@ -14,10 +14,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/lib/cart";
+import type { Product } from "@/lib/types";
 import { inr, formatIST, formatStockDisplay } from "@/lib/format";
 import { productQuery, productsQuery, settingsQuery } from "@/lib/queries";
 import { ProductCard } from "@/components/ProductCard";
@@ -390,9 +392,9 @@ function ProductPage() {
                   const productWithVariant = {
                     ...product,
                     price: effectivePrice,
-                    brand: product.brand,
-                    warranty_period_months: product.warranty_period_months,
-                  };
+                    brand: product.brand ?? null,
+                    warranty_period_months: product.warranty_period_months ?? null,
+                  } as Product;
                   const res = add(
                     productWithVariant,
                     qty,

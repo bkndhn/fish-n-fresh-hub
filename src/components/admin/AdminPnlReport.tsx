@@ -244,7 +244,7 @@ export function AdminPnlReport() {
     if (!isConsolidated || branches.length <= 1) return [];
 
     return branches.map((branch) => {
-      const branchOrders = filteredOrders.filter((o) => o.branch_id === branch.id);
+      const branchOrders = filteredOrders.filter((o: any) => o.branch_id === branch.id);
       const branchExpenses = expenses.filter((e) => e.branch_id === branch.id);
       const branchWaste = wasteEntries.filter((w: any) => w.branch_id === branch.id);
 
@@ -579,7 +579,7 @@ export function AdminPnlReport() {
                   <tr key={branch.id} className="hover:bg-muted/30">
                     <td className="py-2.5 px-3 font-bold text-foreground">
                       {branch.name}
-                      <span className="block text-[10px] text-muted-foreground font-normal">{branch.city}</span>
+                      <span className="block text-[10px] text-muted-foreground font-normal">{branch.address}</span>
                     </td>
                     <td className="py-2.5 px-3 text-right font-semibold">{formatINR(summary.netSales)}</td>
                     <td className="py-2.5 px-3 text-right text-muted-foreground">{formatINR(summary.totalCogs)}</td>

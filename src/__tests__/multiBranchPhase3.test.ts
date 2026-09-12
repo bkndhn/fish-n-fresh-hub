@@ -150,7 +150,7 @@ describe("Phase 3: Customer Location-Based Routing, Cart Isolation & Checkout", 
       name: string,
       branchId: string | null,
       branchName?: string
-    ): CartItem => ({
+    ): any => ({
       product_id: id,
       name,
       price: 499,

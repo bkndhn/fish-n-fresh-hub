@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProductCard } from "@/components/ProductCard";
 import { Input } from "@/components/ui/input";
@@ -291,7 +291,7 @@ function Catalog() {
           >
             All Brands
           </button>
-          {allBrands.map((b) => (
+          {allBrands.map((b: string) => (
             <button
               key={b}
               type="button"

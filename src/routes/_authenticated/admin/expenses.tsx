@@ -688,7 +688,7 @@ export function ExpensesAdmin() {
                   <option value="">Store HQ / General</option>
                   {branches.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {b.name} ({b.city})
+                      {b.name}
                     </option>
                   ))}
                 </select>

@@ -69,7 +69,7 @@ export const DEFAULT_TENANT_QUOTA: TenantQuota = {
 export function checkBranchQuotaAvailable(
   activeBranchesCount: number,
   maxAllowed: number
-): { allowed: boolean; remaining: number; message?: string } {
+): { allowed: boolean; remaining: number; message?: string | undefined } {
   const remaining = Math.max(0, maxAllowed - activeBranchesCount);
   const allowed = activeBranchesCount < maxAllowed;
   return {
@@ -87,7 +87,7 @@ export function checkBranchQuotaAvailable(
 export function checkStaffQuotaAvailable(
   currentStaffInBranch: number,
   maxAllowedPerBranch: number
-): { allowed: boolean; remaining: number; message?: string } {
+): { allowed: boolean; remaining: number; message?: string | undefined } {
   const remaining = Math.max(0, maxAllowedPerBranch - currentStaffInBranch);
   const allowed = currentStaffInBranch < maxAllowedPerBranch;
   return {
@@ -352,7 +352,7 @@ export async function executeKillSwitch(
       await (supabase as any).from("platform_audit_logs").insert({
         actor_id: actorId,
         actor_role: "super_admin",
-        action: FORCE_LOGOUT_,
+        action: "force_logout",
         target_type: scope,
         target_id: targetId || null,
         details: { reason, timestamp: new Date().toISOString() },
@@ -372,7 +372,7 @@ export async function executeKillSwitch(
  */
 export async function createBranchWithQuotaGuard(
   branchData: Omit<Branch, "id" | "created_at" | "updated_at">
-): Promise<{ success: boolean; branch?: Branch; message?: string }> {
+): Promise<{ success: boolean; branch?: Branch | undefined; message?: string | undefined }> {
   try {
     // 1. Check current active count vs quota
     const { count: currentCount } = await supabase

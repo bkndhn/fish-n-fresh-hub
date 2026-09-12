@@ -108,11 +108,11 @@ export interface PosCartItem {
   totalPrice: number;
   image?: string | null;
   gstPercent: number;
-  serialNumbers?: string[];
-  variant?: { id?: string; size?: string; color?: string; sku?: string };
-  brand?: string;
-  warrantyMonths?: number;
-  aisleLocation?: string;
+  serialNumbers?: string[] | undefined;
+  variant?: { id?: string; size?: string; color?: string; sku?: string } | undefined;
+  brand?: string | undefined;
+  warrantyMonths?: number | undefined;
+  aisleLocation?: string | undefined;
 }
 
 interface ParkedCart {
