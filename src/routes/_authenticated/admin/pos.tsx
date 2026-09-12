@@ -32,6 +32,8 @@ import {
   Bookmark,
   Share2,
   Sliders,
+  SlidersHorizontal,
+  Pencil,
   Layers,
   Keyboard,
   FileText,
@@ -224,6 +226,11 @@ export function RetailPosCounterPage() {
   const [modalCutting, setModalCutting] = useState<string>("Curry Cut");
   const [modalSerialInput, setModalSerialInput] = useState<string>("");
   const [modalSelectedVariant, setModalSelectedVariant] = useState<any | null>(null);
+
+  // Edit existing cart item modal state
+  const [editingCartItem, setEditingCartItem] = useState<PosCartItem | null>(null);
+  const [editWeightInput, setEditWeightInput] = useState<string>("1.0");
+  const [editCuttingStyle, setEditCuttingStyle] = useState<string>("Curry Cut");
 
   // Custom Quick Chips state
   const [activeChips, setActiveChips] = useState<QuickChipItem[]>(DEFAULT_QUICK_CHIPS);
@@ -551,6 +558,8 @@ export function RetailPosCounterPage() {
         };
 
         setCart((prev) => [...prev, newItem]);
+        setSearchQuery("");
+        setQuickCodeInput("");
         toast.success(`Scale item added: ${matched.name} (${weight} kg - ₹${totalPrice})`, { icon: "⚖️" });
         return;
       }
@@ -856,6 +865,8 @@ export function RetailPosCounterPage() {
 
     setCart((prev) => [...prev, newItem]);
     setActiveItemModal(null);
+    setSearchQuery("");
+    setQuickCodeInput("");
     toast.success(`Added ${newItem.name} (${newItem.weightKg ? `${newItem.weightKg} kg` : `${newItem.qty} pcs`}) to bill`);
   };
 
@@ -893,6 +904,51 @@ export function RetailPosCounterPage() {
         }
       })
     );
+  };
+
+  const handleOpenEditCartItem = (item: PosCartItem) => {
+    setEditingCartItem(item);
+    const isWeight = item.unit.toLowerCase() === "kg";
+    setEditWeightInput(isWeight ? item.weightKg.toString() : item.qty.toString());
+    setEditCuttingStyle(item.cuttingStyle || "Curry Cut");
+  };
+
+  const handleSaveEditCartItem = () => {
+    if (!editingCartItem) return;
+    const parsedVal = parseFloat(editWeightInput);
+    if (isNaN(parsedVal) || parsedVal <= 0) {
+      toast.error("Please enter a valid weight or quantity greater than 0");
+      return;
+    }
+
+    const matchedProd = products.find((p) => p.id === editingCartItem.productId);
+    const maxStock = matchedProd?.stock ?? 9999;
+    const isWeight = editingCartItem.unit.toLowerCase() === "kg";
+
+    if (parsedVal > maxStock) {
+      toast.warning(`Requested ${parsedVal} exceeds available store stock (${maxStock} ${editingCartItem.unit})!`);
+      return;
+    }
+
+    const newWeightKg = isWeight ? parsedVal : 0;
+    const newQty = isWeight ? 1 : Math.round(parsedVal);
+    const newTotalPrice = Math.round(editingCartItem.pricePerKg * (isWeight ? newWeightKg : newQty));
+
+    setCart((prev) =>
+      prev.map((it) => {
+        if (it.id !== editingCartItem.id) return it;
+        return {
+          ...it,
+          cuttingStyle: editCuttingStyle,
+          weightKg: newWeightKg,
+          qty: newQty,
+          totalPrice: newTotalPrice,
+        };
+      })
+    );
+
+    toast.success(`Updated ${editingCartItem.name}: ${isWeight ? `${newWeightKg} kg` : `${newQty} pcs`} • ${editCuttingStyle}`);
+    setEditingCartItem(null);
   };
 
   const handleRemoveFromCart = (id: string) => {
@@ -1627,8 +1683,21 @@ export function RetailPosCounterPage() {
                   placeholder="Fast search seafood / meat by name (English or Tamil) [F1]..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 text-xs rounded-xl bg-background"
+                  className="pl-9 pr-8 h-9 text-xs rounded-xl bg-background"
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      searchInputRef.current?.focus();
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground size-5 flex items-center justify-center rounded-full hover:bg-muted transition"
+                    title="Clear search [Esc]"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
               </div>
 
               {/* Category Pills */}
@@ -1893,7 +1962,15 @@ export function RetailPosCounterPage() {
                             </span>
                           )}
                           {item.cuttingStyle && (
-                            <span className="text-primary font-medium">[{item.cuttingStyle}] · </span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditCartItem(item)}
+                              className="text-primary font-bold hover:underline cursor-pointer bg-primary/10 hover:bg-primary/20 px-1.5 py-0.5 rounded text-[10px] inline-flex items-center gap-1 transition"
+                              title="Click to edit cutting style or weight"
+                            >
+                              <span>[{item.cuttingStyle}]</span>
+                              <SlidersHorizontal className="size-2.5 opacity-70" />
+                            </button>
                           )}
                           <span>₹{item.pricePerKg}/{item.unit}</span>
                           {item.aisleLocation && (
@@ -1915,7 +1992,13 @@ export function RetailPosCounterPage() {
                           >
                             <Minus className="size-3" />
                           </button>
-                          <span className="font-mono text-[11px] font-bold px-1 bg-background rounded border border-border/60">
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => handleOpenEditCartItem(item)}
+                            className="font-mono text-[11px] font-bold px-1.5 py-0.5 bg-background rounded border border-border/60 hover:border-primary/60 hover:text-primary cursor-pointer transition shadow-2xs"
+                            title="Click to edit weight directly"
+                          >
                             {item.weightKg > 0 ? `${item.weightKg.toFixed(2)} kg` : `${item.qty} ${item.unit}`}
                           </span>
                           <button
@@ -1926,14 +2009,33 @@ export function RetailPosCounterPage() {
                           >
                             <Plus className="size-3" />
                           </button>
+                          {/* Dedicated Smart Edit Icon */}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditCartItem(item)}
+                            className="size-5 rounded flex items-center justify-center bg-primary/10 hover:bg-primary/25 text-primary transition ml-0.5"
+                            title="Quick Edit: Change Weight, Cutting Style, or Portion"
+                            aria-label="Quick edit bill item"
+                          >
+                            <SlidersHorizontal className="size-3" />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <span className="font-bold text-xs font-mono">{formatINR(item.totalPrice)}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditCartItem(item)}
+                          className="text-muted-foreground hover:text-primary p-1 rounded-md transition-colors"
+                          title="Edit item cutting style and weight"
+                        >
+                          <Pencil className="size-3" />
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleRemoveFromCart(item.id)}
                           className="text-muted-foreground hover:text-destructive p-1 rounded-md transition-colors"
+                          title="Remove item from bill"
                         >
                           <X className="size-3.5" />
                         </button>
@@ -2735,6 +2837,162 @@ export function RetailPosCounterPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Quick Item Customizer Modal (Edit already-added cart item) */}
+      <Dialog open={Boolean(editingCartItem)} onOpenChange={(open) => !open && setEditingCartItem(null)}>
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md rounded-3xl p-5 border-primary/30 shadow-2xl">
+          {editingCartItem && (
+            <div className="space-y-4">
+              <DialogHeader className="text-left">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-9 items-center justify-center rounded-2xl bg-primary/10 text-primary font-bold shadow-2xs">
+                      <Scissors className="size-4.5" />
+                    </span>
+                    <div>
+                      <DialogTitle className="text-base font-bold text-foreground">
+                        Edit: {editingCartItem.name}
+                      </DialogTitle>
+                      <DialogDescription className="text-xs text-muted-foreground">
+                        Change cutting style or weight without removing from bill.
+                      </DialogDescription>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="font-mono text-xs font-bold border-primary/40 bg-primary/5 text-primary">
+                    ₹{editingCartItem.pricePerKg}/{editingCartItem.unit}
+                  </Badge>
+                </div>
+              </DialogHeader>
+
+              {/* Cutting Style Selection */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-foreground flex items-center justify-between">
+                  <span>Cutting &amp; Cleaning Style</span>
+                  <span className="text-[11px] text-primary font-bold font-mono bg-primary/10 px-2 py-0.5 rounded-md">
+                    {editCuttingStyle}
+                  </span>
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                  {CUTTING_STYLES.map((style) => (
+                    <button
+                      key={style}
+                      type="button"
+                      onClick={() => setEditCuttingStyle(style)}
+                      className={`px-2 py-2 rounded-xl text-xs font-medium text-center border transition-all truncate ${
+                        editCuttingStyle === style
+                          ? "bg-primary text-primary-foreground border-primary shadow-xs font-bold ring-1 ring-primary"
+                          : "bg-muted/40 hover:bg-muted text-muted-foreground border-border/80 hover:text-foreground"
+                      }`}
+                    >
+                      {style}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Weight / Qty Modifier */}
+              <div className="space-y-2 pt-2 border-t border-border/60">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-foreground">
+                    Weight / Quantity ({editingCartItem.unit})
+                  </label>
+                  <span className="font-mono text-xs font-bold text-primary">
+                    Item Total: {formatINR(
+                      Math.round(
+                        editingCartItem.pricePerKg *
+                          (editingCartItem.unit.toLowerCase() === "kg"
+                            ? (parseFloat(editWeightInput) || 0)
+                            : Math.round(parseFloat(editWeightInput) || 1))
+                      )
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    step={editingCartItem.unit.toLowerCase() === "kg" ? "0.01" : "1"}
+                    min="0.05"
+                    value={editWeightInput}
+                    onChange={(e) => setEditWeightInput(e.target.value)}
+                    className="h-10 text-base font-mono font-bold rounded-xl text-center bg-background"
+                    autoFocus
+                  />
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const cur = parseFloat(editWeightInput) || 0;
+                        const next = Math.max(0.05, Math.round((cur - 0.25) * 100) / 100);
+                        setEditWeightInput(next.toString());
+                      }}
+                      className="h-10 px-2.5 rounded-xl text-xs font-bold"
+                    >
+                      -250g
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const cur = parseFloat(editWeightInput) || 0;
+                        const next = Math.round((cur + 0.25) * 100) / 100;
+                        setEditWeightInput(next.toString());
+                      }}
+                      className="h-10 px-2.5 rounded-xl text-xs font-bold"
+                    >
+                      +250g
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Fast Portion Chips for kg items */}
+                {editingCartItem.unit.toLowerCase() === "kg" && (
+                  <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                    {[0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0].map((w) => (
+                      <button
+                        key={w}
+                        type="button"
+                        onClick={() => setEditWeightInput(w.toString())}
+                        className={`px-2 py-1 rounded-lg text-xs font-mono font-bold border transition ${
+                          parseFloat(editWeightInput) === w
+                            ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+                            : "bg-muted/50 hover:bg-muted text-muted-foreground border-border/60 hover:text-foreground"
+                        }`}
+                      >
+                        {w < 1 ? `${Math.round(w * 1000)}g` : `${w} kg`}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between gap-2 pt-3 border-t border-border/60">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditingCartItem(null)}
+                  className="rounded-xl text-xs flex-1 h-9"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleSaveEditCartItem}
+                  className="rounded-xl text-xs font-bold flex-1 h-9 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md gap-1.5"
+                >
+                  <CheckCircle2 className="size-3.5" />
+                  <span>Update Bill Item</span>
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
 
       {/* Universal Quick Chips Manager Modal */}
       <Dialog open={globalChipModalOpen} onOpenChange={setGlobalChipModalOpen}>

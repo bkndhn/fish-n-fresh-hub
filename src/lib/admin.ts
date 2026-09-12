@@ -223,11 +223,44 @@ export type AppRole =
   | "support_staff"
   | "manager";
 
+export const DEV_ROLES_STORAGE_KEY = "fnf_dev_role_override";
+
+export function getDevRoleOverride(): AppRole[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(DEV_ROLES_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed as AppRole[];
+    }
+  } catch {
+    /* ignore parsing errors */
+  }
+  return null;
+}
+
+export function setDevRoleOverride(roles: AppRole[]): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(DEV_ROLES_STORAGE_KEY, JSON.stringify(roles));
+}
+
+export function clearDevRoleOverride(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(DEV_ROLES_STORAGE_KEY);
+}
+
 export const myRolesQuery = queryOptions({
   queryKey: ["admin", "my-roles"],
   staleTime: 1000 * 60 * 15, // 15 minutes fresh in-memory cache
   gcTime: 1000 * 60 * 60, // 1 hour garbage collection
   queryFn: async (): Promise<AppRole[]> => {
+    // 1. Check if testing / developer override is active
+    const override = getDevRoleOverride();
+    if (override && override.length > 0) {
+      return override;
+    }
+
     const { data: sessionData } = await supabase.auth.getSession();
     const uid = sessionData.session?.user?.id;
     if (!uid) return [];
@@ -236,3 +269,4 @@ export const myRolesQuery = queryOptions({
     return (data ?? []).map((r) => r.role as AppRole);
   },
 });
+

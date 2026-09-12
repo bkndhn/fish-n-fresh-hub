@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getDevRoleOverride } from "@/lib/admin";
 
 function safeNext(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -81,7 +82,25 @@ function AuthPage() {
       .select("role")
       .eq("user_id", uid);
 
-    const roles = (roleRows ?? []).map((r) => r.role);
+    let roles = (roleRows ?? []).map((r) => r.role as string);
+
+    // Fallback: check staff table if user_roles is unassigned
+    if (roles.length === 0) {
+      const { data: staffData } = await supabase
+        .from("staff")
+        .select("role")
+        .eq("user_id", uid)
+        .maybeSingle();
+      if (staffData?.role) {
+        roles = [staffData.role];
+      }
+    }
+
+    // Developer / testing mode override if active
+    const devOverride = getDevRoleOverride();
+    if (devOverride && devOverride.length > 0) {
+      roles = devOverride;
+    }
 
     // If explicit next parameter was provided and is not a generic fallback, respect it
     if (next && next !== "/admin" && next !== "/" && next !== "/orders") {
