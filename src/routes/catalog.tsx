@@ -291,7 +291,7 @@ function Catalog() {
           >
             All Brands
           </button>
-          {allBrands.map((b) => (
+          {allBrands.map((b: string) => (
             <button
               key={b}
               type="button"
