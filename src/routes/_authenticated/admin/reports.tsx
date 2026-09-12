@@ -56,6 +56,7 @@ import {
 import { TaxInvoiceModal } from "@/components/TaxInvoiceModal";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -125,6 +126,8 @@ export function Reports() {
   const settings = useQuery(settingsQuery);
 
   const [activeReportTab, setActiveReportTab] = useState<"analytics" | "pnl" | "pos_bills">("analytics");
+  const [analyticsSubTab, setAnalyticsSubTab] = useState<"overview" | "demand" | "products" | "retention" | "operations">("overview");
+  const [analyticsSearchQuery, setAnalyticsSearchQuery] = useState("");
   const [range, setRange] = useState<(typeof RANGES)[number]["key"]>("30");
 
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -1053,8 +1056,9 @@ export function Reports() {
       </div>
 
       {activeReportTab === "analytics" ? (
-        <>
-          {/* Date Range & Controls */}
+
+        <div className="space-y-4">
+                    {/* Date Range & Controls */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="w-full sm:w-auto min-w-0 overflow-x-auto no-scrollbar touch-pan-x flex items-center gap-1.5 pb-1 sm:pb-0">
           {RANGES.map((r) => (
@@ -1145,55 +1149,127 @@ export function Reports() {
         })}
       </div>
 
-      {/* Quick Jump Bar for Profit & Cohort Views */}
-      <div className="mt-3 flex flex-wrap items-center gap-2 p-2 rounded-2xl bg-card border border-border/70 text-xs">
-        <span className="text-[11px] font-bold text-muted-foreground px-1">Quick Views:</span>
-        <Button
-          size="sm"
-          variant="outline"
-          className="rounded-xl h-7 text-xs font-semibold"
-          onClick={() => document.getElementById("profit-margin-analysis")?.scrollIntoView({ behavior: "smooth" })}
-        >
-          <TrendingUp className="size-3.5 mr-1 text-emerald-600" /> Profit Per Product &amp; Margins
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="rounded-xl h-7 text-xs font-semibold"
-          onClick={() => document.getElementById("customer-cohorts-retention")?.scrollIntoView({ behavior: "smooth" })}
-        >
-          <Users className="size-3.5 mr-1 text-violet-600" /> Customer Cohorts &amp; Repeat Rates
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="rounded-xl h-7 text-xs font-semibold"
-          onClick={() => document.getElementById("omnichannel-split")?.scrollIntoView({ behavior: "smooth" })}
-        >
-          <Store className="size-3.5 mr-1 text-primary" /> POS vs Online Split
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="rounded-xl h-7 text-xs font-semibold"
-          onClick={() => document.getElementById("delivery-sla-section")?.scrollIntoView({ behavior: "smooth" })}
-        >
-          <Timer className="size-3.5 mr-1 text-cyan-600" /> Delivery SLA Speeds
-        </Button>
-      </div>
+          {/* Smart Sub-Tabs & Analytics Search Bar */}
+          <div className="space-y-3 pt-1">
+            {/* Search Bar & Quick Chips */}
+            <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between bg-card/80 p-3 rounded-2xl border border-border/80 shadow-2xs backdrop-blur-sm">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                <Input
+                  value={analyticsSearchQuery}
+                  onChange={(e) => setAnalyticsSearchQuery(e.target.value)}
+                  placeholder="Search analytics charts, metrics, or tables... (e.g. POS, Revenue, Peak Hours, Margin, SLA, Cohorts)"
+                  className="pl-9 pr-8 h-9 rounded-xl text-xs bg-background/90"
+                />
+                {analyticsSearchQuery && (
+                  <button
+                    onClick={() => setAnalyticsSearchQuery("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
+              </div>
 
-      {/* Peak Time & Sales Analytics, Date Range Comparison & Smart Harbour Purchasing Suite */}
-      <AnalyticsIntelligence
-        allOrders={allOrders}
-        currentOrders={rows}
-        products={products.data ?? []}
-        range={range}
-        startDate={startDate}
-        endDate={endDate}
-      />
+              {/* Quick Filter Chips */}
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar touch-pan-x py-0.5">
+                {[
+                  { label: "All", q: "" },
+                  { label: "POS Split", q: "pos" },
+                  { label: "Revenue", q: "revenue" },
+                  { label: "AI Demand", q: "demand" },
+                  { label: "Peak Hours", q: "peak" },
+                  { label: "Margins", q: "margin" },
+                  { label: "Cohorts", q: "cohort" },
+                  { label: "SLA", q: "sla" },
+                ].map((chip) => (
+                  <button
+                    key={chip.label}
+                    onClick={() => setAnalyticsSearchQuery(chip.q)}
+                    className={"px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition shrink-0 " + (
+                      analyticsSearchQuery === chip.q
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-muted/50 hover:bg-muted text-muted-foreground border-border/60"
+                    )}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-      {/* Omnichannel Performance: In-Store Counter POS vs Online App Delivery */}
-      <Card id="omnichannel-split" className="mt-4 border-border/70 shadow-sm overflow-hidden scroll-mt-20">
+            {/* If searching: Show Search Results Banner */}
+            {analyticsSearchQuery.trim() ? (
+              <div className="flex items-center justify-between px-1 py-1 text-xs text-muted-foreground">
+                <p>
+                  Showing filtered analytics for: <span className="font-bold text-foreground">"{analyticsSearchQuery}"</span>
+                </p>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 text-xs text-primary"
+                  onClick={() => setAnalyticsSearchQuery("")}
+                >
+                  Clear search &amp; show tabs
+                </Button>
+              </div>
+            ) : (
+              /* Sub-Tabs Bar (Horizontally scrollable on mobile) */
+              <div className="w-full overflow-x-auto no-scrollbar touch-pan-x">
+                <Tabs
+                  value={analyticsSubTab}
+                  onValueChange={(v: any) => setAnalyticsSubTab(v)}
+                  className="w-full"
+                >
+                  <TabsList className="flex items-center justify-start h-11 p-1 bg-muted/60 rounded-2xl w-max sm:w-full border border-border/60">
+                    <TabsTrigger
+                      value="overview"
+                      className="rounded-xl px-3 py-1.5 text-xs font-bold gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-xs"
+                    >
+                      <Store className="size-3.5 text-primary" /> Overview &amp; Channels
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="demand"
+                      className="rounded-xl px-3 py-1.5 text-xs font-bold gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-xs"
+                    >
+                      <Sparkles className="size-3.5 text-cyan-500" /> AI Demand &amp; Procurement
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="products"
+                      className="rounded-xl px-3 py-1.5 text-xs font-bold gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-xs"
+                    >
+                      <TrendingUp className="size-3.5 text-emerald-500" /> Products &amp; Margins
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="retention"
+                      className="rounded-xl px-3 py-1.5 text-xs font-bold gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-xs"
+                    >
+                      <Users className="size-3.5 text-violet-500" /> Customer Retention
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="operations"
+                      className="rounded-xl px-3 py-1.5 text-xs font-bold gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-xs"
+                    >
+                      <Timer className="size-3.5 text-amber-500" /> Delivery SLA
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+            )}
+          </div>
+
+          {/* Search Filter vs Sub-Tab View */}
+          {analyticsSearchQuery.trim() ? (
+            <div className="space-y-4">
+              {(() => {
+                const q = analyticsSearchQuery.toLowerCase();
+                const matches = (keywords: string[]) => keywords.some((k) => k.toLowerCase().includes(q));
+                const matchedCards = [
+                  {
+                    key: "omnichannel",
+                    badge: "Overview & Channels",
+                    keywords: ["omnichannel", "channel", "pos", "counter", "online", "split", "cash", "upi", "card", "store"],
+                    node: (<>      <Card id="omnichannel-split" className="mt-4 border-border/70 shadow-sm overflow-hidden scroll-mt-20">
         <CardHeader className="bg-muted/30 pb-3 pt-4 border-b border-border/60">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
@@ -1347,10 +1423,146 @@ export function Reports() {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </Card></>)
+                  },
+                  {
+                    key: "revenue-trend",
+                    badge: "Overview & Channels",
+                    keywords: ["revenue", "trend", "daily", "sales", "growth", "income", "chart"],
+                    node: (<>        <Card className="border-border/60 shadow-sm">
+          <CardHeader className="pb-2 pt-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-semibold">Daily Revenue Trend</CardTitle>
+                <p className="text-xs text-muted-foreground">Sales volume per day across current period</p>
+              </div>
+              <span className="text-xs font-semibold text-primary">{formatINR(revenue)} total</span>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-2 pb-5">
+            <div className="flex h-44 items-end gap-1.5 pt-4">
+              {daily.map(([day, value]) => {
+                const heightPct = Math.max(8, (value / peakRevenueDay) * 100);
+                return (
+                  <div
+                    key={day}
+                    className="group relative flex flex-1 flex-col items-center gap-1"
+                    title={`${day}: ${formatINR(value)}`}
+                  >
+                    <div className="relative w-full">
+                      <div
+                        className="w-full rounded-t-md bg-primary transition-all duration-300 group-hover:bg-primary/80"
+                        style={{ height: `${heightPct}%` }}
+                      />
+                    </div>
+                    <span className="text-[9px] text-muted-foreground font-mono">{day.slice(5)}</span>
+                  </div>
+                );
+              })}
+              {daily.length === 0 && (
+                <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+                  No order revenue recorded in this time range.
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card></>)
+                  },
+                  {
+                    key: "fulfillment-channel",
+                    badge: "Overview & Channels",
+                    keywords: ["fulfillment", "delivery", "pickup", "express", "channel", "orders"],
+                    node: (<>        <Card className="border-border/60 shadow-sm">
+          <CardHeader className="pb-2 pt-5">
+            <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+              <Truck className="size-4 text-emerald-500" /> Fulfillment Channel
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">Delivery dispatch vs Store takeaway</p>
+          </CardHeader>
+          <CardContent className="pt-3 pb-5 space-y-4">
+            <div className="grid grid-cols-2 gap-2 text-center">
+              <div className="rounded-xl border border-border/70 p-2.5">
+                <Truck className="mx-auto size-4 text-emerald-500 mb-1" />
+                <p className="text-xs text-muted-foreground">Doorstep Delivery</p>
+                <p className="font-display font-bold text-lg text-foreground">{fulfillmentMix.deliveryCount}</p>
+                <p className="text-[11px] text-muted-foreground">{formatINR(fulfillmentMix.deliveryRev)}</p>
+              </div>
+              <div className="rounded-xl border border-border/70 p-2.5">
+                <Store className="mx-auto size-4 text-primary mb-1" />
+                <p className="text-xs text-muted-foreground">Store Pickup</p>
+                <p className="font-display font-bold text-lg text-foreground">{fulfillmentMix.pickupCount}</p>
+                <p className="text-[11px] text-muted-foreground">{formatINR(fulfillmentMix.pickupRev)}</p>
+              </div>
+            </div>
 
-      {/* AI Demand & Business Insights Panel */}
-      <Card className="mt-4 border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card shadow-sm">
+            <div>
+              <div className="h-3 w-full overflow-hidden rounded-full bg-muted flex">
+                <div
+                  className="bg-emerald-500 transition-all"
+                  style={{ width: `${fulfillmentMix.deliveryPct}%` }}
+                />
+                <div
+                  className="bg-primary transition-all"
+                  style={{ width: `${fulfillmentMix.pickupPct}%` }}
+                />
+              </div>
+              <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                <span>Delivery ({fulfillmentMix.deliveryPct}%)</span>
+                <span>Pickup ({fulfillmentMix.pickupPct}%)</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card></>)
+                  },
+                  {
+                    key: "payment-mix",
+                    badge: "Overview & Channels",
+                    keywords: ["payment", "mix", "cod", "upi", "card", "razorpay", "tender", "cash"],
+                    node: (<>        <Card className="border-border/60 shadow-sm">
+          <CardHeader className="pb-2 pt-5">
+            <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+              <CreditCard className="size-4 text-amber-500" /> Payment Mix
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">UPI, Cash on Delivery & Card gateway</p>
+          </CardHeader>
+          <CardContent className="pt-2 pb-5">
+            <ul className="space-y-2.5 text-sm">
+              {byPayment.map(([method, v]) => (
+                <li key={method} className="flex items-center justify-between rounded-lg border border-border/50 p-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase text-foreground">{method}</span>
+                    <span className="text-[11px] text-muted-foreground">({v.count} orders)</span>
+                  </div>
+                  <span className="font-medium text-xs text-foreground">{formatINR(v.value)}</span>
+                </li>
+              ))}
+              {byPayment.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center pt-4">No payment records found.</p>
+              )}
+            </ul>
+          </CardContent>
+        </Card></>)
+                  },
+                  {
+                    key: "ai-intelligence",
+                    badge: "AI Demand & Procurement",
+                    keywords: ["ai", "demand", "forecast", "procurement", "harbour", "purchase", "planning", "intelligence"],
+                    node: (<>      {/* Peak Time & Sales Analytics, Date Range Comparison & Smart Harbour Purchasing Suite */}
+      <AnalyticsIntelligence
+        allOrders={allOrders}
+        currentOrders={rows}
+        products={products.data ?? []}
+        range={range}
+        startDate={startDate}
+        endDate={endDate}
+      />
+</>)
+                  },
+                  {
+                    key: "ai-insights",
+                    badge: "AI Demand & Procurement",
+                    keywords: ["ai", "insights", "business", "summary", "intelligence"],
+                    node: (<>      <Card className="mt-4 border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card shadow-sm">
         <CardHeader className="pb-2 pt-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -1392,52 +1604,13 @@ export function Reports() {
             })}
           </div>
         </CardContent>
-      </Card>
-
-      {/* Daily Revenue Chart & Peak Ordering Hours Grid */}
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        {/* Daily Revenue Trend */}
-        <Card className="border-border/60 shadow-sm">
-          <CardHeader className="pb-2 pt-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-sm font-semibold">Daily Revenue Trend</CardTitle>
-                <p className="text-xs text-muted-foreground">Sales volume per day across current period</p>
-              </div>
-              <span className="text-xs font-semibold text-primary">{formatINR(revenue)} total</span>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-2 pb-5">
-            <div className="flex h-44 items-end gap-1.5 pt-4">
-              {daily.map(([day, value]) => {
-                const heightPct = Math.max(8, (value / peakRevenueDay) * 100);
-                return (
-                  <div
-                    key={day}
-                    className="group relative flex flex-1 flex-col items-center gap-1"
-                    title={`${day}: ${formatINR(value)}`}
-                  >
-                    <div className="relative w-full">
-                      <div
-                        className="w-full rounded-t-md bg-primary transition-all duration-300 group-hover:bg-primary/80"
-                        style={{ height: `${heightPct}%` }}
-                      />
-                    </div>
-                    <span className="text-[9px] text-muted-foreground font-mono">{day.slice(5)}</span>
-                  </div>
-                );
-              })}
-              {daily.length === 0 && (
-                <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
-                  No order revenue recorded in this time range.
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Peak Ordering Hours Distribution */}
-        <Card className="border-border/60 shadow-sm">
+      </Card></>)
+                  },
+                  {
+                    key: "peak-hours",
+                    badge: "AI Demand & Procurement",
+                    keywords: ["peak", "hours", "time", "ist", "rush", "schedule", "ordering"],
+                    node: (<>        <Card className="border-border/60 shadow-sm">
           <CardHeader className="pb-2 pt-5">
             <div className="flex items-center justify-between">
               <div>
@@ -1482,13 +1655,482 @@ export function Reports() {
               })}
             </div>
           </CardContent>
-        </Card>
-      </div>
+        </Card></>)
+                  },
+                  {
+                    key: "profit-margins",
+                    badge: "Products & Margins",
+                    keywords: ["profit", "margin", "margins", "cost", "cogs", "fast movers", "slow movers", "velocity", "seafood", "fish"],
+                    node: (<>      <Card id="profit-margin-analysis" className="mt-4 border-border/60 shadow-sm scroll-mt-20">
+        <CardHeader className="pb-3 pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Flame className="size-5 text-orange-500 animate-pulse" />
+                Product Sales Velocity & Movement Analysis
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Catalog categorized into Top Selling 🔥, Steady / Medium ⚖️, and Slow Selling ❄️ for the selected time window
+              </p>
+            </div>
 
-      {/* Second Row: Customer Retention & Fulfillment Mix */}
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        {/* Customer Retention Card */}
-        <Card className="border-border/60 shadow-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <Link to="/admin/purchases">
+                <Button size="sm" variant="outline" className="rounded-xl h-8 text-xs">
+                  <Package className="mr-1.5 size-3.5 text-primary" /> Catch Inward Refill
+                </Button>
+              </Link>
+              <Link to="/admin/products">
+                <Button size="sm" variant="outline" className="rounded-xl h-8 text-xs">
+                  <ExternalLink className="mr-1.5 size-3.5" /> Edit Products
+                </Button>
+              </Link>
+              <ExportDropdown options={profitExportOptions} buttonLabel="Export Margin Sheet" />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-2 pb-5 space-y-4">
+          {/* Velocity KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Top Selling */}
+            <div
+              onClick={() => setVelocityTierFilter(velocityTierFilter === "top" ? "all" : "top")}
+              className={`cursor-pointer rounded-2xl border p-3.5 transition-all shadow-2xs ${
+                velocityTierFilter === "top"
+                  ? "border-orange-500/60 bg-orange-500/10 ring-2 ring-orange-500/20"
+                  : "border-border/70 bg-card hover:border-orange-500/40"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-orange-600 dark:text-orange-400">
+                  <Flame className="size-4" /> Top Selling SKUs
+                </span>
+                <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-extrabold text-orange-600 dark:text-orange-400">
+                  {productVelocity.topCount} SKUs
+                </span>
+              </div>
+              <p className="mt-2 text-xl font-extrabold font-display text-foreground">
+                {formatINR(productVelocity.topRevenue)}
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                High turnover • Fast revenue drivers
+              </p>
+            </div>
+
+            {/* Medium / Steady */}
+            <div
+              onClick={() => setVelocityTierFilter(velocityTierFilter === "medium" ? "all" : "medium")}
+              className={`cursor-pointer rounded-2xl border p-3.5 transition-all shadow-2xs ${
+                velocityTierFilter === "medium"
+                  ? "border-blue-500/60 bg-blue-500/10 ring-2 ring-blue-500/20"
+                  : "border-border/70 bg-card hover:border-blue-500/40"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400">
+                  <Scale className="size-4" /> Medium / Steady SKUs
+                </span>
+                <span className="rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-extrabold text-blue-600 dark:text-blue-400">
+                  {productVelocity.mediumCount} SKUs
+                </span>
+              </div>
+              <p className="mt-2 text-xl font-extrabold font-display text-foreground">
+                {formatINR(productVelocity.mediumRevenue)}
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                Steady volume • Predictable demand
+              </p>
+            </div>
+
+            {/* Slow Selling */}
+            <div
+              onClick={() => setVelocityTierFilter(velocityTierFilter === "slow" ? "all" : "slow")}
+              className={`cursor-pointer rounded-2xl border p-3.5 transition-all shadow-2xs ${
+                velocityTierFilter === "slow"
+                  ? "border-slate-500/60 bg-slate-500/10 ring-2 ring-slate-500/20"
+                  : "border-border/70 bg-card hover:border-slate-500/40"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-400">
+                  <Snowflake className="size-4" /> Slow / Low Velocity
+                </span>
+                <span className="rounded-full bg-slate-500/15 px-2 py-0.5 text-[10px] font-extrabold text-slate-600 dark:text-slate-400">
+                  {productVelocity.slowCount} SKUs
+                </span>
+              </div>
+              <p className="mt-2 text-xl font-extrabold font-display text-foreground">
+                {formatINR(productVelocity.slowRevenue)}
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                Low turnover • Spoilage / overstock risk
+              </p>
+            </div>
+          </div>
+
+          {/* Unit Economics & Profit Margins Summary Bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-2xl bg-muted/30 border border-border/70 shadow-2xs">
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground">Catalog Sales Revenue</p>
+              <p className="text-base sm:text-lg font-bold font-display text-foreground">
+                {formatINR(productVelocity.all.reduce((s, p) => s + p.revenue, 0))}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground">Est. Cost of Goods (COGS)</p>
+              <p className="text-base sm:text-lg font-bold font-display text-muted-foreground">
+                {formatINR(productVelocity.totalCogs)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground">Gross Profit</p>
+              <p className="text-base sm:text-lg font-bold font-display text-emerald-600 dark:text-emerald-400">
+                {formatINR(productVelocity.totalGrossProfit)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground">Blended Profit Margin</p>
+              <p className="text-base sm:text-lg font-bold font-display text-primary">
+                {productVelocity.overallMarginPct}%
+              </p>
+            </div>
+          </div>
+
+          {/* Filter Toolbar & Search */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Button
+                size="sm"
+                variant={velocityTierFilter === "all" ? "default" : "outline"}
+                className="rounded-xl h-8 text-xs font-semibold"
+                onClick={() => setVelocityTierFilter("all")}
+              >
+                All SKUs ({productVelocity.totalCatalog})
+              </Button>
+              <Button
+                size="sm"
+                variant={velocityTierFilter === "top" ? "default" : "outline"}
+                className={`rounded-xl h-8 text-xs font-semibold ${
+                  velocityTierFilter === "top" ? "bg-orange-600 hover:bg-orange-700 text-white" : ""
+                }`}
+                onClick={() => setVelocityTierFilter("top")}
+              >
+                <Flame className="mr-1 size-3.5 text-orange-400" /> Top ({productVelocity.topCount})
+              </Button>
+              <Button
+                size="sm"
+                variant={velocityTierFilter === "medium" ? "default" : "outline"}
+                className={`rounded-xl h-8 text-xs font-semibold ${
+                  velocityTierFilter === "medium" ? "bg-blue-600 hover:bg-blue-700 text-white" : ""
+                }`}
+                onClick={() => setVelocityTierFilter("medium")}
+              >
+                <Scale className="mr-1 size-3.5 text-blue-400" /> Medium ({productVelocity.mediumCount})
+              </Button>
+              <Button
+                size="sm"
+                variant={velocityTierFilter === "slow" ? "default" : "outline"}
+                className={`rounded-xl h-8 text-xs font-semibold ${
+                  velocityTierFilter === "slow" ? "bg-slate-700 hover:bg-slate-800 text-white" : ""
+                }`}
+                onClick={() => setVelocityTierFilter("slow")}
+              >
+                <Snowflake className="mr-1 size-3.5 text-slate-400" /> Slow ({productVelocity.slowCount})
+              </Button>
+            </div>
+
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2.5 top-2 size-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search fish or category..."
+                value={velocitySearch}
+                onChange={(e) => setVelocitySearch(e.target.value)}
+                className="h-8 pl-8 text-xs rounded-xl"
+              />
+            </div>
+          </div>
+
+          {/* Product Cards for Mobile (< sm) */}
+          <div className="space-y-3 sm:hidden pt-2">
+            {filteredVelocityProducts.map((p) => {
+              const isLowStock = p.stock <= p.lowStockThreshold;
+              return (
+                <div
+                  key={p.id}
+                  className="rounded-2xl border border-border/70 bg-card p-3.5 shadow-2xs space-y-2.5"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {p.imageUrl ? (
+                        <img
+                          src={p.imageUrl}
+                          alt={p.name}
+                          className="size-11 rounded-xl object-cover border border-border/50 shrink-0"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLElement).style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <Fish className="size-5" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm text-foreground truncate">{p.name}</p>
+                        <p className="text-[11px] text-muted-foreground capitalize">{p.category}</p>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold border flex items-center gap-1 ${
+                        p.tier === "top"
+                          ? "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30"
+                          : p.tier === "medium"
+                          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30"
+                          : "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30"
+                      }`}
+                    >
+                      {p.tier === "top" && <Flame className="size-3" />}
+                      {p.tier === "medium" && <Scale className="size-3" />}
+                      {p.tier === "slow" && <Snowflake className="size-3" />}
+                      {p.tier === "top" ? "Top Selling" : p.tier === "medium" ? "Steady Mover" : "Slow Mover"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/30 p-2.5 text-xs">
+                    <div>
+                      <span className="text-[10px] text-muted-foreground block">Period Sales</span>
+                      <span className="font-bold text-foreground">
+                        {p.qtySold > 0 ? `${p.qtySold} sold` : "0 sold"}
+                      </span>
+                      <span className="text-[11px] text-emerald-600 dark:text-emerald-400 block font-semibold">
+                        {formatINR(p.revenue)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-muted-foreground block">Live Stock</span>
+                      <span
+                        className={`font-bold inline-flex items-center gap-1 ${
+                          isLowStock ? "text-amber-600 dark:text-amber-400" : "text-foreground"
+                        }`}
+                      >
+                        {isLowStock && <AlertCircle className="size-3 shrink-0" />}
+                        {formatStockDisplay(p.stock, p.unit)}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block">
+                        Threshold: {p.lowStockThreshold}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border/50 bg-background/60 p-2.5 text-[11px] text-muted-foreground">
+                    <span className="font-semibold text-foreground">Strategy: </span>
+                    {p.recommendation}
+                  </div>
+                </div>
+              );
+            })}
+
+            {filteredVelocityProducts.length === 0 && (
+              <div className="rounded-2xl border border-dashed border-border/70 p-6 text-center text-xs text-muted-foreground">
+                No products match the selected velocity filter or search term.
+              </div>
+            )}
+          </div>
+
+          {/* Product Table for Desktop (>= sm) */}
+          <div className="hidden sm:block overflow-x-auto rounded-2xl border border-border/60">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-border/60 bg-muted/30 text-muted-foreground">
+                  <th className="py-2.5 px-3.5 font-semibold">Product SKU</th>
+                  <th className="py-2.5 px-3 font-semibold">Category</th>
+                  <th className="py-2.5 px-3 font-semibold">Velocity</th>
+                  <th className="py-2.5 px-3 text-right font-semibold">Units Sold</th>
+                  <th className="py-2.5 px-3 text-right font-semibold">Revenue</th>
+                  <th className="py-2.5 px-3 text-right font-semibold">Inward Cost</th>
+                  <th className="py-2.5 px-3 text-right font-semibold">Gross Profit</th>
+                  <th className="py-2.5 px-3 text-center font-semibold">Margin %</th>
+                  <th className="py-2.5 px-3 font-semibold">Current Stock</th>
+                  <th className="py-2.5 px-3 font-semibold">Inventory Strategy & Recommendation</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {filteredVelocityProducts.map((p) => {
+                  const isLowStock = p.stock <= p.lowStockThreshold;
+                  return (
+                    <tr key={p.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="py-2.5 px-3.5 font-medium">
+                        <div className="flex items-center gap-2.5">
+                          {p.imageUrl ? (
+                            <img
+                              src={p.imageUrl}
+                              alt={p.name}
+                              className="size-8 rounded-lg object-cover border border-border/50 shrink-0"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = "none";
+                              }}
+                            />
+                          ) : (
+                            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                              <Fish className="size-4" />
+                            </div>
+                          )}
+                          <div>
+                            <span className="font-bold text-foreground block">{p.name}</span>
+                            <span className="text-[10px] text-muted-foreground">{formatINR(p.price)} / {p.unit}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 capitalize text-muted-foreground">{p.category}</td>
+                      <td className="py-2.5 px-3">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold border ${
+                            p.tier === "top"
+                              ? "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30"
+                              : p.tier === "medium"
+                              ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30"
+                              : "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30"
+                          }`}
+                        >
+                          {p.tier === "top" && <Flame className="size-3" />}
+                          {p.tier === "medium" && <Scale className="size-3" />}
+                          {p.tier === "slow" && <Snowflake className="size-3" />}
+                          {p.tier === "top" ? "Top Selling 🔥" : p.tier === "medium" ? "Steady Mover ⚖️" : "Slow Mover ❄️"}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-semibold text-foreground">
+                        {p.qtySold > 0 ? `${p.qtySold}` : "0"}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-bold text-foreground">
+                        {formatINR(p.revenue)}
+                      </td>
+                      <td className="py-2.5 px-3 text-right text-muted-foreground">
+                        {formatINR(p.costPrice)} / {p.unit}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                        {formatINR(p.grossProfit)}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <span
+                          className={`inline-block rounded-md px-1.5 py-0.5 text-[10px] font-extrabold ${
+                            p.marginPct >= 35
+                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                              : p.marginPct >= 20
+                              ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+                              : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                          }`}
+                        >
+                          {p.marginPct}%
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`font-semibold ${
+                              isLowStock ? "text-amber-600 dark:text-amber-400" : "text-foreground"
+                            }`}
+                          >
+                            {formatStockDisplay(p.stock, p.unit)}
+                          </span>
+                          {isLowStock && (
+                            <span className="rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                              Low Stock
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 text-[11px] text-muted-foreground leading-snug">
+                        {p.recommendation}
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {filteredVelocityProducts.length === 0 && (
+                  <tr>
+                    <td colSpan={10} className="py-6 text-center text-xs text-muted-foreground">
+                      No products match the selected velocity filter or search term.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card></>)
+                  },
+                  {
+                    key: "top-seafood",
+                    badge: "Products & Margins",
+                    keywords: ["top", "selling", "seafood", "fish", "products", "best", "sales"],
+                    node: (<>        <Card className="border-border/60 shadow-sm">
+          <CardHeader className="pb-2 pt-5">
+            <CardTitle className="text-sm font-semibold">Top Selling Seafood</CardTitle>
+            <p className="text-xs text-muted-foreground">Best performing products by revenue</p>
+          </CardHeader>
+          <CardContent className="pt-2 pb-5">
+            <ul className="space-y-2 text-sm">
+              {topProducts.map(([name, v], index) => (
+                <li key={name} className="flex items-center justify-between gap-2 border-b border-border/40 pb-2 last:border-0 last:pb-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
+                      {index + 1}
+                    </span>
+                    <span className="truncate text-xs font-medium text-foreground">{name}</span>
+                  </div>
+                  <span className="shrink-0 text-right text-xs">
+                    <span className="font-semibold text-foreground">{formatINR(v.value)}</span>
+                    <span className="text-[10px] text-muted-foreground block">{v.qty} sold</span>
+                  </span>
+                </li>
+              ))}
+              {topProducts.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center pt-4">No sales recorded yet.</p>
+              )}
+            </ul>
+          </CardContent>
+        </Card></>)
+                  },
+                  {
+                    key: "category-contrib",
+                    badge: "Products & Margins",
+                    keywords: ["category", "contribution", "marine", "freshwater", "shellfish", "dry fish"],
+                    node: (<>        <Card className="border-border/60 shadow-sm">
+          <CardHeader className="pb-2 pt-5">
+            <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+              <Fish className="size-4 text-cyan-500" /> Category Contribution
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">Revenue generated by fish category</p>
+          </CardHeader>
+          <CardContent className="pt-2 pb-5 space-y-3">
+            {categoryMix.map((c) => (
+              <div key={c.category} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium capitalize text-foreground">{c.category}</span>
+                  <span className="text-muted-foreground">
+                    {formatINR(c.value)} ({c.percentage}%)
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-cyan-500 transition-all"
+                    style={{ width: `${c.percentage}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+            {categoryMix.length === 0 && (
+              <p className="text-xs text-muted-foreground pt-4 text-center">No category data recorded yet.</p>
+            )}
+          </CardContent>
+        </Card></>)
+                  },
+                  {
+                    key: "customer-retention",
+                    badge: "Customer Retention",
+                    keywords: ["customer", "retention", "repeat", "buyers", "loyalty"],
+                    node: (<>        <Card className="border-border/60 shadow-sm">
           <CardHeader className="pb-2 pt-5">
             <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
               <Users className="size-4 text-violet-500" /> Customer Retention
@@ -1537,53 +2179,133 @@ export function Reports() {
               Total unique active accounts in selected range: <span className="font-semibold text-foreground">{customerAnalytics.totalUnique}</span>
             </div>
           </CardContent>
-        </Card>
-
-        {/* Fulfillment & Delivery Mix */}
-        <Card className="border-border/60 shadow-sm">
-          <CardHeader className="pb-2 pt-5">
-            <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-              <Truck className="size-4 text-emerald-500" /> Fulfillment Channel
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">Delivery dispatch vs Store takeaway</p>
-          </CardHeader>
-          <CardContent className="pt-3 pb-5 space-y-4">
-            <div className="grid grid-cols-2 gap-2 text-center">
-              <div className="rounded-xl border border-border/70 p-2.5">
-                <Truck className="mx-auto size-4 text-emerald-500 mb-1" />
-                <p className="text-xs text-muted-foreground">Doorstep Delivery</p>
-                <p className="font-display font-bold text-lg text-foreground">{fulfillmentMix.deliveryCount}</p>
-                <p className="text-[11px] text-muted-foreground">{formatINR(fulfillmentMix.deliveryRev)}</p>
-              </div>
-              <div className="rounded-xl border border-border/70 p-2.5">
-                <Store className="mx-auto size-4 text-primary mb-1" />
-                <p className="text-xs text-muted-foreground">Store Pickup</p>
-                <p className="font-display font-bold text-lg text-foreground">{fulfillmentMix.pickupCount}</p>
-                <p className="text-[11px] text-muted-foreground">{formatINR(fulfillmentMix.pickupRev)}</p>
-              </div>
-            </div>
-
+        </Card></>)
+                  },
+                  {
+                    key: "customer-cohorts",
+                    badge: "Customer Retention",
+                    keywords: ["cohort", "cohorts", "retention", "loyalty", "rfm", "repeat", "buyers", "churn"],
+                    node: (<>      <Card id="customer-cohorts-retention" className="mt-4 border-border/60 shadow-sm scroll-mt-20">
+        <CardHeader className="pb-2 pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <div className="h-3 w-full overflow-hidden rounded-full bg-muted flex">
-                <div
-                  className="bg-emerald-500 transition-all"
-                  style={{ width: `${fulfillmentMix.deliveryPct}%` }}
-                />
-                <div
-                  className="bg-primary transition-all"
-                  style={{ width: `${fulfillmentMix.pickupPct}%` }}
-                />
+              <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                <Users className="size-4 text-violet-500" /> Customer Cohort Retention & Loyalty Analytics
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Monthly acquisition cohorts tracking re-order rates across 6 months, customer loyalty distribution, and lifetime value
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-600 dark:text-violet-400">
+                Customer LTV: {formatINR(cohortAnalytics.avgLtv)}
+              </span>
+              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                Active Buyers: {cohortAnalytics.totalBuyers}
+              </span>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-3 pb-5 space-y-4 min-w-0 max-w-full">
+          <div className="grid gap-4 lg:grid-cols-3 min-w-0 max-w-full">
+            {/* Cohort Heatmap Grid */}
+            <div className="lg:col-span-2 min-w-0 max-w-full space-y-2">
+              <p className="text-xs font-bold text-foreground">Monthly Retention Heatmap Grid</p>
+              <div className="w-full min-w-0 overflow-x-auto no-scrollbar rounded-2xl border border-border/60">
+                <table className="w-full min-w-[540px] text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-border/60 bg-muted/30 text-muted-foreground">
+                      <th className="py-2 px-3 font-semibold">Acquisition Month</th>
+                      <th className="py-2 px-3 text-right font-semibold">Cohort Size</th>
+                      <th className="py-2 px-3 text-center font-semibold">M0 (Launch)</th>
+                      <th className="py-2 px-3 text-center font-semibold">M1</th>
+                      <th className="py-2 px-3 text-center font-semibold">M2</th>
+                      <th className="py-2 px-3 text-center font-semibold">M3</th>
+                      <th className="py-2 px-3 text-center font-semibold">M4</th>
+                      <th className="py-2 px-3 text-center font-semibold">M5</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {cohortAnalytics.cohortList.map((c) => (
+                      <tr key={c.monthKey} className="hover:bg-muted/10">
+                        <td className="py-2.5 px-3 font-bold text-foreground">{c.monthLabel}</td>
+                        <td className="py-2.5 px-3 text-right font-medium text-muted-foreground">
+                          {c.size} users
+                        </td>
+                        {c.retention.map((pct, idx) => {
+                          let bg = "bg-muted/30 text-muted-foreground";
+                          if (pct === 100) bg = "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold";
+                          else if (pct >= 40) bg = "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold";
+                          else if (pct >= 25) bg = "bg-sky-500/15 text-sky-600 dark:text-sky-400 font-medium";
+                          else if (pct >= 10) bg = "bg-amber-500/15 text-amber-600 dark:text-amber-400";
+                          else if (pct > 0) bg = "bg-rose-500/10 text-rose-600 dark:text-rose-400";
+
+                          return (
+                            <td key={idx} className="py-2.5 px-2 text-center">
+                              <span className={`inline-block rounded-md px-2 py-0.5 text-[11px] ${bg}`}>
+                                {pct}%
+                              </span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+
+                    {cohortAnalytics.cohortList.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="py-6 text-center text-xs text-muted-foreground">
+                          Not enough order history yet to compute monthly cohorts.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-              <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                <span>Delivery ({fulfillmentMix.deliveryPct}%)</span>
-                <span>Pickup ({fulfillmentMix.pickupPct}%)</span>
+              <p className="text-[10px] text-muted-foreground pt-1">
+                * Note: M0 represents month of initial acquisition. Subsequent columns represent re-order frequency in succeeding calendar months.
+              </p>
+            </div>
+
+            {/* Loyalty Tiers Distribution */}
+            <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/20 p-3.5">
+              <div>
+                <p className="text-xs font-bold text-foreground">Customer Loyalty Tiers</p>
+                <p className="text-[11px] text-muted-foreground">Order frequency distribution across all buyers</p>
+              </div>
+
+              <div className="space-y-2.5 pt-1">
+                {cohortAnalytics.loyaltyTiers.map((tier) => (
+                  <div key={tier.label} className="space-y-1 rounded-xl bg-background/80 p-2.5 border border-border/40">
+                    <div className="flex items-center justify-between text-xs">
+                      <div>
+                        <span className="font-bold text-foreground">{tier.label}</span>
+                        <span className="text-[10px] text-muted-foreground block">{tier.desc}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-bold text-foreground">{tier.count}</span>
+                        <span className="text-[10px] text-muted-foreground block">{tier.pct}%</span>
+                      </div>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted mt-1">
+                      <div className={`h-full rounded-full ${tier.color}`} style={{ width: `${tier.pct}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-2 border-t border-border/40 text-[11px] text-muted-foreground">
+                <strong>Benchmark:</strong> A 30%+ repeat customer rate signals strong product retention in fresh food retail.
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Order Ticket Size Breakdown */}
-        <Card className="border-border/60 shadow-sm">
+          </div>
+        </CardContent>
+      </Card></>)
+                  },
+                  {
+                    key: "ticket-size",
+                    badge: "Customer Retention",
+                    keywords: ["ticket", "size", "distribution", "aov", "baskets", "order value"],
+                    node: (<>        <Card className="border-border/60 shadow-sm">
           <CardHeader className="pb-2 pt-5">
             <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
               <BarChart3 className="size-4 text-primary" /> Ticket Size Distribution
@@ -1608,11 +2330,13 @@ export function Reports() {
               </div>
             ))}
           </CardContent>
-        </Card>
-      </div>
-
-      {/* Delivery Turnaround & On-Time SLA Reports */}
-      <Card id="delivery-sla-section" className="mt-4 border-border/60 shadow-sm scroll-mt-20">
+        </Card></>)
+                  },
+                  {
+                    key: "delivery-sla",
+                    badge: "Delivery SLA",
+                    keywords: ["delivery", "sla", "speed", "turnaround", "prep", "dispatch", "minutes", "ontime"],
+                    node: (<>      <Card id="delivery-sla-section" className="mt-4 border-border/60 shadow-sm scroll-mt-20">
         <CardHeader className="pb-2 pt-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -1770,43 +2494,277 @@ export function Reports() {
             </div>
           )}
         </CardContent>
-      </Card>
+      </Card></>)
+                  },
+                ].filter((item) => matches(item.keywords));
 
-      {/* Third Row: Category Mix, Payment Breakdown, Top Products */}
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        {/* Category Contribution */}
-        <Card className="border-border/60 shadow-sm">
-          <CardHeader className="pb-2 pt-5">
-            <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-              <Fish className="size-4 text-cyan-500" /> Category Contribution
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">Revenue generated by fish category</p>
-          </CardHeader>
-          <CardContent className="pt-2 pb-5 space-y-3">
-            {categoryMix.map((c) => (
-              <div key={c.category} className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium capitalize text-foreground">{c.category}</span>
-                  <span className="text-muted-foreground">
-                    {formatINR(c.value)} ({c.percentage}%)
-                  </span>
+                if (matchedCards.length === 0) {
+                  return (
+                    <div className="p-8 text-center bg-card rounded-2xl border border-dashed border-border/80 text-muted-foreground">
+                      <p className="font-semibold text-sm">No analytics charts or metrics matched "{analyticsSearchQuery}"</p>
+                      <p className="text-xs mt-1">Try searching for terms like "pos", "revenue", "sla", "margin", "peak", or "retention".</p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-3 rounded-xl text-xs"
+                        onClick={() => setAnalyticsSearchQuery("")}
+                      >
+                        Reset Search
+                      </Button>
+                    </div>
+                  );
+                }
+
+                return matchedCards.map((c) => (
+                  <div key={c.key} className="space-y-2">
+                    <Badge variant="outline" className="text-[10px] font-bold">
+                      {c.badge}
+                    </Badge>
+                    {c.node}
+                  </div>
+                ));
+              })()}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {analyticsSubTab === "overview" && (
+                <div className="space-y-4">
+                        <Card id="omnichannel-split" className="mt-4 border-border/70 shadow-sm overflow-hidden scroll-mt-20">
+        <CardHeader className="bg-muted/30 pb-3 pt-4 border-b border-border/60">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Store className="size-4" />
+              </div>
+              <div>
+                <CardTitle className="text-sm font-bold text-foreground">
+                  Channel Performance: In-Store POS Counter vs Online App Delivery
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Real-time revenue split, average ticket comparison, and payment tender distribution
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                POS Share: {channelAnalytics.posSharePct}%
+              </span>
+              <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20">
+                Online Share: {channelAnalytics.onlineSharePct}%
+              </span>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-4 space-y-4">
+          {/* Visual Channel Share Bar */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs font-semibold">
+              <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <Store className="size-3.5" /> In-Store Counter POS ({channelAnalytics.posSharePct}%)
+              </span>
+              <span className="text-sky-600 dark:text-sky-400 flex items-center gap-1">
+                <Truck className="size-3.5" /> Online App Delivery ({channelAnalytics.onlineSharePct}%)
+              </span>
+            </div>
+            <div className="h-2.5 w-full rounded-full overflow-hidden bg-muted flex">
+              <div
+                className="bg-emerald-500 transition-all duration-500"
+                style={{ width: `${channelAnalytics.posSharePct}%` }}
+                title={`POS: ${formatINR(channelAnalytics.posRev)}`}
+              />
+              <div
+                className="bg-sky-500 transition-all duration-500"
+                style={{ width: `${channelAnalytics.onlineSharePct}%` }}
+                title={`Online: ${formatINR(channelAnalytics.onlineRev)}`}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {/* IN-STORE POS COUNTER CARD */}
+            <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="size-7 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-bold">
+                    <Store className="size-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground">In-Store Counter POS</h4>
+                    <p className="text-[10px] text-muted-foreground">Walk-in retail counter sales &amp; instant receipts</p>
+                  </div>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-cyan-500 transition-all"
-                    style={{ width: `${c.percentage}%` }}
-                  />
+                <Badge variant="outline" className="text-[10px] font-mono border-emerald-500/30 text-emerald-700 dark:text-emerald-300">
+                  {channelAnalytics.posCount} bills
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-emerald-500/20">
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">POS Revenue</p>
+                  <p className="text-lg font-bold font-display text-emerald-700 dark:text-emerald-400">
+                    {formatINR(channelAnalytics.posRev)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Counter AOV</p>
+                  <p className="text-lg font-bold font-display text-foreground">
+                    {formatINR(channelAnalytics.posAov)}
+                  </p>
                 </div>
               </div>
-            ))}
-            {categoryMix.length === 0 && (
-              <p className="text-xs text-muted-foreground pt-4 text-center">No category data recorded yet.</p>
-            )}
+
+              {/* POS Tender Mix */}
+              <div className="pt-2 border-t border-emerald-500/20 space-y-1.5 text-xs">
+                <p className="text-[11px] font-semibold text-muted-foreground">Payment Tender Mix:</p>
+                <div className="grid grid-cols-3 gap-1.5 text-center">
+                  <div className="p-1.5 rounded-lg bg-background/80 border border-emerald-500/20">
+                    <span className="text-[10px] text-muted-foreground block">Cash</span>
+                    <span className="font-bold text-xs font-mono text-amber-600">{formatINR(channelAnalytics.posCash)}</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-background/80 border border-emerald-500/20">
+                    <span className="text-[10px] text-muted-foreground block">UPI QR</span>
+                    <span className="font-bold text-xs font-mono text-emerald-600">{formatINR(channelAnalytics.posUpi)}</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-background/80 border border-emerald-500/20">
+                    <span className="text-[10px] text-muted-foreground block">Card / Split</span>
+                    <span className="font-bold text-xs font-mono text-primary">{formatINR(channelAnalytics.posCard)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ONLINE APP DELIVERY CARD */}
+            <div className="p-4 rounded-2xl bg-sky-500/5 border border-sky-500/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="size-7 rounded-lg bg-sky-500 text-white flex items-center justify-center font-bold">
+                    <Truck className="size-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground">Online App Orders</h4>
+                    <p className="text-[10px] text-muted-foreground">Doorstep express delivery &amp; scheduled orders</p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-[10px] font-mono border-sky-500/30 text-sky-700 dark:text-sky-300">
+                  {channelAnalytics.onlineCount} orders
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-sky-500/20">
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Online Revenue</p>
+                  <p className="text-lg font-bold font-display text-sky-700 dark:text-sky-400">
+                    {formatINR(channelAnalytics.onlineRev)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Online AOV</p>
+                  <p className="text-lg font-bold font-display text-foreground">
+                    {formatINR(channelAnalytics.onlineAov)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Online Payment Mix */}
+              <div className="pt-2 border-t border-sky-500/20 space-y-1.5 text-xs">
+                <p className="text-[11px] font-semibold text-muted-foreground">Payment Method Mix:</p>
+                <div className="grid grid-cols-2 gap-1.5 text-center">
+                  <div className="p-1.5 rounded-lg bg-background/80 border border-sky-500/20">
+                    <span className="text-[10px] text-muted-foreground block">Cash on Delivery (COD)</span>
+                    <span className="font-bold text-xs font-mono text-amber-600">{formatINR(channelAnalytics.onlineCod)}</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-background/80 border border-sky-500/20">
+                    <span className="text-[10px] text-muted-foreground block">Online / UPI Prepaid</span>
+                    <span className="font-bold text-xs font-mono text-sky-600">{formatINR(channelAnalytics.onlinePrepaid)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+                          <Card className="border-border/60 shadow-sm">
+          <CardHeader className="pb-2 pt-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-semibold">Daily Revenue Trend</CardTitle>
+                <p className="text-xs text-muted-foreground">Sales volume per day across current period</p>
+              </div>
+              <span className="text-xs font-semibold text-primary">{formatINR(revenue)} total</span>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-2 pb-5">
+            <div className="flex h-44 items-end gap-1.5 pt-4">
+              {daily.map(([day, value]) => {
+                const heightPct = Math.max(8, (value / peakRevenueDay) * 100);
+                return (
+                  <div
+                    key={day}
+                    className="group relative flex flex-1 flex-col items-center gap-1"
+                    title={`${day}: ${formatINR(value)}`}
+                  >
+                    <div className="relative w-full">
+                      <div
+                        className="w-full rounded-t-md bg-primary transition-all duration-300 group-hover:bg-primary/80"
+                        style={{ height: `${heightPct}%` }}
+                      />
+                    </div>
+                    <span className="text-[9px] text-muted-foreground font-mono">{day.slice(5)}</span>
+                  </div>
+                );
+              })}
+              {daily.length === 0 && (
+                <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+                  No order revenue recorded in this time range.
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
+                  <div className="grid gap-4 md:grid-cols-2">
+                            <Card className="border-border/60 shadow-sm">
+          <CardHeader className="pb-2 pt-5">
+            <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+              <Truck className="size-4 text-emerald-500" /> Fulfillment Channel
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">Delivery dispatch vs Store takeaway</p>
+          </CardHeader>
+          <CardContent className="pt-3 pb-5 space-y-4">
+            <div className="grid grid-cols-2 gap-2 text-center">
+              <div className="rounded-xl border border-border/70 p-2.5">
+                <Truck className="mx-auto size-4 text-emerald-500 mb-1" />
+                <p className="text-xs text-muted-foreground">Doorstep Delivery</p>
+                <p className="font-display font-bold text-lg text-foreground">{fulfillmentMix.deliveryCount}</p>
+                <p className="text-[11px] text-muted-foreground">{formatINR(fulfillmentMix.deliveryRev)}</p>
+              </div>
+              <div className="rounded-xl border border-border/70 p-2.5">
+                <Store className="mx-auto size-4 text-primary mb-1" />
+                <p className="text-xs text-muted-foreground">Store Pickup</p>
+                <p className="font-display font-bold text-lg text-foreground">{fulfillmentMix.pickupCount}</p>
+                <p className="text-[11px] text-muted-foreground">{formatINR(fulfillmentMix.pickupRev)}</p>
+              </div>
+            </div>
 
-        {/* Payment Methods */}
-        <Card className="border-border/60 shadow-sm">
+            <div>
+              <div className="h-3 w-full overflow-hidden rounded-full bg-muted flex">
+                <div
+                  className="bg-emerald-500 transition-all"
+                  style={{ width: `${fulfillmentMix.deliveryPct}%` }}
+                />
+                <div
+                  className="bg-primary transition-all"
+                  style={{ width: `${fulfillmentMix.pickupPct}%` }}
+                />
+              </div>
+              <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                <span>Delivery ({fulfillmentMix.deliveryPct}%)</span>
+                <span>Pickup ({fulfillmentMix.pickupPct}%)</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+                            <Card className="border-border/60 shadow-sm">
           <CardHeader className="pb-2 pt-5">
             <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
               <CreditCard className="size-4 text-amber-500" /> Payment Mix
@@ -1830,39 +2788,117 @@ export function Reports() {
             </ul>
           </CardContent>
         </Card>
+                  </div>
+                </div>
+              )}
 
-        {/* Top Products Leaderboard */}
-        <Card className="border-border/60 shadow-sm">
+              {analyticsSubTab === "demand" && (
+                <div className="space-y-4">
+                        {/* Peak Time & Sales Analytics, Date Range Comparison & Smart Harbour Purchasing Suite */}
+      <AnalyticsIntelligence
+        allOrders={allOrders}
+        currentOrders={rows}
+        products={products.data ?? []}
+        range={range}
+        startDate={startDate}
+        endDate={endDate}
+      />
+
+                        <Card className="mt-4 border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card shadow-sm">
+        <CardHeader className="pb-2 pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+                <Sparkles className="size-4 animate-pulse" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-bold text-foreground">
+                  AI Business Insights & Demand Intelligence
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Autonomous operational recommendations synthesized from sales patterns and customer behavior
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              <span>Projected 7-Day Revenue: {formatINR(aiInsights.projected7DayRev)}</span>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-3 pb-5">
+          <div className="grid gap-3 md:grid-cols-2">
+            {aiInsights.insights.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div
+                  key={item.title}
+                  className="flex items-start gap-3 rounded-xl border border-border/60 bg-card/60 p-3.5 shadow-xs transition-colors hover:border-primary/40"
+                >
+                  <div className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${item.bg}`}>
+                    <Icon className={`size-4 ${item.color}`} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-foreground">{item.title}</h4>
+                    <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+                          <Card className="border-border/60 shadow-sm">
           <CardHeader className="pb-2 pt-5">
-            <CardTitle className="text-sm font-semibold">Top Selling Seafood</CardTitle>
-            <p className="text-xs text-muted-foreground">Best performing products by revenue</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                  <Clock className="size-4 text-amber-500" /> Peak Ordering Hours (IST)
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">Order volume distribution across daytime slots</p>
+              </div>
+              {hourlyData.peakSlot && hourlyData.peakSlot.count > 0 && (
+                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                  Peak: {hourlyData.peakSlot.label}
+                </span>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="pt-2 pb-5">
-            <ul className="space-y-2 text-sm">
-              {topProducts.map(([name, v], index) => (
-                <li key={name} className="flex items-center justify-between gap-2 border-b border-border/40 pb-2 last:border-0 last:pb-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
-                      {index + 1}
+            <div className="flex h-44 items-end gap-1 pt-4">
+              {hourlyData.list.map((h) => {
+                const heightPct = Math.max(6, (h.count / hourlyData.maxCount) * 100);
+                const isPeak = hourlyData.peakSlot && hourlyData.peakSlot.hour === h.hour && h.count > 0;
+                return (
+                  <div
+                    key={h.hour}
+                    className="group relative flex flex-1 flex-col items-center gap-1"
+                    title={`${h.label}: ${h.count} orders`}
+                  >
+                    <div className="relative w-full">
+                      <div
+                        className={`w-full rounded-t-md transition-all duration-300 ${
+                          isPeak
+                            ? "bg-amber-500 shadow-xs"
+                            : "bg-muted-foreground/30 group-hover:bg-primary/70"
+                        }`}
+                        style={{ height: `${heightPct}%` }}
+                      />
+                    </div>
+                    <span className={`text-[8px] ${isPeak ? "font-bold text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+                      {h.hour % 2 === 0 ? h.label : ""}
                     </span>
-                    <span className="truncate text-xs font-medium text-foreground">{name}</span>
                   </div>
-                  <span className="shrink-0 text-right text-xs">
-                    <span className="font-semibold text-foreground">{formatINR(v.value)}</span>
-                    <span className="text-[10px] text-muted-foreground block">{v.qty} sold</span>
-                  </span>
-                </li>
-              ))}
-              {topProducts.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center pt-4">No sales recorded yet.</p>
-              )}
-            </ul>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
-      </div>
+                </div>
+              )}
 
-      {/* Product Sales Velocity & Movement Analysis (Profit Per Product & Margins) */}
-      <Card id="profit-margin-analysis" className="mt-4 border-border/60 shadow-sm scroll-mt-20">
+              {analyticsSubTab === "products" && (
+                <div className="space-y-4">
+                        <Card id="profit-margin-analysis" className="mt-4 border-border/60 shadow-sm scroll-mt-20">
         <CardHeader className="pb-3 pt-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -2260,9 +3296,120 @@ export function Reports() {
           </div>
         </CardContent>
       </Card>
+                  <div className="grid gap-4 md:grid-cols-2">
+                            <Card className="border-border/60 shadow-sm">
+          <CardHeader className="pb-2 pt-5">
+            <CardTitle className="text-sm font-semibold">Top Selling Seafood</CardTitle>
+            <p className="text-xs text-muted-foreground">Best performing products by revenue</p>
+          </CardHeader>
+          <CardContent className="pt-2 pb-5">
+            <ul className="space-y-2 text-sm">
+              {topProducts.map(([name, v], index) => (
+                <li key={name} className="flex items-center justify-between gap-2 border-b border-border/40 pb-2 last:border-0 last:pb-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
+                      {index + 1}
+                    </span>
+                    <span className="truncate text-xs font-medium text-foreground">{name}</span>
+                  </div>
+                  <span className="shrink-0 text-right text-xs">
+                    <span className="font-semibold text-foreground">{formatINR(v.value)}</span>
+                    <span className="text-[10px] text-muted-foreground block">{v.qty} sold</span>
+                  </span>
+                </li>
+              ))}
+              {topProducts.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center pt-4">No sales recorded yet.</p>
+              )}
+            </ul>
+          </CardContent>
+        </Card>
+                            <Card className="border-border/60 shadow-sm">
+          <CardHeader className="pb-2 pt-5">
+            <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+              <Fish className="size-4 text-cyan-500" /> Category Contribution
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">Revenue generated by fish category</p>
+          </CardHeader>
+          <CardContent className="pt-2 pb-5 space-y-3">
+            {categoryMix.map((c) => (
+              <div key={c.category} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium capitalize text-foreground">{c.category}</span>
+                  <span className="text-muted-foreground">
+                    {formatINR(c.value)} ({c.percentage}%)
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-cyan-500 transition-all"
+                    style={{ width: `${c.percentage}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+            {categoryMix.length === 0 && (
+              <p className="text-xs text-muted-foreground pt-4 text-center">No category data recorded yet.</p>
+            )}
+          </CardContent>
+        </Card>
+                  </div>
+                </div>
+              )}
 
-      {/* Customer Cohort Retention Matrix & Lifetime Value (LTV) Card */}
-      <Card id="customer-cohorts-retention" className="mt-4 border-border/60 shadow-sm scroll-mt-20">
+              {analyticsSubTab === "retention" && (
+                <div className="space-y-4">
+                          <Card className="border-border/60 shadow-sm">
+          <CardHeader className="pb-2 pt-5">
+            <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+              <Users className="size-4 text-violet-500" /> Customer Retention
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">Repeat buyer share & customer lifetime value</p>
+          </CardHeader>
+          <CardContent className="pt-3 pb-5 space-y-4">
+            <div className="flex items-baseline justify-between">
+              <div>
+                <p className="text-2xl font-bold font-display">{customerAnalytics.repeatRate}%</p>
+                <p className="text-xs text-muted-foreground">Repeat Purchase Rate</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-semibold">{formatINR(customerAnalytics.avgCustomerSpend)}</p>
+                <p className="text-xs text-muted-foreground">Avg Spend / Customer</p>
+              </div>
+            </div>
+
+            {/* Split Progress Bar */}
+            <div>
+              <div className="h-3 w-full overflow-hidden rounded-full bg-muted flex">
+                <div
+                  className="bg-emerald-500 transition-all"
+                  style={{ width: `${customerAnalytics.repeatRate}%` }}
+                  title={`Repeat Buyers: ${customerAnalytics.repeatCount}`}
+                />
+                <div
+                  className="bg-sky-500 transition-all"
+                  style={{ width: `${100 - customerAnalytics.repeatRate}%` }}
+                  title={`New Buyers: ${customerAnalytics.newCount}`}
+                />
+              </div>
+              <div className="mt-2 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="size-2 rounded-full bg-emerald-500" />
+                  <span className="text-muted-foreground">Repeat ({customerAnalytics.repeatCount})</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="size-2 rounded-full bg-sky-500" />
+                  <span className="text-muted-foreground">New Buyers ({customerAnalytics.newCount})</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-muted/40 p-2.5 text-xs text-muted-foreground">
+              Total unique active accounts in selected range: <span className="font-semibold text-foreground">{customerAnalytics.totalUnique}</span>
+            </div>
+          </CardContent>
+        </Card>
+                        <Card id="customer-cohorts-retention" className="mt-4 border-border/60 shadow-sm scroll-mt-20">
         <CardHeader className="pb-2 pt-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -2377,8 +3524,203 @@ export function Reports() {
           </div>
         </CardContent>
       </Card>
-        </>
-      ) : activeReportTab === "pnl" ? (
+                          <Card className="border-border/60 shadow-sm">
+          <CardHeader className="pb-2 pt-5">
+            <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+              <BarChart3 className="size-4 text-primary" /> Ticket Size Distribution
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">Average basket spend tiers</p>
+          </CardHeader>
+          <CardContent className="pt-2 pb-5 space-y-2.5">
+            {ticketSizeMix.map((tier) => (
+              <div key={tier.label} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium text-foreground">{tier.label}</span>
+                  <span className="text-muted-foreground">
+                    {tier.count} orders ({tier.pct}%)
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary/80 transition-all"
+                    style={{ width: `${tier.pct}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+                </div>
+              )}
+
+              {analyticsSubTab === "operations" && (
+                <div className="space-y-4">
+                        <Card id="delivery-sla-section" className="mt-4 border-border/60 shadow-sm scroll-mt-20">
+        <CardHeader className="pb-2 pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Timer className="size-4.5 text-emerald-500" /> On-Time Delivery SLA & Speed Performance
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Monitoring doorstep fulfillment speed, target SLA compliance, and driver turnaround times
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-bold border ${
+                  deliverySlaAnalytics.onTimeRate >= 90
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                    : deliverySlaAnalytics.onTimeRate >= 75
+                    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                    : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+                }`}
+              >
+                {deliverySlaAnalytics.onTimeRate}% SLA On-Time
+              </span>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-3 pb-5 space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+            <div className="rounded-2xl border border-border/70 p-3 text-center bg-card shadow-2xs">
+              <p className="text-[11px] font-medium text-muted-foreground">On-Time Deliveries</p>
+              <p className="mt-1 text-lg sm:text-xl font-extrabold font-display text-emerald-600 dark:text-emerald-400">
+                {deliverySlaAnalytics.onTimeCount} / {deliverySlaAnalytics.totalDelivered}
+              </p>
+              <p className="text-[10px] text-muted-foreground">{deliverySlaAnalytics.onTimeRate}% on-time</p>
+            </div>
+
+            <div className="rounded-2xl border border-border/70 p-3 text-center bg-card shadow-2xs">
+              <p className="text-[11px] font-medium text-muted-foreground">Avg Turnaround</p>
+              <p className="mt-1 text-lg sm:text-xl font-extrabold font-display text-foreground">
+                {deliverySlaAnalytics.avgTurnaround} mins
+              </p>
+              <p className="text-[10px] text-muted-foreground">Order to doorstep</p>
+            </div>
+
+            <div className="rounded-2xl border border-border/70 p-3 text-center bg-card shadow-2xs">
+              <p className="text-[11px] font-medium text-muted-foreground">Delayed Runs</p>
+              <p className={`mt-1 text-lg sm:text-xl font-extrabold font-display ${deliverySlaAnalytics.delayedCount > 0 ? "text-rose-600" : "text-emerald-600"}`}>
+                {deliverySlaAnalytics.delayedCount}
+              </p>
+              <p className="text-[10px] text-muted-foreground">Exceeded ETA</p>
+            </div>
+
+            <div className="rounded-2xl border border-border/70 p-3 text-center bg-card shadow-2xs">
+              <p className="text-[11px] font-medium text-muted-foreground">Active Drivers</p>
+              <p className="mt-1 text-lg sm:text-xl font-extrabold font-display text-primary">
+                {deliverySlaAnalytics.driverList.length} Drivers
+              </p>
+              <p className="text-[10px] text-muted-foreground">Recorded in period</p>
+            </div>
+          </div>
+
+          {/* Speed Tiers Progress Bars */}
+          <div className="space-y-2 rounded-2xl border border-border/60 bg-muted/20 p-3 sm:p-3.5">
+            <p className="text-xs font-bold text-foreground">Delivery Speed Tier Breakdown</p>
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-1">
+              {deliverySlaAnalytics.speedTiers.map((tier) => (
+                <div key={tier.label} className="space-y-1 rounded-xl bg-background/80 p-2 border border-border/40">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-semibold text-foreground truncate">{tier.label}</span>
+                    <span className="font-bold text-muted-foreground ml-1">{tier.pct}%</span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div className={`h-full rounded-full ${tier.color}`} style={{ width: `${tier.pct}%` }} />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">{tier.count} orders</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Driver SLA Performance Ranking */}
+          {deliverySlaAnalytics.driverList.length > 0 && (
+            <div className="space-y-2 pt-1">
+              <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Award className="size-4 text-amber-500" /> Driver SLA Performance Ranking
+              </p>
+
+              {/* Mobile Card View for Driver SLA (sm:hidden) */}
+              <div className="space-y-2 sm:hidden">
+                {deliverySlaAnalytics.driverList.map((driver) => (
+                  <div key={driver.name} className="rounded-2xl border border-border/70 bg-card p-3 shadow-2xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="font-bold text-sm text-foreground">{driver.name}</p>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
+                          driver.onTimeRate >= 90
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                            : driver.onTimeRate >= 75
+                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                            : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                        }`}
+                      >
+                        {driver.onTimeRate}% SLA
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/40">
+                      <span>{driver.total} runs delivered</span>
+                      <span className="font-medium text-foreground">Avg {driver.avgSpeed} mins / run</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View (hidden sm:block) */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-border/60 text-muted-foreground">
+                      <th className="pb-2 font-medium">Driver Name</th>
+                      <th className="pb-2 font-medium">Completed Runs</th>
+                      <th className="pb-2 font-medium">On-Time Rate</th>
+                      <th className="pb-2 font-medium">Avg Speed</th>
+                      <th className="pb-2 font-medium">Rating Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {deliverySlaAnalytics.driverList.map((driver) => (
+                      <tr key={driver.name} className="py-2">
+                        <td className="py-2 font-semibold text-foreground">{driver.name}</td>
+                        <td className="py-2 text-muted-foreground">{driver.total} orders</td>
+                        <td className="py-2 font-medium">
+                          <span
+                            className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
+                              driver.onTimeRate >= 90
+                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                : driver.onTimeRate >= 75
+                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                                : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                            }`}
+                          >
+                            {driver.onTimeRate}%
+                          </span>
+                        </td>
+                        <td className="py-2 text-muted-foreground">{driver.avgSpeed} mins / run</td>
+                        <td className="py-2">
+                          <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                            {driver.onTimeRate >= 90 ? "⭐⭐⭐⭐⭐ Top Performer" : "⭐⭐⭐⭐ Reliable"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+            ) : activeReportTab === "pnl" ? (
         <AdminPnlReport />
       ) : (
         /* DEDICATED POS COUNTER BILLS & RECEIPTS REGISTER */
