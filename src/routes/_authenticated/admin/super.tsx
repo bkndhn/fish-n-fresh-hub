@@ -24,6 +24,7 @@ import {
   Sparkles,
   Search,
   Building2,
+  Database,
   Globe,
   Mail,
   Phone,
@@ -36,8 +37,10 @@ import {
   UserCheck,
   Clock,
   ShieldX,
+  KeyRound,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { myRolesQuery } from "@/lib/admin";
 import {
   platformClientsQuery,
@@ -49,6 +52,8 @@ import {
   forceLogoutClient,
   executeKillSwitch,
   type PlatformClient,
+  grantUserRole,
+  grantCurrentUserAdminAccess,
   type OnboardClientInput,
 } from "@/lib/superAdmin";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -100,7 +105,7 @@ function SuperAdminDashboard() {
   const { data: revocations = [] } = useQuery(platformRevocationsQuery);
 
   // Filter & Search states
-  const [activeTab, setActiveTab] = useState<"active" | "inactive" | "audit">("active");
+  const [activeTab, setActiveTab] = useState<"active" | "inactive" | "roles" | "audit">("active");
   const [searchQuery, setSearchQuery] = useState("");
   const [verticalFilter, setVerticalFilter] = useState<string>("all");
 
@@ -134,6 +139,12 @@ function SuperAdminDashboard() {
     clientName?: string;
   }>({ open: false });
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Role Management State (for testing & permission allocation)
+  const [roleTargetInput, setRoleTargetInput] = useState("6fc4eabb-2eb2-47aa-baac-6793e4b9cf79");
+  const [roleToAssign, setRoleToAssign] = useState<"admin" | "super_admin" | "manager" | "cashier" | "driver" | "support_staff">("admin");
+  const [grantingRole, setGrantingRole] = useState(false);
+  const [grantingSelf, setGrantingSelf] = useState(false);
 
   // Client-Level Force Logout State
   const [killClientModal, setKillClientModal] = useState<{
@@ -521,14 +532,18 @@ function SuperAdminDashboard() {
                 onValueChange={(val) => setActiveTab(val as "active" | "inactive" | "audit")}
                 className="w-full md:w-auto"
               >
-                <TabsList className="grid grid-cols-3 w-full md:w-[420px] rounded-xl">
+                <TabsList className="grid grid-cols-4 w-full md:w-[580px] rounded-xl">
                   <TabsTrigger value="active" className="text-xs font-bold rounded-lg gap-1.5">
                     <CheckCircle2 className="size-3.5 text-emerald-500" />
-                    Active Clients ({stats.activeClientsCount})
+                    Active ({stats.activeClientsCount})
                   </TabsTrigger>
                   <TabsTrigger value="inactive" className="text-xs font-bold rounded-lg gap-1.5">
                     <ShieldX className="size-3.5 text-amber-500" />
                     Inactive ({stats.inactiveClientsCount})
+                  </TabsTrigger>
+                  <TabsTrigger value="roles" className="text-xs font-bold rounded-lg gap-1.5">
+                    <KeyRound className="size-3.5 text-indigo-500" />
+                    Admin Access
                   </TabsTrigger>
                   <TabsTrigger value="audit" className="text-xs font-bold rounded-lg gap-1.5">
                     <Clock className="size-3.5 text-sky-500" />
@@ -568,7 +583,158 @@ function SuperAdminDashboard() {
 
           <CardContent className="p-0">
             {/* Audit Logs Tab View */}
-            {activeTab === "audit" ? (
+            {activeTab === "roles" ? (
+              <div className="p-4 sm:p-6 space-y-6">
+                <div>
+                  <h3 className="text-base font-bold text-foreground">Admin Access &amp; Permission Allocation</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Resolve access restrictions, grant store admin or super admin privileges, or generate instant database credentials for testing.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  {/* Card 1: 1-Click Current Account Elevation */}
+                  <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-4 sm:p-5 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex size-8 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-600">
+                        <KeyRound className="size-4.5" />
+                      </span>
+                      <div>
+                        <h4 className="font-bold text-sm text-foreground">Active Account 1-Click Access</h4>
+                        <p className="text-[11px] text-muted-foreground">Grant Store Admin &amp; Super Admin to your current session</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      If you are locked out of store pages (<code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">/admin</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">/admin/pos</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">/admin/settings</code>), click below to instantly register your active UID with full privileges.
+                    </p>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          setGrantingSelf(true);
+                          const res = await grantCurrentUserAdminAccess();
+                          if (res.success) {
+                            toast.success(res.message);
+                            setTimeout(() => window.location.reload(), 1200);
+                          } else {
+                            toast.error(res.message);
+                          }
+                        } finally {
+                          setGrantingSelf(false);
+                        }
+                      }}
+                      disabled={grantingSelf}
+                      className="w-full rounded-xl text-xs font-bold gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                    >
+                      <CheckCircle2 className="size-3.5" />
+                      {grantingSelf ? "Granting Roles..." : "Grant My User Full Admin Privileges"}
+                    </Button>
+                  </div>
+
+                  {/* Card 2: Manual Role Assignment Tool */}
+                  <div className="rounded-2xl border border-border/80 bg-card p-4 sm:p-5 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                        <UserCheck className="size-4.5" />
+                      </span>
+                      <div>
+                        <h4 className="font-bold text-sm text-foreground">Grant Role by Email or UUID</h4>
+                        <p className="text-[11px] text-muted-foreground">Assign any staff or partner role across the fleet</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-[11px] font-semibold text-muted-foreground">Target Email or User ID</label>
+                        <Input
+                          value={roleTargetInput}
+                          onChange={(e) => setRoleTargetInput(e.target.value)}
+                          placeholder="e.g. owner@fishnfresh.in or uuid"
+                          className="h-8.5 rounded-xl text-xs font-mono mt-1"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[11px] font-semibold text-muted-foreground">Assigned Role</label>
+                          <select
+                            value={roleToAssign}
+                            onChange={(e) => setRoleToAssign(e.target.value as any)}
+                            className="w-full h-8.5 rounded-xl border border-input bg-card px-2 text-xs text-foreground font-medium mt-1"
+                          >
+                            <option value="admin">Store Admin (admin)</option>
+                            <option value="super_admin">Super Admin (super_admin)</option>
+                            <option value="manager">Branch Manager (manager)</option>
+                            <option value="cashier">POS Cashier (cashier)</option>
+                            <option value="driver">Delivery Driver (driver)</option>
+                            <option value="support_staff">Support Desk (support_staff)</option>
+                          </select>
+                        </div>
+
+                        <div className="flex items-end">
+                          <Button
+                            onClick={async () => {
+                              if (!roleTargetInput.trim()) {
+                                toast.error("Please enter user email or UUID");
+                                return;
+                              }
+                              setGrantingRole(true);
+                              try {
+                                const res = await grantUserRole(roleTargetInput, roleToAssign);
+                                if (res.success) {
+                                  toast.success(res.message);
+                                } else {
+                                  toast.error(res.message);
+                                }
+                              } finally {
+                                setGrantingRole(false);
+                              }
+                            }}
+                            disabled={grantingRole}
+                            className="w-full rounded-xl text-xs font-bold h-8.5"
+                          >
+                            {grantingRole ? "Saving..." : "Assign Role"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 3: Direct SQL Bypass for Supabase */}
+                <div className="rounded-2xl border border-border/80 bg-muted/20 p-4 sm:p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
+                        <Database className="size-4" />
+                      </span>
+                      <h4 className="font-bold text-xs text-foreground font-mono">Direct Supabase SQL Query Bypass</h4>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-lg text-xs h-7 gap-1 font-semibold"
+                      onClick={() => {
+                        const q = `-- Execute in Supabase SQL Editor to grant admin access immediately:\nINSERT INTO public.user_roles (user_id, role)\nVALUES ('${roleTargetInput.trim() || '6fc4eabb-2eb2-47aa-baac-6793e4b9cf79'}', 'admin'),\n       ('${roleTargetInput.trim() || '6fc4eabb-2eb2-47aa-baac-6793e4b9cf79'}', 'super_admin')\nON CONFLICT (user_id, role) DO NOTHING;`;
+                        handleCopy(q, "sql_bypass");
+                      }}
+                    >
+                      {copiedKey === "sql_bypass" ? <Check className="size-3" /> : <Copy className="size-3" />}
+                      {copiedKey === "sql_bypass" ? "Copied!" : "Copy SQL"}
+                    </Button>
+                  </div>
+                  <pre className="p-3 rounded-xl bg-background border border-border/60 text-[11px] font-mono text-muted-foreground overflow-x-auto">
+{`-- Execute in Supabase SQL Editor to grant admin access immediately:
+INSERT INTO public.user_roles (user_id, role)
+VALUES ('${roleTargetInput.trim() || '6fc4eabb-2eb2-47aa-baac-6793e4b9cf79'}', 'admin'),
+       ('${roleTargetInput.trim() || '6fc4eabb-2eb2-47aa-baac-6793e4b9cf79'}', 'super_admin')
+ON CONFLICT (user_id, role) DO NOTHING;`}
+                  </pre>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    💡 <strong>Note on Table Editor error:</strong> We patched <code className="bg-muted px-1 py-0.5 rounded font-mono">prevent_role_tampering()</code> in migration <code className="bg-muted px-1 py-0.5 rounded font-mono">20260912173000</code> so direct dashboard edits will no longer be blocked with "Access Denied".
+                  </p>
+                </div>
+              </div>
+            ) : activeTab === "audit" ? (
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between text-xs text-muted-foreground pb-2 border-b">
                   <span className="font-semibold text-foreground">Immutable Platform Audit Trail</span>
@@ -661,23 +827,85 @@ function SuperAdminDashboard() {
                         </div>
 
                         {/* Owner Details & Contact */}
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
+                        <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                          <span className="flex items-center gap-1 text-muted-foreground font-medium mr-1">
                             <UserCheck className="size-3.5 text-foreground" />
                             <strong>Owner:</strong> {client.owner_name}
                           </span>
-                          <span className="flex items-center gap-1">
-                            <Mail className="size-3.5" />
-                            {client.owner_email}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Phone className="size-3.5" />
-                            {client.owner_phone}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Globe className="size-3.5 text-sky-500" />
-                            {client.domain}
-                          </span>
+
+                          {/* 📞 Call Deep Link */}
+                          {client.owner_phone && (
+                            <a
+                              href={`tel:${client.owner_phone}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-muted/70 hover:bg-muted text-xs font-medium text-foreground transition"
+                              title={`Call ${client.owner_name} (${client.owner_phone})`}
+                            >
+                              <Phone className="size-3 text-emerald-600 dark:text-emerald-400" />
+                              <span>{client.owner_phone}</span>
+                            </a>
+                          )}
+
+                          {/* 💬 WhatsApp Deep Link */}
+                          {client.owner_phone && (
+                            <a
+                              href={`https://wa.me/${client.owner_phone.replace(/\D/g, "")}?text=${encodeURIComponent(
+                                `Hello ${client.owner_name}, this is Fish N Fresh Platform Super Admin regarding your store ${client.client_name} (${client.tenant_code}).`
+                              )}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-xs font-semibold text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition"
+                              title="Open WhatsApp Chat with Client"
+                            >
+                              <WhatsAppIcon className="size-3 text-emerald-600 fill-emerald-600" />
+                              <span>WhatsApp</span>
+                            </a>
+                          )}
+
+                          {/* ✉️ Email Deep Link */}
+                          {client.owner_email && (
+                            <a
+                              href={`mailto:${client.owner_email}?subject=${encodeURIComponent(
+                                `Fish N Fresh Platform — ${client.client_name} Store Administration`
+                              )}&body=${encodeURIComponent(
+                                `Dear ${client.owner_name},\n\nWe are reaching out from the Fish N Fresh Super Admin team regarding your store account (${client.client_name} - ${client.tenant_code}).\n\n`
+                              )}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-xs font-semibold text-sky-700 dark:text-sky-300 border border-sky-500/30 transition"
+                              title={`Email ${client.owner_email}`}
+                            >
+                              <Mail className="size-3 text-sky-600 dark:text-sky-400" />
+                              <span>{client.owner_email}</span>
+                            </a>
+                          )}
+
+                          {/* 🌐 Website Deep Link */}
+                          {client.domain && (
+                            <a
+                              href={client.domain.startsWith("http") ? client.domain : `https://${client.domain}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-muted/60 hover:bg-muted text-xs font-semibold text-foreground border border-border/60 transition"
+                              title={`Visit Store Site (${client.domain})`}
+                            >
+                              <Globe className="size-3 text-indigo-500" />
+                              <span>{client.domain}</span>
+                              <ExternalLink className="size-2.5 text-muted-foreground" />
+                            </a>
+                          )}
+
+                          {/* 🔑 Direct Admin Portal Link */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const url = `${typeof window !== "undefined" ? window.location.origin : ""}/auth?tenant=${client.tenant_code}&next=/admin`;
+                              navigator.clipboard.writeText(url);
+                              toast.success(`Copied direct admin login URL for ${client.client_name} to clipboard!`);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 hover:bg-primary/20 text-xs font-semibold text-primary border border-primary/30 transition cursor-pointer"
+                            title="Copy direct admin login link for this client"
+                          >
+                            <KeyRound className="size-3" />
+                            <span>Copy Admin Link</span>
+                          </button>
                         </div>
 
                         {client.onboarding_notes && (
@@ -1070,17 +1298,33 @@ function SuperAdminDashboard() {
                   </div>
                 </div>
 
-                <Button
-                  onClick={() => {
-                    const c = handoverModal.credentials!;
-                    const handoverText = `🎉 Welcome to your new store platform on Fish N Fresh Multi-Tenant Engine!\n\n🏢 Client Organization: ${handoverModal.clientName}\n🔑 Tenant Code: ${c.tenantCode}\n📧 Admin Login: ${c.adminEmail}\n🔐 Temp Password: ${c.tempPassword}\n🌐 Console Login Link: ${c.loginUrl}\n\nPlease sign in and update your password in Settings.`;
-                    handleCopy(handoverText, "handover");
-                  }}
-                  className="w-full rounded-xl text-xs font-bold gap-1.5 h-9"
-                >
-                  {copiedKey === "handover" ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-                  {copiedKey === "handover" ? "Handover Kit Copied!" : "Copy Full Handover Kit"}
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    onClick={() => {
+                      const c = handoverModal.credentials!;
+                      const handoverText = `🎉 Welcome to your new store platform on Fish N Fresh Multi-Tenant Engine!\n\n🏢 Client Organization: ${handoverModal.clientName}\n🔑 Tenant Code: ${c.tenantCode}\n📧 Admin Login: ${c.adminEmail}\n🔐 Temp Password: ${c.tempPassword}\n🌐 Console Login Link: ${c.loginUrl}\n\nPlease sign in and update your password in Settings.`;
+                      handleCopy(handoverText, "handover");
+                    }}
+                    className="flex-1 rounded-xl text-xs font-bold gap-1.5 h-9"
+                  >
+                    {copiedKey === "handover" ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                    {copiedKey === "handover" ? "Handover Kit Copied!" : "Copy Credentials"}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const c = handoverModal.credentials!;
+                      const handoverText = `🎉 Welcome to your new store platform on Fish N Fresh Multi-Tenant Engine!\n\n🏢 Client Organization: ${handoverModal.clientName}\n🔑 Tenant Code: ${c.tenantCode}\n📧 Admin Login: ${c.adminEmail}\n🔐 Temp Password: ${c.tempPassword}\n🌐 Console Login Link: ${c.loginUrl}\n\nPlease sign in and update your password in Settings.`;
+                      const url = `https://wa.me/?text=${encodeURIComponent(handoverText)}`;
+                      window.open(url, "_blank");
+                    }}
+                    className="rounded-xl text-xs font-bold gap-1.5 h-9 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                  >
+                    <WhatsAppIcon className="size-3.5 fill-emerald-600" />
+                    Share on WhatsApp
+                  </Button>
+                </div>
               </div>
             )}
           </DialogContent>

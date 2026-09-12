@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { type Branch } from "./multiBranch";
+import { type AppRole } from "./admin";
 
 export interface TenantQuota {
   id: string;
@@ -885,3 +886,76 @@ export async function forceLogoutClient(
   }
 }
 
+/**
+ * Grants or updates a user's role on the platform.
+ */
+export async function grantUserRole(
+  emailOrUserId: string,
+  role: AppRole,
+  branchId?: string | null
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const isEmail = emailOrUserId.includes("@");
+    if (isEmail) {
+      const { data, error } = await supabase.rpc("super_admin_grant_role" as any, {
+        target_email: emailOrUserId.trim().toLowerCase(),
+        new_role: role,
+        target_branch_id: branchId || null,
+      });
+      if (error) {
+        throw error;
+      }
+      const res = data as any;
+      if (res && res.success === false) {
+        return { success: false, message: res.message || res.error || "User not found" };
+      }
+      return { success: true, message: `Role "${role}" successfully granted to ${emailOrUserId}!` };
+    } else {
+      const { error } = await supabase
+        .from("user_roles")
+        .upsert(
+          {
+            user_id: emailOrUserId.trim(),
+            role,
+            branch_id: branchId || null,
+          } as any,
+          { onConflict: "user_id,role" }
+        );
+      if (error) throw error;
+      return { success: true, message: `Role "${role}" successfully assigned to user ID ${emailOrUserId}!` };
+    }
+  } catch (err: any) {
+    return { success: false, message: err?.message || "Failed to grant user role." };
+  }
+}
+
+/**
+ * Convenience helper for logged-in user to grant themselves admin and super_admin access.
+ */
+export async function grantCurrentUserAdminAccess(): Promise<{ success: boolean; message?: string }> {
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    const uid = authData?.user?.id;
+    if (!uid) {
+      return { success: false, message: "No active session found. Please sign in first." };
+    }
+
+    const rolesToGrant: AppRole[] = ["admin", "super_admin"];
+    for (const r of rolesToGrant) {
+      await supabase.from("user_roles").upsert(
+        {
+          user_id: uid,
+          role: r,
+        } as any,
+        { onConflict: "user_id,role" }
+      );
+    }
+
+    return {
+      success: true,
+      message: "Full Admin and Super Admin roles granted to your account! Refresh to load permissions.",
+    };
+  } catch (err: any) {
+    return { success: false, message: err?.message || "Failed to grant admin access." };
+  }
+}

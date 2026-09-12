@@ -104,8 +104,10 @@ export function AdminShell({
   const { data: roles, isLoading } = useQuery(myRolesQuery);
   const { data: settings } = useQuery(settingsQuery);
   const myRoles = roles ?? [];
-  const allowed = myRoles.some((r) => allow.includes(r));
-  const nav = NAV.filter((item) => (item.roles as readonly AppRole[]).some((r) => myRoles.includes(r)));
+  const isSuperAdmin = myRoles.includes("super_admin");
+  const isDirectlyAllowed = myRoles.some((r) => allow.includes(r));
+  const allowed = isDirectlyAllowed || isSuperAdmin;
+  const nav = NAV.filter((item) => isSuperAdmin || (item.roles as readonly AppRole[]).some((r) => myRoles.includes(r)));
 
   const primaryNav = nav.filter((item) => PRIMARY_MOBILE_PATHS.includes(item.to));
   const moreNav = nav.filter((item) => !PRIMARY_MOBILE_PATHS.includes(item.to));
@@ -265,6 +267,17 @@ export function AdminShell({
         </aside>
 
         <main className="min-w-0 flex-1 max-w-full pb-24 md:pb-6">
+          {isSuperAdmin && !isDirectlyAllowed && (
+            <div className="mb-3 flex items-center justify-between gap-2 px-3.5 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-700 dark:text-purple-300 text-xs font-medium">
+              <span className="flex items-center gap-1.5 font-semibold">
+                <ShieldAlert className="size-3.5 text-purple-600" />
+                Super Admin Platform Inspection Mode
+              </span>
+              <Link to="/admin/super" className="underline font-bold text-xs hover:text-foreground">
+                Fleet Governance &rarr;
+              </Link>
+            </div>
+          )}
           <div className="mb-3 sm:mb-4 flex flex-wrap items-center justify-between gap-2.5">
             <h1 className="font-display text-xl font-bold text-foreground sm:text-2xl">{title}</h1>
             {action && <div className="flex flex-wrap items-center gap-2 max-w-full">{action}</div>}
