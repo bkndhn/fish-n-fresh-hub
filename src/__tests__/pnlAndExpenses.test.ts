@@ -8,10 +8,10 @@ import {
   getExpenseCategoryMeta,
 } from "../lib/pnl";
 import { parseProductsCsv, exportProductsToCsv, CSV_HEADERS } from "../lib/retailCsv";
-import type { Product, Expense } from "../lib/types";
+import type { Expense } from "../lib/types";
 
 describe("P&L Engine & Multi-Branch Operating Expenses Ledger", () => {
-  const mockProducts: Product[] = [
+  const mockProducts = [
     {
       id: "prod-vanjaram",
       name: "Vanjaram / King Seer Fish",

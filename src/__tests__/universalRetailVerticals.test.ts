@@ -101,7 +101,7 @@ describe("Bulk Retail CSV Import and Export Engine", () => {
     expect(electCsv).toContain("Smartphones & Tablets");
 
     expect(fashionCsv).toContain("Oxford Shirt");
-    expect(fashionCsv).toContain("clothing_fashion" !== "" ? "Allen Solly" : "");
+    expect(fashionCsv).toContain("Allen Solly");
 
     expect(groceryCsv).toContain("Aashirvaad Shudh Chakki Atta");
     expect(groceryCsv).toContain("Aisle 1, Pallet 3");
@@ -149,7 +149,7 @@ describe("Bulk Retail CSV Import and Export Engine", () => {
 
     const result = parseProductsCsv(invalidCsv);
     expect(result.validProducts).toHaveLength(1);
-    expect(result.validProducts[0].name).toBe("Valid Item");
+    expect(result.validProducts[0]!.name).toBe("Valid Item");
     expect(result.errors.length).toBe(3);
     expect(result.errors[0]).toContain("Missing product name");
     expect(result.errors[1]).toContain("Invalid price 'invalid_price'");
@@ -157,7 +157,7 @@ describe("Bulk Retail CSV Import and Export Engine", () => {
   });
 
   it("exports catalog products to CSV preserving retail attributes", () => {
-    const mockProducts: Product[] = [
+    const mockProducts = [
       {
         id: "prod-1",
         name: "Samsung Galaxy S24",
