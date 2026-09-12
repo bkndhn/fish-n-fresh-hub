@@ -11,8 +11,8 @@ export type CartBranchInfo = {
 export type PendingCartMismatch = {
   product: Product;
   qty: number;
-  cut_preference?: string;
-  branch?: CartBranchInfo;
+  cut_preference?: string | undefined;
+  branch?: CartBranchInfo | undefined;
 };
 
 type CartContextValue = {
