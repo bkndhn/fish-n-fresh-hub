@@ -111,8 +111,8 @@ export interface PosCartItem {
   serialNumbers?: string[] | undefined;
   variant?: { id?: string; size?: string; color?: string; sku?: string } | undefined;
   brand?: string | undefined;
-  warrantyMonths?: number;
-  aisleLocation?: string;
+  warrantyMonths?: number | undefined;
+  aisleLocation?: string | undefined;
 }
 
 interface ParkedCart {

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/lib/cart";
+import type { Product } from "@/lib/types";
 import { inr, formatIST, formatStockDisplay } from "@/lib/format";
 import { productQuery, productsQuery, settingsQuery } from "@/lib/queries";
 import { ProductCard } from "@/components/ProductCard";
