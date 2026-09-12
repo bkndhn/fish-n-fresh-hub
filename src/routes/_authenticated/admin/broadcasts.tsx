@@ -231,11 +231,22 @@ function AdminBroadcastsPage() {
         .eq("id", settings.id);
       if (error) throw error;
     },
+    onMutate: async (enabled) => {
+      await qc.cancelQueries({ queryKey: ["store_settings"] });
+      const previous = qc.getQueryData(["store_settings"]);
+      qc.setQueryData(["store_settings"], (old: any) =>
+        old ? { ...old, live_alerts_enabled: enabled } : old
+      );
+      return { previous };
+    },
     onSuccess: (_, enabled) => {
-      qc.invalidateQueries({ queryKey: ["settings"] });
+      qc.invalidateQueries({ queryKey: ["store_settings"] });
       toast.success(enabled ? "Storefront Harbour Catch Alert Banner enabled" : "Storefront Harbour Catch Alert Banner disabled");
     },
-    onError: (err: any) => {
+    onError: (err: any, _, context: any) => {
+      if (context?.previous) {
+        qc.setQueryData(["store_settings"], context.previous);
+      }
       toast.error(err.message || "Failed to update banner setting");
     },
   });

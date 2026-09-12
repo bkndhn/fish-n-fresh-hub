@@ -65,6 +65,7 @@ import {
 } from "@/components/ui/dialog";
 import { PrinterSettingsModal } from "@/components/admin/PrinterSettingsModal";
 import { PosPastBillsModal } from "@/components/admin/PosPastBillsModal";
+import { PortionChipsModal, getStoredPortionChips, DEFAULT_PORTION_CHIPS, type PortionChip } from "@/components/admin/PortionChipsModal";
 import {
   getSavedPrinterConfig,
   sendEscPosToPrinter,
@@ -187,7 +188,7 @@ function getNextPosReceiptNo(prefix = "POS-", dailyReset = true): string {
       }
     }
     localStorage.setItem("fnf_pos_seq", JSON.stringify({ date: todayStr, lastSeq: seq }));
-    const padded = String(seq).padStart(3, "0");
+    const padded = String(seq).padStart(4, "0");
     return dailyReset ? `${prefix}${todayStr}-${padded}` : `${prefix}${seq}`;
   } catch {
     return `${prefix}${Date.now().toString().slice(-6)}`;
@@ -1240,8 +1241,8 @@ export function RetailPosCounterPage() {
   };
 
   return (
-    <AdminShell title="In-Store Retail POS Counter" allow={["admin", "cashier", "manager", "staff"]}>
-      <div className="space-y-4 max-w-7xl mx-auto pb-12">
+    <AdminShell title="In-Store Retail POS Counter" allow={["admin", "cashier", "manager", "staff"]} fullWidth>
+      <div className="space-y-4 w-full mx-auto pb-12">
         {/* Top Control Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 bg-card p-4 rounded-2xl border border-border/80 shadow-xs">
           <div className="flex items-center gap-3">
@@ -1517,7 +1518,7 @@ export function RetailPosCounterPage() {
         </div>
 
         {/* 2-Column POS Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_430px] gap-4 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px] 2xl:grid-cols-[1fr_440px] gap-3.5 sm:gap-4 items-start w-full">
           {/* LEFT: Fast Touch Product Catalog */}
           <div className="space-y-3">
             {/* Omnichannel Low Stock Radar Alert Banner */}
@@ -1821,7 +1822,7 @@ export function RetailPosCounterPage() {
           </div>
 
           {/* RIGHT: Live Active Bill & Checkout Panel */}
-          <div id="pos-cart-panel" className="space-y-3 sticky top-4">
+          <div id="pos-cart-panel" className="space-y-3 sticky top-4 w-full min-w-0">
             <Card className="border-border/80 shadow-md rounded-3xl overflow-hidden">
               {/* Bill Header */}
               <CardHeader className="bg-gradient-to-r from-primary/15 via-primary/5 to-transparent p-4 pb-3 border-b border-border/60">
@@ -2531,11 +2532,14 @@ export function RetailPosCounterPage() {
                           )}
                           <button
                             type="button"
-                            onClick={() => setShowChipEditor(!showChipEditor)}
-                            className="text-[11px] text-primary font-semibold hover:underline flex items-center gap-1"
+                            onClick={() => {
+                              refreshGlobalChips();
+                              setGlobalChipModalOpen(true);
+                            }}
+                            className="text-[11px] text-primary font-semibold hover:underline flex items-center gap-1 cursor-pointer"
                           >
                             <Sliders className="size-3" />
-                            {showChipEditor ? "Done" : "Configure"}
+                            Configure
                           </button>
                         </div>
                       </div>
@@ -3311,6 +3315,18 @@ export function RetailPosCounterPage() {
         isOpen={cameraScannerOpen}
         onClose={() => setCameraScannerOpen(false)}
         onScan={handleBarcodeDetected}
+      />
+
+      {/* Dedicated Universal Portion Chips Manager Modal */}
+      <PortionChipsModal
+        open={globalChipModalOpen}
+        onClose={() => setGlobalChipModalOpen(false)}
+        chips={globalChips}
+        onUpdateChips={(updated) => {
+          setGlobalChips(updated);
+          localStorage.setItem("fnf_pos_global_chips", JSON.stringify(updated));
+          setActiveChips(updated);
+        }}
       />
     </AdminShell>
   );

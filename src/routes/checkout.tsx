@@ -32,6 +32,7 @@ import { notifyOrderStatusChange } from "@/lib/fcm";
 import { checkCartStockAvailability, deductOrderStock } from "@/lib/inventorySync";
 import { sendOrderConfirmedEmailServer } from "@/lib/emails.functions";
 import { evaluateCartRewardRule, recordCampaignConversion, type MarketingCampaign } from "@/lib/campaigns";
+import { getNextOrderSequenceNumber } from "@/lib/orderNumber";
 import type { SiteSettings } from '@/lib/types';
 
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -428,9 +429,12 @@ function Checkout() {
       }
     }
 
+    const generatedOrderNumber = await getNextOrderSequenceNumber("online");
+
     const { data, error } = await supabase
       .from("orders")
       .insert({
+        order_number: generatedOrderNumber,
         customer_name: cleanName,
         customer_phone: cleanPhone,
         customer_email: email.trim() || null,

@@ -26,6 +26,7 @@ import {
   ArrowRight,
   Eye,
   ExternalLink,
+  Banknote,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { useAdminBranch } from "@/lib/branchContext";
@@ -33,6 +34,8 @@ import { adminCustomersQuery, adminOrdersQuery, adminProductsQuery } from "@/lib
 import { settingsQuery } from "@/lib/queries";
 import { formatINR } from "@/lib/format";
 import { getStoreStatus } from "@/lib/storeSchedule";
+import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -66,11 +69,25 @@ function Dashboard() {
   const customers = useQuery(adminCustomersQuery(selectedBranchId));
   const { data: settings } = useQuery(settingsQuery);
 
+  const expensesQuery = useQuery({
+    queryKey: ["admin", "expenses", selectedBranchId],
+    queryFn: async () => {
+      let q = supabase.from("expenses").select("*");
+      if (selectedBranchId !== "all") {
+        q = q.eq("branch_id", selectedBranchId);
+      }
+      const { data, error } = await q;
+      if (error) return [];
+      return data ?? [];
+    },
+  });
+
   const [timeframe, setTimeframe] = useState<"today" | "all">("today");
 
   const allOrders = orders.data ?? [];
   const allProducts = products.data ?? [];
   const allCustomers = customers.data ?? [];
+  const allExpenses = expensesQuery.data ?? [];
 
   const storeStatus = settings ? getStoreStatus(settings) : null;
 
@@ -93,6 +110,33 @@ function Dashboard() {
   const grossRevenue = nonCancelled.reduce((s, o) => s + Number(o.total || 0), 0);
   const orderCount = activeOrders.length;
   const aov = orderCount > 0 ? Math.round(grossRevenue / (nonCancelled.length || 1)) : 0;
+
+  // Expenses & P&L calculations
+  const activeExpenses = useMemo(() => {
+    if (timeframe === "today") {
+      return allExpenses.filter((e) => (e.expense_date || e.created_at || "").startsWith(todayStr));
+    }
+    return allExpenses;
+  }, [allExpenses, timeframe, todayStr]);
+
+  const totalExpenses = activeExpenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+
+  const estimatedCogs = useMemo(() => {
+    let cogs = 0;
+    for (const order of nonCancelled) {
+      const items = Array.isArray(order.items) ? order.items : [];
+      for (const item of items) {
+        const prod = allProducts.find((p) => p.id === item.product_id || p.name === item.name);
+        const unitCost = prod?.cost_price && prod.cost_price > 0 ? prod.cost_price : Math.round(Number(item.price || 0) * 0.68);
+        cogs += unitCost * Number(item.qty || 1);
+      }
+    }
+    return Math.round(cogs);
+  }, [nonCancelled, allProducts]);
+
+  const grossProfit = Math.max(0, grossRevenue - estimatedCogs);
+  const netProfit = grossProfit - totalExpenses;
+  const netMargin = grossRevenue > 0 ? Math.round((netProfit / grossRevenue) * 100) : 0;
 
   // POS vs Online breakdown
   const posOrders = activeOrders.filter((o) => (o as Database["public"]["Tables"]["orders"]["Row"]).source === "pos" || (o.notes || "").toLowerCase().includes("pos"));
@@ -328,6 +372,84 @@ function Dashboard() {
               </p>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Operating Expenses & Net P&L Executive Financial Snapshot */}
+        <div className="rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-2xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                  <Banknote className="size-4 text-emerald-600 dark:text-emerald-400" />
+                  Operating P&amp;L &amp; Expenses Financial Summary ({timeframe === "today" ? "Today" : "All Time"})
+                </h2>
+                <Badge variant="outline" className="text-[10px] font-semibold border-emerald-500/30 text-emerald-700 dark:text-emerald-300">
+                  Executive Snapshot
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Live accounting of sales revenue, raw material COGS, and operating expense ledger.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link to="/admin/expenses">
+                <Button size="sm" variant="outline" className="h-8 rounded-xl text-xs font-bold gap-1">
+                  <Plus className="size-3.5" /> Ledger Expenses
+                </Button>
+              </Link>
+              <Link to="/admin/reports">
+                <Button size="sm" className="h-8 rounded-xl text-xs font-bold gap-1 bg-emerald-600 hover:bg-emerald-700 text-white">
+                  <TrendingUp className="size-3.5" /> Full P&amp;L Report
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Gross Sales */}
+            <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/70">
+              <span className="text-[11px] font-bold text-muted-foreground uppercase">Gross Sales Revenue</span>
+              <p className="text-lg sm:text-xl font-black text-foreground mt-1">{formatINR(grossRevenue)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                From {nonCancelled.length} fulfilled orders
+              </p>
+            </div>
+
+            {/* COGS */}
+            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+              <span className="text-[11px] font-bold text-amber-800 dark:text-amber-300 uppercase">Seafood COGS (Procurement)</span>
+              <p className="text-lg sm:text-xl font-black text-amber-900 dark:text-amber-100 mt-1">{formatINR(estimatedCogs)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Gross Margin: {formatINR(grossProfit)} ({grossRevenue > 0 ? Math.round((grossProfit / grossRevenue) * 100) : 0}%)
+              </p>
+            </div>
+
+            {/* Operating Expenses */}
+            <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-rose-800 dark:text-rose-300 uppercase">Operating Expenses</span>
+                <span className="text-[10px] font-mono font-bold text-rose-700">{activeExpenses.length} entries</span>
+              </div>
+              <p className="text-lg sm:text-xl font-black text-rose-900 dark:text-rose-100 mt-1">{formatINR(totalExpenses)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Store rent, wages, utility, cold-chain
+              </p>
+            </div>
+
+            {/* Net Operating Profit */}
+            <div className={`p-3.5 rounded-2xl border ${
+              netProfit >= 0 
+                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-100" 
+                : "bg-destructive/10 border-destructive/30 text-destructive"
+            }`}>
+              <span className="text-[11px] font-bold uppercase">Net Operating Profit (EBITDA)</span>
+              <p className="text-lg sm:text-xl font-black mt-1">{formatINR(netProfit)}</p>
+              <div className="mt-0.5 flex items-center justify-between text-[10px] font-semibold">
+                <span>Net Margin: {netMargin}%</span>
+                <span>{netProfit >= 0 ? "🟢 Profitable" : "🔴 Deficit"}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Live Order Fulfillment Pipeline Strip */}

@@ -9,18 +9,17 @@ import {
   MessageCircle,
   Phone,
   Truck,
-  Undo2,
   MapPin,
   Navigation,
-  Compass,
-  Sparkles,
-  CheckCircle2,
-  ShieldCheck,
   Clock,
-  RefreshCw,
   KeyRound,
-  ExternalLink,
   Search,
+  Calendar,
+  Award,
+  Users,
+  Store,
+  ShieldCheck,
+  TrendingUp,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery, ORDER_STATUSES, myRolesQuery, type OrderRow } from "@/lib/admin";
@@ -34,6 +33,14 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
+import { DeliveryPinVerificationModal } from "@/components/DeliveryPinVerificationModal";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/admin/delivery")({
   head: () => ({
@@ -70,17 +77,34 @@ function defaultMessage(order: OrderRow) {
   return `Hi ${order.customer_name}, ${line}. Order ${ref} · ${formatINR(Number(order.total))} — Fish N Fresh`;
 }
 
+function getOrderTimingMetrics(order: OrderRow) {
+  if (!order.created_at) return null;
+  const placed = new Date(order.created_at).getTime();
+  const ended = order.delivered_at ? new Date(order.delivered_at).getTime() : Date.now();
+  const elapsedMins = Math.max(1, Math.round((ended - placed) / (1000 * 60)));
+  return {
+    placedAt: new Date(order.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    deliveredAt: order.delivered_at ? new Date(order.delivered_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null,
+    elapsedMins,
+    isDelivered: order.status === "delivered",
+  };
+}
+
 function DeliveryTracking() {
   const qc = useQueryClient();
   const orders = useQuery(adminOrdersQuery());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [stageFilter, setStageFilter] = useState<"all" | "confirmed" | "packed" | "out_for_delivery" | "delivered">("all");
+  const [dateFilter, setDateFilter] = useState<"today" | "yesterday" | "last7" | "all">("today");
   const [searchQuery, setSearchQuery] = useState("");
   const [message, setMessage] = useState("");
   const [eta, setEta] = useState("");
   const [driverName, setDriverName] = useState("");
   const [note, setNote] = useState("");
   const [cancelReason, setCancelReason] = useState("");
+  const [verifyPinOpen, setVerifyPinOpen] = useState(false);
+  const [driverReportOpen, setDriverReportOpen] = useState(false);
+
   const roles = useQuery(myRolesQuery);
   const isAdmin = (roles.data ?? []).includes("admin");
   const refundFn = useServerFn(cancelAndRefundOrder);
@@ -124,19 +148,34 @@ function DeliveryTracking() {
   );
 
   const filteredOrders = useMemo(() => {
-    return active.filter((o) => {
-      if (stageFilter !== "all" && o.status !== stageFilter) return false;
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase();
-      return (
-        (o.order_number ?? "").toLowerCase().includes(q) ||
-        o.id.toLowerCase().includes(q) ||
-        (o.customer_name ?? "").toLowerCase().includes(q) ||
-        (o.customer_phone ?? "").includes(q) ||
-        (o.customer_address ?? "").toLowerCase().includes(q)
-      );
-    });
-  }, [active, stageFilter, searchQuery]);
+    const now = new Date();
+    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const yesterdayMidnight = todayMidnight - 86400000;
+    const sevenDaysAgo = todayMidnight - 7 * 86400000;
+
+    return active
+      .filter((o) => {
+        if (stageFilter !== "all" && o.status !== stageFilter) return false;
+
+        if (dateFilter !== "all") {
+          const createdTime = new Date(o.created_at).getTime();
+          if (dateFilter === "today" && createdTime < todayMidnight) return false;
+          if (dateFilter === "yesterday" && (createdTime < yesterdayMidnight || createdTime >= todayMidnight)) return false;
+          if (dateFilter === "last7" && createdTime < sevenDaysAgo) return false;
+        }
+
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        return (
+          (o.order_number ?? "").toLowerCase().includes(q) ||
+          o.id.toLowerCase().includes(q) ||
+          (o.customer_name ?? "").toLowerCase().includes(q) ||
+          (o.customer_phone ?? "").includes(q) ||
+          (o.customer_address ?? "").toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [active, stageFilter, dateFilter, searchQuery]);
 
   const selected = active.find((o) => o.id === selectedId) ?? filteredOrders[0] ?? active[0] ?? null;
 
@@ -173,15 +212,14 @@ function DeliveryTracking() {
   const applyPresetMessage = (type: "dispatched" | "arrived" | "packed" | "cold_chain") => {
     if (!selected) return;
     const ref = selected.order_number ?? selected.id.slice(0, 8);
-    const pin = (selected as Database["public"]["Tables"]["orders"]["Row"]).delivery_pin || (selected as Database["public"]["Tables"]["orders"]["Row"]).otp_code || selected.id.slice(-4).toUpperCase();
     const dName = driverName || selected.driver_name || "Assigned Dispatch Executive";
     const etaMins = eta || selected.eta_minutes || "25–35";
 
     let text = "";
     if (type === "dispatched") {
-      text = `🚀 Hi ${selected.customer_name}! Your fresh seafood order #${ref} is OUT FOR DELIVERY with rider ${dName}. Estimated arrival in ~${etaMins} mins.\n\n🔑 Your Doorstep Verification PIN: *${pin}*\nPlease share this PIN with the rider to collect your order.`;
+      text = `🚀 Hi ${selected.customer_name}! Your fresh seafood order #${ref} is OUT FOR DELIVERY with rider ${dName}. Estimated arrival in ~${etaMins} mins.\n\n🔒 For safe and verified delivery, please keep your 4-digit Doorstep PIN ready from your order tracking screen to provide to the rider.`;
     } else if (type === "arrived") {
-      text = `📍 Hi ${selected.customer_name}! Our delivery executive (${dName}) has ARRIVED at your address with order #${ref}. Please provide PIN *${pin}* to receive your cold-packed seafood!`;
+      text = `📍 Hi ${selected.customer_name}! Our delivery executive (${dName}) has ARRIVED at your address with order #${ref}. Please provide your 4-digit Doorstep PIN from your tracking screen to collect your cold-packed seafood!`;
     } else if (type === "packed") {
       text = `🧊 Hi ${selected.customer_name}! Your order #${ref} is PACKED & ICED in food-grade insulated boxes at 0–4°C. Ready for departure from our central cold hub!`;
     } else if (type === "cold_chain") {
@@ -190,6 +228,44 @@ function DeliveryTracking() {
 
     setMessage(text);
   };
+
+  // Driver performance calculations
+  const driverPerformanceList = useMemo(() => {
+    const driversMap: Record<
+      string,
+      {
+        name: string;
+        assigned: number;
+        delivered: number;
+        totalElapsedMins: number;
+        completedCount: number;
+      }
+    > = {};
+
+    for (const o of active) {
+      const dName = o.driver_name?.trim() || "Unassigned / Self";
+      if (!driversMap[dName]) {
+        driversMap[dName] = {
+          name: dName,
+          assigned: 0,
+          delivered: 0,
+          totalElapsedMins: 0,
+          completedCount: 0,
+        };
+      }
+      driversMap[dName].assigned += 1;
+      if (o.status === "delivered") {
+        driversMap[dName].delivered += 1;
+        const timing = getOrderTimingMetrics(o);
+        if (timing) {
+          driversMap[dName].totalElapsedMins += timing.elapsedMins;
+          driversMap[dName].completedCount += 1;
+        }
+      }
+    }
+
+    return Object.values(driversMap).sort((a, b) => b.delivered - a.delivered);
+  }, [active]);
 
   const confirmedCount = active.filter((o) => o.status === "confirmed").length;
   const packedCount = active.filter((o) => o.status === "packed").length;
@@ -208,16 +284,54 @@ function DeliveryTracking() {
                 Live Delivery Dispatch &amp; Doorstep Verification
               </h1>
               <p className="text-xs text-muted-foreground">
-                Dispatch orders, verify customer PINs, open Google Maps directions, and notify customers via WhatsApp.
+                Dispatch orders, verify customer PINs without leaks, monitor order-to-doorstep timings, and view driver reports.
               </p>
             </div>
-            <Badge variant="outline" className="font-mono text-xs self-start sm:self-auto gap-1">
-              <Clock className="size-3 text-sky-500" /> Live Pipeline
-            </Badge>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setDriverReportOpen(true)}
+                className="h-8 rounded-xl text-xs font-semibold gap-1.5 border-sky-500/30 bg-background/80 hover:bg-sky-500/10"
+              >
+                <Users className="size-3.5 text-sky-600" /> Who Delivered Reports
+              </Button>
+              <Badge variant="outline" className="font-mono text-xs self-start sm:self-auto gap-1">
+                <Clock className="size-3 text-sky-500" /> Live Pipeline
+              </Badge>
+            </div>
+          </div>
+
+          {/* Date Filter Bar */}
+          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/40 flex-wrap">
+            <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+              <Calendar className="size-3.5" /> Date:
+            </span>
+            {(
+              [
+                { key: "today", label: "Today" },
+                { key: "yesterday", label: "Yesterday" },
+                { key: "last7", label: "Last 7 Days" },
+                { key: "all", label: "All Time" },
+              ] as const
+            ).map((df) => (
+              <button
+                key={df.key}
+                type="button"
+                onClick={() => setDateFilter(df.key)}
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                  dateFilter === df.key
+                    ? "bg-sky-600 text-white shadow-xs"
+                    : "bg-background/60 border border-border/70 text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {df.label}
+              </button>
+            ))}
           </div>
 
           {/* Quick Pipeline Status Filters */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-4 pt-3 border-t border-border/50">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3 pt-3 border-t border-border/50">
             <button
               type="button"
               onClick={() => setStageFilter("all")}
@@ -275,7 +389,7 @@ function DeliveryTracking() {
                   : "border-border/70 bg-background/60 hover:bg-muted/60"
               }`}
             >
-              <p className="text-[10px] font-semibold text-muted-foreground">Delivered Today</p>
+              <p className="text-[10px] font-semibold text-muted-foreground">Delivered</p>
               <p className="text-base font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{deliveredCount}</p>
             </button>
           </div>
@@ -306,14 +420,13 @@ function DeliveryTracking() {
                     : o.status === "packed"
                     ? "text-blue-700 dark:text-blue-300 bg-blue-500/15 border-blue-500/30"
                     : "text-amber-700 dark:text-amber-300 bg-amber-500/15 border-amber-500/30";
+                const timing = getOrderTimingMetrics(o);
 
                 return (
                   <button
                     key={o.id}
                     type="button"
-                    onClick={() => {
-                      setSelectedId(o.id);
-                    }}
+                    onClick={() => setSelectedId(o.id)}
                     className={`w-full rounded-2xl border p-3.5 text-left transition-all ${
                       isSel
                         ? "border-sky-500 bg-sky-500/10 shadow-xs ring-1 ring-sky-500/30"
@@ -341,7 +454,20 @@ function DeliveryTracking() {
                       </p>
                     )}
 
-                    <div className="mt-1.5 pt-1.5 border-t border-border/50 flex items-center justify-between text-[10px] text-muted-foreground">
+                    {timing && (
+                      <div className="mt-1.5 pt-1.5 border-t border-border/50 flex items-center justify-between text-[10px]">
+                        <span className="text-muted-foreground font-mono flex items-center gap-1">
+                          <Clock className="size-3 text-sky-500" />
+                          {timing.placedAt}
+                          {timing.deliveredAt ? ` → ${timing.deliveredAt}` : ""}
+                        </span>
+                        <span className={`font-semibold ${timing.isDelivered ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+                          {timing.isDelivered ? `Delivered: ${timing.elapsedMins}m` : `Elapsed: ${timing.elapsedMins}m`}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
                       <span>{o.delivery_slot || "35–45 Mins Express"}</span>
                       {o.driver_name && (
                         <span className="font-medium text-foreground">Rider: {o.driver_name}</span>
@@ -353,7 +479,7 @@ function DeliveryTracking() {
 
               {filteredOrders.length === 0 && (
                 <div className="p-8 text-center text-muted-foreground text-xs rounded-2xl border border-dashed">
-                  No orders match this filter.
+                  No orders match this date or status filter.
                 </div>
               )}
             </div>
@@ -394,6 +520,20 @@ function DeliveryTracking() {
                           })}${selected.delivery_slot ? ` · ${selected.delivery_slot}` : ""}`
                         : selected.delivery_slot ?? "Express 35-minute delivery"}
                     </p>
+
+                    {/* Elapsed Turnaround timing badge */}
+                    {(() => {
+                      const timing = getOrderTimingMetrics(selected);
+                      if (!timing) return null;
+                      return (
+                        <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-sky-500/10 border border-sky-500/20 text-xs font-medium text-sky-700 dark:text-sky-300">
+                          <Clock className="size-3 text-sky-600" />
+                          <span>Placed: {timing.placedAt}</span>
+                          {timing.deliveredAt && <span>· Delivered: {timing.deliveredAt}</span>}
+                          <span className="font-bold">({timing.isDelivered ? `Total: ${timing.elapsedMins} mins` : `Elapsed: ${timing.elapsedMins} mins`})</span>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   <div className="flex flex-col sm:items-end gap-2 shrink-0">
@@ -406,18 +546,43 @@ function DeliveryTracking() {
                       </p>
                     </div>
 
-                    {/* Doorstep Verification PIN Box */}
-                    <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-2">
-                      <KeyRound className="size-4 text-amber-600 dark:text-amber-400" />
-                      <div>
-                        <p className="text-[9px] uppercase tracking-wider font-bold text-amber-700 dark:text-amber-300">
-                          Doorstep Delivery PIN
-                        </p>
-                        <p className="text-sm font-black font-mono tracking-widest text-amber-900 dark:text-amber-200">
-                          {(selected as Database["public"]["Tables"]["orders"]["Row"]).delivery_pin || (selected as Database["public"]["Tables"]["orders"]["Row"]).otp_code || selected.id.slice(-4).toUpperCase()}
-                        </p>
+                    {/* Anti-Theft Doorstep PIN Security Lock */}
+                    {selected.fulfillment_type === "pos" ? (
+                      <div className="p-2.5 rounded-2xl bg-muted/60 border border-border flex items-center gap-2">
+                        <Store className="size-4 text-primary" />
+                        <div>
+                          <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">
+                            In-Store POS Counter
+                          </p>
+                          <p className="text-xs font-semibold text-foreground">
+                            No Doorstep PIN Required
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <ShieldCheck className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                          <div>
+                            <p className="text-[9px] uppercase tracking-wider font-bold text-amber-700 dark:text-amber-300">
+                              Anti-Theft Protection
+                            </p>
+                            <p className="text-xs font-mono font-bold text-foreground">
+                              🔒 PIN Secured (Customer Only)
+                            </p>
+                          </div>
+                        </div>
+                        {selected.status !== "delivered" && (
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-xl gap-1 shadow-xs"
+                            onClick={() => setVerifyPinOpen(true)}
+                          >
+                            <KeyRound className="size-3.5" /> Enter PIN
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -456,13 +621,23 @@ function DeliveryTracking() {
                   )}
 
                   {selected.status !== "delivered" && (
-                    <Button
-                      size="sm"
-                      className="rounded-xl h-8 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1 ml-auto"
-                      onClick={() => update.mutate({ id: selected.id, patch: { status: "delivered" } })}
-                    >
-                      <Check className="size-3.5" /> Mark Delivered
-                    </Button>
+                    selected.fulfillment_type === "pos" ? (
+                      <Button
+                        size="sm"
+                        className="rounded-xl h-8 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1 ml-auto"
+                        onClick={() => update.mutate({ id: selected.id, patch: { status: "delivered" } })}
+                      >
+                        <Check className="size-3.5" /> Mark Counter Handover Done
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className="rounded-xl h-8 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white gap-1 ml-auto"
+                        onClick={() => setVerifyPinOpen(true)}
+                      >
+                        <KeyRound className="size-3.5" /> Verify PIN &amp; Deliver
+                      </Button>
+                    )
                   )}
                 </div>
 
@@ -502,7 +677,13 @@ function DeliveryTracking() {
                               size="sm"
                               variant="outline"
                               className="rounded-xl h-7 text-[11px] mt-1"
-                              onClick={() => update.mutate({ id: selected.id, patch: { status: step } })}
+                              onClick={() => {
+                                if (step === "delivered" && selected.fulfillment_type !== "pos") {
+                                  setVerifyPinOpen(true);
+                                } else {
+                                  update.mutate({ id: selected.id, patch: { status: step } });
+                                }
+                              }}
                             >
                               Move Here
                             </Button>
@@ -638,7 +819,7 @@ function DeliveryTracking() {
 
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[10px] text-muted-foreground">
-                      Opens WhatsApp Web / App with formatted message and verification PIN.
+                      Opens WhatsApp Web / App with message for customer. PIN remains private with customer.
                     </p>
                     <Button
                       size="sm"
@@ -695,11 +876,119 @@ function DeliveryTracking() {
             <div className="p-12 text-center text-muted-foreground rounded-3xl border border-dashed">
               <Truck className="size-8 mx-auto mb-2 text-muted-foreground opacity-50" />
               <p className="font-bold text-sm">Select an Order to Dispatch</p>
-              <p className="text-xs">Choose any order from the left list to view route, PIN, and dispatch tools.</p>
+              <p className="text-xs">Choose any order from the left list to view route, timing, and dispatch tools.</p>
             </div>
           )}
         </div>
       </div>
+
+      {/* Doorstep PIN Verification Modal */}
+      {selected && (
+        <DeliveryPinVerificationModal
+          open={verifyPinOpen}
+          onOpenChange={setVerifyPinOpen}
+          orderId={selected.id}
+          orderNumber={selected.order_number}
+          customerName={selected.customer_name}
+          customerPhone={selected.customer_phone}
+          fulfillmentType={selected.fulfillment_type}
+          isCod={selected.payment_method === "cod" || selected.payment_status !== "paid"}
+          totalAmount={Number(selected.total)}
+          isAdmin={isAdmin}
+          onSuccess={() => {
+            qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+            toast.success(`Order #${selected.order_number ?? selected.id.slice(0, 8)} verified and marked delivered!`);
+          }}
+        />
+      )}
+
+      {/* Driver Performance Report Dialog */}
+      <Dialog open={driverReportOpen} onOpenChange={setDriverReportOpen}>
+        <DialogContent className="max-w-2xl rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg font-bold flex items-center gap-2">
+              <Users className="size-5 text-sky-600" />
+              Who Delivered — Driver Performance Report
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Complete metrics on order assignments, completed deliveries, and average turnaround timings.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 space-y-3">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="p-3 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-center">
+                <p className="text-[10px] font-bold uppercase text-sky-700 dark:text-sky-300">Total Active Riders</p>
+                <p className="text-xl font-black text-sky-900 dark:text-sky-100">{driverPerformanceList.length}</p>
+              </div>
+              <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+                <p className="text-[10px] font-bold uppercase text-emerald-700 dark:text-emerald-300">Total Completed</p>
+                <p className="text-xl font-black text-emerald-900 dark:text-emerald-100">{deliveredCount}</p>
+              </div>
+              <div className="p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-center">
+                <p className="text-[10px] font-bold uppercase text-purple-700 dark:text-purple-300">On The Road</p>
+                <p className="text-xl font-black text-purple-900 dark:text-purple-100">{outCount}</p>
+              </div>
+            </div>
+
+            <div className="max-h-80 overflow-y-auto rounded-2xl border border-border">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-muted/50 border-b border-border text-[11px] font-bold text-muted-foreground uppercase">
+                  <tr>
+                    <th className="p-3">Rider / Executive</th>
+                    <th className="p-3 text-center">Assigned</th>
+                    <th className="p-3 text-center">Completed</th>
+                    <th className="p-3 text-center">Avg Time</th>
+                    <th className="p-3 text-right">Completion Rate</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {driverPerformanceList.map((d) => {
+                    const avgMins = d.completedCount > 0 ? Math.round(d.totalElapsedMins / d.completedCount) : 0;
+                    const completionRate = d.assigned > 0 ? Math.round((d.delivered / d.assigned) * 100) : 0;
+
+                    return (
+                      <tr key={d.name} className="hover:bg-muted/30 transition-colors">
+                        <td className="p-3 font-semibold text-foreground flex items-center gap-1.5">
+                          <Award className="size-3.5 text-amber-500 shrink-0" />
+                          <span>{d.name}</span>
+                        </td>
+                        <td className="p-3 text-center font-mono">{d.assigned}</td>
+                        <td className="p-3 text-center font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          {d.delivered}
+                        </td>
+                        <td className="p-3 text-center font-mono text-muted-foreground">
+                          {avgMins > 0 ? `${avgMins} mins` : "—"}
+                        </td>
+                        <td className="p-3 text-right">
+                          <Badge
+                            variant="outline"
+                            className={`font-mono text-[10px] ${
+                              completionRate >= 80
+                                ? "border-emerald-500 text-emerald-600 bg-emerald-500/10"
+                                : "border-amber-500 text-amber-600 bg-amber-500/10"
+                            }`}
+                          >
+                            {completionRate}%
+                          </Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {driverPerformanceList.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="p-6 text-center text-muted-foreground">
+                        No driver delivery data available yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AdminShell>
   );
 }
+

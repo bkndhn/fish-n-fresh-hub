@@ -27,6 +27,8 @@ import {
   ExternalLink,
   ShieldAlert,
   Banknote,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { AdminBranchProvider } from "@/lib/branchContext";
 import { AdminBranchSwitcher } from "@/components/admin/AdminBranchSwitcher";
@@ -87,15 +89,18 @@ export function AdminShell({
   action,
   children,
   allow = ["admin"],
+  fullWidth = false,
 }: {
   title: string;
   action?: ReactNode;
   children: ReactNode;
   allow?: readonly AppRole[];
+  fullWidth?: boolean;
 }) {
   const navigate = useNavigate();
   const [moreOpen, setMoreOpen] = useState(false);
   const [goLiveOpen, setGoLiveOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { data: roles, isLoading } = useQuery(myRolesQuery);
   const { data: settings } = useQuery(settingsQuery);
   const myRoles = roles ?? [];
@@ -152,7 +157,7 @@ export function AdminShell({
     <AdminBranchProvider>
       <div className="min-h-screen bg-muted/30 overflow-x-hidden w-full">
         <header className="glass sticky top-0 z-50 border-b border-border w-full max-w-full overflow-hidden">
-          <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-1.5 sm:gap-3 px-2.5 sm:px-4 w-full min-w-0">
+          <div className={`mx-auto flex h-14 ${fullWidth ? "max-w-[1920px] px-3 sm:px-6" : "max-w-7xl px-2.5 sm:px-4"} items-center justify-between gap-1.5 sm:gap-3 w-full min-w-0`}>
             <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 shrink">
               <Link to="/" className="flex items-center gap-1.5 sm:gap-2 font-display font-bold text-foreground shrink-0">
                 <img 
@@ -224,26 +229,42 @@ export function AdminShell({
           </div>
         </header>
 
-      <div className="mx-auto flex max-w-7xl gap-6 px-3 py-3 sm:px-6 sm:py-6 overflow-x-hidden w-full">
-        <aside className="hidden w-56 shrink-0 md:block">
-          <nav className="sticky top-20 space-y-1">
-            {nav.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                preload="intent"
-                activeOptions={{ exact: Boolean((item as { exact?: boolean }).exact) }}
-                activeProps={{ className: "bg-primary text-primary-foreground hover:bg-primary shadow-xs" }}
-                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+      <div className={`mx-auto flex ${fullWidth ? "max-w-[1920px] px-2 sm:px-4 md:px-6 py-3 md:py-5" : "max-w-7xl px-3 py-3 sm:px-6 sm:py-6"} gap-3 md:gap-5 w-full`}>
+        <aside className={`hidden shrink-0 md:block transition-all duration-200 ${sidebarCollapsed ? "w-16" : "w-56"}`}>
+          <div className="sticky top-20 space-y-2">
+            <div className="flex items-center justify-between px-2 pb-1 border-b border-border/40">
+              {!sidebarCollapsed && <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Admin Console</span>}
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors ml-auto"
+                title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar to give full width to workspace"}
               >
-                <item.icon className="size-4" />
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+                {sidebarCollapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+              </button>
+            </div>
+            <nav className="space-y-1">
+              {nav.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  preload="intent"
+                  activeOptions={{ exact: Boolean((item as { exact?: boolean }).exact) }}
+                  activeProps={{ className: "bg-primary text-primary-foreground hover:bg-primary shadow-xs font-bold" }}
+                  className={`flex items-center rounded-xl py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all ${
+                    sidebarCollapsed ? "justify-center px-2" : "gap-2 px-3"
+                  }`}
+                  title={sidebarCollapsed ? item.label : undefined}
+                >
+                  <item.icon className="size-4 shrink-0" />
+                  {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                </Link>
+              ))}
+            </nav>
+          </div>
         </aside>
 
-        <main className="min-w-0 flex-1 max-w-full overflow-x-hidden pb-24 md:pb-6">
+        <main className="min-w-0 flex-1 max-w-full pb-24 md:pb-6">
           <div className="mb-3 sm:mb-4 flex flex-wrap items-center justify-between gap-2.5">
             <h1 className="font-display text-xl font-bold text-foreground sm:text-2xl">{title}</h1>
             {action && <div className="flex flex-wrap items-center gap-2 max-w-full">{action}</div>}
