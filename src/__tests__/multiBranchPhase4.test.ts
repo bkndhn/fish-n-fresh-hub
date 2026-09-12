@@ -6,6 +6,7 @@ import {
   type TenantQuota,
   type PlatformRevocation,
 } from "../lib/superAdmin";
+import { deleteBranch } from "../lib/multiBranch";
 import type { AppRole } from "../lib/admin";
 
 describe("Phase 4: Super Admin Governance, Tenant Quotas & Emergency Kill Switch", () => {
@@ -129,4 +130,49 @@ describe("Phase 4: Super Admin Governance, Tenant Quotas & Emergency Kill Switch
       expect(userRevocation.target_id).toBe("user-rogue-staff-9");
     });
   });
+
+  describe("Super Admin Governance vs Tenant Operational Isolation Boundaries", () => {
+    it("safeguards default flagship branch from deletion", async () => {
+      const res = await deleteBranch("flagship-hub-1", true);
+      expect(res.success).toBe(false);
+      expect(res.message).toContain("Cannot delete the default flagship dock");
+    });
+
+    it("restricts pure super_admin role strictly to Platform Governance", () => {
+      const pureSuperAdminRoles: AppRole[] = ["super_admin"];
+      const storeOperationalRoles: AppRole[] = ["admin", "manager", "staff", "cashier", "inventory_manager"];
+
+      const canAccessOperationalData = pureSuperAdminRoles.some((r) => storeOperationalRoles.includes(r));
+      expect(canAccessOperationalData).toBe(false);
+    });
+
+    it("verifies Client Admin has operational ownership within Super Admin quota", () => {
+      const clientAdminRoles: AppRole[] = ["admin"];
+      const storeOperationalRoles: AppRole[] = ["admin", "manager", "staff", "cashier", "inventory_manager"];
+
+      const canAccessOperationalData = clientAdminRoles.some((r) => storeOperationalRoles.includes(r));
+      expect(canAccessOperationalData).toBe(true);
+    });
+
+    it("allows Super Admin to adjust tenant branch ceiling and recalculates client headroom", () => {
+      const initialQuota: TenantQuota = { ...DEFAULT_TENANT_QUOTA, max_branches: 5 };
+      const currentActiveBranches = 4;
+
+      const initialCheck = checkBranchQuotaAvailable(currentActiveBranches, initialQuota.max_branches);
+      expect(initialCheck.allowed).toBe(true);
+      expect(initialCheck.remaining).toBe(1);
+
+      // Client creates a 5th branch, exhausting the quota
+      const fullCheck = checkBranchQuotaAvailable(5, initialQuota.max_branches);
+      expect(fullCheck.allowed).toBe(false);
+      expect(fullCheck.remaining).toBe(0);
+
+      // Super Admin upgrades client limit from 5 to 10
+      const upgradedQuota: TenantQuota = { ...initialQuota, max_branches: 10 };
+      const upgradedCheck = checkBranchQuotaAvailable(5, upgradedQuota.max_branches);
+      expect(upgradedCheck.allowed).toBe(true);
+      expect(upgradedCheck.remaining).toBe(5);
+    });
+  });
 });
+

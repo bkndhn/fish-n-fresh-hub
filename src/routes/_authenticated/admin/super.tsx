@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { myRolesQuery } from "@/lib/admin";
-import { branchesQuery, generateBranchSlug, generateBranchCode, type Branch } from "@/lib/multiBranch";
+import { branchesQuery, type Branch } from "@/lib/multiBranch";
 import {
   tenantQuotasQuery,
   platformRevocationsQuery,
@@ -34,7 +34,6 @@ import {
   superAdminStatsQuery,
   updateTenantQuotas,
   executeKillSwitch,
-  createBranchWithQuotaGuard,
   checkBranchQuotaAvailable,
   type TenantQuota,
 } from "@/lib/superAdmin";
@@ -60,6 +59,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Switch } from "@/components/ui/switch";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/super")({
@@ -101,15 +102,6 @@ function SuperAdminDashboard() {
 
   // Branch-specific kill switch
   const [targetBranchId, setTargetBranchId] = useState<string>("");
-
-  // Provision Branch modal state
-  const [provisionModalOpen, setProvisionModalOpen] = useState(false);
-  const [branchName, setBranchName] = useState("");
-  const [branchSlug, setBranchSlug] = useState("");
-  const [branchCode, setBranchCode] = useState("");
-  const [branchAddress, setBranchAddress] = useState("");
-  const [branchRadiusKm, setBranchRadiusKm] = useState(12);
-  const [provisioning, setProvisioning] = useState(false);
 
   const effectiveMaxBranches = maxBranchesInput ?? quotas?.max_branches ?? 10;
   const effectiveMaxStaff = maxStaffInput ?? quotas?.max_staff_per_branch ?? 15;
@@ -231,58 +223,6 @@ function SuperAdminDashboard() {
       }
     } catch {
       toast.error("Error executing branch kill switch");
-    }
-  };
-
-  // Provision New Branch
-  const handleProvisionBranch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!branchName.trim()) {
-      toast.error("Hub name is required");
-      return;
-    }
-
-    setProvisioning(true);
-    try {
-      const slug = branchSlug.trim() || generateBranchSlug(branchName);
-      const code = branchCode.trim().toUpperCase() || generateBranchCode(branchName);
-
-      const res = await createBranchWithQuotaGuard({
-        name: branchName.trim(),
-        slug,
-        code,
-        address: branchAddress.trim() || "Tamil Nadu",
-        delivery_radius_km: Number(branchRadiusKm) || 12,
-        open_time: "06:00",
-        close_time: "21:00",
-        is_active: true,
-        is_default: false,
-        lat: 13.0827,
-        lng: 80.2707,
-        sort_order: branches.length + 1,
-        phone: null,
-        manager: null,
-        manager_user_id: null,
-        gstin: null,
-        fssai_license: null,
-        upi_id: null,
-        min_order_amount: 199,
-      });
-
-      if (res.success && res.branch) {
-        toast.success(`Branch "${res.branch.name}" provisioned successfully!`);
-        setProvisionModalOpen(false);
-        setBranchName("");
-        setBranchSlug("");
-        setBranchCode("");
-        setBranchAddress("");
-        qc.invalidateQueries({ queryKey: ["branches"] });
-        qc.invalidateQueries({ queryKey: ["super-admin"] });
-      } else {
-        toast.error(res.message || "Could not provision branch");
-      }
-    } finally {
-      setProvisioning(false);
     }
   };
 
@@ -598,13 +538,13 @@ function SuperAdminDashboard() {
           </Card>
         </div>
 
-        {/* Row 3: Active Branches Governance & Quota Guard */}
+        {/* Row 3: Client Branch Quotas & Usage Monitor */}
         <Card className="rounded-2xl border-border bg-card shadow-2xs">
           <CardHeader className="pb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
                 <Store className="size-4.5 text-primary" />
-                <CardTitle className="text-base font-bold">Branch Governance &amp; Provisioning</CardTitle>
+                <CardTitle className="text-base font-bold">Client Branch Quotas &amp; Usage Monitor</CardTitle>
                 <Badge
                   variant="outline"
                   className={
@@ -613,30 +553,36 @@ function SuperAdminDashboard() {
                       : "border-destructive/40 bg-destructive/10 text-destructive text-[10px]"
                   }
                 >
-                  {branches.filter((b) => b.is_active).length} / {quotas?.max_branches ?? 10} Hubs
+                  {branches.filter((b) => b.is_active).length} / {quotas?.max_branches ?? 10} Hubs in Use
                 </Badge>
               </div>
               <CardDescription className="text-xs mt-0.5">
-                Manage branch operating parameters and provision new physical or cloud fulfillment nodes.
+                Master platform governance monitor. Displays client-created store branches against the configured $N$ quota limit.
               </CardDescription>
             </div>
 
-            <Button
-              size="sm"
-              onClick={() => setProvisionModalOpen(true)}
-              disabled={!quotaCheck.allowed}
-              className="rounded-xl text-xs font-bold gap-1.5 h-8.5 shadow-2xs"
-            >
-              <Plus className="size-3.5" /> Provision New Hub
-            </Button>
+            <Badge variant="outline" className="text-xs border-primary/30 text-primary bg-primary/5 py-1 px-2.5">
+              Client Self-Service Active
+            </Badge>
           </CardHeader>
 
           <CardContent>
+            {/* Operational Data & Activity Isolation Callout */}
+            <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-3.5 text-xs flex items-start gap-2.5">
+              <ShieldCheck className="size-4 text-primary shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <span className="font-bold text-foreground">Tenant Operational Isolation Active</span>
+                <p className="text-muted-foreground leading-relaxed">
+                  Super Admin strictly governs client quota limits ($N$ branch limit, staff seats, monthly transaction caps, and tenant freeze). Branch creation, store catalog, inventory, and fulfillment operations are self-managed exclusively by the Client Admin in Store Settings.
+                </p>
+              </div>
+            </div>
+
             {!quotaCheck.allowed && (
               <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
                 <AlertTriangle className="size-4 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold">Branch Quota Limit Reached:</span> You have reached the maximum allowed branches ({quotas?.max_branches}) for this tenant. Increase the quota above to provision additional hubs.
+                  <span className="font-bold">Branch Quota Ceiling Reached:</span> Client has reached the maximum allowed branches ({quotas?.max_branches}). Increase the quota limit above if client requires additional hub headroom.
                 </div>
               </div>
             )}
@@ -650,7 +596,8 @@ function SuperAdminDashboard() {
                     <th className="p-3">Delivery Zone</th>
                     <th className="p-3">Hours</th>
                     <th className="p-3">Status</th>
-                    <th className="p-3 text-right">Actions</th>
+                    <th className="p-3">Operational Ownership</th>
+                    <th className="p-3 text-right">Emergency Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -660,12 +607,12 @@ function SuperAdminDashboard() {
                         <div className="flex items-center gap-1.5">
                           <span>{branch.name}</span>
                           {branch.is_default && (
-                            <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary text-[9px] py-0 px-1">
+                            <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary text-[9px] py-0 px-1 font-bold">
                               Flagship Dock
                             </Badge>
                           )}
                         </div>
-                        <p className="text-[10px] text-muted-foreground line-clamp-1">{branch.address}</p>
+                        <p className="text-[10px] text-muted-foreground line-clamp-1">{branch.address || "Tamil Nadu, India"}</p>
                       </td>
                       <td className="p-3 font-mono text-[11px]">
                         <span className="font-bold">{branch.code}</span>
@@ -687,14 +634,20 @@ function SuperAdminDashboard() {
                           {branch.is_active ? "Active" : "Paused"}
                         </Badge>
                       </td>
+                      <td className="p-3">
+                        <Badge variant="outline" className="border-muted bg-muted/40 text-muted-foreground text-[10px]">
+                          Client Admin Managed
+                        </Badge>
+                      </td>
                       <td className="p-3 text-right">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleExecuteBranchKill(branch.id, branch.name)}
-                          className="h-7 text-[11px] text-red-600 hover:bg-red-500/10 rounded-lg"
+                          className="h-7 text-[11px] text-red-600 hover:bg-red-500/10 rounded-lg font-medium px-2"
+                          title="Emergency Force Logout Sessions for this Hub"
                         >
-                          Force Logout
+                          Revoke Sessions
                         </Button>
                       </td>
                     </tr>
@@ -761,103 +714,6 @@ function SuperAdminDashboard() {
         </Card>
       </div>
 
-      {/* Provision New Hub Modal */}
-      <Dialog open={provisionModalOpen} onOpenChange={setProvisionModalOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base font-bold">
-              <Store className="size-5 text-primary" />
-              Provision New Store Hub
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Create a new physical hub or cloud fulfillment node under this tenant quota.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleProvisionBranch} className="space-y-3 pt-2">
-            <div>
-              <Label className="text-xs font-bold">Hub Name *</Label>
-              <Input
-                placeholder="e.g. Madurai Meenakshi Hub"
-                value={branchName}
-                onChange={(e) => {
-                  setBranchName(e.target.value);
-                  if (!branchSlug) setBranchSlug(generateBranchSlug(e.target.value));
-                  if (!branchCode) setBranchCode(generateBranchCode(e.target.value));
-                }}
-                className="mt-1 rounded-xl text-xs"
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs font-bold">URL Slug *</Label>
-                <Input
-                  placeholder="e.g. madurai"
-                  value={branchSlug}
-                  onChange={(e) => setBranchSlug(e.target.value)}
-                  className="mt-1 rounded-xl text-xs font-mono"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label className="text-xs font-bold">Store Code (3-char) *</Label>
-                <Input
-                  placeholder="e.g. MDU"
-                  maxLength={3}
-                  value={branchCode}
-                  onChange={(e) => setBranchCode(e.target.value.toUpperCase())}
-                  className="mt-1 rounded-xl text-xs font-mono uppercase"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label className="text-xs font-bold">Address / Landmark</Label>
-              <Input
-                placeholder="e.g. Bypass Road, Madurai"
-                value={branchAddress}
-                onChange={(e) => setBranchAddress(e.target.value)}
-                className="mt-1 rounded-xl text-xs"
-              />
-            </div>
-
-            <div>
-              <Label className="text-xs font-bold">Delivery Express Radius (km)</Label>
-              <Input
-                type="number"
-                min={3}
-                max={50}
-                value={branchRadiusKm}
-                onChange={(e) => setBranchRadiusKm(parseInt(e.target.value) || 12)}
-                className="mt-1 rounded-xl text-xs"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setProvisionModalOpen(false)}
-                className="rounded-xl text-xs"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={provisioning || !quotaCheck.allowed}
-                className="rounded-xl text-xs font-bold shadow-2xs"
-              >
-                {provisioning ? "Provisioning..." : "Provision Hub"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
       {/* Global Kill Switch Confirmation Alert Dialog */}
       <AlertDialog open={globalKillModalOpen} onOpenChange={setGlobalKillModalOpen}>
         <AlertDialogContent className="rounded-2xl max-w-md">
@@ -917,6 +773,8 @@ function SuperAdminDashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit and Delete operations are self-managed exclusively by Client Admins in Store Settings */}
     </AdminShell>
   );
 }

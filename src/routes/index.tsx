@@ -135,76 +135,65 @@ function Home() {
         <TrustBadges badges={badges ?? []} />
       </div>
 
-      {/* Frozen Sticky Category Bar (Sticks seamlessly beneath header at top-14 when scrolling) */}
-      <div 
-        className="sticky top-14 z-30 -mx-3 sm:-mx-4 px-3 sm:px-4 py-2 bg-background/95 backdrop-blur-md border-b border-border/60 shadow-2xs mt-4"
-      >
-        <div 
-          className="flex items-center gap-2 overflow-x-auto touch-pan-x scroll-smooth no-scrollbar"
-          onWheel={(e) => {
-            if (e.deltaY !== 0 && Math.abs(e.deltaX) < 10) {
-              e.currentTarget.scrollLeft += e.deltaY;
-            }
-          }}
-        >
-          <Link
-            to="/catalog"
-            className="rounded-full px-3.5 py-1 text-xs font-bold shrink-0 transition-all border border-border/80 bg-muted/60 hover:bg-muted text-foreground"
-          >
-            🌊 All Catalog
-          </Link>
-          {(categories ?? []).map((c) => (
-            <Link
-              key={c.id}
-              to="/catalog"
-              search={{ category: c.name }}
-              className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold shrink-0 transition-all border border-border/80 bg-card hover:border-primary hover:text-primary shadow-2xs text-foreground"
-            >
-              {c.image_url ? (
-                <img src={c.image_url} alt="" className="size-4 rounded-full object-cover" />
-              ) : (
-                <span>🐟</span>
-              )}
-              <span>{c.name}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      <section className="mt-8">
+      {/* Image-Based Category Showcase with Horizontal Smooth Scrolling */}
+      <section className="mt-6">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-bold">{t("home.categories")}</h2>
-          <span className="text-xs text-muted-foreground hidden sm:inline">Scroll or swipe to explore &rarr;</span>
+          <Link to="/catalog" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
+            <span>{t("home.view_all")}</span>
+            <span>&rarr;</span>
+          </Link>
         </div>
         <div 
-          className="flex gap-4 overflow-x-auto pb-2 no-scrollbar scrollbar-none scroll-smooth -mx-1 px-1"
+          className="flex gap-4 overflow-x-auto pb-3 pt-1 no-scrollbar scrollbar-none scroll-smooth -mx-1 px-1 touch-pan-x"
           onWheel={(e) => {
             if (e.deltaY !== 0 && Math.abs(e.deltaX) < 10) {
               e.currentTarget.scrollLeft += e.deltaY;
             }
           }}
         >
-          {(categories ?? []).map((c) => (
-            <Link
-              key={c.id}
-              to="/catalog"
-              search={{ category: c.name }}
-              className="group flex min-w-[76px] flex-col items-center gap-1.5 text-center text-xs transition-transform active:scale-95 shrink-0"
-            >
-              <span className="size-16 overflow-hidden rounded-full border border-border/80 bg-card shadow-xs group-hover:border-primary group-hover:shadow-md transition-all duration-200">
-                {c.image_url ? (
-                  <img src={c.image_url} alt={c.name} loading="lazy" decoding="async" className="size-full object-cover group-hover:scale-110 transition-transform duration-300" />
-                ) : (
-                  <span className="size-full flex items-center justify-center bg-muted text-muted-foreground font-bold">
-                    {c.name.slice(0, 1)}
-                  </span>
-                )}
-              </span>
-              <span className="font-semibold text-foreground group-hover:text-primary transition-colors leading-tight">
-                {c.name}
-              </span>
-            </Link>
-          ))}
+          {/* All Catalog Card */}
+          <Link
+            to="/catalog"
+            className="group flex min-w-[76px] flex-col items-center gap-1.5 text-center text-xs transition-transform active:scale-95 shrink-0"
+          >
+            <span className="size-16 overflow-hidden rounded-full border-2 border-dashed border-primary/40 bg-primary/5 flex items-center justify-center shadow-xs group-hover:border-primary group-hover:bg-primary/10 group-hover:shadow-md transition-all duration-200">
+              <span className="text-xl">🌊</span>
+            </span>
+            <span className="font-semibold text-foreground group-hover:text-primary transition-colors leading-tight line-clamp-1">
+              All Items
+            </span>
+          </Link>
+
+          {[...(categories ?? [])]
+            .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+            .map((c) => (
+              <Link
+                key={c.id}
+                to="/catalog"
+                search={{ category: c.name }}
+                className="group flex min-w-[76px] flex-col items-center gap-1.5 text-center text-xs transition-transform active:scale-95 shrink-0"
+              >
+                <span className="size-16 overflow-hidden rounded-full border border-border/80 bg-card shadow-xs group-hover:border-primary group-hover:shadow-md transition-all duration-200">
+                  {c.image_url ? (
+                    <img
+                      src={c.image_url}
+                      alt={c.name}
+                      loading="lazy"
+                      decoding="async"
+                      className="size-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    />
+                  ) : (
+                    <span className="size-full flex items-center justify-center bg-muted text-muted-foreground font-bold">
+                      {c.name.slice(0, 1)}
+                    </span>
+                  )}
+                </span>
+                <span className="font-semibold text-foreground group-hover:text-primary transition-colors leading-tight line-clamp-2 max-w-[80px]">
+                  {c.name}
+                </span>
+              </Link>
+            ))}
         </div>
       </section>
 

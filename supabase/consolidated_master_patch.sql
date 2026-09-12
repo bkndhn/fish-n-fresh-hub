@@ -23,6 +23,75 @@ INSERT INTO public.schema_version (version, migration_hash, description)
 VALUES ('3.0.0', '20260910_master_consolidated', 'Comprehensive full-stack master patch for all features, POS, SEO, and inventory')
 ON CONFLICT DO NOTHING;
 
+-- 2b. Categories Table: Ensure Table and All Columns Exist
+CREATE TABLE IF NOT EXISTS public.categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    slug TEXT,
+    image_url TEXT,
+    icon TEXT,
+    sort_order NUMERIC NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.categories
+ADD COLUMN IF NOT EXISTS image_url TEXT,
+ADD COLUMN IF NOT EXISTS icon TEXT,
+ADD COLUMN IF NOT EXISTS sort_order NUMERIC NOT NULL DEFAULT 0,
+ADD COLUMN IF NOT EXISTS slug TEXT;
+
+GRANT SELECT ON public.categories TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.categories TO authenticated;
+GRANT ALL ON public.categories TO service_role;
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "categories public read" ON public.categories;
+CREATE POLICY "categories public read" ON public.categories FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "categories admin write" ON public.categories;
+CREATE POLICY "categories admin write" ON public.categories FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- 2c. Branches Table: Ensure Table and All Columns Exist
+CREATE TABLE IF NOT EXISTS public.branches (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    code TEXT NOT NULL DEFAULT 'HQ',
+    slug TEXT NOT NULL DEFAULT 'main-dock',
+    address TEXT,
+    phone TEXT,
+    manager TEXT,
+    lat NUMERIC,
+    lng NUMERIC,
+    open_time TEXT DEFAULT '06:00',
+    close_time TEXT DEFAULT '22:00',
+    delivery_radius_km NUMERIC NOT NULL DEFAULT 12,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    is_default BOOLEAN NOT NULL DEFAULT false,
+    sort_order NUMERIC NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.branches
+ADD COLUMN IF NOT EXISTS code TEXT NOT NULL DEFAULT 'HQ',
+ADD COLUMN IF NOT EXISTS slug TEXT NOT NULL DEFAULT 'main-dock',
+ADD COLUMN IF NOT EXISTS is_default BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN IF NOT EXISTS delivery_radius_km NUMERIC NOT NULL DEFAULT 12,
+ADD COLUMN IF NOT EXISTS open_time TEXT DEFAULT '06:00',
+ADD COLUMN IF NOT EXISTS close_time TEXT DEFAULT '22:00';
+
+GRANT SELECT ON public.branches TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.branches TO authenticated;
+GRANT ALL ON public.branches TO service_role;
+ALTER TABLE public.branches ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "branches public read" ON public.branches;
+CREATE POLICY "branches public read" ON public.branches FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "branches admin write" ON public.branches;
+CREATE POLICY "branches admin write" ON public.branches FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
 -- 3. Products Table: Ensure All Columns Exist
 ALTER TABLE public.products
 ADD COLUMN IF NOT EXISTS is_available BOOLEAN NOT NULL DEFAULT true,

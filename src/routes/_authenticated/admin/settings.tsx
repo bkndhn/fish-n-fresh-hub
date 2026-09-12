@@ -48,6 +48,7 @@ import { getGoogleMapsDirUrl, type GeocodedAddress } from "@/lib/maps";
 import { VERTICAL_CONFIGS, getVerticalConfig, type BusinessVertical } from "@/lib/verticals";
 import { getCurrentTenant } from "@/lib/tenant";
 import { SeoSettingsManager } from "@/components/admin/SeoSettingsManager";
+import { BranchManagement } from "@/components/admin/BranchManagement";
 import { getDailyAtmosphere, isDailyAtmosphereEnabled, setDailyAtmosphereEnabled } from "@/lib/dailyAtmosphere";
 
 export const Route = createFileRoute("/_authenticated/admin/settings")({
@@ -636,6 +637,12 @@ function AdminSettings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Store Branches & Fulfillment Hubs (Client Admin Self-Service with Super Admin Quota Guard) */}
+      <div className="mb-6">
+        <BranchManagement />
+      </div>
+
 
       {/* World-Class Search Engine Optimization (SEO) & Social Graph Studio */}
       <div className="mb-6">

@@ -12,6 +12,7 @@ import { formatINR, formatStockDisplay, formatStockUnitLabel } from "@/lib/forma
 import { supabase } from "@/integrations/supabase/client";
 import { generateSampleCsv, parseProductsCsv, exportProductsToCsv } from "@/lib/retailCsv";
 import { applyRealProductsCatalog } from "@/lib/products.functions";
+import { CategoryManagement } from "@/components/admin/CategoryManagement";
 import { ProductAiBenefitsCard } from "@/components/ProductAiBenefitsCard";
 import {
   matchSpeciesVisualProfile,
@@ -98,6 +99,9 @@ function ProductsAdmin() {
     return codes.length > 0 ? Math.max(...codes) + 1 : 1;
   }, [allProducts]);
 
+  const [adminTab, setAdminTab] = useState<"products" | "categories">("products");
+  const [showAddRetailSpecs, setShowAddRetailSpecs] = useState(false);
+  const [showEditRetailSpecs, setShowEditRetailSpecs] = useState(false);
   const [search, setSearch] = useState("");
   const [openAdd, setOpenAdd] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
@@ -666,7 +670,46 @@ function ProductsAdmin() {
         </div>
       }
     >
-      {/* Low Stock Warning Banner */}
+      {/* Top Admin Sub-Navigation Tabs */}
+      <div className="flex items-center gap-1.5 mb-4 p-1 bg-muted/60 rounded-2xl w-fit border border-border/60">
+        <button
+          type="button"
+          onClick={() => setAdminTab("products")}
+          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            adminTab === "products"
+              ? "bg-card text-foreground shadow-xs"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <PackagePlus className="size-3.5" />
+          <span>Products Catalog</span>
+          <span className="rounded-full bg-muted px-1.5 py-0.2 text-[10px] font-mono">
+            {allProducts.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setAdminTab("categories")}
+          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            adminTab === "categories"
+              ? "bg-card text-primary shadow-xs"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Layers className="size-3.5" />
+          <span>Category Management</span>
+          <span className="rounded-full bg-primary/15 text-primary px-1.5 py-0.2 text-[10px] font-mono">
+            {categories?.length ?? 0}
+          </span>
+        </button>
+      </div>
+
+      {adminTab === "categories" ? (
+        <CategoryManagement />
+      ) : (
+        <>
+          {/* Low Stock Warning Banner */}
       {lowStockProducts.length > 0 && (
         <div className="mb-4 rounded-3xl border border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-card to-card p-3.5 sm:p-4 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
@@ -868,62 +911,64 @@ function ProductsAdmin() {
       </div>
 
       <Dialog open={openAdd} onOpenChange={setOpenAdd}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Add New Product</DialogTitle>
+        <DialogContent className="max-h-[88vh] flex flex-col p-0 rounded-2xl w-[calc(100vw-1.5rem)] sm:max-w-lg overflow-hidden mx-auto">
+          <DialogHeader className="p-4 sm:p-5 pb-3 border-b border-border/60 shrink-0">
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Plus className="size-4 text-primary" /> Add New Product
+            </DialogTitle>
           </DialogHeader>
-            <div className="space-y-4 pt-2">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="prod-name">Name (English) *</Label>
-                  <Input
-                    id="prod-name"
-                    placeholder="e.g. iPhone 15, Cotton Shirt, Vanjaram"
-                    value={newProduct.name}
-                    onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="prod-tamil">Name (Tamil)</Label>
-                  <Input
-                    id="prod-tamil"
-                    placeholder="e.g. வஞ்சிரம்"
-                    value={newProduct.name_tamil}
-                    onChange={(e) => setNewProduct({ ...newProduct, name_tamil: e.target.value })}
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Category</Label>
-                  <select
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-                    value={newProduct.category}
-                    onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                  >
-                    <option value="">Select Category</option>
-                    {(categories ?? []).map((c) => (
+          <div className="overflow-y-auto flex-1 p-4 sm:p-5 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="prod-name" className="text-xs font-semibold">Name (English) *</Label>
+                <Input
+                  id="prod-name"
+                  placeholder="e.g. Vanjaram / King Fish, Fresh Mutton, Tiger Prawns"
+                  value={newProduct.name}
+                  onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                  className="rounded-xl h-9 text-xs"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="prod-tamil" className="text-xs font-semibold">Name (Tamil / Local)</Label>
+                <Input
+                  id="prod-tamil"
+                  placeholder="e.g. வஞ்சிரம், ஆட்டிறைச்சி"
+                  value={newProduct.name_tamil}
+                  onChange={(e) => setNewProduct({ ...newProduct, name_tamil: e.target.value })}
+                  className="rounded-xl h-9 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Category</Label>
+                <select
+                  className="flex h-9 w-full rounded-xl border border-input bg-card px-3 py-1 text-xs shadow-xs"
+                  value={newProduct.category}
+                  onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
+                >
+                  <option value="">Select Category</option>
+                  {[...(categories ?? [])]
+                    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                    .map((c) => (
                       <option key={c.id} value={c.name}>
                         {c.name}
                       </option>
                     ))}
-                    <option value="Sea Fish">Sea Fish</option>
-                    <option value="Freshwater Fish">Freshwater Fish</option>
-                    <option value="Prawns & Shrimp">Prawns & Shrimp</option>
-                    <option value="Crabs">Crabs</option>
-                    <option value="Squid & Octopus">Squid & Octopus</option>
-                    <option value="__custom__">+ Custom Category...</option>
-                  </select>
-                  {newProduct.category === "__custom__" && (
-                    <Input
-                      placeholder="Type custom category name..."
-                      value={newProduct.customCategory}
-                      onChange={(e) => setNewProduct({ ...newProduct, customCategory: e.target.value })}
-                      className="mt-1"
-                    />
-                  )}
-                </div>
+                  <option value="__custom__">+ Custom Category...</option>
+                </select>
+                {newProduct.category === "__custom__" && (
+                  <Input
+                    placeholder="Type custom category name..."
+                    value={newProduct.customCategory}
+                    onChange={(e) => setNewProduct({ ...newProduct, customCategory: e.target.value })}
+                    className="mt-1.5 rounded-xl h-8 text-xs"
+                  />
+                )}
+              </div>
 
                 <div className="space-y-1.5">
                   <Label htmlFor="prod-unit">Price / Stock Unit</Label>
@@ -1067,79 +1112,97 @@ function ProductsAdmin() {
                 />
               </div>
 
-              {/* Retail Attributes: Brand, Model, Warranty, Aisle, Serial/IMEI Tracking */}
-              <div className="rounded-2xl border border-border/80 bg-muted/20 p-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <ShieldCheck className="size-3.5 text-primary" /> Retail Specifications & Tracking
+              {/* Optional Retail & Hardware Tracking (Collapsed by default) */}
+              <div className="rounded-2xl border border-border/80 bg-muted/15 p-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddRetailSpecs(!showAddRetailSpecs)}
+                  className="flex items-center justify-between w-full text-left cursor-pointer"
+                >
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+                    <ShieldCheck className="size-3.5 text-primary" />
+                    <span>Advanced Retail / Hardware Specs</span>
+                    <Badge variant="outline" className="text-[10px] py-0 font-normal">Optional</Badge>
                   </Label>
-                </div>
+                  <span className="text-xs font-bold text-primary">
+                    {showAddRetailSpecs ? "− Hide" : "+ Show (Brand, Warranty, IMEI)"}
+                  </span>
+                </button>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="prod-brand">Brand / Manufacturer</Label>
-                    <Input
-                      id="prod-brand"
-                      placeholder="e.g. Apple, Nike, Samsung, Amul"
-                      value={newProduct.brand}
-                      onChange={(e) => setNewProduct({ ...newProduct, brand: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="prod-model">Model Number / SKU</Label>
-                    <Input
-                      id="prod-model"
-                      placeholder="e.g. A3090, 511-SLIM, TS-100"
-                      value={newProduct.model_number}
-                      onChange={(e) => setNewProduct({ ...newProduct, model_number: e.target.value })}
-                    />
-                  </div>
-                </div>
+                {showAddRetailSpecs && (
+                  <div className="mt-3 pt-3 border-t border-border/60 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="prod-brand" className="text-xs">Brand / Supplier</Label>
+                        <Input
+                          id="prod-brand"
+                          placeholder="e.g. Kasimedu Dock, FreshCo, Amul"
+                          value={newProduct.brand}
+                          onChange={(e) => setNewProduct({ ...newProduct, brand: e.target.value })}
+                          className="rounded-xl h-9 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="prod-model" className="text-xs">Model Number / SKU</Label>
+                        <Input
+                          id="prod-model"
+                          placeholder="e.g. VNJ-1KG, SK-01"
+                          value={newProduct.model_number}
+                          onChange={(e) => setNewProduct({ ...newProduct, model_number: e.target.value })}
+                          className="rounded-xl h-9 text-xs"
+                        />
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="prod-warranty">Warranty Period (Months)</Label>
-                    <Input
-                      id="prod-warranty"
-                      type="number"
-                      placeholder="e.g. 12 or 24 (0 for none)"
-                      value={newProduct.warranty_period_months}
-                      onChange={(e) => setNewProduct({ ...newProduct, warranty_period_months: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="prod-aisle">Aisle / Shelf / Rack</Label>
-                    <Input
-                      id="prod-aisle"
-                      placeholder="e.g. Aisle 2, Shelf B-4"
-                      value={newProduct.aisle_location}
-                      onChange={(e) => setNewProduct({ ...newProduct, aisle_location: e.target.value })}
-                    />
-                  </div>
-                </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="prod-warranty" className="text-xs">Warranty Period (Months)</Label>
+                        <Input
+                          id="prod-warranty"
+                          type="number"
+                          placeholder="0 for fresh food"
+                          value={newProduct.warranty_period_months}
+                          onChange={(e) => setNewProduct({ ...newProduct, warranty_period_months: e.target.value })}
+                          className="rounded-xl h-9 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="prod-aisle" className="text-xs">Storage / Cold Rack / Freezer</Label>
+                        <Input
+                          id="prod-aisle"
+                          placeholder="e.g. Chiller A, Freezer 2, Rack 3"
+                          value={newProduct.aisle_location}
+                          onChange={(e) => setNewProduct({ ...newProduct, aisle_location: e.target.value })}
+                          className="rounded-xl h-9 text-xs"
+                        />
+                      </div>
+                    </div>
 
-                <div className="pt-1">
-                  <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
-                    <Switch
-                      checked={newProduct.requires_serial}
-                      onCheckedChange={(requires_serial) => setNewProduct({ ...newProduct, requires_serial })}
-                    />
-                    <span className={newProduct.requires_serial ? "text-purple-600 dark:text-purple-400 font-bold" : "text-muted-foreground"}>
-                      Require Serial / IMEI scan at POS checkout
-                    </span>
-                  </label>
-                </div>
+                    <div className="pt-1">
+                      <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                        <Switch
+                          checked={newProduct.requires_serial}
+                          onCheckedChange={(requires_serial) => setNewProduct({ ...newProduct, requires_serial })}
+                        />
+                        <span className={newProduct.requires_serial ? "text-purple-600 dark:text-purple-400 font-bold" : "text-muted-foreground"}>
+                          Require Serial / Barcode scan at checkout
+                        </span>
+                      </label>
+                    </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="prod-specs">Technical Specs (Key: Value per line)</Label>
-                  <Textarea
-                    id="prod-specs"
-                    placeholder="RAM: 8GB&#10;Storage: 256GB&#10;Screen: 6.1 inch OLED&#10;Fabric: 100% Cotton"
-                    rows={3}
-                    value={newProduct.specifications_text}
-                    onChange={(e) => setNewProduct({ ...newProduct, specifications_text: e.target.value })}
-                  />
-                </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="prod-specs" className="text-xs">Technical Specs / Storage Notes</Label>
+                      <Textarea
+                        id="prod-specs"
+                        placeholder="Cut: Whole Fish / Steaks&#10;Catch: Fresh Sea Catch&#10;Temp: 0-4°C"
+                        rows={2}
+                        value={newProduct.specifications_text}
+                        onChange={(e) => setNewProduct({ ...newProduct, specifications_text: e.target.value })}
+                        className="rounded-xl text-xs"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 rounded-2xl border border-border/80 bg-muted/20 p-3">
@@ -1149,7 +1212,7 @@ function ProductsAdmin() {
                     onCheckedChange={(is_available) => setNewProduct({ ...newProduct, is_available })}
                   />
                   <span className={newProduct.is_available ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-rose-600 dark:text-rose-400 font-bold"}>
-                    {newProduct.is_available ? "Active (Live in Store & POS)" : "Inactive (Hidden)"}
+                    {newProduct.is_available ? "Active (Live)" : "Inactive"}
                   </span>
                 </label>
                 <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-amber-700 dark:text-amber-300">
@@ -1181,13 +1244,24 @@ function ProductsAdmin() {
                   <span>GST Inc</span>
                 </label>
               </div>
+            </div>
 
+            {/* Pinned Footer with Action Buttons */}
+            <div className="p-3 sm:p-4 border-t border-border/60 shrink-0 bg-background/95 backdrop-blur-xs flex items-center justify-end gap-2">
               <Button
-                className="w-full rounded-xl"
+                type="button"
+                variant="outline"
+                onClick={() => setOpenAdd(false)}
+                className="rounded-xl text-xs h-9"
+              >
+                Cancel
+              </Button>
+              <Button
                 disabled={createProduct.isPending || !newProduct.name || !newProduct.price}
                 onClick={() => createProduct.mutate()}
+                className="rounded-xl text-xs font-bold h-9 px-4 shadow-xs"
               >
-                {createProduct.isPending ? "Creating..." : "Save Product"}
+                {createProduct.isPending ? "Creating Product..." : "Save Product"}
               </Button>
             </div>
           </DialogContent>
@@ -1662,63 +1736,69 @@ function ProductsAdmin() {
           </p>
         )}
       </div>
+      </>
+      )}
 
       {/* Full Edit Product Dialog */}
       <Dialog open={Boolean(editingProduct)} onOpenChange={(open) => !open && setEditingProduct(null)}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl w-[calc(100vw-1.5rem)] sm:max-w-lg p-4 sm:p-6 mx-auto">
-          <DialogHeader>
-            <DialogTitle className="break-words">Edit Product: {editingProduct?.name}</DialogTitle>
+        <DialogContent className="max-h-[88vh] flex flex-col p-0 rounded-2xl w-[calc(100vw-1.5rem)] sm:max-w-lg overflow-hidden mx-auto">
+          <DialogHeader className="p-4 sm:p-5 pb-3 border-b border-border/60 shrink-0">
+            <DialogTitle className="text-base font-bold flex items-center gap-2 truncate">
+              <Edit className="size-4 text-primary shrink-0" />
+              <span className="truncate">Edit Product: {editingProduct?.name}</span>
+            </DialogTitle>
           </DialogHeader>
           {editingProduct && (
-            <div className="space-y-4 pt-2">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="edit-name">Name (English) *</Label>
-                  <Input
-                    id="edit-name"
-                    value={editingProduct.name}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="edit-tamil">Name (Tamil)</Label>
-                  <Input
-                    id="edit-tamil"
-                    value={editingProduct.name_tamil ?? ""}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, name_tamil: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Category</Label>
-                  <select
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-                    value={editingProduct.category}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
-                  >
-                    {(categories ?? []).map((c) => (
-                      <option key={c.id} value={c.name}>
-                        {c.name}
-                      </option>
-                    ))}
-                    <option value="Sea Fish">Sea Fish</option>
-                    <option value="Freshwater Fish">Freshwater Fish</option>
-                    <option value="Prawns & Shrimp">Prawns & Shrimp</option>
-                    <option value="Crabs">Crabs</option>
-                    <option value="Squid & Octopus">Squid & Octopus</option>
-                    <option value="__custom__">+ Custom Category...</option>
-                  </select>
-                  {editingProduct.category === "__custom__" && (
+            <div className="flex flex-col flex-1 overflow-hidden">
+              <div className="overflow-y-auto flex-1 p-4 sm:p-5 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-name" className="text-xs font-semibold">Name (English) *</Label>
                     <Input
-                      placeholder="Type custom category name..."
-                      value={editingProduct.customCategory ?? ""}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, customCategory: e.target.value })}
-                      className="mt-1"
+                      id="edit-name"
+                      value={editingProduct.name}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                      className="rounded-xl h-9 text-xs"
                     />
-                  )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-tamil" className="text-xs font-semibold">Name (Tamil / Local)</Label>
+                    <Input
+                      id="edit-tamil"
+                      value={editingProduct.name_tamil ?? ""}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, name_tamil: e.target.value })}
+                      className="rounded-xl h-9 text-xs"
+                    />
+                  </div>
                 </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Category</Label>
+                    <select
+                      className="flex h-9 w-full rounded-xl border border-input bg-card px-3 py-1 text-xs shadow-xs"
+                      value={editingProduct.category}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
+                    >
+                      <option value="">Select Category</option>
+                      {[...(categories ?? [])]
+                        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                        .map((c) => (
+                          <option key={c.id} value={c.name}>
+                            {c.name}
+                          </option>
+                        ))}
+                      <option value="__custom__">+ Custom Category...</option>
+                    </select>
+                    {editingProduct.category === "__custom__" && (
+                      <Input
+                        placeholder="Type custom category name..."
+                        value={editingProduct.customCategory ?? ""}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, customCategory: e.target.value })}
+                        className="mt-1.5 rounded-xl h-8 text-xs"
+                      />
+                    )}
+                  </div>
 
                 <div className="space-y-1.5">
                   <Label htmlFor="edit-unit">Price / Stock Unit</Label>
@@ -1857,79 +1937,97 @@ function ProductsAdmin() {
                 />
               </div>
 
-              {/* Retail Attributes: Brand, Model, Warranty, Aisle, Serial/IMEI Tracking */}
-              <div className="rounded-2xl border border-border/80 bg-muted/20 p-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <ShieldCheck className="size-3.5 text-primary" /> Retail Specifications & Tracking
+              {/* Optional Retail & Hardware Tracking (Collapsed by default) */}
+              <div className="rounded-2xl border border-border/80 bg-muted/15 p-3">
+                <button
+                  type="button"
+                  onClick={() => setShowEditRetailSpecs(!showEditRetailSpecs)}
+                  className="flex items-center justify-between w-full text-left cursor-pointer"
+                >
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+                    <ShieldCheck className="size-3.5 text-primary" />
+                    <span>Advanced Retail / Hardware Specs</span>
+                    <Badge variant="outline" className="text-[10px] py-0 font-normal">Optional</Badge>
                   </Label>
-                </div>
+                  <span className="text-xs font-bold text-primary">
+                    {showEditRetailSpecs ? "− Hide" : "+ Show (Brand, Warranty, IMEI)"}
+                  </span>
+                </button>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="edit-brand">Brand / Manufacturer</Label>
-                    <Input
-                      id="edit-brand"
-                      placeholder="e.g. Apple, Nike, Samsung, Amul"
-                      value={editingProduct.brand ?? ""}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, brand: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="edit-model">Model Number / SKU</Label>
-                    <Input
-                      id="edit-model"
-                      placeholder="e.g. A3090, 511-SLIM, TS-100"
-                      value={editingProduct.model_number ?? ""}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, model_number: e.target.value })}
-                    />
-                  </div>
-                </div>
+                {showEditRetailSpecs && (
+                  <div className="mt-3 pt-3 border-t border-border/60 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="edit-brand" className="text-xs">Brand / Supplier</Label>
+                        <Input
+                          id="edit-brand"
+                          placeholder="e.g. Kasimedu Dock, FreshCo, Amul"
+                          value={editingProduct.brand ?? ""}
+                          onChange={(e) => setEditingProduct({ ...editingProduct, brand: e.target.value })}
+                          className="rounded-xl h-9 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="edit-model" className="text-xs">Model Number / SKU</Label>
+                        <Input
+                          id="edit-model"
+                          placeholder="e.g. VNJ-1KG, SK-01"
+                          value={editingProduct.model_number ?? ""}
+                          onChange={(e) => setEditingProduct({ ...editingProduct, model_number: e.target.value })}
+                          className="rounded-xl h-9 text-xs"
+                        />
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="edit-warranty">Warranty Period (Months)</Label>
-                    <Input
-                      id="edit-warranty"
-                      type="number"
-                      placeholder="e.g. 12 or 24 (0 for none)"
-                      value={editingProduct.warranty_period_months ?? 0}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, warranty_period_months: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="edit-aisle">Aisle / Shelf / Rack</Label>
-                    <Input
-                      id="edit-aisle"
-                      placeholder="e.g. Aisle 2, Shelf B-4"
-                      value={editingProduct.aisle_location ?? ""}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, aisle_location: e.target.value })}
-                    />
-                  </div>
-                </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="edit-warranty" className="text-xs">Warranty Period (Months)</Label>
+                        <Input
+                          id="edit-warranty"
+                          type="number"
+                          placeholder="0 for fresh food"
+                          value={editingProduct.warranty_period_months ?? 0}
+                          onChange={(e) => setEditingProduct({ ...editingProduct, warranty_period_months: e.target.value })}
+                          className="rounded-xl h-9 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="edit-aisle" className="text-xs">Storage / Cold Rack / Freezer</Label>
+                        <Input
+                          id="edit-aisle"
+                          placeholder="e.g. Chiller A, Freezer 2, Rack 3"
+                          value={editingProduct.aisle_location ?? ""}
+                          onChange={(e) => setEditingProduct({ ...editingProduct, aisle_location: e.target.value })}
+                          className="rounded-xl h-9 text-xs"
+                        />
+                      </div>
+                    </div>
 
-                <div className="pt-1">
-                  <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
-                    <Switch
-                      checked={!!editingProduct.requires_serial}
-                      onCheckedChange={(requires_serial) => setEditingProduct({ ...editingProduct, requires_serial })}
-                    />
-                    <span className={editingProduct.requires_serial ? "text-purple-600 dark:text-purple-400 font-bold" : "text-muted-foreground"}>
-                      Require Serial / IMEI scan at POS checkout
-                    </span>
-                  </label>
-                </div>
+                    <div className="pt-1">
+                      <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                        <Switch
+                          checked={!!editingProduct.requires_serial}
+                          onCheckedChange={(requires_serial) => setEditingProduct({ ...editingProduct, requires_serial })}
+                        />
+                        <span className={editingProduct.requires_serial ? "text-purple-600 dark:text-purple-400 font-bold" : "text-muted-foreground"}>
+                          Require Serial / Barcode scan at checkout
+                        </span>
+                      </label>
+                    </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="edit-specs">Technical Specs (Key: Value per line)</Label>
-                  <Textarea
-                    id="edit-specs"
-                    placeholder="RAM: 8GB&#10;Storage: 256GB&#10;Screen: 6.1 inch OLED&#10;Fabric: 100% Cotton"
-                    rows={3}
-                    value={editingProduct.specifications_text ?? ""}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, specifications_text: e.target.value })}
-                  />
-                </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="edit-specs" className="text-xs">Technical Specs / Storage Notes</Label>
+                      <Textarea
+                        id="edit-specs"
+                        placeholder="Cut: Whole Fish / Steaks&#10;Catch: Fresh Sea Catch&#10;Temp: 0-4°C"
+                        rows={2}
+                        value={editingProduct.specifications_text ?? ""}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, specifications_text: e.target.value })}
+                        className="rounded-xl text-xs"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 rounded-2xl border border-border/80 bg-muted/20 p-3">
@@ -1939,7 +2037,7 @@ function ProductsAdmin() {
                     onCheckedChange={(is_available) => setEditingProduct({ ...editingProduct, is_available })}
                   />
                   <span className={editingProduct.is_available ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-rose-600 dark:text-rose-400 font-bold"}>
-                    {editingProduct.is_available ? "Active (Live in Store & POS)" : "Inactive (Hidden)"}
+                    {editingProduct.is_available ? "Active (Live)" : "Inactive"}
                   </span>
                 </label>
                 <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-amber-700 dark:text-amber-300">
@@ -1971,20 +2069,27 @@ function ProductsAdmin() {
                   <span>GST Inc</span>
                 </label>
               </div>
-
-              <div className="flex gap-2">
-                <Button variant="outline" className="w-1/3 rounded-xl" onClick={() => setEditingProduct(null)}>
-                  Cancel
-                </Button>
-                <Button
-                  className="flex-1 rounded-xl"
-                  disabled={saveEditedProduct.isPending || !editingProduct.name}
-                  onClick={() => saveEditedProduct.mutate()}
-                >
-                  {saveEditedProduct.isPending ? "Saving..." : "Update Product"}
-                </Button>
-              </div>
             </div>
+
+            {/* Pinned Footer with Action Buttons */}
+            <div className="p-3 sm:p-4 border-t border-border/60 shrink-0 bg-background/95 backdrop-blur-xs flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingProduct(null)}
+                className="rounded-xl text-xs h-9"
+              >
+                Cancel
+              </Button>
+              <Button
+                disabled={saveEditedProduct.isPending || !editingProduct.name}
+                onClick={() => saveEditedProduct.mutate()}
+                className="rounded-xl text-xs font-bold h-9 px-4 shadow-xs"
+              >
+                {saveEditedProduct.isPending ? "Updating Product..." : "Save Changes"}
+              </Button>
+            </div>
+          </div>
           )}
         </DialogContent>
       </Dialog>

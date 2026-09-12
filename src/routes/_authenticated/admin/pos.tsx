@@ -1646,7 +1646,9 @@ export function RetailPosCounterPage() {
                 >
                   All Items ({products.length})
                 </Button>
-                {categories.map((cat) => {
+                {[...categories]
+                  .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                  .map((cat) => {
                   const count = products.filter((p) => p.category === cat.name).length;
                   return (
                     <Button

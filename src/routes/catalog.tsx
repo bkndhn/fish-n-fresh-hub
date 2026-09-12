@@ -256,17 +256,19 @@ function Catalog() {
         >
           All
         </Button>
-        {(categories ?? []).map((c) => (
-          <Button
-            key={c.id}
-            size="sm"
-            variant={category === c.name ? "default" : "outline"}
-            className="rounded-full text-xs font-semibold h-8 whitespace-nowrap shrink-0 shadow-xs"
-            onClick={() => navigate({ search: { category: c.name } })}
-          >
-            {c.name}
-          </Button>
-        ))}
+        {[...(categories ?? [])]
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          .map((c) => (
+            <Button
+              key={c.id}
+              size="sm"
+              variant={category === c.name ? "default" : "outline"}
+              className="rounded-full text-xs font-semibold h-8 whitespace-nowrap shrink-0 shadow-xs"
+              onClick={() => navigate({ search: { category: c.name } })}
+            >
+              {c.name}
+            </Button>
+          ))}
       </div>
 
       {/* Brand Filter Pills (When Brands Exist) */}

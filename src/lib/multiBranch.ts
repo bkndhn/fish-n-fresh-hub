@@ -245,3 +245,53 @@ export const activeBranchesQuery = queryOptions({
   },
   staleTime: 1000 * 60 * 5,
 });
+
+/**
+ * Updates branch operational parameters (Client Admin action).
+ */
+export async function updateBranch(
+  id: string,
+  updates: Partial<Branch>
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    if (updates.is_default) {
+      await supabase.from("branches").update({ is_default: false }).neq("id", id);
+    }
+
+    const { error } = await supabase
+      .from("branches")
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, message: err?.message || "Failed to update branch" };
+  }
+}
+
+/**
+ * Deletes a branch with safety guard preventing default hub deletion.
+ */
+export async function deleteBranch(
+  id: string,
+  isDefault: boolean
+): Promise<{ success: boolean; message?: string }> {
+  if (isDefault) {
+    return {
+      success: false,
+      message: "Cannot delete the default flagship dock. Designate another default hub first.",
+    };
+  }
+  try {
+    const { error } = await supabase.from("branches").delete().eq("id", id);
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, message: err?.message || "Failed to delete branch" };
+  }
+}
+

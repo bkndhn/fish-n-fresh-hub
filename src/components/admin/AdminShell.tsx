@@ -74,7 +74,7 @@ const NAV = [
   { to: "/admin/complaints", label: "Complaints", icon: MessageSquareWarning, roles: ["admin", "manager", "support_staff", "staff"] },
   { to: "/admin/schedule", label: "Schedule", icon: CalendarClock, roles: ["admin", "manager", "staff"] },
   { to: "/admin/driver", label: "Driver map", icon: MapPin, roles: ["admin", "manager", "driver"] },
-  { to: "/admin/staff", label: "Team", icon: UserCog, roles: ["admin", "super_admin"] },
+  { to: "/admin/staff", label: "Team", icon: UserCog, roles: ["admin"] },
   { to: "/admin/super", label: "Super Admin", icon: ShieldAlert, roles: ["super_admin", "admin"] },
   { to: "/admin/onboarding", label: "Setup Wizard", icon: Sparkles, roles: ["admin"] },
   { to: "/admin/settings", label: "Settings", icon: Settings, roles: ["admin"] },
@@ -120,7 +120,15 @@ export function AdminShell({
           <div>
             <h2 className="text-lg font-bold text-foreground">Access Restricted</h2>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Your staff role (<span className="font-mono font-semibold text-foreground">{myRoles.join(", ") || "unassigned"}</span>) does not have permission to view <span className="font-semibold text-foreground">"{title}"</span>.
+              {myRoles.includes("super_admin") && !myRoles.includes("admin") ? (
+                <span>
+                  Super Admin role is strictly partitioned for client management &amp; quota enforcement. Super Administrators cannot access internal store data or operations.
+                </span>
+              ) : (
+                <>
+                  Your staff role (<span className="font-mono font-semibold text-foreground">{myRoles.join(", ") || "unassigned"}</span>) does not have permission to view <span className="font-semibold text-foreground">"{title}"</span>.
+                </>
+              )}
             </p>
           </div>
           <div className="pt-2 flex flex-col gap-2">
