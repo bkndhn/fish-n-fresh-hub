@@ -30,7 +30,7 @@ ON CONFLICT (tenant_code) DO NOTHING;
 -- 2. Platform Security Revocations Table (Emergency Kill Switch)
 CREATE TABLE IF NOT EXISTS public.platform_revocations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  scope TEXT NOT NULL CHECK (scope IN ('global', 'branch', 'user')),
+  scope TEXT NOT NULL CHECK (scope IN ('global', 'client', 'branch', 'user')),
   target_id TEXT, -- NULL for global, branch_id for branch, user_id for user
   reason TEXT NOT NULL DEFAULT 'Administrative security revocation',
   revoked_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -59,48 +59,57 @@ ALTER TABLE public.tenant_quotas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.platform_revocations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.platform_audit_logs ENABLE ROW LEVEL SECURITY;
 
--- 5. Helper Function: is_super_admin()
+-- 5. Helper Functions
+CREATE OR REPLACE FUNCTION public.is_admin_or_super()
+RETURNS BOOLEAN AS $
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = auth.uid()
+      AND role IN ('admin', 'super_admin')
+  );
+$ LANGUAGE sql STABLE SECURITY DEFINER;
+
 CREATE OR REPLACE FUNCTION public.is_super_admin()
-RETURNS BOOLEAN AS \$\$
+RETURNS BOOLEAN AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.user_roles
     WHERE user_id = auth.uid()
       AND role = 'super_admin'
   );
-\$\$ LANGUAGE sql STABLE SECURITY DEFINER;
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 -- 6. RLS Policies
 -- tenant_quotas: Authenticated users can view; only Super Admin can update
-DROP POLICY IF EXISTS \"Authenticated can view tenant quotas\" ON public.tenant_quotas;
-CREATE POLICY \"Authenticated can view tenant quotas\" ON public.tenant_quotas
+DROP POLICY IF EXISTS "Authenticated can view tenant quotas" ON public.tenant_quotas;
+CREATE POLICY "Authenticated can view tenant quotas" ON public.tenant_quotas
   FOR SELECT TO authenticated USING (true);
 
-DROP POLICY IF EXISTS \"Super Admin can manage tenant quotas\" ON public.tenant_quotas;
-CREATE POLICY \"Super Admin can manage tenant quotas\" ON public.tenant_quotas
+DROP POLICY IF EXISTS "Super Admin can manage tenant quotas" ON public.tenant_quotas;
+CREATE POLICY "Super Admin can manage tenant quotas" ON public.tenant_quotas
   FOR ALL TO authenticated USING (public.is_super_admin() OR public.is_admin_or_super())
   WITH CHECK (public.is_super_admin() OR public.is_admin_or_super());
 
 -- platform_revocations: Authenticated can read (to check revocation status); super admin can insert
-DROP POLICY IF EXISTS \"Authenticated can view revocations\" ON public.platform_revocations;
-CREATE POLICY \"Authenticated can view revocations\" ON public.platform_revocations
+DROP POLICY IF EXISTS "Authenticated can view revocations" ON public.platform_revocations;
+CREATE POLICY "Authenticated can view revocations" ON public.platform_revocations
   FOR SELECT TO authenticated USING (true);
 
-DROP POLICY IF EXISTS \"Super Admin can issue revocations\" ON public.platform_revocations;
-CREATE POLICY \"Super Admin can issue revocations\" ON public.platform_revocations
+DROP POLICY IF EXISTS "Super Admin can issue revocations" ON public.platform_revocations;
+CREATE POLICY "Super Admin can issue revocations" ON public.platform_revocations
   FOR INSERT TO authenticated WITH CHECK (public.is_super_admin() OR public.is_admin_or_super());
 
 -- platform_audit_logs: Super Admin can view all
-DROP POLICY IF EXISTS \"Super Admin can view audit logs\" ON public.platform_audit_logs;
-CREATE POLICY \"Super Admin can view audit logs\" ON public.platform_audit_logs
+DROP POLICY IF EXISTS "Super Admin can view audit logs" ON public.platform_audit_logs;
+CREATE POLICY "Super Admin can view audit logs" ON public.platform_audit_logs
   FOR SELECT TO authenticated USING (public.is_super_admin() OR public.is_admin_or_super());
 
-DROP POLICY IF EXISTS \"Service and super admin can insert audit logs\" ON public.platform_audit_logs;
-CREATE POLICY \"Service and super admin can insert audit logs\" ON public.platform_audit_logs
+DROP POLICY IF EXISTS "Service and super admin can insert audit logs" ON public.platform_audit_logs;
+CREATE POLICY "Service and super admin can insert audit logs" ON public.platform_audit_logs
   FOR INSERT TO authenticated WITH CHECK (true);
 
 -- 7. Anti-Takeover & Anti-Impersonation Trigger on user_roles
 CREATE OR REPLACE FUNCTION public.prevent_role_tampering()
-RETURNS TRIGGER AS \$\$
+RETURNS TRIGGER AS $$
 BEGIN
   -- Prevent client-side self-elevation to admin or super_admin
   IF (NEW.role IN ('admin', 'super_admin')) THEN
@@ -123,7 +132,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-\$\$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS trg_prevent_role_tampering ON public.user_roles;
 CREATE TRIGGER trg_prevent_role_tampering
@@ -133,7 +142,7 @@ CREATE TRIGGER trg_prevent_role_tampering
 
 -- 8. Branch Creation Quota Trigger on branches
 CREATE OR REPLACE FUNCTION public.check_branch_creation_quota()
-RETURNS TRIGGER AS \$\$
+RETURNS TRIGGER AS $$
 DECLARE
   v_active_branches INTEGER;
   v_max_branches INTEGER;
@@ -159,7 +168,7 @@ BEGIN
 
   RETURN NEW;
 END;
-\$\$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS trg_check_branch_creation_quota ON public.branches;
 CREATE TRIGGER trg_check_branch_creation_quota
@@ -173,7 +182,7 @@ CREATE OR REPLACE FUNCTION public.trigger_security_revocation(
   p_target_id TEXT DEFAULT NULL,
   p_reason TEXT DEFAULT 'Emergency session termination'
 )
-RETURNS UUID AS \$\$
+RETURNS UUID AS $$
 DECLARE
   v_revocation_id UUID;
 BEGIN
@@ -197,4 +206,4 @@ BEGIN
 
   RETURN v_revocation_id;
 END;
-\$\$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
