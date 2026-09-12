@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Core TypeScript Domain Types & Data Contracts
+ * @module lib/types
+ * 
+ * Defines the enterprise data models for Universal Retail Hub, including
+ * catalog products, 2D variant matrices, multi-branch partitioning, orders,
+ * financial P&L reporting, hardware telemetry, and procurement accounting.
+ */
+
+/**
+ * 2D Matrix Product Variant for size, color, SKU, and barcode.
+ */
 export interface ProductVariant {
   id: string;
   size?: string | null;
@@ -8,6 +20,9 @@ export interface ProductVariant {
   barcode?: string | null;
 }
 
+/**
+ * Core Catalog Product Model.
+ */
 export type Product = {
   id: string;
   name: string;
@@ -53,6 +68,9 @@ export type Product = {
   requires_serial?: boolean;
 };
 
+/**
+ * Operational Expense Classification Categories.
+ */
 export type ExpenseCategory =
   | "rent_lease"
   | "salaries_wages"
@@ -65,6 +83,9 @@ export type ExpenseCategory =
   | "licenses_taxes"
   | "other";
 
+/**
+ * Operational Expense Record Model.
+ */
 export interface Expense {
   id: string;
   branch_id?: string | null;
@@ -82,6 +103,9 @@ export interface Expense {
   updated_at?: string;
 }
 
+/**
+ * Aggregated Profit & Loss Financial Statement Summary.
+ */
 export interface PnlSummary {
   grossSales: number;
   discounts: number;
@@ -100,6 +124,9 @@ export interface PnlSummary {
   unitsSold: number;
 }
 
+/**
+ * Per-Product Margin and COGS Analytics Item.
+ */
 export interface ProductPnlItem {
   id: string;
   name: string;
@@ -120,6 +147,9 @@ export interface ProductPnlItem {
   tier: "high_profit" | "healthy" | "slim" | "loss_making";
 }
 
+/**
+ * Product Category Hierarchy Model.
+ */
 export type Category = {
   id: string;
   name: string;
@@ -129,6 +159,9 @@ export type Category = {
   sort_order: number;
 };
 
+/**
+ * Storefront Promotional Banner Model.
+ */
 export type Banner = {
   id: string;
   title: string;
@@ -140,6 +173,9 @@ export type Banner = {
   sort_order: number;
 };
 
+/**
+ * Active Shopping Cart Line Item.
+ */
 export type CartItem = {
   product_id: string;
   name: string;
@@ -158,6 +194,9 @@ export type CartItem = {
   aisle_location?: string | null;
 };
 
+/**
+ * Harbor / Wholesale Procurement Supplier Model.
+ */
 export type Supplier = {
   id: string;
   name: string;
@@ -173,6 +212,9 @@ export type Supplier = {
   created_at?: string;
 };
 
+/**
+ * Purchase Order Item Line.
+ */
 export type PurchaseItem = {
   product_id: string;
   product_name: string;
@@ -182,6 +224,9 @@ export type PurchaseItem = {
   total_cost: number;
 };
 
+/**
+ * Inward Procurement Purchase Order Record.
+ */
 export type PurchaseOrder = {
   id: string;
   reference_no: string;
@@ -198,6 +243,9 @@ export type PurchaseOrder = {
   created_at?: string;
 };
 
+/**
+ * Supplier Payment Transaction Audit.
+ */
 export type SupplierPaymentRecord = {
   id: string;
   supplier_id: string;
@@ -213,6 +261,9 @@ export type SupplierPaymentRecord = {
   created_at: string;
 };
 
+/**
+ * Shrinkage & Spoilage Waste Log.
+ */
 export type WasteEntry = {
   id: string;
   date: string;
@@ -227,6 +278,9 @@ export type WasteEntry = {
   created_at?: string;
 };
 
+/**
+ * Customer Loyalty Wallet Balance.
+ */
 export type CustomerWallet = {
   user_id: string;
   balance: number;
@@ -238,6 +292,9 @@ export type CustomerWallet = {
   updated_at?: string;
 };
 
+/**
+ * Wallet Credit/Debit Audit Record.
+ */
 export type WalletTransaction = {
   id: string;
   wallet_id: string;
@@ -248,6 +305,9 @@ export type WalletTransaction = {
   created_at: string;
 };
 
+/**
+ * Multi-Language AI Health & Culinary Intelligence.
+ */
 export type ProductAiBenefits = {
   id?: string;
   product_id: string;
@@ -264,6 +324,9 @@ export type ProductAiBenefits = {
   model_used?: string;
 };
 
+/**
+ * Real-time Catch Alert Broadcast Announcement.
+ */
 export type CatchBroadcast = {
   id: string;
   title: string;
@@ -275,6 +338,9 @@ export type CatchBroadcast = {
   sent_at: string;
 };
 
+/**
+ * FCM Push Notification Device Token.
+ */
 export type FcmToken = {
   id?: string;
   user_id?: string | null;
@@ -285,6 +351,9 @@ export type FcmToken = {
   updated_at?: string;
 };
 
+/**
+ * End-of-Day Driver & Cashier Cash Settlement Ledger.
+ */
 export type DriverCashSettlement = {
   id: string;
   settlement_number: string;
@@ -304,4 +373,33 @@ export type DriverCashSettlement = {
   created_at?: string;
 };
 
+/**
+ * Multi-Branch Operational Hub Location.
+ */
+export interface BranchLocation {
+  id: string;
+  name: string;
+  slug: string;
+  address: string | null;
+  city: string | null;
+  phone: string | null;
+  lat: number | null;
+  lng: number | null;
+  delivery_radius_km: number;
+  is_active: boolean;
+  is_default: boolean;
+  sort_order: number;
+  created_at?: string;
+}
 
+/**
+ * Three-Tier GST Breakdown Model.
+ */
+export interface GstTaxBreakdown {
+  taxableAmount: number;
+  gstRate: number;
+  totalGst: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+}
