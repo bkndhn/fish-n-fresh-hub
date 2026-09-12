@@ -340,14 +340,25 @@ function StaffPage() {
                 <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2.5 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-foreground">Full Branch Access Delegation</span>
-                    <Switch
-                      checked={managerPermissions.has_full_branch_access}
-                      onCheckedChange={(checked) =>
-                        setManagerPermissions((prev) =>
-                          checked ? FULL_MANAGER_PERMISSIONS : DEFAULT_MANAGER_PERMISSIONS
-                        )
-                      }
-                    />
+                    <div className="flex items-center gap-2">
+                      {managerPermissions.has_full_branch_access ? (
+                        <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                          ● Enabled
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                          ○ Standard
+                        </Badge>
+                      )}
+                      <Switch
+                        checked={managerPermissions.has_full_branch_access}
+                        onCheckedChange={(checked) =>
+                          setManagerPermissions((prev) =>
+                            checked ? FULL_MANAGER_PERMISSIONS : DEFAULT_MANAGER_PERMISSIONS
+                          )
+                        }
+                      />
+                    </div>
                   </div>
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
                     Grant complete local control over store operations for this branch without granting access to company-wide settings or other hubs.
@@ -584,19 +595,34 @@ function StaffPage() {
                       </Badge>
                     )}
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-4">
-                    {ASSIGNABLE.map((r) => (
-                      <label key={r} className="flex items-center gap-2 text-xs capitalize">
-                        <Switch
-                          checked={m.roles.includes(r)}
-                          disabled={roleMutation.isPending}
-                          onCheckedChange={(checked) =>
-                            roleMutation.mutate({ userId: m.id, role: r, enabled: checked })
-                          }
-                        />
-                        {r}
-                      </label>
-                    ))}
+                  <div className="mt-3 flex flex-wrap gap-2.5">
+                    {ASSIGNABLE.map((r) => {
+                      const hasRole = m.roles.includes(r);
+                      return (
+                        <label
+                          key={r}
+                          className={`flex items-center gap-2 text-xs capitalize p-1.5 px-2.5 rounded-xl border transition-colors cursor-pointer ${
+                            hasRole
+                              ? "bg-primary/5 border-primary/30 font-semibold"
+                              : "bg-muted/30 border-border/60 text-muted-foreground"
+                          }`}
+                        >
+                          <Switch
+                            checked={hasRole}
+                            disabled={roleMutation.isPending}
+                            onCheckedChange={(checked) =>
+                              roleMutation.mutate({ userId: m.id, role: r, enabled: checked })
+                            }
+                          />
+                          <span>{r}</span>
+                          {hasRole ? (
+                            <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">● ON</span>
+                          ) : (
+                            <span className="text-[9px] text-muted-foreground">○ OFF</span>
+                          )}
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
               ))

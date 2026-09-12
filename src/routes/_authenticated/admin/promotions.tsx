@@ -520,7 +520,15 @@ function PromotionsAdmin() {
                 {/* Right Actions */}
                 <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-2 sm:pt-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground hidden sm:inline">Active</span>
+                    {p.active ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                        ● Active
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                        ○ Paused
+                      </Badge>
+                    )}
                     <Switch
                       checked={p.active}
                       onCheckedChange={(active) => toggle.mutate({ id: p.id, active })}
@@ -630,9 +638,15 @@ function PromotionsAdmin() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <Label htmlFor={`camp-switch-${camp.id}`} className="text-xs text-muted-foreground">
-                          {camp.is_active ? "Running Live" : "Paused"}
-                        </Label>
+                        {camp.is_active ? (
+                          <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                            ● Running Live
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                            ○ Paused
+                          </Badge>
+                        )}
                         <Switch
                           id={`camp-switch-${camp.id}`}
                           checked={camp.is_active}
@@ -870,10 +884,21 @@ function PromotionsAdmin() {
                 <p className="text-xs font-semibold">Enable Promotion Now</p>
                 <p className="text-[11px] text-muted-foreground">Active promotions can be applied at checkout.</p>
               </div>
-              <Switch
-                checked={formData.active}
-                onCheckedChange={(active) => setFormData({ ...formData, active })}
-              />
+              <div className="flex items-center gap-2">
+                {formData.active ? (
+                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                    ● Active
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                    ○ Inactive
+                  </Badge>
+                )}
+                <Switch
+                  checked={formData.active}
+                  onCheckedChange={(active) => setFormData({ ...formData, active })}
+                />
+              </div>
             </div>
 
             <DialogFooter className="mt-4 flex gap-2">

@@ -1182,15 +1182,24 @@ function ProductsAdmin() {
                     </div>
 
                     <div className="pt-1">
-                      <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
-                        <Switch
-                          checked={newProduct.requires_serial}
-                          onCheckedChange={(requires_serial) => setNewProduct({ ...newProduct, requires_serial })}
-                        />
-                        <span className={newProduct.requires_serial ? "text-purple-600 dark:text-purple-400 font-bold" : "text-muted-foreground"}>
-                          Require Serial / Barcode scan at checkout
-                        </span>
-                      </label>
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-background border border-border/80">
+                        <span className="text-xs font-semibold">Require Serial / Barcode scan at checkout</span>
+                        <div className="flex items-center gap-2">
+                          {newProduct.requires_serial ? (
+                            <Badge className="bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 text-[10px] font-bold px-2 py-0.5">
+                              ● Required
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                              ○ Optional
+                            </Badge>
+                          )}
+                          <Switch
+                            checked={newProduct.requires_serial}
+                            onCheckedChange={(requires_serial) => setNewProduct({ ...newProduct, requires_serial })}
+                          />
+                        </div>
+                      </div>
                     </div>
 
                     <div className="space-y-1.5">
@@ -1209,43 +1218,100 @@ function ProductsAdmin() {
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 rounded-2xl border border-border/80 bg-muted/20 p-3">
-                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
-                  <Switch
-                    checked={newProduct.is_available}
-                    onCheckedChange={(is_available) => setNewProduct({ ...newProduct, is_available })}
-                  />
-                  <span className={newProduct.is_available ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-rose-600 dark:text-rose-400 font-bold"}>
-                    {newProduct.is_available ? "Active (Live)" : "Inactive"}
-                  </span>
-                </label>
-                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-amber-700 dark:text-amber-300">
-                  <Switch
-                    checked={newProduct.is_featured}
-                    onCheckedChange={(is_featured) => setNewProduct({ ...newProduct, is_featured })}
-                  />
-                  <span>⭐ Featured</span>
-                </label>
-                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-rose-700 dark:text-rose-300">
-                  <Switch
-                    checked={newProduct.is_bestseller}
-                    onCheckedChange={(is_bestseller) => setNewProduct({ ...newProduct, is_bestseller })}
-                  />
-                  <span>🔥 Best Seller</span>
-                </label>
-                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
-                  <Switch
-                    checked={newProduct.allow_custom_qty}
-                    onCheckedChange={(allow_custom_qty) => setNewProduct({ ...newProduct, allow_custom_qty })}
-                  />
-                  <span>Custom Qty</span>
-                </label>
-                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
-                  <Switch
-                    checked={newProduct.gst_included}
-                    onCheckedChange={(gst_included) => setNewProduct({ ...newProduct, gst_included })}
-                  />
-                  <span>GST Inc</span>
-                </label>
+                <div className="flex items-center justify-between gap-1.5 p-1.5 rounded-xl bg-background border border-border/60">
+                  <span className="text-[11px] font-semibold truncate">Live Status</span>
+                  <div className="flex items-center gap-1.5">
+                    {newProduct.is_available ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[9px] font-bold px-1.5 py-0">
+                        ● Active
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-rose-600 dark:text-rose-400 border-rose-300 text-[9px] font-medium px-1.5 py-0">
+                        ○ Hidden
+                      </Badge>
+                    )}
+                    <Switch
+                      checked={newProduct.is_available}
+                      onCheckedChange={(is_available) => setNewProduct({ ...newProduct, is_available })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-1.5 p-1.5 rounded-xl bg-background border border-border/60">
+                  <span className="text-[11px] font-semibold truncate">⭐ Featured</span>
+                  <div className="flex items-center gap-1.5">
+                    {newProduct.is_featured ? (
+                      <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[9px] font-bold px-1.5 py-0">
+                        ● ON
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[9px] font-medium px-1.5 py-0">
+                        ○ OFF
+                      </Badge>
+                    )}
+                    <Switch
+                      checked={newProduct.is_featured}
+                      onCheckedChange={(is_featured) => setNewProduct({ ...newProduct, is_featured })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-1.5 p-1.5 rounded-xl bg-background border border-border/60">
+                  <span className="text-[11px] font-semibold truncate">🔥 Best Seller</span>
+                  <div className="flex items-center gap-1.5">
+                    {newProduct.is_bestseller ? (
+                      <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 text-[9px] font-bold px-1.5 py-0">
+                        ● ON
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[9px] font-medium px-1.5 py-0">
+                        ○ OFF
+                      </Badge>
+                    )}
+                    <Switch
+                      checked={newProduct.is_bestseller}
+                      onCheckedChange={(is_bestseller) => setNewProduct({ ...newProduct, is_bestseller })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-1.5 p-1.5 rounded-xl bg-background border border-border/60">
+                  <span className="text-[11px] font-semibold truncate">Custom Qty</span>
+                  <div className="flex items-center gap-1.5">
+                    {newProduct.allow_custom_qty ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[9px] font-bold px-1.5 py-0">
+                        ● ON
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[9px] font-medium px-1.5 py-0">
+                        ○ OFF
+                      </Badge>
+                    )}
+                    <Switch
+                      checked={newProduct.allow_custom_qty}
+                      onCheckedChange={(allow_custom_qty) => setNewProduct({ ...newProduct, allow_custom_qty })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-1.5 p-1.5 rounded-xl bg-background border border-border/60">
+                  <span className="text-[11px] font-semibold truncate">GST Included</span>
+                  <div className="flex items-center gap-1.5">
+                    {newProduct.gst_included ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[9px] font-bold px-1.5 py-0">
+                        ● ON
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[9px] font-medium px-1.5 py-0">
+                        ○ OFF
+                      </Badge>
+                    )}
+                    <Switch
+                      checked={newProduct.gst_included}
+                      onCheckedChange={(gst_included) => setNewProduct({ ...newProduct, gst_included })}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -2007,15 +2073,24 @@ function ProductsAdmin() {
                     </div>
 
                     <div className="pt-1">
-                      <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
-                        <Switch
-                          checked={!!editingProduct.requires_serial}
-                          onCheckedChange={(requires_serial) => setEditingProduct({ ...editingProduct, requires_serial })}
-                        />
-                        <span className={editingProduct.requires_serial ? "text-purple-600 dark:text-purple-400 font-bold" : "text-muted-foreground"}>
-                          Require Serial / Barcode scan at checkout
-                        </span>
-                      </label>
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-background border border-border/80">
+                        <span className="text-xs font-semibold">Require Serial / Barcode scan at checkout</span>
+                        <div className="flex items-center gap-2">
+                          {editingProduct.requires_serial ? (
+                            <Badge className="bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 text-[10px] font-bold px-2 py-0.5">
+                              ● Required
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                              ○ Optional
+                            </Badge>
+                          )}
+                          <Switch
+                            checked={!!editingProduct.requires_serial}
+                            onCheckedChange={(requires_serial) => setEditingProduct({ ...editingProduct, requires_serial })}
+                          />
+                        </div>
+                      </div>
                     </div>
 
                     <div className="space-y-1.5">
@@ -2034,43 +2109,100 @@ function ProductsAdmin() {
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 rounded-2xl border border-border/80 bg-muted/20 p-3">
-                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
-                  <Switch
-                    checked={editingProduct.is_available}
-                    onCheckedChange={(is_available) => setEditingProduct({ ...editingProduct, is_available })}
-                  />
-                  <span className={editingProduct.is_available ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-rose-600 dark:text-rose-400 font-bold"}>
-                    {editingProduct.is_available ? "Active (Live)" : "Inactive"}
-                  </span>
-                </label>
-                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-amber-700 dark:text-amber-300">
-                  <Switch
-                    checked={editingProduct.is_featured ?? false}
-                    onCheckedChange={(is_featured) => setEditingProduct({ ...editingProduct, is_featured })}
-                  />
-                  <span>⭐ Featured</span>
-                </label>
-                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-rose-700 dark:text-rose-300">
-                  <Switch
-                    checked={editingProduct.is_bestseller ?? false}
-                    onCheckedChange={(is_bestseller) => setEditingProduct({ ...editingProduct, is_bestseller })}
-                  />
-                  <span>🔥 Best Seller</span>
-                </label>
-                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
-                  <Switch
-                    checked={editingProduct.allow_custom_qty ?? true}
-                    onCheckedChange={(allow_custom_qty) => setEditingProduct({ ...editingProduct, allow_custom_qty })}
-                  />
-                  <span>Custom Qty</span>
-                </label>
-                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
-                  <Switch
-                    checked={editingProduct.gst_included ?? false}
-                    onCheckedChange={(gst_included) => setEditingProduct({ ...editingProduct, gst_included })}
-                  />
-                  <span>GST Inc</span>
-                </label>
+                <div className="flex items-center justify-between gap-1.5 p-1.5 rounded-xl bg-background border border-border/60">
+                  <span className="text-[11px] font-semibold truncate">Live Status</span>
+                  <div className="flex items-center gap-1.5">
+                    {editingProduct.is_available ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[9px] font-bold px-1.5 py-0">
+                        ● Active
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-rose-600 dark:text-rose-400 border-rose-300 text-[9px] font-medium px-1.5 py-0">
+                        ○ Hidden
+                      </Badge>
+                    )}
+                    <Switch
+                      checked={editingProduct.is_available}
+                      onCheckedChange={(is_available) => setEditingProduct({ ...editingProduct, is_available })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-1.5 p-1.5 rounded-xl bg-background border border-border/60">
+                  <span className="text-[11px] font-semibold truncate">⭐ Featured</span>
+                  <div className="flex items-center gap-1.5">
+                    {editingProduct.is_featured ? (
+                      <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[9px] font-bold px-1.5 py-0">
+                        ● ON
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[9px] font-medium px-1.5 py-0">
+                        ○ OFF
+                      </Badge>
+                    )}
+                    <Switch
+                      checked={editingProduct.is_featured ?? false}
+                      onCheckedChange={(is_featured) => setEditingProduct({ ...editingProduct, is_featured })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-1.5 p-1.5 rounded-xl bg-background border border-border/60">
+                  <span className="text-[11px] font-semibold truncate">🔥 Best Seller</span>
+                  <div className="flex items-center gap-1.5">
+                    {editingProduct.is_bestseller ? (
+                      <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 text-[9px] font-bold px-1.5 py-0">
+                        ● ON
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[9px] font-medium px-1.5 py-0">
+                        ○ OFF
+                      </Badge>
+                    )}
+                    <Switch
+                      checked={editingProduct.is_bestseller ?? false}
+                      onCheckedChange={(is_bestseller) => setEditingProduct({ ...editingProduct, is_bestseller })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-1.5 p-1.5 rounded-xl bg-background border border-border/60">
+                  <span className="text-[11px] font-semibold truncate">Custom Qty</span>
+                  <div className="flex items-center gap-1.5">
+                    {editingProduct.allow_custom_qty ?? true ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[9px] font-bold px-1.5 py-0">
+                        ● ON
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[9px] font-medium px-1.5 py-0">
+                        ○ OFF
+                      </Badge>
+                    )}
+                    <Switch
+                      checked={editingProduct.allow_custom_qty ?? true}
+                      onCheckedChange={(allow_custom_qty) => setEditingProduct({ ...editingProduct, allow_custom_qty })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-1.5 p-1.5 rounded-xl bg-background border border-border/60">
+                  <span className="text-[11px] font-semibold truncate">GST Included</span>
+                  <div className="flex items-center gap-1.5">
+                    {editingProduct.gst_included ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[9px] font-bold px-1.5 py-0">
+                        ● ON
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[9px] font-medium px-1.5 py-0">
+                        ○ OFF
+                      </Badge>
+                    )}
+                    <Switch
+                      checked={editingProduct.gst_included ?? false}
+                      onCheckedChange={(gst_included) => setEditingProduct({ ...editingProduct, gst_included })}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -2342,10 +2474,21 @@ function ProductsAdmin() {
                       Ensure customers can immediately purchase this item
                     </p>
                   </div>
-                  <Switch
-                    checked={makeLiveOnRefill}
-                    onCheckedChange={setMakeLiveOnRefill}
-                  />
+                  <div className="flex items-center gap-2">
+                    {makeLiveOnRefill ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                        ● Make Live
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                        ○ Keep As-Is
+                      </Badge>
+                    )}
+                    <Switch
+                      checked={makeLiveOnRefill}
+                      onCheckedChange={setMakeLiveOnRefill}
+                    />
+                  </div>
                 </div>
 
                 <div className="flex gap-2 pt-2">

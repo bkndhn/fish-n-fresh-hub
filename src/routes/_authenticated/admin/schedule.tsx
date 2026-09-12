@@ -315,6 +315,15 @@ function SchedulePage() {
                 {settings?.is_open !== false ? "Toggle to pause checkout" : "Toggle to resume orders"}
               </span>
             </div>
+            {settings?.is_open !== false ? (
+              <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                ● Open
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                ○ Paused
+              </Badge>
+            )}
             <Switch
               checked={settings?.is_open !== false}
               disabled={toggleStoreOpen.isPending}
@@ -386,11 +395,22 @@ function SchedulePage() {
                         Pause orders during afternoon counter restock or staff lunch break
                       </p>
                     </div>
-                    <Switch
-                      checked={lunchEnabled}
-                      onCheckedChange={setLunchEnabled}
-                      aria-label="Enable daily lunch break"
-                    />
+                    <div className="flex items-center gap-2">
+                      {lunchEnabled ? (
+                        <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                          ● Enabled
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                          ○ Disabled
+                        </Badge>
+                      )}
+                      <Switch
+                        checked={lunchEnabled}
+                        onCheckedChange={setLunchEnabled}
+                        aria-label="Enable daily lunch break"
+                      />
+                    </div>
                   </div>
 
                   {lunchEnabled && (
@@ -425,11 +445,22 @@ function SchedulePage() {
                             {blockDuringLunch ? "Strictly pauses checkout until lunch ends" : "Allows pre-orders for evening delivery"}
                           </p>
                         </div>
-                        <Switch
-                          checked={blockDuringLunch}
-                          onCheckedChange={setBlockDuringLunch}
-                          aria-label="Block checkout during lunch"
-                        />
+                        <div className="flex items-center gap-2">
+                          {blockDuringLunch ? (
+                            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                              ● Blocked
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                              ○ Allowed
+                            </Badge>
+                          )}
+                          <Switch
+                            checked={blockDuringLunch}
+                            onCheckedChange={setBlockDuringLunch}
+                            aria-label="Block checkout during lunch"
+                          />
+                        </div>
                       </div>
                     </div>
                   )}
@@ -763,6 +794,15 @@ function SchedulePage() {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
+                          {w.active ? (
+                            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                              ● Active
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                              ○ Paused
+                            </Badge>
+                          )}
                           <Switch
                             checked={w.active}
                             onCheckedChange={(checked) =>
@@ -924,10 +964,21 @@ function SchedulePage() {
                   <p className="text-xs font-semibold">Active at checkout</p>
                   <p className="text-[11px] text-muted-foreground">Turn off to temporarily disable this slot</p>
                 </div>
-                <Switch
-                  checked={editingWindow.active}
-                  onCheckedChange={(active) => setEditingWindow({ ...editingWindow, active })}
-                />
+                <div className="flex items-center gap-2">
+                  {editingWindow.active ? (
+                    <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                      ● Active
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                      ○ Disabled
+                    </Badge>
+                  )}
+                  <Switch
+                    checked={editingWindow.active}
+                    onCheckedChange={(active) => setEditingWindow({ ...editingWindow, active })}
+                  />
+                </div>
               </div>
 
               <DialogFooter className="mt-4 flex gap-2">

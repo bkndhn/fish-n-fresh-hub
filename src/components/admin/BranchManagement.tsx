@@ -561,16 +561,27 @@ export function BranchManagement() {
               </div>
 
               <div className="p-3 rounded-xl border border-border/80 bg-muted/20">
-                <label className="flex items-center justify-between cursor-pointer text-xs font-medium">
+                <div className="flex items-center justify-between text-xs font-medium">
                   <div>
                     <span className="font-semibold block">Designate as Flagship / Default Dock</span>
                     <span className="text-[10px] text-muted-foreground">Default store for visitors outside delivery geofence</span>
                   </div>
-                  <Switch
-                    checked={addIsDefault}
-                    onCheckedChange={setAddIsDefault}
-                  />
-                </label>
+                  <div className="flex items-center gap-2">
+                    {addIsDefault ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                        ● Flagship
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                        ○ Standard
+                      </Badge>
+                    )}
+                    <Switch
+                      checked={addIsDefault}
+                      onCheckedChange={setAddIsDefault}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -696,30 +707,47 @@ export function BranchManagement() {
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl border border-border/80 bg-muted/20 space-y-2.5 pt-2">
-                <label className="flex items-center justify-between cursor-pointer text-xs font-medium">
+              <div className="p-3 rounded-xl border border-border/80 bg-muted/20 space-y-3 pt-2">
+                <div className="flex items-center justify-between text-xs font-medium">
                   <span>Hub Operating Status</span>
                   <div className="flex items-center gap-2">
-                    <span className={editIsActive ? "text-emerald-600 font-bold" : "text-muted-foreground"}>
-                      {editIsActive ? "Active" : "Paused"}
-                    </span>
+                    {editIsActive ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                        ● Active
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                        ○ Paused
+                      </Badge>
+                    )}
                     <Switch
                       checked={editIsActive}
                       onCheckedChange={setEditIsActive}
                     />
                   </div>
-                </label>
+                </div>
 
-                <label className="flex items-center justify-between cursor-pointer text-xs font-medium pt-1 border-t border-border/40">
+                <div className="flex items-center justify-between text-xs font-medium pt-2 border-t border-border/40">
                   <div>
                     <span className="font-semibold block">Flagship / Default Hub</span>
                     <span className="text-[10px] text-muted-foreground">Default store for visitors outside geofence</span>
                   </div>
-                  <Switch
-                    checked={editIsDefault}
-                    onCheckedChange={setEditIsDefault}
-                  />
-                </label>
+                  <div className="flex items-center gap-2">
+                    {editIsDefault ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                        ● Flagship
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                        ○ Standard
+                      </Badge>
+                    )}
+                    <Switch
+                      checked={editIsDefault}
+                      onCheckedChange={setEditIsDefault}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 

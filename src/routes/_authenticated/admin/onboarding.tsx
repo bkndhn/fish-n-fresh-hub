@@ -407,7 +407,18 @@ export function OnboardingWizard() {
                     <span className="font-semibold text-xs text-foreground block">In-Store Retail POS Counter</span>
                     <span className="text-[11px] text-muted-foreground">Barcode scanner & ESC/POS receipt billing</span>
                   </div>
-                  <Switch checked={featurePos} onCheckedChange={setFeaturePos} />
+                  <div className="flex items-center gap-2">
+                    {featurePos ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                        ● Enabled
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                        ○ Disabled
+                      </Badge>
+                    )}
+                    <Switch checked={featurePos} onCheckedChange={setFeaturePos} />
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-muted/20">
@@ -415,7 +426,18 @@ export function OnboardingWizard() {
                     <span className="font-semibold text-xs text-foreground block">Live Customer Support Desk</span>
                     <span className="text-[11px] text-muted-foreground">In-app floating chat and customer messaging</span>
                   </div>
-                  <Switch checked={featureLiveChat} onCheckedChange={setFeatureLiveChat} />
+                  <div className="flex items-center gap-2">
+                    {featureLiveChat ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                        ● Enabled
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                        ○ Disabled
+                      </Badge>
+                    )}
+                    <Switch checked={featureLiveChat} onCheckedChange={setFeatureLiveChat} />
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-muted/20">
@@ -423,7 +445,18 @@ export function OnboardingWizard() {
                     <span className="font-semibold text-xs text-foreground block">FreshCash Loyalty Wallet</span>
                     <span className="text-[11px] text-muted-foreground">Cashback rewards and customer referral program</span>
                   </div>
-                  <Switch checked={featureWallet} onCheckedChange={setFeatureWallet} />
+                  <div className="flex items-center gap-2">
+                    {featureWallet ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                        ● Enabled
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                        ○ Disabled
+                      </Badge>
+                    )}
+                    <Switch checked={featureWallet} onCheckedChange={setFeatureWallet} />
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-muted/20">
@@ -431,7 +464,18 @@ export function OnboardingWizard() {
                     <span className="font-semibold text-xs text-foreground block">AI Health & Culinary Benefits</span>
                     <span className="text-[11px] text-muted-foreground">Nutritional profiling & pairing tips per species</span>
                   </div>
-                  <Switch checked={featureAiBenefits} onCheckedChange={setFeatureAiBenefits} />
+                  <div className="flex items-center gap-2">
+                    {featureAiBenefits ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                        ● Enabled
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                        ○ Disabled
+                      </Badge>
+                    )}
+                    <Switch checked={featureAiBenefits} onCheckedChange={setFeatureAiBenefits} />
+                  </div>
                 </div>
               </div>
             </CardContent>

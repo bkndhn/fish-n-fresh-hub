@@ -773,9 +773,15 @@ function AdminSettings() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-xs font-semibold ${(form.daily_atmosphere_enabled ?? true) ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
-                    {(form.daily_atmosphere_enabled ?? true) ? "Active (Dynamic)" : "Disabled (Static)"}
-                  </span>
+                  {(form.daily_atmosphere_enabled ?? true) ? (
+                    <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                      ● Active (Dynamic)
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                      ○ Disabled (Static)
+                    </Badge>
+                  )}
                   <Switch
                     checked={form.daily_atmosphere_enabled ?? true}
                     onCheckedChange={(checked) => {
@@ -1150,10 +1156,21 @@ function AdminSettings() {
                 Allows customers to pick fastest doorstep dispatch packed fresh on ice.
               </p>
             </div>
-            <Switch
-              checked={form.express_delivery_enabled ?? true}
-              onCheckedChange={(val) => setForm({ ...form, express_delivery_enabled: val })}
-            />
+            <div className="flex items-center gap-2.5">
+              {(form.express_delivery_enabled ?? true) ? (
+                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                  ● Enabled
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                  ○ Disabled
+                </Badge>
+              )}
+              <Switch
+                checked={form.express_delivery_enabled ?? true}
+                onCheckedChange={(val) => setForm({ ...form, express_delivery_enabled: val })}
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1212,9 +1229,15 @@ function AdminSettings() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className={`text-xs font-semibold ${form.live_alerts_enabled ?? true ? "text-green-600" : "text-muted-foreground"}`}>
-                {form.live_alerts_enabled ?? true ? "Banner Active" : "Banner Disabled"}
-              </span>
+              {(form.live_alerts_enabled ?? true) ? (
+                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                  ● Banner Active
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                  ○ Banner Disabled
+                </Badge>
+              )}
               <Switch
                 checked={form.live_alerts_enabled ?? true}
                 onCheckedChange={(checked) => setForm({ ...form, live_alerts_enabled: checked })}
@@ -1478,9 +1501,15 @@ function AdminSettings() {
 
                       <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-muted-foreground">
-                            {cm.isEnabled ? "Active" : "Disabled"}
-                          </span>
+                          {cm.isEnabled ? (
+                            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                              ● Active
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                              ○ Disabled
+                            </Badge>
+                          )}
                           <Switch
                             checked={cm.isEnabled}
                             onCheckedChange={(checked) => handleToggleCustomMethod(cm.id, checked)}
@@ -1539,10 +1568,21 @@ function AdminSettings() {
                 </div>
                 <div className="flex items-center justify-between p-2 rounded-xl bg-background border border-border/80 self-end h-8.5">
                   <span className="text-xs font-medium">Require Ref # before billing</span>
-                  <Switch
-                    checked={newMethodRequiresRef}
-                    onCheckedChange={setNewMethodRequiresRef}
-                  />
+                  <div className="flex items-center gap-2">
+                    {newMethodRequiresRef ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                        ● Mandatory
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                        ○ Optional
+                      </Badge>
+                    )}
+                    <Switch
+                      checked={newMethodRequiresRef}
+                      onCheckedChange={setNewMethodRequiresRef}
+                    />
+                  </div>
                 </div>
               </div>
               <div className="flex justify-end pt-1">
@@ -1759,10 +1799,21 @@ function AdminSettings() {
                 When enabled, customers get cashback credited on delivered orders, and can redeem balance at checkout.
               </p>
             </div>
-            <Switch
-              checked={form.wallet_enabled ?? true}
-              onCheckedChange={(val) => setForm({ ...form, wallet_enabled: val })}
-            />
+            <div className="flex items-center gap-2.5">
+              {(form.wallet_enabled ?? true) ? (
+                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                  ● Active
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                  ○ Disabled
+                </Badge>
+              )}
+              <Switch
+                checked={form.wallet_enabled ?? true}
+                onCheckedChange={(val) => setForm({ ...form, wallet_enabled: val })}
+              />
+            </div>
           </div>
 
           <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3">
@@ -1772,10 +1823,21 @@ function AdminSettings() {
                 When turned OFF, all referral modals, invite chips, account referral cards, and checkout invite code inputs are completely hidden from customers.
               </p>
             </div>
-            <Switch
-              checked={((form as any).referral_program_enabled ?? form.wallet_enabled) ?? true}
-              onCheckedChange={(val) => setForm({ ...form, referral_program_enabled: val } as any)}
-            />
+            <div className="flex items-center gap-2.5">
+              {(((form as any).referral_program_enabled ?? form.wallet_enabled) ?? true) ? (
+                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                  ● Active
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                  ○ Disabled
+                </Badge>
+              )}
+              <Switch
+                checked={((form as any).referral_program_enabled ?? form.wallet_enabled) ?? true}
+                onCheckedChange={(val) => setForm({ ...form, referral_program_enabled: val } as any)}
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2039,11 +2101,22 @@ function AdminSettings() {
                   In-store barcode scanning, quick cash/QR billing, and direct ESC/POS thermal printing.
                 </p>
               </div>
-              <Switch
-                id="toggle_feature_pos"
-                checked={form.feature_pos_enabled ?? true}
-                onCheckedChange={(checked) => setForm({ ...form, feature_pos_enabled: checked })}
-              />
+              <div className="flex items-center gap-2 shrink-0">
+                {(form.feature_pos_enabled ?? true) ? (
+                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                    ● Enabled
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                    ○ Disabled
+                  </Badge>
+                )}
+                <Switch
+                  id="toggle_feature_pos"
+                  checked={form.feature_pos_enabled ?? true}
+                  onCheckedChange={(checked) => setForm({ ...form, feature_pos_enabled: checked })}
+                />
+              </div>
             </div>
 
             {/* Live Chat */}
@@ -2059,11 +2132,22 @@ function AdminSettings() {
                   Real-time two-way messaging desk for customer inquiries, order assistance, and WhatsApp dial.
                 </p>
               </div>
-              <Switch
-                id="toggle_feature_chat"
-                checked={form.feature_live_chat_enabled ?? true}
-                onCheckedChange={(checked) => setForm({ ...form, feature_live_chat_enabled: checked })}
-              />
+              <div className="flex items-center gap-2 shrink-0">
+                {(form.feature_live_chat_enabled ?? true) ? (
+                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                    ● Enabled
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                    ○ Disabled
+                  </Badge>
+                )}
+                <Switch
+                  id="toggle_feature_chat"
+                  checked={form.feature_live_chat_enabled ?? true}
+                  onCheckedChange={(checked) => setForm({ ...form, feature_live_chat_enabled: checked })}
+                />
+              </div>
             </div>
 
             {/* Wallet & Loyalty */}
@@ -2079,11 +2163,22 @@ function AdminSettings() {
                   Order cashback, referral rewards, and instant checkout wallet burn balances.
                 </p>
               </div>
-              <Switch
-                id="toggle_feature_wallet"
-                checked={form.feature_wallet_enabled ?? true}
-                onCheckedChange={(checked) => setForm({ ...form, feature_wallet_enabled: checked })}
-              />
+              <div className="flex items-center gap-2 shrink-0">
+                {(form.feature_wallet_enabled ?? true) ? (
+                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                    ● Enabled
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                    ○ Disabled
+                  </Badge>
+                )}
+                <Switch
+                  id="toggle_feature_wallet"
+                  checked={form.feature_wallet_enabled ?? true}
+                  onCheckedChange={(checked) => setForm({ ...form, feature_wallet_enabled: checked })}
+                />
+              </div>
             </div>
 
             {/* AI Benefits */}
@@ -2099,11 +2194,22 @@ function AdminSettings() {
                   Dynamic health benefits, cooking tips, and nutrient breakdowns on product pages.
                 </p>
               </div>
-              <Switch
-                id="toggle_feature_ai"
-                checked={form.feature_ai_benefits_enabled ?? true}
-                onCheckedChange={(checked) => setForm({ ...form, feature_ai_benefits_enabled: checked })}
-              />
+              <div className="flex items-center gap-2 shrink-0">
+                {(form.feature_ai_benefits_enabled ?? true) ? (
+                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                    ● Enabled
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                    ○ Disabled
+                  </Badge>
+                )}
+                <Switch
+                  id="toggle_feature_ai"
+                  checked={form.feature_ai_benefits_enabled ?? true}
+                  onCheckedChange={(checked) => setForm({ ...form, feature_ai_benefits_enabled: checked })}
+                />
+              </div>
             </div>
           </div>
         </CardContent>
@@ -2339,6 +2445,15 @@ function AdminSettings() {
           <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/60">
             <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-xl border border-border/60">
               <span className="text-xs font-semibold text-muted-foreground">Store Open:</span>
+              {(form.is_open ?? true) ? (
+                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                  ● Open
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                  ○ Paused
+                </Badge>
+              )}
               <Switch
                 id="store_is_open_toggle"
                 checked={form.is_open ?? true}

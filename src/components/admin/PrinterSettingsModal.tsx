@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -254,16 +255,28 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
             </div>
           )}
 
+          {/* Cut & Drawer Controls */}
           <div className="grid grid-cols-2 gap-3 pt-1">
             <div className="flex items-center justify-between p-2 rounded-xl bg-muted/40 border border-border/50">
               <div className="space-y-0.5">
                 <p className="text-[11px] font-bold">Auto-Cut Paper</p>
                 <p className="text-[10px] text-muted-foreground">After receipt finishes</p>
               </div>
-              <Switch
-                checked={config.autoCut}
-                onCheckedChange={(autoCut) => setConfig({ ...config, autoCut })}
-              />
+              <div className="flex items-center gap-1.5">
+                {config.autoCut ? (
+                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[9px] font-bold px-1.5 py-0">
+                    ● ON
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[9px] font-medium px-1.5 py-0">
+                    ○ OFF
+                  </Badge>
+                )}
+                <Switch
+                  checked={config.autoCut}
+                  onCheckedChange={(autoCut) => setConfig({ ...config, autoCut })}
+                />
+              </div>
             </div>
 
             <div className="flex items-center justify-between p-2 rounded-xl bg-muted/40 border border-border/50">
@@ -271,10 +284,21 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
                 <p className="text-[11px] font-bold">Kick Cash Drawer</p>
                 <p className="text-[10px] text-muted-foreground">Pop drawer on cash sale</p>
               </div>
-              <Switch
-                checked={config.openCashDrawer}
-                onCheckedChange={(openCashDrawer) => setConfig({ ...config, openCashDrawer })}
-              />
+              <div className="flex items-center gap-1.5">
+                {config.openCashDrawer ? (
+                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[9px] font-bold px-1.5 py-0">
+                    ● ON
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[9px] font-medium px-1.5 py-0">
+                    ○ OFF
+                  </Badge>
+                )}
+                <Switch
+                  checked={config.openCashDrawer}
+                  onCheckedChange={(openCashDrawer) => setConfig({ ...config, openCashDrawer })}
+                />
+              </div>
             </div>
           </div>
 
@@ -285,10 +309,21 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
                 <p className="text-[11px] font-bold">Auto-Print on Bill</p>
                 <p className="text-[10px] text-muted-foreground">Direct silent print</p>
               </div>
-              <Switch
-                checked={config.autoPrintOnComplete ?? true}
-                onCheckedChange={(autoPrintOnComplete) => setConfig({ ...config, autoPrintOnComplete })}
-              />
+              <div className="flex items-center gap-1.5">
+                {(config.autoPrintOnComplete ?? true) ? (
+                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[9px] font-bold px-1.5 py-0">
+                    ● ON
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[9px] font-medium px-1.5 py-0">
+                    ○ OFF
+                  </Badge>
+                )}
+                <Switch
+                  checked={config.autoPrintOnComplete ?? true}
+                  onCheckedChange={(autoPrintOnComplete) => setConfig({ ...config, autoPrintOnComplete })}
+                />
+              </div>
             </div>
 
             <div className="space-y-1">
@@ -326,10 +361,21 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
                 <p className="text-[11px] font-bold">Daily Sequence Reset</p>
                 <p className="text-[10px] text-muted-foreground">Resets to #001 daily</p>
               </div>
-              <Switch
-                checked={config.billSequenceDailyReset ?? true}
-                onCheckedChange={(billSequenceDailyReset) => setConfig({ ...config, billSequenceDailyReset })}
-              />
+              <div className="flex items-center gap-1.5">
+                {(config.billSequenceDailyReset ?? true) ? (
+                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[9px] font-bold px-1.5 py-0">
+                    ● ON
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[9px] font-medium px-1.5 py-0">
+                    ○ OFF
+                  </Badge>
+                )}
+                <Switch
+                  checked={config.billSequenceDailyReset ?? true}
+                  onCheckedChange={(billSequenceDailyReset) => setConfig({ ...config, billSequenceDailyReset })}
+                />
+              </div>
             </div>
           </div>
 

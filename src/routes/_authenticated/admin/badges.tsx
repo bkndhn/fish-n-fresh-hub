@@ -148,13 +148,21 @@ function BadgesAdmin() {
                   update.mutate({ id: b.id, patch: { sort_order: Number(e.target.value) || 0 } })
                 }
               />
-              <label className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-2 text-xs">
+                {b.active ? (
+                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                    ● Visible
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                    ○ Hidden
+                  </Badge>
+                )}
                 <Switch
                   checked={b.active}
                   onCheckedChange={(v) => update.mutate({ id: b.id, patch: { active: v } })}
                 />
-                Visible
-              </label>
+              </div>
               <Button variant="ghost" size="icon" onClick={() => remove.mutate(b.id)}>
                 <Trash2 className="size-4" />
               </Button>

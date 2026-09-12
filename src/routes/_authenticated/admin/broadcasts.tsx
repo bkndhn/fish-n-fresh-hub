@@ -281,11 +281,22 @@ function AdminBroadcastsPage() {
                   {(settings as SiteSettings)?.live_alerts_enabled !== false ? "Shown on top of store" : "Hidden from customers"}
                 </p>
               </div>
-              <Switch
-                checked={(settings as SiteSettings)?.live_alerts_enabled !== false}
-                onCheckedChange={(val) => toggleMasterAlerts.mutate(val)}
-                disabled={toggleMasterAlerts.isPending}
-              />
+              <div className="flex items-center gap-2">
+                {(settings as SiteSettings)?.live_alerts_enabled !== false ? (
+                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                    ● Active
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                    ○ Muted
+                  </Badge>
+                )}
+                <Switch
+                  checked={(settings as SiteSettings)?.live_alerts_enabled !== false}
+                  onCheckedChange={(val) => toggleMasterAlerts.mutate(val)}
+                  disabled={toggleMasterAlerts.isPending}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -415,6 +426,15 @@ function AdminBroadcastsPage() {
                       <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-muted-foreground">Banner Live:</span>
+                          {b.is_active ? (
+                            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                              ● Live
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                              ○ Paused
+                            </Badge>
+                          )}
                           <Switch
                             checked={b.is_active}
                             onCheckedChange={(val) => toggleActive.mutate({ id: b.id, is_active: val })}
@@ -509,12 +529,23 @@ function AdminBroadcastsPage() {
                         <p className="text-xs text-muted-foreground">{seq.triggerDescription}</p>
                       </div>
 
-                      <Switch
-                        checked={isEnabled}
-                        onCheckedChange={(val) =>
-                          setActiveDripToggles((prev) => ({ ...prev, [seq.id]: val }))
-                        }
-                      />
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isEnabled ? (
+                          <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                            ● Active
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                            ○ Paused
+                          </Badge>
+                        )}
+                        <Switch
+                          checked={isEnabled}
+                          onCheckedChange={(val) =>
+                            setActiveDripToggles((prev) => ({ ...prev, [seq.id]: val }))
+                          }
+                        />
+                      </div>
                     </div>
 
                     <div className="p-2.5 rounded-xl bg-muted/20 border border-border/60 text-xs space-y-1 font-mono">
@@ -642,11 +673,22 @@ function AdminBroadcastsPage() {
                   <Label htmlFor="edit-active" className="text-xs cursor-pointer">
                     Live Announcement Banner
                   </Label>
-                  <Switch
-                    id="edit-active"
-                    checked={editingBroadcast.is_active}
-                    onCheckedChange={(checked) => setEditingBroadcast({ ...editingBroadcast, is_active: checked })}
-                  />
+                  <div className="flex items-center gap-2">
+                    {editingBroadcast.is_active ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                        ● Active
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                        ○ Inactive
+                      </Badge>
+                    )}
+                    <Switch
+                      id="edit-active"
+                      checked={editingBroadcast.is_active}
+                      onCheckedChange={(checked) => setEditingBroadcast({ ...editingBroadcast, is_active: checked })}
+                    />
+                  </div>
                 </div>
 
                 <DialogFooter className="gap-2 sm:gap-0">
