@@ -46,7 +46,7 @@ const CUT_OPTIONS = [
 function CartPage() {
   const { items, subtotal, setQty, setCutPreference, remove, clear } = useCart();
   const { data: settings } = useQuery(settingsQuery);
-  const { data: products = [] } = useQuery(productsQuery);
+  const { data: products = [] } = useQuery(productsQuery());
   const storeStatus = settings ? getStoreStatus(settings) : null;
   const freeOver = Number(settings?.free_delivery_over ?? 500);
   const progress = Math.min(100, (subtotal / freeOver) * 100);

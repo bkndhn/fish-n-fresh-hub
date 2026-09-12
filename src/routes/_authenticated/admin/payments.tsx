@@ -58,7 +58,7 @@ function paymentState(o: { payment_status: string; refund_amount?: number | null
 }
 
 function PaymentsReport() {
-  const orders = useQuery(adminOrdersQuery);
+  const orders = useQuery(adminOrdersQuery());
   const [filter, setFilter] = useState<FilterKey>("all");
   const [q, setQ] = useState("");
 
