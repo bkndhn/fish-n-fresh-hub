@@ -278,18 +278,20 @@ function AdminBroadcastsPage() {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full space-y-4">
-          <TabsList className="rounded-2xl p-1 bg-muted/60">
-            <TabsTrigger value="broadcasts" className="rounded-xl text-xs font-bold gap-1.5">
-              <Radio className="size-3.5 text-sky-600" /> Harbour Morning Alerts
-            </TabsTrigger>
-            <TabsTrigger value="drips" className="rounded-xl text-xs font-bold gap-1.5">
-              <Zap className="size-3.5 text-amber-500" /> Automated Marketing Drips
-              <span className="ml-1 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 px-1.5 py-0.2 text-[10px] font-extrabold">
-                5 Sequences
-              </span>
-            </TabsTrigger>
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full min-w-0 max-w-full space-y-4">
+          <div className="w-full min-w-0 overflow-x-auto no-scrollbar touch-pan-x pb-0.5">
+            <TabsList className="rounded-2xl p-1 bg-muted/60 flex-nowrap w-max">
+              <TabsTrigger value="broadcasts" className="rounded-xl text-xs font-bold gap-1.5 whitespace-nowrap shrink-0">
+                <Radio className="size-3.5 text-sky-600 shrink-0" /> Harbour Morning Alerts
+              </TabsTrigger>
+              <TabsTrigger value="drips" className="rounded-xl text-xs font-bold gap-1.5 whitespace-nowrap shrink-0">
+                <Zap className="size-3.5 text-amber-500 shrink-0" /> Automated Marketing Drips
+                <span className="ml-1 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 px-1.5 py-0.2 text-[10px] font-extrabold">
+                  5 Sequences
+                </span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="broadcasts" className="space-y-6">
             <div className="rounded-3xl border border-border bg-card p-5 sm:p-6 shadow-xs space-y-4">

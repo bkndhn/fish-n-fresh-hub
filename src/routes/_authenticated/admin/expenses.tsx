@@ -400,14 +400,14 @@ export function ExpensesAdmin() {
 
       {/* Date Filter Presets */}
       <div className="flex flex-wrap items-center justify-between gap-2.5 mb-4">
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="w-full sm:w-auto min-w-0 overflow-x-auto no-scrollbar touch-pan-x flex items-center gap-1.5 pb-1 sm:pb-0">
           {DATE_PRESETS.map((p) => (
             <Button
               key={p.key}
               size="sm"
               variant={datePreset === p.key ? "default" : "outline"}
               onClick={() => setDatePreset(p.key)}
-              className="rounded-xl h-7.5 px-2.5 text-xs font-semibold"
+              className="rounded-xl h-7.5 px-2.5 text-xs font-semibold shrink-0"
             >
               {p.label}
             </Button>
@@ -508,7 +508,7 @@ export function ExpensesAdmin() {
       </div>
 
       {/* Category Filter Chips */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-3 scrollbar-none">
+      <div className="w-full min-w-0 flex items-center gap-1.5 overflow-x-auto touch-pan-x scroll-smooth pb-2 mb-3 no-scrollbar">
         <Button
           size="sm"
           variant={selectedCategory === "all" ? "default" : "outline"}

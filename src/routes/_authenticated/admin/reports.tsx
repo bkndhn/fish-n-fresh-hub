@@ -1017,23 +1017,23 @@ export function Reports() {
   return (
     <AdminShell title="Business Reports & AI Analytics" allow={["admin", "manager"]}>
       {/* Top Level Navigation: Analytics vs Dedicated POS Bills Register */}
-      <div className="flex items-center justify-between gap-3 mb-4 border-b border-border/80 pb-3 flex-wrap">
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-muted/60">
+      <div className="w-full min-w-0 overflow-x-auto no-scrollbar touch-pan-x pb-2 mb-4 border-b border-border/80">
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-muted/60 w-max shrink-0">
           <Button
             size="sm"
             variant={activeReportTab === "analytics" ? "default" : "ghost"}
-            className="rounded-xl h-8 text-xs font-bold gap-1.5"
+            className="rounded-xl h-8 text-xs font-bold gap-1.5 shrink-0"
             onClick={() => setActiveReportTab("analytics")}
           >
-            <BarChart3 className="size-3.5" /> Business Analytics &amp; AI
+            <BarChart3 className="size-3.5 shrink-0" /> Business Analytics &amp; AI
           </Button>
           <Button
             size="sm"
             variant={activeReportTab === "pnl" ? "default" : "ghost"}
-            className="rounded-xl h-8 text-xs font-bold gap-1.5 text-emerald-700 dark:text-emerald-400"
+            className="rounded-xl h-8 text-xs font-bold gap-1.5 text-emerald-700 dark:text-emerald-400 shrink-0"
             onClick={() => setActiveReportTab("pnl")}
           >
-            <Percent className="size-3.5" /> Profit &amp; Loss (P&amp;L)
+            <Percent className="size-3.5 shrink-0" /> Profit &amp; Loss (P&amp;L)
             <Badge className="ml-1 text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30">
               New
             </Badge>
@@ -1041,10 +1041,10 @@ export function Reports() {
           <Button
             size="sm"
             variant={activeReportTab === "pos_bills" ? "default" : "ghost"}
-            className="rounded-xl h-8 text-xs font-bold gap-1.5"
+            className="rounded-xl h-8 text-xs font-bold gap-1.5 shrink-0"
             onClick={() => setActiveReportTab("pos_bills")}
           >
-            <Store className="size-3.5 text-primary" /> POS Counter Bills &amp; Receipts
+            <Store className="size-3.5 text-primary shrink-0" /> POS Counter Bills &amp; Receipts
             <Badge className="ml-1 text-[10px] bg-primary/20 text-primary border-primary/30">
               {allPosOrders.length}
             </Badge>
@@ -1055,14 +1055,14 @@ export function Reports() {
       {activeReportTab === "analytics" ? (
         <>
           {/* Date Range & Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="w-full sm:w-auto min-w-0 overflow-x-auto no-scrollbar touch-pan-x flex items-center gap-1.5 pb-1 sm:pb-0">
           {RANGES.map((r) => (
             <Button
               key={r.key}
               size="sm"
               variant={range === r.key ? "default" : "outline"}
-              className="rounded-xl h-8 text-xs"
+              className="rounded-xl h-8 text-xs shrink-0"
               onClick={() => setRange(r.key)}
             >
               {r.label}

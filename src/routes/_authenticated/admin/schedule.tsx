@@ -324,13 +324,18 @@ function SchedulePage() {
         </div>
       </div>
 
-      <Tabs defaultValue="hours" className="space-y-4">
+      <Tabs defaultValue="hours" className="space-y-4 w-full min-w-0 max-w-full">
         <TabsList className="grid w-full grid-cols-2 max-w-md rounded-xl">
-          <TabsTrigger value="hours" className="rounded-lg text-xs flex items-center gap-1.5">
-            <Store className="size-3.5" /> Working Hours & Holidays
+          <TabsTrigger value="hours" className="rounded-lg text-xs flex items-center justify-center gap-1.5 px-2">
+            <Store className="size-3.5 shrink-0" />
+            <span className="truncate">
+              <span className="sm:hidden">Hours & Offs</span>
+              <span className="hidden sm:inline">Working Hours & Holidays</span>
+            </span>
           </TabsTrigger>
-          <TabsTrigger value="slots" className="rounded-lg text-xs flex items-center gap-1.5">
-            <Truck className="size-3.5" /> Delivery Slots ({list.length})
+          <TabsTrigger value="slots" className="rounded-lg text-xs flex items-center justify-center gap-1.5 px-2">
+            <Truck className="size-3.5 shrink-0" />
+            <span className="truncate">Delivery Slots ({list.length})</span>
           </TabsTrigger>
         </TabsList>
 

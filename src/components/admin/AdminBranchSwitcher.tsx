@@ -40,16 +40,16 @@ export function AdminBranchSwitcher() {
   if (!canSwitchBranch && selectedBranch) {
     return (
       <div
-        className="flex items-center gap-1.5 rounded-xl border border-border/80 bg-background/80 px-2.5 py-1 text-xs font-semibold shadow-2xs"
+        className="flex items-center gap-1.5 rounded-xl border border-border/80 bg-background/80 px-2 sm:px-2.5 py-1 text-xs font-semibold shadow-2xs max-w-[120px] xs:max-w-[150px] sm:max-w-[180px] shrink min-w-0"
         title="Your access is restricted to this specific branch."
       >
-        <Lock className="size-3 text-amber-500" />
-        <span className="max-w-[140px] truncate text-foreground">
+        <Lock className="size-3 text-amber-500 shrink-0" />
+        <span className="truncate text-foreground text-[11px] sm:text-xs">
           {selectedBranch.name}
         </span>
         <Badge
           variant="outline"
-          className="border-amber-500/30 bg-amber-500/10 text-[10px] text-amber-600 dark:text-amber-400 py-0 px-1"
+          className="border-amber-500/30 bg-amber-500/10 text-[9px] sm:text-[10px] text-amber-600 dark:text-amber-400 py-0 px-1 shrink-0 hidden xs:inline-flex"
         >
           {selectedBranch.code || "HUB"}
         </Badge>
@@ -63,21 +63,26 @@ export function AdminBranchSwitcher() {
         <Button
           variant="outline"
           size="sm"
-          className="h-8 max-w-[230px] rounded-xl border-border/80 bg-background/80 px-2.5 text-xs font-medium shadow-2xs hover:bg-muted/60 transition-all"
+          className="h-8 max-w-[115px] xs:max-w-[145px] sm:max-w-[200px] md:max-w-[230px] rounded-xl border-border/80 bg-background/80 px-2 sm:px-2.5 text-xs font-medium shadow-2xs hover:bg-muted/60 transition-all shrink min-w-0"
         >
           {isConsolidated ? (
-            <Globe2 className="size-3.5 text-primary shrink-0 mr-1.5" />
+            <Globe2 className="size-3.5 text-primary shrink-0 mr-1 sm:mr-1.5" />
           ) : (
-            <Building2 className="size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mr-1.5" />
+            <Building2 className="size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mr-1 sm:mr-1.5" />
           )}
 
-          <span className="truncate text-foreground font-semibold">
-            {isConsolidated
-              ? "All Branches (Consolidated)"
-              : selectedBranch?.name || "Select Branch"}
+          <span className="truncate text-foreground font-semibold text-[11px] sm:text-xs">
+            {isConsolidated ? (
+              <>
+                <span className="sm:hidden">All Hubs</span>
+                <span className="hidden sm:inline">All Branches (Consolidated)</span>
+              </>
+            ) : (
+              selectedBranch?.name || "Select Branch"
+            )}
           </span>
 
-          <ChevronDown className="size-3 text-muted-foreground opacity-60 ml-1.5 shrink-0" />
+          <ChevronDown className="size-3 text-muted-foreground opacity-60 ml-1 shrink-0" />
         </Button>
       </DropdownMenuTrigger>
 

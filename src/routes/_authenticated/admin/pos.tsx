@@ -1631,7 +1631,7 @@ export function RetailPosCounterPage() {
 
               {/* Category Pills */}
               <div 
-                className="flex items-center gap-1.5 overflow-x-auto touch-pan-x scroll-smooth pb-1 scrollbar-none"
+                className="w-full min-w-0 flex items-center gap-1.5 overflow-x-auto touch-pan-x scroll-smooth pb-1 no-scrollbar"
                 onWheel={(e) => {
                   if (e.deltaY !== 0 && Math.abs(e.deltaX) < 10) {
                     e.currentTarget.scrollLeft += e.deltaY;

@@ -298,23 +298,25 @@ function CustomersAdmin() {
         className="w-full space-y-4"
       >
         {/* Navigation Tabs Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/80 pb-3">
-          <TabsList className="w-full sm:w-auto overflow-x-auto no-scrollbar flex-nowrap shrink-0 p-1 bg-muted/60 rounded-2xl">
-            <TabsTrigger
-              value="orders"
-              className="rounded-xl text-xs font-bold whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-xs px-4"
-            >
-              <ShoppingBag className="mr-1.5 size-3.5" />
-              Active Customers ({rows.length})
-            </TabsTrigger>
-            <TabsTrigger
-              value="registered"
-              className="rounded-xl text-xs font-bold whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-xs px-4"
-            >
-              <Users className="mr-1.5 size-3.5" />
-              All Registered Customers ({registeredRows.length})
-            </TabsTrigger>
-          </TabsList>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/80 pb-3 w-full min-w-0">
+          <div className="w-full sm:w-auto min-w-0 overflow-x-auto no-scrollbar touch-pan-x pb-0.5">
+            <TabsList className="w-max sm:w-auto flex-nowrap shrink-0 p-1 bg-muted/60 rounded-2xl">
+              <TabsTrigger
+                value="orders"
+                className="rounded-xl text-xs font-bold whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-xs px-3 sm:px-4"
+              >
+                <ShoppingBag className="mr-1.5 size-3.5" />
+                Active Customers ({rows.length})
+              </TabsTrigger>
+              <TabsTrigger
+                value="registered"
+                className="rounded-xl text-xs font-bold whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-xs px-3 sm:px-4"
+              >
+                <Users className="mr-1.5 size-3.5" />
+                All Registered Customers ({registeredRows.length})
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <div className="flex items-center gap-2 self-start sm:self-auto">
             {mainTab === "orders" ? (

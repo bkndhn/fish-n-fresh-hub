@@ -151,73 +151,78 @@ export function AdminShell({
   return (
     <AdminBranchProvider>
       <div className="min-h-screen bg-muted/30 overflow-x-hidden w-full">
-        <header className="glass sticky top-0 z-50 border-b border-border">
-          <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4">
-            <Link to="/" className="flex items-center gap-2 font-display font-bold text-foreground shrink-0">
-              <img 
-                src={settings?.logo_url || "/logo.png"} 
-                alt="Store Logo" 
-                className="h-8 w-auto rounded-xl object-contain shrink-0 shadow-2xs" 
-              />
-              <span className="hidden sm:inline">{settings?.store_name || "Fish N Fresh"}</span>
-            </Link>
-
-            <AdminBranchSwitcher />
-          <div className="ml-auto flex items-center gap-2">
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="h-8 rounded-xl text-xs font-bold gap-1.5 border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 shadow-2xs transition-all"
-              title="View Customer Portal / Live Storefront"
-            >
-              <Link to="/" target="_blank" rel="noopener noreferrer">
-                <Eye className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span className="hidden sm:inline">Customer Portal</span>
-                <span className="sm:hidden">Store</span>
-                <ExternalLink className="size-2.5 opacity-60 ml-0.5" />
+        <header className="glass sticky top-0 z-50 border-b border-border w-full max-w-full overflow-hidden">
+          <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-1.5 sm:gap-3 px-2.5 sm:px-4 w-full min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 shrink">
+              <Link to="/" className="flex items-center gap-1.5 sm:gap-2 font-display font-bold text-foreground shrink-0">
+                <img 
+                  src={settings?.logo_url || "/logo.png"} 
+                  alt="Store Logo" 
+                  className="h-7.5 sm:h-8 w-auto rounded-xl object-contain shrink-0 shadow-2xs" 
+                />
+                <span className="hidden md:inline">{settings?.store_name || "Fish N Fresh"}</span>
               </Link>
-            </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setGoLiveOpen(true)}
-              className="h-8 rounded-xl text-xs font-bold gap-1.5 border-primary/40 bg-primary/5 hover:bg-primary/10 text-primary shadow-2xs"
-            >
-              <Rocket className="size-3.5" />
-              <span className="hidden sm:inline">Go-Live Readiness</span>
-            </Button>
+              <AdminBranchSwitcher />
+            </div>
 
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <LogOut className="mr-1.5 size-4" /> Sign out
-                </Button>
-              </AlertDialogTrigger>
-            <AlertDialogContent className="rounded-2xl">
-              <AlertDialogHeader>
-                <AlertDialogTitle>Sign out</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to sign out? You will need to log in again to access the admin console.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-                <AlertDialogAction 
-                  className="rounded-xl"
-                  onClick={() => {
-                    supabase.auth.signOut().then(() => navigate({ to: "/auth" }));
-                  }}
-                >
-                  Sign out
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-            </AlertDialog>
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-xl text-xs font-bold gap-1 sm:gap-1.5 border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 shadow-2xs transition-all px-2 sm:px-3"
+                title="View Customer Portal / Live Storefront"
+              >
+                <Link to="/" target="_blank" rel="noopener noreferrer">
+                  <Eye className="size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span className="hidden sm:inline">Customer Portal</span>
+                  <span className="sm:hidden text-[11px]">Store</span>
+                  <ExternalLink className="size-2.5 opacity-60 ml-0.5 shrink-0" />
+                </Link>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setGoLiveOpen(true)}
+                className="hidden sm:flex h-8 rounded-xl text-xs font-bold gap-1.5 border-primary/40 bg-primary/5 hover:bg-primary/10 text-primary shadow-2xs"
+                title="Interactive Store Go-Live Readiness"
+              >
+                <Rocket className="size-3.5 shrink-0" />
+                <span>Go-Live Readiness</span>
+              </Button>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 px-2 sm:px-3 text-xs" title="Sign out">
+                    <LogOut className="size-3.5 sm:size-4 sm:mr-1.5 shrink-0" />
+                    <span className="hidden sm:inline">Sign out</span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="rounded-2xl">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Sign out</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to sign out? You will need to log in again to access the admin console.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      className="rounded-xl"
+                      onClick={() => {
+                        supabase.auth.signOut().then(() => navigate({ to: "/auth" }));
+                      }}
+                    >
+                      Sign out
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
       <div className="mx-auto flex max-w-7xl gap-6 px-3 py-3 sm:px-6 sm:py-6 overflow-x-hidden w-full">
         <aside className="hidden w-56 shrink-0 md:block">
@@ -288,7 +293,7 @@ export function AdminShell({
                     <SheetHeader className="mb-3 text-left">
                       <SheetTitle className="text-base font-bold">Admin Console Menu</SheetTitle>
                     </SheetHeader>
-                    <div className="mb-4">
+                    <div className="mb-4 space-y-2">
                       <Button
                         asChild
                         className="w-full h-10 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs gap-2 shadow-xs"
@@ -298,6 +303,18 @@ export function AdminShell({
                           <span>View Live Customer Storefront</span>
                           <ExternalLink className="size-3.5 opacity-70 ml-auto" />
                         </Link>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setMoreOpen(false);
+                          setGoLiveOpen(true);
+                        }}
+                        className="w-full h-10 rounded-2xl border-primary/40 bg-primary/5 hover:bg-primary/10 text-primary font-bold text-xs gap-2 shadow-2xs"
+                      >
+                        <Rocket className="size-4" />
+                        <span>Go-Live Readiness Checklist</span>
                       </Button>
                     </div>
                     <div className="grid grid-cols-3 gap-2.5 pb-6">

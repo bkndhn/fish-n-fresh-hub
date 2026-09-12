@@ -672,38 +672,40 @@ function ProductsAdmin() {
       }
     >
       {/* Top Admin Sub-Navigation Tabs */}
-      <div className="flex items-center gap-1.5 mb-4 p-1 bg-muted/60 rounded-2xl w-fit border border-border/60">
-        <button
-          type="button"
-          onClick={() => setAdminTab("products")}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            adminTab === "products"
-              ? "bg-card text-foreground shadow-xs"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <PackagePlus className="size-3.5" />
-          <span>Products Catalog</span>
-          <span className="rounded-full bg-muted px-1.5 py-0.2 text-[10px] font-mono">
-            {allProducts.length}
-          </span>
-        </button>
+      <div className="w-full min-w-0 overflow-x-auto no-scrollbar touch-pan-x pb-1 mb-3">
+        <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-2xl w-max border border-border/60 shrink-0">
+          <button
+            type="button"
+            onClick={() => setAdminTab("products")}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+              adminTab === "products"
+                ? "bg-card text-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <PackagePlus className="size-3.5 shrink-0" />
+            <span>Products Catalog</span>
+            <span className="rounded-full bg-muted px-1.5 py-0.2 text-[10px] font-mono">
+              {allProducts.length}
+            </span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setAdminTab("categories")}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            adminTab === "categories"
-              ? "bg-card text-primary shadow-xs"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Layers className="size-3.5" />
-          <span>Category Management</span>
-          <span className="rounded-full bg-primary/15 text-primary px-1.5 py-0.2 text-[10px] font-mono">
-            {categories?.length ?? 0}
-          </span>
-        </button>
+          <button
+            type="button"
+            onClick={() => setAdminTab("categories")}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+              adminTab === "categories"
+                ? "bg-card text-primary shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Layers className="size-3.5 shrink-0" />
+            <span>Category Management</span>
+            <span className="rounded-full bg-primary/15 text-primary px-1.5 py-0.2 text-[10px] font-mono">
+              {categories?.length ?? 0}
+            </span>
+          </button>
+        </div>
       </div>
 
       {adminTab === "categories" ? (

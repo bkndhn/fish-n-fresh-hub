@@ -232,14 +232,14 @@ function SuperAdminDashboard() {
         {/* Header Title & Security Status */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border pb-4">
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="flex size-7 items-center justify-center rounded-lg bg-red-500/10 text-red-600 dark:text-red-400">
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
+              <span className="flex size-7 items-center justify-center rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 shrink-0">
                 <ShieldAlert className="size-4.5" />
               </span>
               <h1 className="text-xl sm:text-2xl font-black font-display tracking-tight text-foreground">
                 Super Admin Platform Governance
               </h1>
-              <Badge variant="outline" className="border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300 text-[10px] uppercase font-bold">
+              <Badge variant="outline" className="border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300 text-[10px] uppercase font-bold shrink-0">
                 Tier 0 Clearance
               </Badge>
             </div>

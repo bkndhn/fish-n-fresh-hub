@@ -396,8 +396,8 @@ export function DriverDispatchPage() {
       {/* Tab Controls & Auto-Assign Header */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4 w-full min-w-0 max-w-full">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3 w-full min-w-0">
-          <div className="w-full min-w-0 overflow-x-auto no-scrollbar pb-0.5">
-            <TabsList className="h-9 rounded-xl p-1 bg-muted/60 flex-nowrap">
+          <div className="w-full min-w-0 overflow-x-auto no-scrollbar touch-pan-x scroll-smooth pb-0.5">
+            <TabsList className="h-9 rounded-xl p-1 bg-muted/60 flex-nowrap w-max">
               <TabsTrigger value="dispatch" className="rounded-lg text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap shrink-0">
                 <Truck className="size-3.5" /> Live Dispatch ({activeDeliveries.length})
               </TabsTrigger>

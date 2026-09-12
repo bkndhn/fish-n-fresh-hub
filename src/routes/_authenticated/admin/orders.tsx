@@ -285,8 +285,8 @@ function OrdersAdmin() {
   return (
     <AdminShell title="Orders" allow={["admin", "manager", "cashier", "support_staff", "staff"]}>
       {/* Date Filter Bar - Today as default */}
-      <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-border/80 bg-muted/30 p-3">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-w-full">
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-border/80 bg-muted/30 p-3 w-full min-w-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto touch-pan-x scroll-smooth no-scrollbar py-0.5 w-full sm:w-auto min-w-0">
           <span className="text-xs font-semibold text-muted-foreground mr-1 flex items-center gap-1 shrink-0">
             <Calendar className="size-3.5 text-primary" /> Period:
           </span>

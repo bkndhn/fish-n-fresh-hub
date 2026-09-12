@@ -999,8 +999,8 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full min-w-0 max-w-full">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 w-full min-w-0">
-          <div className="w-full min-w-0 overflow-x-auto no-scrollbar pb-0.5">
-            <TabsList className="rounded-2xl p-1 bg-muted/60 flex-nowrap">
+          <div className="w-full min-w-0 overflow-x-auto no-scrollbar touch-pan-x scroll-smooth pb-0.5">
+            <TabsList className="rounded-2xl p-1 bg-muted/60 flex-nowrap w-max">
               <TabsTrigger value="ledger" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0">
                 <FileText className="mr-1.5 size-3.5" /> Catch Purchases
               </TabsTrigger>
