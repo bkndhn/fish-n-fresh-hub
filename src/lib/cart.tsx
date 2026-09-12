@@ -77,7 +77,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setPendingMismatch({
           product,
           qty,
-          cut_preference,
+          cut_preference: cut_preference ?? "",
           branch: targetBranchId ? { id: targetBranchId, name: targetBranchName || "Selected Hub" } : undefined,
         });
         return { added: false, mismatch: true };

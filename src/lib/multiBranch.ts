@@ -223,7 +223,7 @@ export const branchesQuery = queryOptions({
       .order("name", { ascending: true });
 
     if (error) throw error;
-    return (data ?? []).map(normalizeBranch);
+    return ((data ?? []) as any[]).map(normalizeBranch);
   },
   staleTime: 1000 * 60 * 5, // 5 minutes
 });
@@ -241,7 +241,7 @@ export const activeBranchesQuery = queryOptions({
       .order("sort_order", { ascending: true });
 
     if (error) throw error;
-    return (data ?? []).map(normalizeBranch);
+    return ((data ?? []) as any[]).map(normalizeBranch);
   },
   staleTime: 1000 * 60 * 5,
 });

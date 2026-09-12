@@ -59,11 +59,11 @@ export function AdminBranchProvider({ children }: { children: ReactNode }) {
       if (error || !data || !data.length) return null;
 
       // If user has a global admin role with null branch_id, they have full access
-      const hasGlobalAdmin = data.some((r: any) => r.role === "admin" && !r.branch_id);
+      const hasGlobalAdmin = (data as any[]).some((r: any) => r.role === "admin" && !r.branch_id);
       if (hasGlobalAdmin) return null;
 
       // Otherwise, return first specific branch assignment
-      const specific = data.find((r: any) => Boolean(r.branch_id));
+      const specific = (data as any[]).find((r: any) => Boolean(r.branch_id));
       return specific ? (specific.branch_id as string) : null;
     },
   });
