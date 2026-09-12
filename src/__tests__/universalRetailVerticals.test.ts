@@ -157,7 +157,7 @@ describe("Bulk Retail CSV Import and Export Engine", () => {
   });
 
   it("exports catalog products to CSV preserving retail attributes", () => {
-    const mockProducts = [
+    const mockProducts: any[] = [
       {
         id: "prod-1",
         name: "Samsung Galaxy S24",

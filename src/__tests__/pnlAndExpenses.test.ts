@@ -11,7 +11,7 @@ import { parseProductsCsv, exportProductsToCsv, CSV_HEADERS } from "../lib/retai
 import type { Expense } from "../lib/types";
 
 describe("P&L Engine & Multi-Branch Operating Expenses Ledger", () => {
-  const mockProducts = [
+  const mockProducts: any[] = [
     {
       id: "prod-vanjaram",
       name: "Vanjaram / King Seer Fish",
