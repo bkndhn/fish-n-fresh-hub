@@ -227,7 +227,7 @@ function RealtimeSubscriber({ queryClient }: { queryClient: any }) {
     const killswitchChannel = supabase
       .channel("security_killswitch")
       .on("broadcast", { event: "force_logout" }, async (event) => {
-        const payload = event.payload;
+        const payload = (event as Record<string, any>)['payload'];
         if (!payload) return;
 
         const { data: authData } = await supabase.auth.getUser();
