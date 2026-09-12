@@ -108,9 +108,9 @@ export interface PosCartItem {
   totalPrice: number;
   image?: string | null;
   gstPercent: number;
-  serialNumbers?: string[];
-  variant?: { id?: string; size?: string; color?: string; sku?: string };
-  brand?: string;
+  serialNumbers?: string[] | undefined;
+  variant?: { id?: string; size?: string; color?: string; sku?: string } | undefined;
+  brand?: string | undefined;
   warrantyMonths?: number;
   aisleLocation?: string;
 }
