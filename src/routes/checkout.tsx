@@ -88,7 +88,7 @@ export const Route = createFileRoute("/checkout")({
 function Checkout() {
   const { items, subtotal, clear } = useCart();
   const { data: settings } = useQuery(settingsQuery);
-  const { data: products } = useQuery(productsQuery);
+  const { data: products } = useQuery(productsQuery());
   const { activeBranch, isWithinDeliveryRadius, setIsLocationModalOpen } = useCustomerBranch();
   const navigate = useNavigate();
   const { user } = useSessionUser();

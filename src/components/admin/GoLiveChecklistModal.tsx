@@ -41,7 +41,7 @@ export function GoLiveChecklistModal({
   onOpenChange: (open: boolean) => void;
 }) {
   const { data: settings } = useQuery(settingsQuery);
-  const { data: products = [] } = useQuery(adminProductsQuery);
+  const { data: products = [] } = useQuery(adminProductsQuery());
 
   const [simulatorRunning, setSimulatorRunning] = useState(false);
   const [simulatorStep, setSimulatorStep] = useState(0);

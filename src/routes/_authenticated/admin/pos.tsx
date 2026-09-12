@@ -199,7 +199,7 @@ export function RetailPosCounterPage() {
   const quickCodeInputRef = useRef<HTMLInputElement>(null);
   const [quickCodeInput, setQuickCodeInput] = useState("");
   const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
-  const { data: rawProducts = [], isLoading: productsLoading } = useQuery(adminProductsQuery);
+  const { data: rawProducts = [], isLoading: productsLoading } = useQuery(adminProductsQuery());
   const { data: categories = [] } = useQuery(categoriesQuery);
   const { data: settings } = useQuery(settingsQuery);
 

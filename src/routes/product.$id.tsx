@@ -83,7 +83,7 @@ export const Route = createFileRoute("/product/$id")({
 function ProductPage() {
   const { id } = Route.useParams();
   const { data: product, isLoading } = useQuery(productQuery(id));
-  const { data: all } = useQuery(productsQuery);
+  const { data: all } = useQuery(productsQuery());
   const { data: settings } = useQuery(settingsQuery);
   const { add, items } = useCart();
   const { activeBranch } = useCustomerBranch();

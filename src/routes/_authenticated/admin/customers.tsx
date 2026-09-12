@@ -74,7 +74,7 @@ export const Route = createFileRoute("/_authenticated/admin/customers")({
 
 function CustomersAdmin() {
   const queryClient = useQueryClient();
-  const customers = useQuery(adminCustomersQuery);
+  const customers = useQuery(adminCustomersQuery());
   const suspensions = useQuery(adminSuspensionsQuery);
   const rows = customers.data ?? [];
   const susMap = suspensions.data ?? {};

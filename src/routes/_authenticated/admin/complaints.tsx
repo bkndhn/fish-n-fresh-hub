@@ -55,7 +55,7 @@ export const Route = createFileRoute("/_authenticated/admin/complaints")({
 
 export function ComplaintsAdmin() {
   const qc = useQueryClient();
-  const orders = useQuery(adminOrdersQuery);
+  const orders = useQuery(adminOrdersQuery());
   const refundFn = useServerFn(cancelAndRefundOrder);
 
   const [search, setSearch] = useState("");

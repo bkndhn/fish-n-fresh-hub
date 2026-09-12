@@ -76,7 +76,7 @@ export const Route = createFileRoute("/_authenticated/admin/driver")({
 
 export function DriverDispatchPage() {
   const qc = useQueryClient();
-  const orders = useQuery(adminOrdersQuery);
+  const orders = useQuery(adminOrdersQuery());
   const driversQuery = useQuery({
     queryKey: ["admin", "drivers"],
     queryFn: () => listDrivers() as Promise<DriverOption[]>,

@@ -97,7 +97,7 @@ const REASONS = [
 
 function WasteAdmin() {
   const qc = useQueryClient();
-  const productsQueryObj = useQuery(adminProductsQuery);
+  const productsQueryObj = useQuery(adminProductsQuery());
   const products = productsQueryObj.data ?? [];
 
   const [wasteList, setWasteList] = useState<WasteEntry[]>(() => {

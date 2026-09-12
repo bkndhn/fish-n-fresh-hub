@@ -72,7 +72,7 @@ function defaultMessage(order: OrderRow) {
 
 function DeliveryTracking() {
   const qc = useQueryClient();
-  const orders = useQuery(adminOrdersQuery);
+  const orders = useQuery(adminOrdersQuery());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [stageFilter, setStageFilter] = useState<"all" | "confirmed" | "packed" | "out_for_delivery" | "delivered">("all");
   const [searchQuery, setSearchQuery] = useState("");

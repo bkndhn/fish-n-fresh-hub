@@ -203,7 +203,7 @@ const DEFAULT_SUPPLIERS: Supplier[] = [
 
 function PurchasesAdmin() {
   const qc = useQueryClient();
-  const productsQueryObj = useQuery(adminProductsQuery);
+  const productsQueryObj = useQuery(adminProductsQuery());
   const products = productsQueryObj.data ?? [];
 
   // Local storage backed state with fallback
