@@ -391,9 +391,9 @@ function ProductPage() {
                   const productWithVariant = {
                     ...product,
                     price: effectivePrice,
-                    brand: product.brand,
-                    warranty_period_months: product.warranty_period_months,
-                  };
+                    brand: product.brand ?? null,
+                    warranty_period_months: product.warranty_period_months ?? null,
+                  } as Product;
                   const res = add(
                     productWithVariant,
                     qty,
