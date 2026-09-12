@@ -44,7 +44,7 @@ import { toast } from "sonner";
 export function CategoryManagement() {
   const qc = useQueryClient();
   const { data: categories = [], isLoading } = useQuery(categoriesQuery);
-  const { data: products = [] } = useQuery(productsQuery);
+  const { data: products = [] } = useQuery(productsQuery());
 
   const [search, setSearch] = useState("");
   const [addModalOpen, setAddModalOpen] = useState(false);
