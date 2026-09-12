@@ -26,6 +26,7 @@ import {
   Snowflake,
   Scale,
   Search,
+  X,
   Package,
   ArrowRight,
   ExternalLink,
@@ -539,7 +540,7 @@ export function Reports() {
     if (velocitySearch.trim()) {
       const q = velocitySearch.toLowerCase().trim();
       list = list.filter(
-        (p) => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)
+        (p) => (p.name || "").toLowerCase().includes(q) || (p.category || "").toLowerCase().includes(q)
       );
     }
     return list;
@@ -757,7 +758,7 @@ export function Reports() {
     for (const o of paid) {
       for (const it of o.items ?? []) {
         const prod = prodCatalog.find(
-          (p) => p.name.toLowerCase() === it.name.toLowerCase() || p.id === it.product_id
+          (p) => (p.name && it.name && p.name.toLowerCase() === it.name.toLowerCase()) || (p.id && p.id === it.product_id)
         );
         const cat = prod?.category || "Seafood";
         const val = Number(it.qty || 1) * Number(it.price || 0);
@@ -1055,10 +1056,10 @@ export function Reports() {
         </div>
       </div>
 
-      {activeReportTab === "analytics" ? (
 
+      {activeReportTab === "analytics" ? (
         <div className="space-y-4">
-                    {/* Date Range & Controls */}
+          {/* Date Range & Controls */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="w-full sm:w-auto min-w-0 overflow-x-auto no-scrollbar touch-pan-x flex items-center gap-1.5 pb-1 sm:pb-0">
           {RANGES.map((r) => (
@@ -1163,6 +1164,7 @@ export function Reports() {
                 />
                 {analyticsSearchQuery && (
                   <button
+                    type="button"
                     onClick={() => setAnalyticsSearchQuery("")}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
@@ -1185,6 +1187,7 @@ export function Reports() {
                 ].map((chip) => (
                   <button
                     key={chip.label}
+                    type="button"
                     onClick={() => setAnalyticsSearchQuery(chip.q)}
                     className={"px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition shrink-0 " + (
                       analyticsSearchQuery === chip.q
@@ -1213,49 +1216,7 @@ export function Reports() {
                   Clear search &amp; show tabs
                 </Button>
               </div>
-            ) : (
-              /* Sub-Tabs Bar (Horizontally scrollable on mobile) */
-              <div className="w-full overflow-x-auto no-scrollbar touch-pan-x">
-                <Tabs
-                  value={analyticsSubTab}
-                  onValueChange={(v: any) => setAnalyticsSubTab(v)}
-                  className="w-full"
-                >
-                  <TabsList className="flex items-center justify-start h-11 p-1 bg-muted/60 rounded-2xl w-max sm:w-full border border-border/60">
-                    <TabsTrigger
-                      value="overview"
-                      className="rounded-xl px-3 py-1.5 text-xs font-bold gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-xs"
-                    >
-                      <Store className="size-3.5 text-primary" /> Overview &amp; Channels
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="demand"
-                      className="rounded-xl px-3 py-1.5 text-xs font-bold gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-xs"
-                    >
-                      <Sparkles className="size-3.5 text-cyan-500" /> AI Demand &amp; Procurement
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="products"
-                      className="rounded-xl px-3 py-1.5 text-xs font-bold gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-xs"
-                    >
-                      <TrendingUp className="size-3.5 text-emerald-500" /> Products &amp; Margins
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="retention"
-                      className="rounded-xl px-3 py-1.5 text-xs font-bold gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-xs"
-                    >
-                      <Users className="size-3.5 text-violet-500" /> Customer Retention
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="operations"
-                      className="rounded-xl px-3 py-1.5 text-xs font-bold gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-xs"
-                    >
-                      <Timer className="size-3.5 text-amber-500" /> Delivery SLA
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-            )}
+            ) : null}
           </div>
 
           {/* Search Filter vs Sub-Tab View */}
@@ -1423,7 +1384,7 @@ export function Reports() {
             </div>
           </div>
         </CardContent>
-      </Card></>)
+      </Card></>)
                   },
                   {
                     key: "revenue-trend",
@@ -1466,7 +1427,7 @@ export function Reports() {
               )}
             </div>
           </CardContent>
-        </Card></>)
+        </Card></>)
                   },
                   {
                     key: "fulfillment-channel",
@@ -1512,7 +1473,7 @@ export function Reports() {
               </div>
             </div>
           </CardContent>
-        </Card></>)
+        </Card></>)
                   },
                   {
                     key: "payment-mix",
@@ -1541,7 +1502,7 @@ export function Reports() {
               )}
             </ul>
           </CardContent>
-        </Card></>)
+        </Card></>)
                   },
                   {
                     key: "ai-intelligence",
@@ -1556,7 +1517,7 @@ export function Reports() {
         startDate={startDate}
         endDate={endDate}
       />
-</>)
+</>)
                   },
                   {
                     key: "ai-insights",
@@ -1604,7 +1565,7 @@ export function Reports() {
             })}
           </div>
         </CardContent>
-      </Card></>)
+      </Card></>)
                   },
                   {
                     key: "peak-hours",
@@ -1655,7 +1616,7 @@ export function Reports() {
               })}
             </div>
           </CardContent>
-        </Card></>)
+        </Card></>)
                   },
                   {
                     key: "profit-margins",
@@ -2058,7 +2019,7 @@ export function Reports() {
             </table>
           </div>
         </CardContent>
-      </Card></>)
+      </Card></>)
                   },
                   {
                     key: "top-seafood",
@@ -2090,7 +2051,7 @@ export function Reports() {
               )}
             </ul>
           </CardContent>
-        </Card></>)
+        </Card></>)
                   },
                   {
                     key: "category-contrib",
@@ -2124,7 +2085,7 @@ export function Reports() {
               <p className="text-xs text-muted-foreground pt-4 text-center">No category data recorded yet.</p>
             )}
           </CardContent>
-        </Card></>)
+        </Card></>)
                   },
                   {
                     key: "customer-retention",
@@ -2179,7 +2140,7 @@ export function Reports() {
               Total unique active accounts in selected range: <span className="font-semibold text-foreground">{customerAnalytics.totalUnique}</span>
             </div>
           </CardContent>
-        </Card></>)
+        </Card></>)
                   },
                   {
                     key: "customer-cohorts",
@@ -2299,7 +2260,7 @@ export function Reports() {
             </div>
           </div>
         </CardContent>
-      </Card></>)
+      </Card></>)
                   },
                   {
                     key: "ticket-size",
@@ -2330,7 +2291,7 @@ export function Reports() {
               </div>
             ))}
           </CardContent>
-        </Card></>)
+        </Card></>)
                   },
                   {
                     key: "delivery-sla",
@@ -2494,7 +2455,7 @@ export function Reports() {
             </div>
           )}
         </CardContent>
-      </Card></>)
+      </Card></>)
                   },
                 ].filter((item) => matches(item.keywords));
 
@@ -2526,10 +2487,49 @@ export function Reports() {
               })()}
             </div>
           ) : (
-            <div className="space-y-4">
-              {analyticsSubTab === "overview" && (
-                <div className="space-y-4">
-                        <Card id="omnichannel-split" className="mt-4 border-border/70 shadow-sm overflow-hidden scroll-mt-20">
+            <Tabs
+              value={analyticsSubTab}
+              onValueChange={(v: any) => setAnalyticsSubTab(v)}
+              className="space-y-4"
+            >
+              <div className="w-full overflow-x-auto no-scrollbar touch-pan-x">
+                <TabsList className="flex items-center justify-start h-11 p-1 bg-muted/60 rounded-2xl w-max sm:w-full border border-border/60 gap-1">
+                  <TabsTrigger
+                    value="overview"
+                    className="rounded-xl px-3.5 py-1.5 text-xs font-bold gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-xs"
+                  >
+                    <Store className="size-3.5 text-primary" /> Overview &amp; Channels
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="demand"
+                    className="rounded-xl px-3.5 py-1.5 text-xs font-bold gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-xs"
+                  >
+                    <Sparkles className="size-3.5 text-cyan-500" /> AI Demand &amp; Procurement
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="products"
+                    className="rounded-xl px-3.5 py-1.5 text-xs font-bold gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-xs"
+                  >
+                    <TrendingUp className="size-3.5 text-emerald-500" /> Products &amp; Margins
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="retention"
+                    className="rounded-xl px-3.5 py-1.5 text-xs font-bold gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-xs"
+                  >
+                    <Users className="size-3.5 text-violet-500" /> Customer Retention
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="operations"
+                    className="rounded-xl px-3.5 py-1.5 text-xs font-bold gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-xs"
+                  >
+                    <Timer className="size-3.5 text-amber-500" /> Delivery SLA
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              {/* TAB 1: Overview & Channels */}
+              <TabsContent value="overview" className="space-y-4 mt-0">
+                      <Card id="omnichannel-split" className="mt-4 border-border/70 shadow-sm overflow-hidden scroll-mt-20">
         <CardHeader className="bg-muted/30 pb-3 pt-4 border-b border-border/60">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
@@ -2684,7 +2684,7 @@ export function Reports() {
           </div>
         </CardContent>
       </Card>
-                          <Card className="border-border/60 shadow-sm">
+                        <Card className="border-border/60 shadow-sm">
           <CardHeader className="pb-2 pt-5">
             <div className="flex items-center justify-between">
               <div>
@@ -2722,8 +2722,8 @@ export function Reports() {
             </div>
           </CardContent>
         </Card>
-                  <div className="grid gap-4 md:grid-cols-2">
-                            <Card className="border-border/60 shadow-sm">
+                <div className="grid gap-4 md:grid-cols-2">
+                          <Card className="border-border/60 shadow-sm">
           <CardHeader className="pb-2 pt-5">
             <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
               <Truck className="size-4 text-emerald-500" /> Fulfillment Channel
@@ -2764,7 +2764,7 @@ export function Reports() {
             </div>
           </CardContent>
         </Card>
-                            <Card className="border-border/60 shadow-sm">
+                          <Card className="border-border/60 shadow-sm">
           <CardHeader className="pb-2 pt-5">
             <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
               <CreditCard className="size-4 text-amber-500" /> Payment Mix
@@ -2788,13 +2788,12 @@ export function Reports() {
             </ul>
           </CardContent>
         </Card>
-                  </div>
                 </div>
-              )}
+              </TabsContent>
 
-              {analyticsSubTab === "demand" && (
-                <div className="space-y-4">
-                        {/* Peak Time & Sales Analytics, Date Range Comparison & Smart Harbour Purchasing Suite */}
+              {/* TAB 2: AI Demand & Procurement */}
+              <TabsContent value="demand" className="space-y-4 mt-0">
+                      {/* Peak Time & Sales Analytics, Date Range Comparison & Smart Harbour Purchasing Suite */}
       <AnalyticsIntelligence
         allOrders={allOrders}
         currentOrders={rows}
@@ -2804,7 +2803,7 @@ export function Reports() {
         endDate={endDate}
       />
 
-                        <Card className="mt-4 border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card shadow-sm">
+                      <Card className="mt-4 border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card shadow-sm">
         <CardHeader className="pb-2 pt-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -2847,7 +2846,7 @@ export function Reports() {
           </div>
         </CardContent>
       </Card>
-                          <Card className="border-border/60 shadow-sm">
+                        <Card className="border-border/60 shadow-sm">
           <CardHeader className="pb-2 pt-5">
             <div className="flex items-center justify-between">
               <div>
@@ -2893,12 +2892,11 @@ export function Reports() {
             </div>
           </CardContent>
         </Card>
-                </div>
-              )}
+              </TabsContent>
 
-              {analyticsSubTab === "products" && (
-                <div className="space-y-4">
-                        <Card id="profit-margin-analysis" className="mt-4 border-border/60 shadow-sm scroll-mt-20">
+              {/* TAB 3: Products & Margins */}
+              <TabsContent value="products" className="space-y-4 mt-0">
+                      <Card id="profit-margin-analysis" className="mt-4 border-border/60 shadow-sm scroll-mt-20">
         <CardHeader className="pb-3 pt-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -3296,8 +3294,8 @@ export function Reports() {
           </div>
         </CardContent>
       </Card>
-                  <div className="grid gap-4 md:grid-cols-2">
-                            <Card className="border-border/60 shadow-sm">
+                <div className="grid gap-4 md:grid-cols-2">
+                          <Card className="border-border/60 shadow-sm">
           <CardHeader className="pb-2 pt-5">
             <CardTitle className="text-sm font-semibold">Top Selling Seafood</CardTitle>
             <p className="text-xs text-muted-foreground">Best performing products by revenue</p>
@@ -3324,7 +3322,7 @@ export function Reports() {
             </ul>
           </CardContent>
         </Card>
-                            <Card className="border-border/60 shadow-sm">
+                          <Card className="border-border/60 shadow-sm">
           <CardHeader className="pb-2 pt-5">
             <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
               <Fish className="size-4 text-cyan-500" /> Category Contribution
@@ -3353,13 +3351,12 @@ export function Reports() {
             )}
           </CardContent>
         </Card>
-                  </div>
                 </div>
-              )}
+              </TabsContent>
 
-              {analyticsSubTab === "retention" && (
-                <div className="space-y-4">
-                          <Card className="border-border/60 shadow-sm">
+              {/* TAB 4: Customer Retention */}
+              <TabsContent value="retention" className="space-y-4 mt-0">
+                        <Card className="border-border/60 shadow-sm">
           <CardHeader className="pb-2 pt-5">
             <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
               <Users className="size-4 text-violet-500" /> Customer Retention
@@ -3409,7 +3406,7 @@ export function Reports() {
             </div>
           </CardContent>
         </Card>
-                        <Card id="customer-cohorts-retention" className="mt-4 border-border/60 shadow-sm scroll-mt-20">
+                      <Card id="customer-cohorts-retention" className="mt-4 border-border/60 shadow-sm scroll-mt-20">
         <CardHeader className="pb-2 pt-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -3524,7 +3521,7 @@ export function Reports() {
           </div>
         </CardContent>
       </Card>
-                          <Card className="border-border/60 shadow-sm">
+                        <Card className="border-border/60 shadow-sm">
           <CardHeader className="pb-2 pt-5">
             <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
               <BarChart3 className="size-4 text-primary" /> Ticket Size Distribution
@@ -3550,12 +3547,11 @@ export function Reports() {
             ))}
           </CardContent>
         </Card>
-                </div>
-              )}
+              </TabsContent>
 
-              {analyticsSubTab === "operations" && (
-                <div className="space-y-4">
-                        <Card id="delivery-sla-section" className="mt-4 border-border/60 shadow-sm scroll-mt-20">
+              {/* TAB 5: Delivery SLA */}
+              <TabsContent value="operations" className="space-y-4 mt-0">
+                      <Card id="delivery-sla-section" className="mt-4 border-border/60 shadow-sm scroll-mt-20">
         <CardHeader className="pb-2 pt-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -3714,12 +3710,10 @@ export function Reports() {
           )}
         </CardContent>
       </Card>
-                </div>
-              )}
-            </div>
+              </TabsContent>
+            </Tabs>
           )}
         </div>
-
             ) : activeReportTab === "pnl" ? (
         <AdminPnlReport />
       ) : (
@@ -4060,5 +4054,6 @@ export function Reports() {
   );
 }
 export default Reports;
+
 
 

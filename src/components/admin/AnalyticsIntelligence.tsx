@@ -239,10 +239,11 @@ export function AnalyticsIntelligence({
 
     for (const o of currentPaid) {
       for (const it of o.items ?? []) {
-        const key = it.name.toLowerCase().trim();
-        const cur = currentMap.get(key) ?? { name: it.name, qty: 0, value: 0 };
+        const itemName = it.name || "Seafood Item";
+        const key = itemName.toLowerCase().trim();
+        const cur = currentMap.get(key) ?? { name: itemName, qty: 0, value: 0 };
         currentMap.set(key, {
-          name: it.name,
+          name: itemName,
           qty: cur.qty + Number(it.qty || 0),
           value: cur.value + Number(it.qty || 0) * Number(it.price || 0),
         });
@@ -251,10 +252,11 @@ export function AnalyticsIntelligence({
 
     for (const o of previousPaid) {
       for (const it of o.items ?? []) {
-        const key = it.name.toLowerCase().trim();
-        const cur = prevMap.get(key) ?? { name: it.name, qty: 0, value: 0 };
+        const itemName = it.name || "Seafood Item";
+        const key = itemName.toLowerCase().trim();
+        const cur = prevMap.get(key) ?? { name: itemName, qty: 0, value: 0 };
         prevMap.set(key, {
-          name: it.name,
+          name: itemName,
           qty: cur.qty + Number(it.qty || 0),
           value: cur.value + Number(it.qty || 0) * Number(it.price || 0),
         });

@@ -30,14 +30,60 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
+  loader: async ({ context: { queryClient } }) => {
+    // Pre-warm the catalog queries in parallel to eliminate initial load freeze
+    await Promise.allSettled([
+      queryClient.ensureQueryData(bannersQuery),
+      queryClient.ensureQueryData(categoriesQuery),
+      queryClient.ensureQueryData(productsQuery()),
+      queryClient.ensureQueryData(settingsQuery),
+    ]);
+  },
   component: Home,
 });
 
+function ProductSkeletonGrid() {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div
+          key={i}
+          className="flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card p-3 shadow-2xs animate-pulse"
+        >
+          <div className="aspect-square w-full rounded-xl bg-muted/80 mb-2.5" />
+          <div className="h-4 w-3/4 rounded-md bg-muted/80 mb-1.5" />
+          <div className="h-3 w-1/2 rounded-md bg-muted/50 mb-3" />
+          <div className="mt-auto flex items-center justify-between pt-1">
+            <div className="h-5 w-16 rounded-md bg-muted/80" />
+            <div className="h-8 w-16 rounded-xl bg-muted/80" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CategorySkeletons() {
+  return (
+    <div className="flex gap-4 overflow-x-auto pb-3 pt-1 no-scrollbar scrollbar-none scroll-smooth -mx-1 px-1 touch-pan-x">
+      {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+        <div
+          key={i}
+          className="flex min-w-[76px] flex-col items-center gap-1.5 text-center shrink-0 animate-pulse"
+        >
+          <div className="size-16 rounded-full bg-muted/80 border border-border/80" />
+          <div className="h-3 w-14 rounded-md bg-muted/60 mt-1" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Home() {
   const { activeBranch, setIsLocationModalOpen } = useCustomerBranch();
-  const { data: banners } = useQuery(bannersQuery);
-  const { data: categories } = useQuery(categoriesQuery);
-  const { data: products } = useQuery(productsQuery(activeBranch?.id));
+  const { data: banners, isLoading: isBannersLoading } = useQuery(bannersQuery);
+  const { data: categories, isLoading: isCategoriesLoading } = useQuery(categoriesQuery);
+  const { data: products, isLoading: isProductsLoading } = useQuery(productsQuery(activeBranch?.id));
   const { data: badges } = useQuery(trustBadgesQuery);
   const { data: settings } = useQuery(settingsQuery);
   const { t } = useTranslation();
@@ -129,7 +175,16 @@ function Home() {
         </div>
       )}
 
-      <BannerCarousel banners={banners ?? []} />
+      {isBannersLoading && (!banners || banners.length === 0) ? (
+        <div className="w-full aspect-[21/9] sm:aspect-[24/8] rounded-3xl bg-muted/40 animate-pulse border border-border/40 overflow-hidden flex items-center justify-center">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
+            <span className="size-2 rounded-full bg-primary/60 animate-ping" />
+            <span>Loading daily harbour catch deals...</span>
+          </div>
+        </div>
+      ) : (
+        <BannerCarousel banners={banners ?? []} />
+      )}
 
       <div className="mt-4">
         <TrustBadges badges={badges ?? []} />
@@ -144,59 +199,63 @@ function Home() {
             <span>&rarr;</span>
           </Link>
         </div>
-        <div 
-          className="flex gap-4 overflow-x-auto pb-3 pt-1 no-scrollbar scrollbar-none scroll-smooth -mx-1 px-1 touch-pan-x"
-          onWheel={(e) => {
-            if (e.deltaY !== 0 && Math.abs(e.deltaX) < 10) {
-              e.currentTarget.scrollLeft += e.deltaY;
-            }
-          }}
-        >
-          {/* All Catalog Card */}
-          <Link
-            to="/catalog"
-            preload="intent"
-            className="group flex min-w-[76px] flex-col items-center gap-1.5 text-center text-xs transition-transform active:scale-95 shrink-0"
+        {isCategoriesLoading && (!categories || categories.length === 0) ? (
+          <CategorySkeletons />
+        ) : (
+          <div 
+            className="flex gap-4 overflow-x-auto pb-3 pt-1 no-scrollbar scrollbar-none scroll-smooth -mx-1 px-1 touch-pan-x"
+            onWheel={(e) => {
+              if (e.deltaY !== 0 && Math.abs(e.deltaX) < 10) {
+                e.currentTarget.scrollLeft += e.deltaY;
+              }
+            }}
           >
-            <span className="size-16 overflow-hidden rounded-full border-2 border-dashed border-primary/40 bg-primary/5 flex items-center justify-center shadow-xs group-hover:border-primary group-hover:bg-primary/10 group-hover:shadow-md transition-all duration-200">
-              <span className="text-xl">🌊</span>
-            </span>
-            <span className="font-semibold text-foreground group-hover:text-primary transition-colors leading-tight line-clamp-1">
-              All Items
-            </span>
-          </Link>
+            {/* All Catalog Card */}
+            <Link
+              to="/catalog"
+              preload="intent"
+              className="group flex min-w-[76px] flex-col items-center gap-1.5 text-center text-xs transition-transform active:scale-95 shrink-0"
+            >
+              <span className="size-16 overflow-hidden rounded-full border-2 border-dashed border-primary/40 bg-primary/5 flex items-center justify-center shadow-xs group-hover:border-primary group-hover:bg-primary/10 group-hover:shadow-md transition-all duration-200">
+                <span className="text-xl">🌊</span>
+              </span>
+              <span className="font-semibold text-foreground group-hover:text-primary transition-colors leading-tight line-clamp-1">
+                All Items
+              </span>
+            </Link>
 
-          {[...(categories ?? [])]
-            .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-            .map((c) => (
-              <Link
-                key={c.id}
-                to="/catalog"
-                search={{ category: c.name }}
-                preload="intent"
-                className="group flex min-w-[76px] flex-col items-center gap-1.5 text-center text-xs transition-transform active:scale-95 shrink-0"
-              >
-                <span className="size-16 overflow-hidden rounded-full border border-border/80 bg-card shadow-xs group-hover:border-primary group-hover:shadow-md transition-all duration-200">
-                  {c.image_url ? (
-                    <img
-                      src={c.image_url}
-                      alt={c.name}
-                      loading="lazy"
-                      decoding="async"
-                      className="size-full object-cover group-hover:scale-110 transition-transform duration-300"
-                    />
-                  ) : (
-                    <span className="size-full flex items-center justify-center bg-muted text-muted-foreground font-bold">
-                      {c.name.slice(0, 1)}
-                    </span>
-                  )}
-                </span>
-                <span className="font-semibold text-foreground group-hover:text-primary transition-colors leading-tight line-clamp-2 max-w-[80px]">
-                  {c.name}
-                </span>
-              </Link>
-            ))}
-        </div>
+            {[...(categories ?? [])]
+              .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+              .map((c) => (
+                <Link
+                  key={c.id}
+                  to="/catalog"
+                  search={{ category: c.name }}
+                  preload="intent"
+                  className="group flex min-w-[76px] flex-col items-center gap-1.5 text-center text-xs transition-transform active:scale-95 shrink-0"
+                >
+                  <span className="size-16 overflow-hidden rounded-full border border-border/80 bg-card shadow-xs group-hover:border-primary group-hover:shadow-md transition-all duration-200">
+                    {c.image_url ? (
+                      <img
+                        src={c.image_url}
+                        alt={c.name}
+                        loading="lazy"
+                        decoding="async"
+                        className="size-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                    ) : (
+                      <span className="size-full flex items-center justify-center bg-muted text-muted-foreground font-bold">
+                        {c.name.slice(0, 1)}
+                      </span>
+                    )}
+                  </span>
+                  <span className="font-semibold text-foreground group-hover:text-primary transition-colors leading-tight line-clamp-2 max-w-[80px]">
+                    {c.name}
+                  </span>
+                </Link>
+              ))}
+          </div>
+        )}
       </section>
 
       <section className="mt-8">
@@ -206,11 +265,15 @@ function Home() {
             {t("home.view_all")} &rarr;
           </Link>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {featured.map((p) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
+        {isProductsLoading && featured.length === 0 ? (
+          <ProductSkeletonGrid />
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {featured.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="mt-8">
@@ -220,11 +283,15 @@ function Home() {
             {t("home.view_all")} &rarr;
           </Link>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {bestsellers.map((p) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
+        {isProductsLoading && bestsellers.length === 0 ? (
+          <ProductSkeletonGrid />
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {bestsellers.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        )}
       </section>
     </AppShell>
   );

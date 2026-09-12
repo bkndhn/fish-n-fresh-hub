@@ -28,6 +28,7 @@ export function getProductsQuery(branchId?: string) {
     queryKey: ["products", effectiveBranch],
     staleTime: 1000 * 60 * 10, // 10 minutes fresh cache
     gcTime: 1000 * 60 * 60 * 24, // 24 hours persistence
+    placeholderData: (previousData) => previousData,
     queryFn: async (): Promise<Product[]> => {
       let q = supabase
         .from("products")
