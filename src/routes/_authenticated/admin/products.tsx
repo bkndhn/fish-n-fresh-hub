@@ -20,6 +20,7 @@ import {
   type ProductVisualPerspective,
 } from "@/lib/productImageGenerator";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";

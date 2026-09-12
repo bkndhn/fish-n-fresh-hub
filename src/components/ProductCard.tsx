@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "@tanstack/react-router";
 import { Minus, Plus, Star, Fish, Zap, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -51,7 +52,12 @@ export function ProductCard({ product }: { product: Product }) {
       )}
     >
       <div className="block relative">
-        <div className="aspect-[4/3] overflow-hidden bg-muted">
+        <Link
+          to="/product/$id"
+          params={{ id: product.id }}
+          preload="intent"
+          className="block aspect-[4/3] overflow-hidden bg-muted"
+        >
           {product.image_url ? (
             <img
               src={optimizeImageUrl(product.image_url, { width: 500, quality: 75 })}
@@ -72,10 +78,10 @@ export function ProductCard({ product }: { product: Product }) {
               <Fish className="size-8 opacity-30" />
             </div>
           )}
-        </div>
+        </Link>
 
         {/* Status / Discount Badges */}
-        <div className="absolute top-2 left-2 flex flex-col gap-1">
+        <div className="absolute top-2 left-2 flex flex-col gap-1 pointer-events-none">
           {isOutOfStock ? (
             <span className="rounded-md bg-rose-600/90 backdrop-blur-xs px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
               Sold Out
@@ -114,7 +120,7 @@ export function ProductCard({ product }: { product: Product }) {
             </span>
           </div>
         ) : !isOutOfStock && ((settings as any)?.express_delivery_enabled ?? true) ? (
-          <div className="absolute top-2 right-2">
+          <div className="absolute top-2 right-2 pointer-events-none">
             <span className="rounded-md bg-black/65 backdrop-blur-md px-1.5 py-0.5 text-[9px] font-mono font-bold text-amber-300 flex items-center gap-0.5 shadow-xs border border-white/10">
               <Zap className="size-2.5 fill-amber-400 text-amber-400" />
               {(settings as any)?.express_sla_mins || 35}m
@@ -123,12 +129,17 @@ export function ProductCard({ product }: { product: Product }) {
         ) : null}
       </div>
       <div className="space-y-1 p-3">
-        <div className="block">
-          <h3 className="line-clamp-1 text-sm font-semibold">{product.name}</h3>
+        <Link
+          to="/product/$id"
+          params={{ id: product.id }}
+          preload="intent"
+          className="block group/title"
+        >
+          <h3 className="line-clamp-1 text-sm font-semibold group-hover/title:text-primary transition-colors">{product.name}</h3>
           {product.name_tamil && (
             <p className="line-clamp-1 text-xs text-muted-foreground">{product.name_tamil}</p>
           )}
-        </div>
+        </Link>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <Star className="size-3 fill-current text-accent" />
           {Number(product.rating).toFixed(1)}

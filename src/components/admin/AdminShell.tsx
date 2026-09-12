@@ -105,8 +105,8 @@ export function AdminShell({
   const primaryNav = nav.filter((item) => PRIMARY_MOBILE_PATHS.includes(item.to));
   const moreNav = nav.filter((item) => !PRIMARY_MOBILE_PATHS.includes(item.to));
 
-  if (isLoading) {
-    return <div className="p-10 text-center text-sm text-muted-foreground">Loading console...</div>;
+  if (isLoading && !roles) {
+    return <div className="p-10 text-center text-sm text-muted-foreground animate-pulse">Loading console...</div>;
   }
 
   if (!allowed) {
@@ -226,6 +226,7 @@ export function AdminShell({
               <Link
                 key={item.to}
                 to={item.to}
+                preload="intent"
                 activeOptions={{ exact: Boolean((item as { exact?: boolean }).exact) }}
                 activeProps={{ className: "bg-primary text-primary-foreground hover:bg-primary shadow-xs" }}
                 className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
@@ -257,6 +258,7 @@ export function AdminShell({
               <li key={item.to} className="flex-1 flex justify-center">
                 <Link
                   to={item.to}
+                  preload="intent"
                   activeOptions={{ exact: Boolean((item as { exact?: boolean }).exact) }}
                   className="group relative flex flex-col items-center justify-center gap-0.5 py-1.5 px-2 rounded-2xl w-full text-[10px] font-medium text-muted-foreground hover:text-foreground transition-all duration-200 active:scale-90 [&.active]:bg-primary/15 [&.active]:text-primary [&.active]:font-bold [&.active]:shadow-2xs"
                 >
@@ -303,6 +305,7 @@ export function AdminShell({
                         <Link
                           key={item.to}
                           to={item.to}
+                          preload="intent"
                           onClick={() => setMoreOpen(false)}
                           activeOptions={{ exact: Boolean((item as { exact?: boolean }).exact) }}
                           activeProps={{ className: "bg-primary/10 text-primary border-primary/40 font-bold shadow-xs" }}

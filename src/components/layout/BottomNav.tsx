@@ -1,4 +1,4 @@
-﻿import { Link } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { Home, LayoutGrid, ReceiptText, ShoppingCart, Shield } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { myRolesQuery } from "@/lib/admin";
@@ -27,6 +27,7 @@ export function BottomNav() {
             <li key={to} className="flex-1 flex justify-center">
               <Link
                 to={to}
+                preload="intent"
                 activeOptions={{ exact: to === "/" }}
                 className="group relative flex flex-col items-center justify-center gap-0.5 py-1.5 px-2.5 rounded-2xl w-full text-[10px] font-medium text-muted-foreground hover:text-foreground transition-all duration-200 active:scale-90 [&.active]:bg-primary/15 [&.active]:text-primary [&.active]:font-bold [&.active]:shadow-2xs"
               >
@@ -47,6 +48,7 @@ export function BottomNav() {
             <li className="flex-1 flex justify-center">
               <Link
                 to="/admin"
+                preload="intent"
                 className="group relative flex flex-col items-center justify-center gap-0.5 py-1.5 px-2.5 rounded-2xl w-full text-[10px] font-medium text-primary/80 hover:text-primary transition-all duration-200 active:scale-90 [&.active]:bg-primary/20 [&.active]:text-primary [&.active]:font-bold [&.active]:shadow-2xs"
               >
                 <Shield className="size-4.5 transition-transform duration-200 group-hover:scale-110" />

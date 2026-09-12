@@ -208,6 +208,7 @@ export function CategoryManagement() {
     if (targetIndex < 0 || targetIndex >= sortedCategories.length) return;
 
     const targetCat = sortedCategories[targetIndex];
+    if (!targetCat) return;
 
     const currentOrder = cat.sort_order ?? currentIndex;
     const targetOrder = targetCat.sort_order ?? targetIndex;

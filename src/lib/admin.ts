@@ -65,6 +65,8 @@ export const ORDER_STATUSES = [
 
 export const adminRoleQuery = queryOptions({
   queryKey: ["admin", "role"],
+  staleTime: 1000 * 60 * 15,
+  gcTime: 1000 * 60 * 60,
   queryFn: async () => {
     const { data, error } = await supabase.rpc("is_admin");
     if (error) throw error;
@@ -131,6 +133,8 @@ export const adminProductsQuery = Object.assign(
 
 export const adminPromotionsQuery = queryOptions({
   queryKey: ["admin", "promotions"],
+  staleTime: 1000 * 60 * 5,
+  gcTime: 1000 * 60 * 30,
   queryFn: async (): Promise<PromotionRow[]> => {
     const { data, error } = await supabase
       .from("promotions")
@@ -195,6 +199,8 @@ export const adminCustomersQuery = Object.assign(
 
 export const adminSuspensionsQuery = queryOptions({
   queryKey: ["admin", "suspensions"],
+  staleTime: 1000 * 60 * 5,
+  gcTime: 1000 * 60 * 30,
   queryFn: async (): Promise<Record<string, string>> => {
     const { data, error } = await supabase.from("customer_suspensions").select("phone, reason");
     if (error) throw error;
@@ -219,9 +225,11 @@ export type AppRole =
 
 export const myRolesQuery = queryOptions({
   queryKey: ["admin", "my-roles"],
+  staleTime: 1000 * 60 * 15, // 15 minutes fresh in-memory cache
+  gcTime: 1000 * 60 * 60, // 1 hour garbage collection
   queryFn: async (): Promise<AppRole[]> => {
-    const { data: session } = await supabase.auth.getUser();
-    const uid = session.user?.id;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const uid = sessionData.session?.user?.id;
     if (!uid) return [];
     const { data, error } = await supabase.from("user_roles").select("role").eq("user_id", uid);
     if (error) throw error;

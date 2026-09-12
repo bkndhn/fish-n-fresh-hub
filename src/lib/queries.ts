@@ -26,6 +26,8 @@ export function getProductsQuery(branchId?: string) {
   const effectiveBranch = branchId || "all";
   return queryOptions({
     queryKey: ["products", effectiveBranch],
+    staleTime: 1000 * 60 * 10, // 10 minutes fresh cache
+    gcTime: 1000 * 60 * 60 * 24, // 24 hours persistence
     queryFn: async (): Promise<Product[]> => {
       let q = supabase
         .from("products")
@@ -63,6 +65,8 @@ export const productsQuery = Object.assign(
 
 export const categoriesQuery = queryOptions({
   queryKey: ["categories"],
+  staleTime: 1000 * 60 * 15,
+  gcTime: 1000 * 60 * 60 * 24,
   queryFn: async (): Promise<Category[]> => {
     const { data, error } = await supabase.from("categories").select("*").order("sort_order");
     if (error) throw error;
@@ -72,6 +76,8 @@ export const categoriesQuery = queryOptions({
 
 export const bannersQuery = queryOptions({
   queryKey: ["banners"],
+  staleTime: 1000 * 60 * 15,
+  gcTime: 1000 * 60 * 60 * 24,
   queryFn: async (): Promise<Banner[]> => {
     const { data, error } = await supabase
       .from("banners")
@@ -85,6 +91,8 @@ export const bannersQuery = queryOptions({
 
 export const settingsQuery = queryOptions({
   queryKey: ["store_settings"],
+  staleTime: 1000 * 60 * 15,
+  gcTime: 1000 * 60 * 60 * 24,
   queryFn: async () => {
     const { data, error } = await supabase.from("store_settings").select("*").limit(1).maybeSingle();
     if (error) throw error;
@@ -95,6 +103,8 @@ export const settingsQuery = queryOptions({
 export function productQuery(id: string) {
   return queryOptions({
     queryKey: ["product", id],
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 60 * 24,
     queryFn: async (): Promise<Product | null> => {
       const { data, error } = await supabase.from("products").select("*").eq("id", id).maybeSingle();
       if (error) throw error;
@@ -108,6 +118,7 @@ export function ordersByPhoneQuery(phone: string) {
   return queryOptions({
     queryKey: ["orders", phone],
     enabled: phone.length >= 10,
+    staleTime: 1000 * 60 * 2,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
@@ -130,6 +141,8 @@ export type TrustBadge = {
 
 export const trustBadgesQuery = queryOptions({
   queryKey: ["trust_badges"],
+  staleTime: 1000 * 60 * 15,
+  gcTime: 1000 * 60 * 60 * 24,
   queryFn: async (): Promise<TrustBadge[]> => {
     const { data, error } = await supabase
       .from("trust_badges")
@@ -143,6 +156,8 @@ export const trustBadgesQuery = queryOptions({
 
 export const adminTrustBadgesQuery = queryOptions({
   queryKey: ["admin", "trust_badges"],
+  staleTime: 1000 * 60 * 15,
+  gcTime: 1000 * 60 * 60 * 24,
   queryFn: async (): Promise<TrustBadge[]> => {
     const { data, error } = await supabase.from("trust_badges").select("*").order("sort_order");
     if (error) throw error;

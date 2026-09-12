@@ -139,7 +139,7 @@ function Home() {
       <section className="mt-6">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-bold">{t("home.categories")}</h2>
-          <Link to="/catalog" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
+          <Link to="/catalog" preload="intent" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
             <span>{t("home.view_all")}</span>
             <span>&rarr;</span>
           </Link>
@@ -155,6 +155,7 @@ function Home() {
           {/* All Catalog Card */}
           <Link
             to="/catalog"
+            preload="intent"
             className="group flex min-w-[76px] flex-col items-center gap-1.5 text-center text-xs transition-transform active:scale-95 shrink-0"
           >
             <span className="size-16 overflow-hidden rounded-full border-2 border-dashed border-primary/40 bg-primary/5 flex items-center justify-center shadow-xs group-hover:border-primary group-hover:bg-primary/10 group-hover:shadow-md transition-all duration-200">
@@ -172,6 +173,7 @@ function Home() {
                 key={c.id}
                 to="/catalog"
                 search={{ category: c.name }}
+                preload="intent"
                 className="group flex min-w-[76px] flex-col items-center gap-1.5 text-center text-xs transition-transform active:scale-95 shrink-0"
               >
                 <span className="size-16 overflow-hidden rounded-full border border-border/80 bg-card shadow-xs group-hover:border-primary group-hover:shadow-md transition-all duration-200">
