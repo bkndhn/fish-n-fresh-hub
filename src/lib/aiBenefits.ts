@@ -252,7 +252,7 @@ export async function getOrGenerateProductAiBenefits(product: Product): Promise<
         benefits_hi: Array.isArray(existing.benefits_hi) ? existing.benefits_hi as string[] : [],
         cooking_tips: Array.isArray(existing.cooking_tips) ? existing.cooking_tips as string[] : [],
         disclaimer: existing.disclaimer || AI_BENEFITS_DISCLAIMER,
-        generated_at: existing.generated_at || undefined,
+        generated_at: existing.generated_at || "",
         model_used: existing.model_used || "lovable-ai-v1",
       };
     }
@@ -273,8 +273,8 @@ export async function getOrGenerateProductAiBenefits(product: Product): Promise<
         benefits_hi: generated.benefits_hi,
         cooking_tips: generated.cooking_tips,
         disclaimer: generated.disclaimer,
-        model_used: generated.model_used,
-        generated_at: generated.generated_at,
+        model_used: generated.model_used || "",
+        generated_at: generated.generated_at || "",
       },
       { onConflict: "product_id" }
     );
@@ -285,3 +285,7 @@ export async function getOrGenerateProductAiBenefits(product: Product): Promise<
     return generateSeafoodAiProfile(product);
   }
 }
+
+
+
+

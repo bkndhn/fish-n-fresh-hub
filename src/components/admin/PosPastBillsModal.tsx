@@ -90,7 +90,7 @@ export function PosPastBillsModal({
         .limit(300);
 
       if (error) throw error;
-      return (data || []) as import("@/lib/admin").OrderRow[];
+      return (data || []) as unknown as PosOrderRow[];
     },
     enabled: open,
   });
@@ -170,8 +170,8 @@ export function PosPastBillsModal({
         .from("orders")
         .update({
           status: "cancelled",
-          cancellation_reason: reason || "Voided at POS counter",
-          cancelled_at: new Date().toISOString(),
+          cancel_reason: reason || "Voided at POS counter",
+          
         })
         .eq("id", order.id);
 
@@ -202,10 +202,7 @@ export function PosPastBillsModal({
       // Increment reprint counter in database for audit trail
       await supabase
         .from("orders")
-        .update({
-          reprint_count: reprintCount,
-          last_reprinted_at: new Date().toISOString(),
-        })
+        .update({ reprint_count: reprintCount, last_reprinted_at: new Date().toISOString() } as unknown as import("@/integrations/supabase/types").Database["public"]["Tables"]["orders"]["Update"])
         .eq("id", order.id);
 
       const items: PosReceiptItem[] = (order.items || order.order_items || []).map((it: any) => ({
@@ -660,5 +657,15 @@ export function PosPastBillsModal({
     </>
   );
 }
+
+
+
+
+
+
+
+
+
+
 
 

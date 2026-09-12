@@ -81,7 +81,7 @@ export function GoLiveChecklistModal({
 
   const paymentsConfigured = isPaymentsConfigured();
   const stripeEnv = getStripeEnvironment();
-  const stripeKey = String((settings as Record<string, unknown>)?.stripe_publishable_key || "");
+  const stripeKey = String((settings as Record<string, unknown>)?.["stripe_publishable_key"] || "");
   const isLiveKeys = stripeKey.startsWith("pk_live_") || stripeKey.startsWith("rzp_live_") || stripeEnv === "live";
 
   const hasEmailSender = Boolean((settings as SiteSettings)?.resend_api_key || (settings as SiteSettings)?.sender_email);
@@ -344,4 +344,5 @@ export function GoLiveChecklistModal({
     </Dialog>
   );
 }
+
 

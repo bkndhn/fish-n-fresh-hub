@@ -70,7 +70,7 @@ export const listAllCustomersDetailed = createServerFn({ method: "GET" })
             spent: amt,
             lastOrder: o.created_at,
             name: o.customer_name || "",
-            userId: o.user_id || undefined,
+            userId: o.user_id || "",
           });
         }
       }
@@ -186,3 +186,6 @@ export const listAllCustomersDetailed = createServerFn({ method: "GET" })
 
     return fallbackList.sort((a, b) => b.lifetimeSpent - a.lifetimeSpent);
   });
+
+
+

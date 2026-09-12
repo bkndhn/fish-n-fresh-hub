@@ -121,7 +121,7 @@ export const executeBatchRecall = createServerFn({ method: "POST" })
     const impactedOrders: BatchRecallReport["impactedOrders"] = [];
     const customerPhoneSet = new Set<string>();
 
-    orders.forEach((o: any) => {
+    (orders || []).forEach((o: any) => {
       const items = Array.isArray(o.items) ? o.items : [];
       const hasProduct = items.some(
         (it: any) =>
@@ -155,3 +155,4 @@ export const executeBatchRecall = createServerFn({ method: "POST" })
       totalQuantityRecalled: Number(batch.current_quantity || batch.initial_quantity),
     };
   });
+

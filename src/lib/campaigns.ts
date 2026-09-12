@@ -88,13 +88,15 @@ export async function recordCampaignConversion(
       .maybeSingle();
 
     if (current) {
-      const newVal = (Number(current[column]) || 0) + 1;
+      const newVal = (Number((current as Record<string, number | null>)[column]) || 0) + 1;
       await supabase
         .from("marketing_campaigns")
-        .update({ [column]: newVal, updated_at: new Date().toISOString() })
+        .update({ [column]: newVal, updated_at: new Date().toISOString() } as import("@/integrations/supabase/types").Database["public"]["Tables"]["marketing_campaigns"]["Update"])
         .eq("id", campaignId);
     }
   } catch (err) {
     console.warn("[Campaigns] Conversion recording note:", err);
   }
 }
+
+

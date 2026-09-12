@@ -114,13 +114,13 @@ export function CategoryManagement() {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)/g, "");
 
-      const { error } = await supabase.from("categories").insert({
+      const { error } = await (supabase as unknown as import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database, "public", import("@/integrations/supabase/types").Database["public"]>).from("categories").insert({
         name: newName.trim(),
         slug: slug,
         image_url: newImageUrl.trim() || null,
         icon: newTamilName.trim() || null,
         sort_order: Number(newSortOrder) || 0,
-      });
+      }).select();
 
       if (error) throw error;
 
@@ -148,8 +148,7 @@ export function CategoryManagement() {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)/g, "");
 
-      const { error } = await supabase
-        .from("categories")
+      const { error } = await (supabase as unknown as import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database, "public", import("@/integrations/supabase/types").Database["public"]>).from("categories")
         .update({
           name: editName.trim(),
           slug: slug,
@@ -184,10 +183,8 @@ export function CategoryManagement() {
   const handleDeleteCategory = async () => {
     if (!deletingCategory) return;
     try {
-      const { error } = await supabase
-        .from("categories")
-        .delete()
-        .eq("id", deletingCategory.id);
+      const { error } = await (supabase as unknown as import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database, "public", import("@/integrations/supabase/types").Database["public"]>).from("categories")
+        .delete().eq("id", deletingCategory.id).select();
 
       if (error) throw error;
 
@@ -218,8 +215,8 @@ export function CategoryManagement() {
 
     try {
       await Promise.all([
-        supabase.from("categories").update({ sort_order: newCurrentOrder }).eq("id", cat.id),
-        supabase.from("categories").update({ sort_order: newTargetOrder }).eq("id", targetCat.id),
+        (supabase as unknown as import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database, "public", import("@/integrations/supabase/types").Database["public"]>).from("categories").update({ sort_order: newCurrentOrder }).eq("id", cat.id),
+        (supabase as unknown as import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database, "public", import("@/integrations/supabase/types").Database["public"]>).from("categories").update({ sort_order: newTargetOrder }).eq("id", targetCat.id),
       ]);
       await qc.invalidateQueries({ queryKey: ["categories"] });
       toast.success(`Reordered "${cat.name}"`);
@@ -622,3 +619,5 @@ export function CategoryManagement() {
     </div>
   );
 }
+
+
