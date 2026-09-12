@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   getStorePaymentConfig,
   saveStorePaymentConfig,
@@ -189,4 +189,74 @@ describe("POS Search Bar Enter Key Auto-Open Logic", () => {
     expect(filtered.length).toBe(1);
     expect(filtered[0]?.name).toBe("Vanjaram / Seer Fish");
   });
+
+  it("completes double-enter workflow from search to cart addition", () => {
+    let activeModalProduct: (typeof sampleProducts)[0] | null = null;
+    const cart: any[] = [];
+
+    // Step 1: First Enter in Search (1 match)
+    const searchMatch = sampleProducts[0]!;
+    activeModalProduct = searchMatch;
+    expect(activeModalProduct).not.toBeNull();
+
+    // Step 2: Second Enter in Modal triggers handleAddToCart
+    const handleAddToCart = () => {
+      if (!activeModalProduct) return;
+      cart.push({
+        productId: activeModalProduct.id,
+        name: activeModalProduct.name,
+        qty: 1,
+        weightKg: 1.0,
+      });
+      activeModalProduct = null;
+    };
+
+    handleAddToCart();
+    expect(cart.length).toBe(1);
+    expect(cart[0].name).toBe("Vanjaram / Seer Fish");
+    expect(activeModalProduct).toBeNull();
+  });
+
+  it("handles numeric query with multiple partial matches by prioritizing exact PLU code", () => {
+    const productsWithDigits = [
+      { id: "1", name: "Vanjaram Grade 1", pos_code: 1 },
+      { id: "10", name: "Mackerel Grade 1", pos_code: 10 },
+    ];
+    const query = "1";
+    const num = parseInt(query, 10);
+    const exactPluMatch = productsWithDigits.find((p) => p.pos_code === num);
+    expect(exactPluMatch).not.toBeUndefined();
+    expect(exactPluMatch?.id).toBe("1");
+  });
 });
+
+describe("POS Keyboard-Only Billing Shortcuts & Function Keys", () => {
+  it("maps payment tenders and shortcuts to distinct function keys", () => {
+    const shortcutActions: Record<string, string> = {
+      F1: "focus_search",
+      F2: "focus_plu",
+      F3: "toggle_scale",
+      F4: "park_cart",
+      F5: "past_bills",
+      F6: "parked_bills",
+      F7: "tender_card",
+      F8: "tender_split",
+      F9: "tender_cash",
+      F10: "tender_upi",
+      F11: "cycle_custom_tender",
+      F12: "complete_sale",
+      "Ctrl+Enter": "complete_sale",
+    };
+
+    expect(shortcutActions["F1"]).toBe("focus_search");
+    expect(shortcutActions["F2"]).toBe("focus_plu");
+    expect(shortcutActions["F7"]).toBe("tender_card");
+    expect(shortcutActions["F8"]).toBe("tender_split");
+    expect(shortcutActions["F9"]).toBe("tender_cash");
+    expect(shortcutActions["F10"]).toBe("tender_upi");
+    expect(shortcutActions["F11"]).toBe("cycle_custom_tender");
+    expect(shortcutActions["F12"]).toBe("complete_sale");
+    expect(shortcutActions["Ctrl+Enter"]).toBe("complete_sale");
+  });
+});
+

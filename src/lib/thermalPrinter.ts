@@ -254,6 +254,12 @@ export async function connectBluetoothPrinter(): Promise<string> {
 
     if (!charFound) throw new Error("Connected to printer, but no writable serial characteristic found.");
 
+    if (device?.id) {
+      try {
+        localStorage.setItem("fnf_paired_bt_device_id", device.id);
+      } catch {}
+    }
+
     activeBluetoothDevice = device;
     activeBluetoothCharacteristic = charFound;
     return device.name || "Bluetooth Thermal Printer";
@@ -275,10 +281,96 @@ export async function connectSerialUsbPrinter(): Promise<string> {
     await port.open({ baudRate: 9600 });
     activeSerialPort = port;
     activeSerialWriter = port.writable.getWriter();
+    try {
+      localStorage.setItem("fnf_paired_serial_usb", "true");
+    } catch {}
     return "USB Thermal Receipt Printer";
   } catch (err: any) {
     throw new Error(`USB Serial Connection Failed: ${err.message}`);
   }
+}
+
+/**
+ * Auto-reconnect previously authorized Bluetooth or USB Serial printers without user prompts.
+ */
+export async function autoReconnectSavedPrinters(): Promise<boolean> {
+  const config = getSavedPrinterConfig();
+  if (config.type === "none" || config.type === "browser_print") {
+    return false;
+  }
+
+  // 1. Auto-reconnect Web Serial USB printer
+  if (config.type === "serial_usb" && typeof navigator !== "undefined" && "serial" in navigator) {
+    try {
+      if (!activeSerialPort || !activeSerialWriter) {
+        const ports = await (navigator as any).serial.getPorts();
+        if (ports && ports.length > 0) {
+          const port = ports[0];
+          await port.open({ baudRate: 9600 });
+          activeSerialPort = port;
+          activeSerialWriter = port.writable.getWriter();
+          console.info("[ThermalPrinter] Auto-reconnected to authorized USB Serial printer");
+          return true;
+        }
+      }
+    } catch (err) {
+      console.debug("[ThermalPrinter] Serial USB auto-reconnect notice:", err);
+    }
+  }
+
+  // 2. Auto-reconnect Web Bluetooth printer
+  if (config.type === "bluetooth" && typeof navigator !== "undefined" && "bluetooth" in navigator) {
+    try {
+      if (!activeBluetoothDevice || !activeBluetoothCharacteristic) {
+        const bt = (navigator as any).bluetooth;
+        if (typeof bt.getDevices === "function") {
+          const devices = await bt.getDevices();
+          if (devices && devices.length > 0) {
+            const savedId = typeof window !== "undefined" ? localStorage.getItem("fnf_paired_bt_device_id") : null;
+            const targetDevice = savedId ? (devices.find((d: any) => d.id === savedId) || devices[0]) : devices[0];
+            const server = await targetDevice.gatt?.connect();
+            if (server) {
+              const services = await server.getPrimaryServices();
+              let charFound = null;
+              for (const service of services) {
+                const chars = await service.getCharacteristics();
+                for (const char of chars) {
+                  if (char.properties.write || char.properties.writeWithoutResponse) {
+                    charFound = char;
+                    break;
+                  }
+                }
+                if (charFound) break;
+              }
+              if (charFound) {
+                activeBluetoothDevice = targetDevice;
+                activeBluetoothCharacteristic = charFound;
+                console.info("[ThermalPrinter] Auto-reconnected to paired Bluetooth printer:", targetDevice.name);
+                return true;
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.debug("[ThermalPrinter] Bluetooth auto-reconnect notice:", err);
+    }
+  }
+
+  return false;
+}
+
+// Global listener for USB printer hotplug
+if (typeof window !== "undefined" && typeof navigator !== "undefined" && "serial" in navigator && (navigator as any).serial?.addEventListener) {
+  try {
+    (navigator as any).serial.addEventListener("connect", () => {
+      autoReconnectSavedPrinters();
+    });
+    (navigator as any).serial.addEventListener("disconnect", () => {
+      activeSerialPort = null;
+      activeSerialWriter = null;
+    });
+  } catch {}
 }
 
 /**

@@ -76,6 +76,7 @@ import {
   generatePosWhatsAppText,
   getPosWhatsAppShareUrl,
   isHardwarePrinterConnected,
+  autoReconnectSavedPrinters,
   type PosReceiptData,
   type PosReceiptItem,
 } from "@/lib/thermalPrinter";
@@ -210,6 +211,7 @@ export function RetailPosCounterPage() {
   const { selectedBranchId, selectedBranch } = useAdminBranch();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const quickCodeInputRef = useRef<HTMLInputElement>(null);
+  const modalWeightInputRef = useRef<HTMLInputElement>(null);
   const [quickCodeInput, setQuickCodeInput] = useState("");
   const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
   const { data: rawProducts = [], isLoading: productsLoading } = useQuery(adminProductsQuery());
@@ -502,23 +504,9 @@ export function RetailPosCounterPage() {
     });
   }, []);
 
-  // Quick Mode Keydown Handler (F1: Search, F2 or /: Quick PLU entry)
+  // Auto-reconnect paired hardware printers on mount
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "F1") {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      } else if (e.key === "F2") {
-        e.preventDefault();
-        quickCodeInputRef.current?.focus();
-      } else if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
-        e.preventDefault();
-        quickCodeInputRef.current?.focus();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    autoReconnectSavedPrinters();
   }, []);
 
   // Fast PLU Code Selector
@@ -890,6 +878,9 @@ export function RetailPosCounterPage() {
     setActiveItemModal(null);
     setSearchQuery("");
     setQuickCodeInput("");
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 50);
     toast.success(`Added ${newItem.name} (${newItem.weightKg ? `${newItem.weightKg} kg` : `${newItem.qty} pcs`}) to bill`);
   };
 
@@ -1051,64 +1042,6 @@ export function RetailPosCounterPage() {
   const splitUpiDeepLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${splitUpiNum}&cu=INR&tn=${encodeURIComponent(`Counter Bill Split UPI`)}`;
   const splitUpiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(splitUpiDeepLink)}`;
 
-  // Desktop keyboard shortcuts (F1-F12, Esc)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "F1") {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      } else if (e.key === "F2") {
-        e.preventDefault();
-        handleClearBill();
-      } else if (e.key === "F4") {
-        e.preventDefault();
-        handleParkCart();
-      } else if (e.key === "F5") {
-        e.preventDefault();
-        setPastBillsModalOpen((prev) => !prev);
-      } else if (e.key === "F8") {
-        e.preventDefault();
-        setPaymentMode("split");
-      } else if (e.key === "F9") {
-        e.preventDefault();
-        setPaymentMode("cash");
-      } else if (e.key === "F10") {
-        e.preventDefault();
-        setPaymentMode("upi");
-      } else if (e.key === "F12") {
-        e.preventDefault();
-        if (!processingOrder && cart.length > 0) {
-          completeSale();
-        }
-      } else if (e.key === "Escape") {
-        if (activeItemModal) setActiveItemModal(null);
-        if (pastBillsModalOpen) setPastBillsModalOpen(false);
-        if (parkedModalOpen) setParkedModalOpen(false);
-        if (printerModalOpen) setPrinterModalOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
-    cart,
-    processingOrder,
-    activeItemModal,
-    pastBillsModalOpen,
-    parkedModalOpen,
-    printerModalOpen,
-    totalPayable,
-    tenderedNum,
-    splitCashNum,
-    splitUpiNum,
-    splitCardNum,
-    splitTotalAllocated,
-    splitRemaining,
-    customerName,
-    customerPhone,
-    discountAmount,
-    parkedCarts,
-  ]);
 
   // Complete Retail Sale Mutation
   const completeSale = async () => {
@@ -1344,6 +1277,172 @@ export function RetailPosCounterPage() {
     await sendEscPosToPrinter(escPosBytes, printerConfig, fallbackHtml);
     toast.success(`Reprinted Bill #${lastReceipt.receiptNo} with Audit Mark`);
   };
+
+  // Complete Keyboard-Only POS Billing Shortcut Engine (F1-F12, Ctrl+Enter, Esc, Shift+Del)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 1. Complete Sale via Ctrl+Enter or Cmd+Enter
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        if (!processingOrder && cart.length > 0 && !activeItemModal) {
+          completeSale();
+        } else if (cart.length === 0) {
+          toast.warning("Cart is empty! Add products first [F1 / F2]");
+        }
+        return;
+      }
+
+      // 2. Clear Bill via Alt+C or Shift+Delete
+      if ((e.altKey && e.key.toLowerCase() === "c") || (e.shiftKey && e.key === "Delete")) {
+        e.preventDefault();
+        handleClearBill();
+        toast.info("Bill cleared");
+        return;
+      }
+
+      // 3. F1: Focus search input
+      if (e.key === "F1") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+      // 4. F2 or / (when not typing in an input): Focus PLU / Barcode input
+      else if (
+        e.key === "F2" ||
+        (e.key === "/" &&
+          document.activeElement?.tagName !== "INPUT" &&
+          document.activeElement?.tagName !== "TEXTAREA")
+      ) {
+        e.preventDefault();
+        quickCodeInputRef.current?.focus();
+        quickCodeInputRef.current?.select();
+      }
+      // 5. F3: Toggle Weighing Scale Hardware Hub
+      else if (e.key === "F3") {
+        e.preventDefault();
+        setScaleModalOpen((prev) => !prev);
+      }
+      // 6. F4: Park current bill
+      else if (e.key === "F4") {
+        e.preventDefault();
+        handleParkCart();
+      }
+      // 7. F5: View Past Bills
+      else if (e.key === "F5") {
+        e.preventDefault();
+        setPastBillsModalOpen((prev) => !prev);
+      }
+      // 8. F6: View Parked Bills
+      else if (e.key === "F6") {
+        e.preventDefault();
+        setParkedModalOpen((prev) => !prev);
+      }
+      // 9. F7: Payment Tender -> Card Swipe
+      else if (e.key === "F7") {
+        e.preventDefault();
+        setPaymentMode("card");
+        toast.info("Tender: Card Swipe [F7]");
+      }
+      // 10. F8: Payment Tender -> Split
+      else if (e.key === "F8") {
+        e.preventDefault();
+        setPaymentMode("split");
+        toast.info("Tender: Split Payment [F8]");
+      }
+      // 11. F9: Payment Tender -> Cash
+      else if (e.key === "F9") {
+        e.preventDefault();
+        setPaymentMode("cash");
+        toast.info("Tender: Cash [F9]");
+      }
+      // 12. F10: Payment Tender -> UPI QR
+      else if (e.key === "F10") {
+        e.preventDefault();
+        setPaymentMode("upi");
+        toast.info("Tender: UPI QR [F10]");
+      }
+      // 13. F11: Payment Tender -> Cycle Custom Tenders (Sodexo, Store Credit, etc.)
+      else if (e.key === "F11") {
+        e.preventDefault();
+        const customTenders = storePaymentConfig.customMethods.filter((m) => m.isEnabled);
+        if (customTenders.length > 0) {
+          const curIdx = customTenders.findIndex((m) => m.id === paymentMode);
+          const nextIdx = (curIdx + 1) % customTenders.length;
+          const nextMethod = customTenders[nextIdx]!;
+          setPaymentMode(nextMethod.id);
+          toast.info(`Tender: ${nextMethod.name} [F11]`);
+        } else {
+          toast.info("No custom payment tenders configured in Settings.");
+        }
+      }
+      // 14. F12: Complete Sale (Save Bill & Print)
+      else if (e.key === "F12") {
+        e.preventDefault();
+        if (!processingOrder && cart.length > 0 && !activeItemModal) {
+          completeSale();
+        } else if (cart.length === 0) {
+          toast.warning("Cart is empty! Add products first [F1 / F2]");
+        }
+      }
+      // 15. Escape: Close open modals / clear search
+      else if (e.key === "Escape") {
+        if (activeItemModal) {
+          setActiveItemModal(null);
+          setTimeout(() => searchInputRef.current?.focus(), 50);
+        } else if (pastBillsModalOpen) {
+          setPastBillsModalOpen(false);
+        } else if (parkedModalOpen) {
+          setParkedModalOpen(false);
+        } else if (printerModalOpen) {
+          setPrinterModalOpen(false);
+        } else if (scaleModalOpen) {
+          setScaleModalOpen(false);
+        } else if (editingCartItem) {
+          setEditingCartItem(null);
+        } else if (searchQuery) {
+          setSearchQuery("");
+        } else if (quickCodeInput) {
+          setQuickCodeInput("");
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    cart,
+    processingOrder,
+    activeItemModal,
+    pastBillsModalOpen,
+    parkedModalOpen,
+    printerModalOpen,
+    scaleModalOpen,
+    editingCartItem,
+    totalPayable,
+    tenderedNum,
+    splitCashNum,
+    splitUpiNum,
+    splitCardNum,
+    splitTotalAllocated,
+    splitRemaining,
+    customerName,
+    customerPhone,
+    discountAmount,
+    parkedCarts,
+    searchQuery,
+    quickCodeInput,
+    storePaymentConfig,
+    paymentMode,
+    customPaymentRef,
+    changeDue,
+    cashierId,
+    cashierName,
+    selectedBranchId,
+    selectedBranch,
+    settings,
+    subtotal,
+    gstTotal,
+  ]);
 
   return (
     <AdminShell title="In-Store Retail POS Counter" allow={["admin", "cashier", "manager", "staff"]} fullWidth>
@@ -1735,8 +1834,17 @@ export function RetailPosCounterPage() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
+                      const trimmed = searchQuery.trim();
                       if (displayedProducts.length === 1) {
                         handleOpenItem(displayedProducts[0]);
+                      } else if (/^\d+$/.test(trimmed)) {
+                        const num = parseInt(trimmed, 10);
+                        const exactPlu = products.find(
+                          (p, idx) => p.pos_code === num || (!p.pos_code && idx + 1 === num)
+                        );
+                        if (exactPlu) {
+                          handleOpenItem(exactPlu);
+                        }
                       }
                     }
                   }}
@@ -2161,7 +2269,7 @@ export function RetailPosCounterPage() {
                         }`}
                         title="Cash tender [F9]"
                       >
-                        <Banknote className="size-3.5" /> Cash
+                        <Banknote className="size-3.5" /> Cash <kbd className="text-[9px] opacity-75 font-mono ml-0.5">F9</kbd>
                       </button>
                       <button
                         type="button"
@@ -2173,7 +2281,7 @@ export function RetailPosCounterPage() {
                         }`}
                         title="UPI QR payment [F10]"
                       >
-                        <QrCode className="size-3.5" /> UPI QR
+                        <QrCode className="size-3.5" /> UPI <kbd className="text-[9px] opacity-75 font-mono ml-0.5">F10</kbd>
                       </button>
                       <button
                         type="button"
@@ -2183,9 +2291,9 @@ export function RetailPosCounterPage() {
                             ? "bg-primary text-primary-foreground shadow-xs"
                             : "text-muted-foreground hover:text-foreground"
                         }`}
-                        title="Card Swipe"
+                        title="Card Swipe [F7]"
                       >
-                        <CreditCard className="size-3.5" /> Card
+                        <CreditCard className="size-3.5" /> Card <kbd className="text-[9px] opacity-75 font-mono ml-0.5">F7</kbd>
                       </button>
                       <button
                         type="button"
@@ -2197,7 +2305,7 @@ export function RetailPosCounterPage() {
                         }`}
                         title="Split payment [F8]"
                       >
-                        <Layers className="size-3.5" /> Split
+                        <Layers className="size-3.5" /> Split <kbd className="text-[9px] opacity-75 font-mono ml-0.5">F8</kbd>
                       </button>
                       {storePaymentConfig.customMethods
                         .filter((m) => m.isEnabled)
@@ -2211,9 +2319,9 @@ export function RetailPosCounterPage() {
                                 ? "bg-purple-600 text-white shadow-xs"
                                 : "text-muted-foreground hover:text-foreground"
                             }`}
-                            title={cm.description || cm.name}
+                            title={`${cm.description || cm.name} [F11]`}
                           >
-                            <CreditCard className="size-3.5" /> {cm.name}
+                            <CreditCard className="size-3.5" /> {cm.name} <kbd className="text-[9px] opacity-75 font-mono ml-0.5">F11</kbd>
                           </button>
                         ))}
                     </div>
@@ -2468,7 +2576,7 @@ export function RetailPosCounterPage() {
                       disabled={processingOrder}
                       onClick={completeSale}
                       className="w-full rounded-2xl h-12 text-sm font-bold shadow-md bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
-                      title="Complete and save / print bill [F12]"
+                      title="Complete and save / print bill [F12 or Ctrl+Enter]"
                     >
                       {processingOrder ? (
                         <span className="flex items-center gap-2">
@@ -2478,7 +2586,7 @@ export function RetailPosCounterPage() {
                       ) : (
                         <>
                           <CheckCircle2 className="size-4.5" />
-                          <span>Complete &amp; Save Bill ({formatINR(totalPayable)}) [F12]</span>
+                          <span>Complete &amp; Save Bill ({formatINR(totalPayable)}) <kbd className="text-[10px] bg-white/20 px-1 py-0.5 rounded font-mono ml-1">F12</kbd></span>
                         </>
                       )}
                     </Button>
@@ -2532,7 +2640,23 @@ export function RetailPosCounterPage() {
       {/* Item Weighing Scale & Cutting Style Customizer Modal (Fixed Decimal Weight Input < 1kg) */}
       {activeItemModal && (
         <Dialog open={!!activeItemModal} onOpenChange={(open) => !open && setActiveItemModal(null)}>
-          <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md p-0 overflow-hidden rounded-3xl border-border/80 shadow-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent
+            onOpenAutoFocus={(e) => {
+              e.preventDefault();
+              setTimeout(() => {
+                modalWeightInputRef.current?.focus();
+                modalWeightInputRef.current?.select();
+              }, 30);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                handleAddToCart();
+              }
+            }}
+            className="w-[calc(100vw-2rem)] sm:max-w-md p-0 overflow-hidden rounded-3xl border-border/80 shadow-2xl max-h-[90vh] overflow-y-auto"
+          >
             <div className="bg-gradient-to-r from-primary/15 via-primary/5 to-transparent p-4 pb-3 border-b border-border/60">
               <div className="flex items-center gap-3">
                 <div className="size-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-bold shadow-xs">
@@ -2617,6 +2741,7 @@ export function RetailPosCounterPage() {
                   <div className="flex items-center gap-1 shrink-0">
                     <Button
                       type="button"
+                      tabIndex={-1}
                       size="sm"
                       className="h-8 rounded-xl text-xs font-bold bg-cyan-700 hover:bg-cyan-600 text-white gap-1"
                       onClick={() => {
@@ -2634,6 +2759,7 @@ export function RetailPosCounterPage() {
                 ) : (
                   <Button
                     type="button"
+                    tabIndex={-1}
                     variant="outline"
                     size="sm"
                     className="h-8 rounded-xl text-xs font-semibold gap-1 shrink-0"
@@ -2657,6 +2783,7 @@ export function RetailPosCounterPage() {
 
                 <div className="flex items-center gap-2">
                   <Input
+                    ref={modalWeightInputRef}
                     type="text"
                     inputMode="decimal"
                     value={modalWeightInput}
@@ -2669,6 +2796,7 @@ export function RetailPosCounterPage() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
+                        e.stopPropagation();
                         handleAddToCart();
                       }
                     }}
@@ -2683,6 +2811,7 @@ export function RetailPosCounterPage() {
                 <div className="grid grid-cols-4 gap-1.5">
                   <Button
                     type="button"
+                    tabIndex={-1}
                     variant="outline"
                     size="sm"
                     className="rounded-lg h-7 text-xs font-mono font-bold"
@@ -2692,6 +2821,7 @@ export function RetailPosCounterPage() {
                   </Button>
                   <Button
                     type="button"
+                    tabIndex={-1}
                     variant="outline"
                     size="sm"
                     className="rounded-lg h-7 text-xs font-mono font-bold"
@@ -2701,6 +2831,7 @@ export function RetailPosCounterPage() {
                   </Button>
                   <Button
                     type="button"
+                    tabIndex={-1}
                     variant="outline"
                     size="sm"
                     className="rounded-lg h-7 text-xs font-mono font-bold"
@@ -2710,6 +2841,7 @@ export function RetailPosCounterPage() {
                   </Button>
                   <Button
                     type="button"
+                    tabIndex={-1}
                     variant="outline"
                     size="sm"
                     className="rounded-lg h-7 text-xs font-mono font-bold"
@@ -2834,6 +2966,7 @@ export function RetailPosCounterPage() {
                       <div key={`${chip.val}-${chip.label}`} className="inline-flex items-center">
                         <button
                           type="button"
+                          tabIndex={-1}
                           onClick={() => setModalWeightInput(chip.val.toString())}
                           className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold transition-all ${
                             modalWeight === chip.val
