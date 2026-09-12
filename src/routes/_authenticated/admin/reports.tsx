@@ -129,12 +129,12 @@ export function Reports() {
   const [activeReportTab, setActiveReportTab] = useState<"analytics" | "pnl" | "pos_bills">("analytics");
   const [analyticsSubTab, setAnalyticsSubTab] = useState<"overview" | "demand" | "products" | "retention" | "operations">("overview");
   const [analyticsSearchQuery, setAnalyticsSearchQuery] = useState("");
-  const [range, setRange] = useState<(typeof RANGES)[number]["key"]>("30");
+  const [range, setRange] = useState<(typeof RANGES)[number]["key"]>("today");
 
   const todayIso = new Date().toISOString().slice(0, 10);
   const monthAgoIso = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
 
-  const [startDate, setStartDate] = useState(monthAgoIso);
+  const [startDate, setStartDate] = useState(todayIso);
   const [endDate, setEndDate] = useState(todayIso);
 
   // Dedicated POS Bills State

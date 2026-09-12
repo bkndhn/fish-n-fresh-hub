@@ -89,8 +89,8 @@ export function ExpensesAdmin() {
   const todayIso = new Date().toISOString().slice(0, 10);
   const thirtyDaysAgoIso = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
 
-  const [datePreset, setDatePreset] = useState<DatePresetKey>("30d");
-  const [customStart, setCustomStart] = useState(thirtyDaysAgoIso);
+  const [datePreset, setDatePreset] = useState<DatePresetKey>("today");
+  const [customStart, setCustomStart] = useState(todayIso);
   const [customEnd, setCustomEnd] = useState(todayIso);
 
   // Category & search filter

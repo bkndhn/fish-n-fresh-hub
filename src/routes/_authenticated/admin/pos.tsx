@@ -231,6 +231,81 @@ export function RetailPosCounterPage() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [discountAmount, setDiscountAmount] = useState<number>(0);
 
+  // Returning Customer CRM Auto-Lookup
+  const [returningCustomerInfo, setReturningCustomerInfo] = useState<{
+    name: string;
+    ordersCount: number;
+    totalSpent: number;
+    favoriteItem?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const cleanPhone = customerPhone.trim().replace(/\D/g, "").slice(-10);
+    if (cleanPhone.length !== 10) {
+      setReturningCustomerInfo(null);
+      return;
+    }
+
+    let isMounted = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("orders")
+          .select("customer_name, total, items, status")
+          .eq("customer_phone", cleanPhone)
+          .order("created_at", { ascending: false })
+          .limit(25);
+
+        if (error || !data || data.length === 0 || !isMounted) return;
+
+        let bestName = "";
+        let totalSpent = 0;
+        const itemCounts: Record<string, number> = {};
+
+        for (const o of data) {
+          if (
+            !bestName &&
+            o.customer_name &&
+            !o.customer_name.toLowerCase().includes("walk-in") &&
+            !o.customer_name.toLowerCase().includes("guest")
+          ) {
+            bestName = o.customer_name.trim();
+          }
+          if (o.status !== "cancelled") {
+            totalSpent += Number(o.total || 0);
+          }
+          if (Array.isArray(o.items)) {
+            for (const it of o.items as any[]) {
+              const n = it.name || it.product_name;
+              if (n) itemCounts[n] = (itemCounts[n] || 0) + 1;
+            }
+          }
+        }
+
+        const favItem = Object.entries(itemCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+
+        if (isMounted) {
+          setReturningCustomerInfo({
+            name: bestName || "Returning Customer",
+            ordersCount: data.length,
+            totalSpent: Math.round(totalSpent),
+            favoriteItem: favItem,
+          });
+
+          if (bestName && !customerName.trim()) {
+            setCustomerName(bestName);
+          }
+        }
+      } catch (err) {
+        console.warn("Error looking up customer in POS:", err);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [customerPhone]);
+
   // Item customizer modal (Decimal scale input fix)
   const [activeItemModal, setActiveItemModal] = useState<Product | null>(null);
   const [modalWeightInput, setModalWeightInput] = useState<string>("1.0");
@@ -980,6 +1055,7 @@ export function RetailPosCounterPage() {
     setSplitUtr("");
     setCustomerName("");
     setCustomerPhone("");
+    setReturningCustomerInfo(null);
   };
 
   // Park / Hold bill
@@ -1183,6 +1259,11 @@ export function RetailPosCounterPage() {
 
           // Real-time Atomic Inventory Deduction
           await deductOrderStock(orderRes?.id || orderNumber, stockItems);
+
+          // Real-time CRM & Order Queries Invalidation
+          qc.invalidateQueries({ queryKey: ["admin", "customers"] });
+          qc.invalidateQueries({ queryKey: ["admin", "registered-customers"] });
+          qc.invalidateQueries({ queryKey: ["admin", "orders"] });
         } catch (netErr: any) {
           console.warn("Falling back to offline queue:", netErr);
           const queue = loadOfflineQueue();
@@ -2104,6 +2185,20 @@ export function RetailPosCounterPage() {
                     className="h-7 text-xs rounded-lg bg-background font-mono"
                   />
                 </div>
+
+                {returningCustomerInfo && (
+                  <div className="mt-1.5 flex items-center justify-between gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 text-[11px] text-emerald-700 dark:text-emerald-400">
+                    <span className="font-semibold flex items-center gap-1.5 truncate">
+                      <Sparkles className="size-3 text-emerald-600 shrink-0" />
+                      Returning: {returningCustomerInfo.name} ({returningCustomerInfo.ordersCount} visits • ₹{returningCustomerInfo.totalSpent.toLocaleString("en-IN")})
+                    </span>
+                    {returningCustomerInfo.favoriteItem && (
+                      <span className="text-[10px] bg-emerald-500/15 px-1.5 py-0.5 rounded text-emerald-800 dark:text-emerald-300 shrink-0 font-medium" title={`Favorite: ${returningCustomerInfo.favoriteItem}`}>
+                        ★ {returningCustomerInfo.favoriteItem}
+                      </span>
+                    )}
+                  </div>
+                )}
               </CardHeader>
 
               {/* Bill Line Items */}

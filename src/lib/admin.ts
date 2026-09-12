@@ -145,12 +145,31 @@ export const adminPromotionsQuery = queryOptions({
   },
 });
 
+export type CustomerItemSummary = {
+  name: string;
+  qty: number;
+  unit: string;
+  timesBought: number;
+  totalSpent: number;
+  preferredCut?: string;
+};
+
 export type CustomerRow = {
   phone: string;
   name: string;
   orders: number;
   spent: number;
   last_order: string;
+  first_order?: string;
+  channel: "online" | "pos" | "omnichannel";
+  posOrders: number;
+  onlineOrders: number;
+  posSpent: number;
+  onlineSpent: number;
+  topItems: CustomerItemSummary[];
+  daysSinceLastOrder: number;
+  preferredPayment: string;
+  favoriteItemName?: string;
 };
 
 export function getAdminCustomersQuery(branchId?: string | "all") {
@@ -160,9 +179,9 @@ export function getAdminCustomersQuery(branchId?: string | "all") {
     queryFn: async (): Promise<CustomerRow[]> => {
       let q = supabase
         .from("orders")
-        .select("customer_name, customer_phone, total, created_at, status, branch_id")
+        .select("customer_name, customer_phone, total, created_at, status, branch_id, fulfillment_type, payment_method, items")
         .order("created_at", { ascending: false })
-        .limit(1000);
+        .limit(2000);
 
       if (effectiveBranch !== "all") {
         q = q.eq("branch_id", effectiveBranch);
@@ -170,24 +189,167 @@ export function getAdminCustomersQuery(branchId?: string | "all") {
 
       const { data, error } = await q;
       if (error) throw error;
-      const map = new Map<string, CustomerRow>();
+
+      type TempCustomer = {
+        phone: string;
+        name: string;
+        orders: number;
+        spent: number;
+        last_order: string;
+        first_order: string;
+        posOrders: number;
+        onlineOrders: number;
+        posSpent: number;
+        onlineSpent: number;
+        paymentCounts: Record<string, number>;
+        itemMap: Map<string, { qty: number; unit: string; timesBought: number; totalSpent: number; cuts: Record<string, number> }>;
+      };
+
+      const map = new Map<string, TempCustomer>();
+
       for (const row of data ?? []) {
-        const key = row.customer_phone;
-        const existing = map.get(key);
-        if (existing) {
-          existing.orders += 1;
-          if (row.status !== "cancelled") existing.spent += Number(row.total);
-        } else {
-          map.set(key, {
-            phone: key,
-            name: row.customer_name,
-            orders: 1,
-            spent: row.status === "cancelled" ? 0 : Number(row.total),
+        const phone = (row.customer_phone || "").trim();
+        if (!phone) continue;
+
+        const isPos = row.fulfillment_type === "pos";
+        const isPaid = row.status !== "cancelled";
+        const orderTotal = isPaid ? Number(row.total || 0) : 0;
+        const pm = (row.payment_method || (isPos ? "cash" : "cod")).toLowerCase();
+
+        let cust = map.get(phone);
+        if (!cust) {
+          cust = {
+            phone,
+            name: (row.customer_name || "Guest Customer").trim(),
+            orders: 0,
+            spent: 0,
             last_order: row.created_at as string,
-          });
+            first_order: row.created_at as string,
+            posOrders: 0,
+            onlineOrders: 0,
+            posSpent: 0,
+            onlineSpent: 0,
+            paymentCounts: {},
+            itemMap: new Map(),
+          };
+          map.set(phone, cust);
+        }
+
+        // Update name if earlier row had generic and this one has real name
+        if (
+          (!cust.name || cust.name.toLowerCase().includes("walk-in") || cust.name.toLowerCase().includes("guest")) &&
+          row.customer_name &&
+          !row.customer_name.toLowerCase().includes("walk-in")
+        ) {
+          cust.name = row.customer_name.trim();
+        }
+
+        cust.orders += 1;
+        cust.spent += orderTotal;
+        if (new Date(row.created_at).getTime() < new Date(cust.first_order).getTime()) {
+          cust.first_order = row.created_at as string;
+        }
+
+        if (isPos) {
+          cust.posOrders += 1;
+          cust.posSpent += orderTotal;
+        } else {
+          cust.onlineOrders += 1;
+          cust.onlineSpent += orderTotal;
+        }
+
+        cust.paymentCounts[pm] = (cust.paymentCounts[pm] || 0) + 1;
+
+        // Process items purchased
+        const itemsArr = Array.isArray(row.items) ? (row.items as any[]) : [];
+        for (const it of itemsArr) {
+          const itemName = (it.name || it.product_name || "Unknown Seafood").trim();
+          if (!itemName) continue;
+          const qty = Number(it.qty || it.weightKg || 1);
+          const unit = it.unit || "kg";
+          const itemPrice = Number(it.price || it.unitPrice || 0);
+          const itemTotal = Number(it.totalPrice || it.line_total || qty * itemPrice);
+          const cutStyle = it.cutting_style || it.cuttingStyle;
+
+          const existingItem = cust.itemMap.get(itemName) || {
+            qty: 0,
+            unit,
+            timesBought: 0,
+            totalSpent: 0,
+            cuts: {},
+          };
+
+          existingItem.qty += qty;
+          existingItem.timesBought += 1;
+          existingItem.totalSpent += itemTotal;
+          if (cutStyle) {
+            existingItem.cuts[cutStyle] = (existingItem.cuts[cutStyle] || 0) + 1;
+          }
+          cust.itemMap.set(itemName, existingItem);
         }
       }
-      return [...map.values()].sort((a, b) => b.spent - a.spent);
+
+      const now = Date.now();
+      const result: CustomerRow[] = [];
+
+      for (const cust of map.values()) {
+        let channel: "online" | "pos" | "omnichannel" = "online";
+        if (cust.posOrders > 0 && cust.onlineOrders > 0) {
+          channel = "omnichannel";
+        } else if (cust.posOrders > 0) {
+          channel = "pos";
+        }
+
+        // Determine top items
+        const sortedItems: CustomerItemSummary[] = [...cust.itemMap.entries()]
+          .map(([name, stat]) => {
+            let preferredCut: string | undefined;
+            const cutEntries = Object.entries(stat.cuts);
+            if (cutEntries.length > 0) {
+              cutEntries.sort((a, b) => b[1] - a[1]);
+              preferredCut = cutEntries[0][0];
+            }
+            return {
+              name,
+              qty: Math.round(stat.qty * 100) / 100,
+              unit: stat.unit,
+              timesBought: stat.timesBought,
+              totalSpent: Math.round(stat.totalSpent),
+              preferredCut,
+            };
+          })
+          .sort((a, b) => b.totalSpent - a.totalSpent);
+
+        // Determine preferred payment method
+        const paymentEntries = Object.entries(cust.paymentCounts);
+        paymentEntries.sort((a, b) => b[1] - a[1]);
+        const preferredPayment = paymentEntries.length > 0 ? paymentEntries[0][0] : "cash";
+
+        const daysSinceLastOrder = Math.max(
+          0,
+          Math.floor((now - new Date(cust.last_order).getTime()) / (1000 * 60 * 60 * 24))
+        );
+
+        result.push({
+          phone: cust.phone,
+          name: cust.name,
+          orders: cust.orders,
+          spent: cust.spent,
+          last_order: cust.last_order,
+          first_order: cust.first_order,
+          channel,
+          posOrders: cust.posOrders,
+          onlineOrders: cust.onlineOrders,
+          posSpent: cust.posSpent,
+          onlineSpent: cust.onlineSpent,
+          topItems: sortedItems,
+          daysSinceLastOrder,
+          preferredPayment,
+          favoriteItemName: sortedItems[0]?.name,
+        });
+      }
+
+      return result.sort((a, b) => b.spent - a.spent);
     },
   });
 }
