@@ -160,9 +160,9 @@ describe("P&L Engine & Multi-Branch Operating Expenses Ledger", () => {
 
       // Operating Expenses: 1200 + 400 = 1600 (zero branch 2 expenses leaked!)
       expect(pnlBranch1.totalExpenses).toBe(1600);
-      expect(pnlBranch1.expensesByCategory.rent_lease).toBe(1200);
-      expect(pnlBranch1.expensesByCategory.cold_storage_ice).toBe(400);
-      expect(pnlBranch1.expensesByCategory.electricity_utilities || 0).toBe(0); // Branch 2's power bill must NOT leak!
+      expect(pnlBranch1.expensesByCategory['rent_lease']).toBe(1200);
+      expect(pnlBranch1.expensesByCategory['cold_storage_ice']).toBe(400);
+      expect(pnlBranch1.expensesByCategory['electricity_utilities'] || 0).toBe(0); // Branch 2's power bill must NOT leak!
 
       // Net Profit (EBITDA): 1180 - 1600 = -420
       expect(pnlBranch1.netProfit).toBe(-420);
@@ -189,7 +189,7 @@ describe("P&L Engine & Multi-Branch Operating Expenses Ledger", () => {
 
       // Consolidated Expenses: 1600 + 600 = 2200
       expect(pnlConsolidated.totalExpenses).toBe(2200);
-      expect(pnlConsolidated.expensesByCategory.electricity_utilities).toBe(600);
+      expect(pnlConsolidated.expensesByCategory['electricity_utilities']).toBe(600);
     });
   });
 
@@ -287,14 +287,14 @@ describe("P&L Engine & Multi-Branch Operating Expenses Ledger", () => {
       expect(result.validProducts).toHaveLength(2);
 
       const tv = result.validProducts[0];
-      expect(tv.name).toBe("Sony Bravia 55-inch 4K");
-      expect(tv.price).toBe(54990);
-      expect(tv.cost_price).toBe(42000);
+      expect(tv!.name).toBe("Sony Bravia 55-inch 4K");
+      expect(tv!.price).toBe(54990);
+      expect(tv!.cost_price).toBe(42000);
 
       const shirt = result.validProducts[1];
-      expect(shirt.name).toBe("Cotton Formal Shirt");
-      expect(shirt.price).toBe(899);
-      expect(shirt.cost_price).toBe(450);
+      expect(shirt!.name).toBe("Cotton Formal Shirt");
+      expect(shirt!.price).toBe(899);
+      expect(shirt!.cost_price).toBe(450);
     });
 
     it("exports products including cost_price column", () => {
