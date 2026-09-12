@@ -287,7 +287,7 @@ function SuperAdminDashboard() {
   };
 
   return (
-    <AdminShell>
+    <AdminShell title="Super Admin" allow={["admin", "super_admin"]}>
       <div className="space-y-6 max-w-6xl mx-auto pb-12">
         {/* Header Title & Security Status */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border pb-4">
