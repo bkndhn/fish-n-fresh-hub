@@ -9,6 +9,7 @@ import {
   FULL_MANAGER_PERMISSIONS,
   type Branch,
 } from "../lib/multiBranch";
+import type { Database } from "../integrations/supabase/types";
 
 describe("Phase 2: Admin Multi-Branch Switcher & Queries Scoping", () => {
   const mockBranches: Branch[] = [

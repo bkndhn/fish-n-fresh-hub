@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import type { Database } from "@/integrations/supabase/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { 
@@ -13,7 +14,7 @@ import {
   Layers, 
   Sparkles, 
   Store, 
-  Database, 
+  Database as DatabaseIcon, 
   Globe, 
   Server, 
   CheckCircle2,
