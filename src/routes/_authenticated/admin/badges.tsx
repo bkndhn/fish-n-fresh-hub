@@ -51,7 +51,7 @@ function BadgesAdmin() {
       const next = (badges.data ?? []).reduce((m, b) => Math.max(m, Number(b.sort_order)), 0) + 1;
       const { error } = await supabase
         .from("trust_badges")
-        .insert({ label: label.trim(), icon, sort_order: next } as Database["public"]["Tables"]["trust_badges"]["Update"]);
+        .insert({ label: label.trim(), icon, sort_order: next } as Database["public"]["Tables"]["trust_badges"]["Insert"]);
       if (error) throw error;
     },
     onSuccess: () => {

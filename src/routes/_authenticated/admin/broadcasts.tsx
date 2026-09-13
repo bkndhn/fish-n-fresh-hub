@@ -279,7 +279,7 @@ function AdminBroadcastsPage() {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full min-w-0 max-w-full space-y-4">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "broadcasts" | "drips")} className="w-full min-w-0 max-w-full space-y-4">
           <div className="w-full min-w-0 overflow-x-auto no-scrollbar touch-pan-x pb-0.5">
             <TabsList className="rounded-2xl p-1 bg-muted/60 flex-nowrap w-max">
               <TabsTrigger value="broadcasts" className="rounded-xl text-xs font-bold gap-1.5 whitespace-nowrap shrink-0">
