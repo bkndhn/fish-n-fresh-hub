@@ -209,10 +209,7 @@ export function PosPastBillsModal({
       // Increment reprint counter in database for audit trail
       await supabase
         .from("orders")
-        .update({
-          reprint_count: reprintCount,
-          last_reprinted_at: new Date().toISOString(),
-        })
+        .update({ reprint_count: reprintCount })
         .eq("id", order.id);
 
       const items: PosReceiptItem[] = (order.items || order.order_items || []).map((it: any) => ({
