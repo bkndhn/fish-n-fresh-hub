@@ -178,8 +178,7 @@ export function PosPastBillsModal({
         .from("orders")
         .update({
           status: "cancelled",
-          cancellation_reason: reason || "Voided at POS counter",
-          cancelled_at: new Date().toISOString(),
+          cancel_reason: reason || "Voided at POS counter",
         })
         .eq("id", order.id);
 
