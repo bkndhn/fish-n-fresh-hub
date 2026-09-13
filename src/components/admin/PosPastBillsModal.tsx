@@ -59,6 +59,14 @@ import {
 import { TaxInvoiceModal } from "@/components/TaxInvoiceModal";
 import { ExportDropdown, type ExportColumn } from "@/lib/exportUtils";
 
+type PosBillRow = import("@/lib/admin").OrderRow & {
+  actual_payment_method?: string | null;
+  pos_split_payments?: { cash?: number; upi?: number; card?: number } | null;
+  pos_cashier_name?: string | null;
+  reprint_count?: number | null;
+  order_items?: unknown[] | null;
+};
+
 interface PosPastBillsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
