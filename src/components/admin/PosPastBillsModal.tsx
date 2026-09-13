@@ -84,13 +84,13 @@ export function PosPastBillsModal({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
-        .select("*, order_items(*)")
+        .select("*")
         .eq("fulfillment_type", "pos")
         .order("created_at", { ascending: false })
         .limit(300);
 
       if (error) throw error;
-      return (data || []) as import("@/lib/admin").OrderRow[];
+      return (data || []) as unknown as PosBillRow[];
     },
     enabled: open,
   });
