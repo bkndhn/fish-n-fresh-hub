@@ -18,13 +18,6 @@ export interface DriverGeoCoordinate {
 }
 
 let activeWakeLock: any = null;
-declare global {
-  interface Navigator {
-    wakeLock: {
-      request(type: "screen"): Promise<any>;
-    };
-  }
-}
 
 let activeWatchId: number | null = null;
 let lastKnownLocation: DriverGeoCoordinate | null = null;

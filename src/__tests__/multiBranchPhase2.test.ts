@@ -9,6 +9,7 @@ import {
   FULL_MANAGER_PERMISSIONS,
   type Branch,
 } from "../lib/multiBranch";
+import type { Database } from "../integrations/supabase/types";
 
 describe("Phase 2: Admin Multi-Branch Switcher & Queries Scoping", () => {
   const mockBranches: Branch[] = [
@@ -141,7 +142,7 @@ describe("Phase 2: Admin Multi-Branch Switcher & Queries Scoping", () => {
       };
 
       expect(getEffectiveBranch(managerUser, "all")).toBe("branch-velachery-2");
-      expect(getEffectiveBranch(adminUser as unknown as Database["public"]["Tables"]["users"]["Row"], "all")).toBe("all");
+      expect(getEffectiveBranch(adminUser as unknown as Database["public"]["Tables"]["profiles"]["Row"], "all")).toBe("all");
     });
 
     it("resolves active branch object or null when consolidated", () => {

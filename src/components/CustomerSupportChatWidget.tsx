@@ -154,7 +154,7 @@ export function CustomerSupportChatWidget() {
             .eq("conversation_id", convId)
             .order("created_at", { ascending: true });
 
-          if (msgs) setMessages(msgs as unknown as ChatMessage[]);
+          if (msgs) setMessages(msgs as ChatMessage[]);
         }
       } catch (err) {
         console.warn("Support chat initialization notice:", err);
@@ -211,7 +211,7 @@ export function CustomerSupportChatWidget() {
           .order("created_at", { ascending: true });
 
         if (latestMsgs && latestMsgs.length > 0) {
-          const typedMsgs = latestMsgs as unknown as ChatMessage[];
+          const typedMsgs = latestMsgs as ChatMessage[];
           setMessages((prev) => {
             if (typedMsgs.length > prev.length) {
               const last = typedMsgs[typedMsgs.length - 1];
@@ -454,5 +454,3 @@ export function CustomerSupportChatWidget() {
     </>
   );
 }
-
-

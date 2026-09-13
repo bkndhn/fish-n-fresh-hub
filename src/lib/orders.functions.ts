@@ -58,7 +58,8 @@ export const deductOrderStockServerFn = createServerFn({ method: "POST" })
       console.error("[Orders] Stock deduction failed:", error.message);
       return { success: false, message: error.message };
     }
-    return { success: Boolean(result?.success), message: result?.message ?? "" };
+    const r = (result && typeof result === "object" && !Array.isArray(result)) ? (result as Record<string, unknown>) : {};
+    return { success: Boolean(r["success"]), message: (r["message"] as string) ?? "" };
   });
 
 /** Add stock back for a cancelled/refunded order. Only restores if it was deducted. */
@@ -76,7 +77,8 @@ export const restoreOrderStockServerFn = createServerFn({ method: "POST" })
       console.error("[Orders] Stock restoral failed:", error.message);
       return { success: false, message: error.message };
     }
-    return { success: Boolean(result?.success), message: result?.message ?? "" };
+    const r2 = (result && typeof result === "object" && !Array.isArray(result)) ? (result as Record<string, unknown>) : {};
+    return { success: Boolean(r2["success"]), message: (r2["message"] as string) ?? "" };
   });
 
 export const updateOrderStatusWithEmail = createServerFn({ method: "POST" })
@@ -85,11 +87,11 @@ export const updateOrderStatusWithEmail = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const patch: Record<string, any> = { status: data.status, updated_at: new Date().toISOString() };
+    const patch: Record<string, unknown> = { status: data.status, updated_at: new Date().toISOString() };
     if (data.status === "delivered") {
       patch['delivered_at'] = new Date().toISOString();
     }
-    const { error } = await supabaseAdmin.from("orders").update(patch).eq("id", data.orderId);
+    const { error } = await supabaseAdmin.from("orders").update(patch as never).eq("id", data.orderId);
     if (error) throw new Error(error.message);
 
     // Automatically restore stock if order is cancelled or rejected (idempotent in SQL)

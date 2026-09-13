@@ -24,7 +24,7 @@ let SentryModule: typeof import("@sentry/react") | null = null;
 export async function initSentry(): Promise<void> {
   if (isInitialized) return;
 
-  const dsn = import.meta.env.VITE_SENTRY_DSN;
+  const dsn = import.meta.env["VITE_SENTRY_DSN"];
   if (!dsn) {
     if (import.meta.env.DEV) {
       console.info(
@@ -41,7 +41,7 @@ export async function initSentry(): Promise<void> {
     Sentry.init({
       dsn,
       environment: import.meta.env.MODE || "production",
-      release: `fish-n-fresh-hub@${import.meta.env.VITE_APP_VERSION || "0.0.0"}`,
+      release: `fish-n-fresh-hub@${import.meta.env["VITE_APP_VERSION"] || "0.0.0"}`,
 
       // Sample 100% of errors, 10% of transactions for perf monitoring
       sampleRate: 1.0,
@@ -100,7 +100,7 @@ export function captureException(
   context?: Record<string, unknown>
 ): void {
   if (SentryModule) {
-    SentryModule.captureException(error, { extra: context });
+    SentryModule.captureException(error, context ? { extra: context } : undefined);
   }
   // Always log to console as well
   console.error("[Error]", error, context);
@@ -140,5 +140,8 @@ export function getErrorBoundary(): React.ComponentType<{
   fallback: React.ReactNode;
   children: React.ReactNode;
 }> | null {
-  return SentryModule?.ErrorBoundary ?? null;
+  return (SentryModule?.ErrorBoundary as unknown as React.ComponentType<{
+    fallback: React.ReactNode;
+    children: React.ReactNode;
+  }>) ?? null;
 }

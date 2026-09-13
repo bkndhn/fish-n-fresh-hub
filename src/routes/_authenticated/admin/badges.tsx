@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import type { Database } from "@/integrations/supabase/types";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -50,7 +51,7 @@ function BadgesAdmin() {
       const next = (badges.data ?? []).reduce((m, b) => Math.max(m, Number(b.sort_order)), 0) + 1;
       const { error } = await supabase
         .from("trust_badges")
-        .insert({ label: label.trim(), icon, sort_order: next } as Database["public"]["Tables"]["orders"]["Update"]);
+        .insert({ label: label.trim(), icon, sort_order: next } as Database["public"]["Tables"]["trust_badges"]["Insert"]);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -63,7 +64,7 @@ function BadgesAdmin() {
 
   const update = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: Record<string, unknown> }) => {
-      const { error } = await supabase.from("trust_badges").update(patch).eq("id", id);
+      const { error } = await supabase.from("trust_badges").update(patch as Database["public"]["Tables"]["trust_badges"]["Update"]).eq("id", id);
       if (error) throw error;
     },
     onSuccess: invalidate,
@@ -148,21 +149,13 @@ function BadgesAdmin() {
                   update.mutate({ id: b.id, patch: { sort_order: Number(e.target.value) || 0 } })
                 }
               />
-              <div className="flex items-center gap-2 text-xs">
-                {b.active ? (
-                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                    ● Visible
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
-                    ○ Hidden
-                  </Badge>
-                )}
+              <label className="flex items-center gap-2 text-sm">
                 <Switch
                   checked={b.active}
                   onCheckedChange={(v) => update.mutate({ id: b.id, patch: { active: v } })}
                 />
-              </div>
+                Visible
+              </label>
               <Button variant="ghost" size="icon" onClick={() => remove.mutate(b.id)}>
                 <Trash2 className="size-4" />
               </Button>

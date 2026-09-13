@@ -214,7 +214,7 @@ export const applyRealProductsCatalog = createServerFn({ method: "POST" })
       ];
 
       for (const cat of categoriesToUpsert) {
-        await supabaseAdmin.from("categories").upsert(cat, { onConflict: "slug" });
+        await supabaseAdmin.from("categories").upsert(cat as never, { onConflict: "slug" });
       }
 
       // 2. Map Categories to IDs
@@ -253,7 +253,7 @@ export const applyRealProductsCatalog = createServerFn({ method: "POST" })
           hsn_code: p.hsn_code,
         };
 
-        const { error } = await supabaseAdmin.from("products").upsert(payload, { onConflict: "id" });
+        const { error } = await supabaseAdmin.from("products").upsert(payload as never, { onConflict: "id" });
         if (!error) count++;
       }
 

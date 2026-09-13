@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import type { Database } from "@/integrations/supabase/types";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -67,7 +68,7 @@ export function ComplaintsAdmin() {
 
   const updateComplaint = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: Partial<OrderRow> }) => {
-      const { error } = await supabase.from("orders").update(patch).eq("id", id);
+      const { error } = await supabase.from("orders").update(patch as Database["public"]["Tables"]["orders"]["Update"]).eq("id", id);
       if (error) throw error;
       if (patch.status === "cancelled" || patch.payment_status === "refunded") {
         await restoreOrderStock(id);
@@ -205,7 +206,7 @@ export function ComplaintsAdmin() {
 
           const waUrl = getWhatsAppUrl(o.customer_phone, getPreFilledWhatsAppReply(o));
           const mailSubject = encodeURIComponent(`Fish N Fresh - Resolution for Order #${o.order_number ?? o.id.slice(0, 8)}`);
-          const mailUrl = `mailto:${(o as Database["public"]["Tables"]["orders"]["Row"]).customer_email || ""}?subject=${mailSubject}&body=${getPreFilledEmailBody(o)}`;
+          const mailUrl = `mailto:${(o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).customer_email || ""}?subject=${mailSubject}&body=${getPreFilledEmailBody(o)}`;
 
           return (
             <Card

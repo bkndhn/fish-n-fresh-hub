@@ -157,10 +157,11 @@ export function subscribeToOrderRealtime(
         const row = payload.new as Record<string, unknown>;
         callbacks.onAnyUpdate?.(row);
 
-        if (row?.status && row.status !== lastStatus) {
-          lastStatus = row.status;
+        const rowStatus = row?.["status"] as string | undefined;
+        if (rowStatus && rowStatus !== lastStatus) {
+          lastStatus = rowStatus;
           soundEngine.playStatusChime();
-          callbacks.onStatusChange?.(row.status, row);
+          callbacks.onStatusChange?.(rowStatus, row);
         }
       }
     )

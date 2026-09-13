@@ -14,29 +14,25 @@ import { Badge } from "@/components/ui/badge";
 import { useSessionUser } from "@/lib/session";
 import { inr, formatIST } from "@/lib/format";
 import { getOrCreateUserWallet, getWalletTransactions } from "@/lib/wallet";
-import { settingsQuery } from "@/lib/queries";
-import { isReferralProgramActive } from "@/lib/types";
 
 export function ReferralModal({ trigger }: { trigger?: React.ReactNode }) {
   const { user } = useSessionUser();
   const [copied, setCopied] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
-  const { data: settings } = useQuery(settingsQuery);
-
   const { data: wallet, isLoading } = useQuery({
     queryKey: ["customer-wallet", user?.id],
     queryFn: () => (user ? getOrCreateUserWallet(user.id) : null),
-    enabled: Boolean(user && isReferralProgramActive(settings)),
+    enabled: Boolean(user),
   });
 
   const { data: transactions = [] } = useQuery({
     queryKey: ["wallet-transactions", user?.id],
     queryFn: () => (user ? getWalletTransactions(user.id) : []),
-    enabled: Boolean(user && showHistory && isReferralProgramActive(settings)),
+    enabled: Boolean(user && showHistory),
   });
 
-  if (!user || !isReferralProgramActive(settings)) return null;
+  if (!user) return null;
 
   const referralCode = wallet?.referral_code || `FNF-${user.id.slice(0, 5).toUpperCase()}`;
   const shareUrl = typeof window !== "undefined" ? `${window.location.origin}?ref=${referralCode}` : "";

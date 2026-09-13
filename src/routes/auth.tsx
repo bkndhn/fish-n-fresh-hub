@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getDevRoleOverride } from "@/lib/admin";
 
 function safeNext(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -65,67 +64,12 @@ function AuthPage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
 
   async function routeAfterLogin() {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const uid = sessionData.session?.user?.id;
-    if (!uid) {
-      if (next) {
-        window.location.href = next;
-      } else {
-        navigate({ to: "/orders" });
-      }
-      return;
-    }
-
-    // Query assigned roles for authenticated user
-    const { data: roleRows } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", uid);
-
-    let roles = (roleRows ?? []).map((r) => r.role as string);
-
-    // Fallback: check staff table if user_roles is unassigned
-    if (roles.length === 0) {
-      const { data: staffData } = await supabase
-        .from("staff")
-        .select("role")
-        .eq("user_id", uid)
-        .maybeSingle();
-      if (staffData?.role) {
-        roles = [staffData.role];
-      }
-    }
-
-    // Developer / testing mode override if active
-    const devOverride = getDevRoleOverride();
-    if (devOverride && devOverride.length > 0) {
-      roles = devOverride;
-    }
-
-    // If explicit next parameter was provided and is not a generic fallback, respect it
-    if (next && next !== "/admin" && next !== "/" && next !== "/orders") {
+    if (next) {
       window.location.href = next;
       return;
     }
-
-    // Direct role-based landing destinations
-    if (roles.includes("super_admin")) {
-      navigate({ to: "/admin/super" });
-    } else if (roles.includes("cashier")) {
-      navigate({ to: "/admin/pos" }); // Direct to POS Counter Register
-    } else if (roles.includes("driver")) {
-      navigate({ to: "/admin/driver" }); // Direct to Driver Dispatch & Maps
-    } else if (roles.includes("support_staff")) {
-      navigate({ to: "/admin/support" }); // Direct to Customer Live Support
-    } else if (roles.includes("inventory_manager")) {
-      navigate({ to: "/admin/purchases" }); // Direct to Harbour Catch Inward Register
-    } else if (roles.includes("admin") || roles.includes("manager")) {
-      navigate({ to: "/admin" }); // Main Admin Management Console
-    } else if (roles.includes("staff")) {
-      navigate({ to: "/admin/orders" }); // Kitchen & Packing Order Queue
-    } else {
-      navigate({ to: next || "/orders" }); // Default for customers
-    }
+    const { data } = await supabase.rpc("is_staff");
+    navigate({ to: data ? "/admin" : "/orders" });
   }
 
   // Detect recovery mode from hash or URL query param
@@ -426,7 +370,8 @@ function AuthPage() {
           <span className="ocean-gradient mx-auto flex size-12 items-center justify-center rounded-2xl text-primary-foreground shadow-sm">
             <Fish className="size-6" />
           </span>
-          <CardTitle className="mt-3 font-display text-2xl">Fish N Fresh</CardTitle>
+          <CardTitle className="mt-3 font-display text-2xl">Fish N Fresh Console</CardTitle>
+          <CardDescription>Customers, staff &amp; admin</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin">

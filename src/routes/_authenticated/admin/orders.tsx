@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import type { CartItem } from "@/lib/types";
+import type { Database } from "@/integrations/supabase/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { ExportDropdown, type ExportColumn, type ExportOptions } from "@/lib/exportUtils";
@@ -32,7 +34,6 @@ import { adminOrdersQuery, ORDER_STATUSES, type OrderRow } from "@/lib/admin";
 import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
 import { DeliveryPinVerificationModal } from "@/components/DeliveryPinVerificationModal";
 import { TaxInvoiceModal } from "@/components/TaxInvoiceModal";
-import { shareInvoiceToWhatsApp } from "@/lib/invoicePdf";
 import { getGoogleMapsDirUrl } from "@/lib/maps";
 import { settingsQuery } from "@/lib/queries";
 import { formatINR, formatIST, formatInvoiceDateTime } from "@/lib/format";
@@ -718,14 +719,14 @@ function OrdersAdmin() {
                       </span>
                     ) : o.payment_method === "upi" ? (
                       <div className="flex flex-wrap items-center gap-1.5">
-                        {(o as Database["public"]["Tables"]["orders"]["Row"]).upi_paid || o.payment_status === "paid" ? (
+                        {(o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).upi_paid || o.payment_status === "paid" ? (
                           <span className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                            ✅ UPI Verified Paid {(o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref ? `(UTR: ${(o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref})` : ""}
+                            ✅ UPI Verified Paid {(o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref ? `(UTR: ${(o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref})` : ""}
                           </span>
                         ) : (
                           <>
                             <span className="rounded-xl bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-300">
-                              ⏳ UPI Verification Pending {(o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref ? `(UTR: ${(o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref})` : ""}
+                              ⏳ UPI Verification Pending {(o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref ? `(UTR: ${(o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref})` : ""}
                             </span>
                             <Button
                               type="button"
@@ -787,21 +788,6 @@ function OrdersAdmin() {
                   >
                     <FileText className="mr-1.5 size-3.5 text-sky-600" /> Invoice
                   </Button>
-
-                  {o.status === "delivered" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="rounded-xl h-8.5 text-xs font-bold shrink-0 text-[#25D366] border-[#25D366]/40 hover:bg-[#25D366]/10 gap-1"
-                      onClick={() => {
-                        shareInvoiceToWhatsApp(o, settings);
-                        toast.success("Opening WhatsApp with digital GST Tax Invoice!");
-                      }}
-                      title="Share official Tax Invoice to customer WhatsApp"
-                    >
-                      <WhatsAppIcon className="size-3.5" /> WhatsApp Invoice
-                    </Button>
-                  )}
 
                   <div className="flex-1">
                     <Select

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { KeyRound, Loader2, UserPlus, AlertTriangle, ShieldCheck } from "lucide-react";
+import { KeyRound, Loader2, UserPlus } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,10 +30,7 @@ import {
   setStaffRole,
   createStaffAccount,
   type AppRole,
-  type StaffMember,
 } from "@/lib/staff.functions";
-import { supabase } from "@/integrations/supabase/client";
-import { tenantQuotasQuery, checkStaffQuotaAvailable } from "@/lib/superAdmin";
 
 export const Route = createFileRoute("/_authenticated/admin/staff")({
   head: () => ({
@@ -99,73 +96,7 @@ function StaffPage() {
 
   const staffQuery = useQuery({
     queryKey: ["admin", "staff"],
-    queryFn: async (): Promise<StaffMember[]> => {
-      try {
-        const res = await fetchStaff();
-        if (Array.isArray(res) && res.length > 0) return res;
-      } catch (err) {
-        console.warn("Server listStaff notice, attempting direct database query:", err);
-      }
-
-      // Direct client fallback querying user_roles
-      try {
-        const { data: roleRows, error: roleErr } = await supabase
-          .from("user_roles")
-          .select("user_id, role, created_at");
-
-        if (roleErr) throw roleErr;
-
-        const { data: orders } = await supabase
-          .from("orders")
-          .select("user_id, customer_name, customer_phone")
-          .not("user_id", "is", null);
-
-        const userMap = new Map<string, { name: string; phone: string }>();
-        for (const o of orders ?? []) {
-          if (o.user_id && !userMap.has(o.user_id)) {
-            userMap.set(o.user_id, { name: o.customer_name, phone: o.customer_phone });
-          }
-        }
-
-        const byUser = new Map<
-          string,
-          {
-            id: string;
-            email: string;
-            full_name: string | null;
-            roles: AppRole[];
-            created_at: string;
-            last_sign_in_at: string | null;
-            confirmed: boolean;
-          }
-        >();
-
-        for (const row of roleRows ?? []) {
-          const uInfo = userMap.get(row.user_id);
-          const existing = byUser.get(row.user_id);
-          if (existing) {
-            if (!existing.roles.includes(row.role as AppRole)) {
-              existing.roles.push(row.role as AppRole);
-            }
-          } else {
-            byUser.set(row.user_id, {
-              id: row.user_id,
-              email: uInfo ? `${uInfo.name.toLowerCase().replace(/\s+/g, ".")}@store` : `staff-${row.user_id.slice(0, 6)}@store`,
-              full_name: uInfo?.name || `Staff Member (${row.user_id.slice(0, 6)})`,
-              roles: [row.role as AppRole],
-              created_at: row.created_at || new Date().toISOString(),
-              last_sign_in_at: null,
-              confirmed: true,
-            });
-          }
-        }
-
-        return Array.from(byUser.values());
-      } catch (fallbackErr) {
-        console.error("Direct staff query fallback error:", fallbackErr);
-        return [];
-      }
-    },
+    queryFn: () => fetchStaff(),
   });
 
   const inviteMutation = useMutation({
@@ -228,13 +159,7 @@ function StaffPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const { data: quotas } = useQuery(tenantQuotasQuery);
-  const activeHubs = Math.max(1, branches.filter((b) => b.is_active).length);
-  const maxStaffPerHub = quotas?.max_staff_per_branch ?? 15;
-  const totalMaxStaffSeats = maxStaffPerHub * activeHubs;
   const members = staffQuery.data ?? [];
-  const staffQuotaCheck = checkStaffQuotaAvailable(members.length, totalMaxStaffSeats);
-  const isTenantLocked = quotas?.is_locked ?? false;
 
   return (
     <AdminShell title="Team & roles">
@@ -242,43 +167,14 @@ function StaffPage() {
         <div className="space-y-4">
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Invite a teammate</CardTitle>
-              <Badge
-                variant="outline"
-                className={
-                  staffQuotaCheck.allowed
-                    ? "border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-[10px]"
-                    : "border-destructive text-destructive text-[10px]"
-                }
-              >
-                {members.length} / {totalMaxStaffSeats} Seats Used
-              </Badge>
-            </div>
+            <CardTitle className="text-base">Invite a teammate</CardTitle>
             <CardDescription>They get their own login with the role you pick.</CardDescription>
           </CardHeader>
           <CardContent>
-            {!staffQuotaCheck.allowed && (
-              <div className="mb-3 rounded-xl border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive flex items-start gap-2">
-                <AlertTriangle className="size-4 shrink-0 mt-0.5" />
-                <div>
-                  <strong>Staff Seat Quota Reached:</strong> Your organization has allocated all {totalMaxStaffSeats} team member seats permitted under your current plan ({quotas?.tier || "Enterprise"}). Contact your Platform Super Admin to increase staff capacity.
-                </div>
-              </div>
-            )}
-            {isTenantLocked && (
-              <div className="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-800 dark:text-amber-300">
-                <strong>Tenant Locked:</strong> Staff provisioning is temporarily paused by Platform Super Admin.
-              </div>
-            )}
             <form
               className="space-y-3"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (!staffQuotaCheck.allowed) {
-                  toast.error(staffQuotaCheck.message || "Staff quota limit reached");
-                  return;
-                }
                 inviteMutation.mutate({ email, fullName, role });
               }}
             >
@@ -340,25 +236,14 @@ function StaffPage() {
                 <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2.5 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-foreground">Full Branch Access Delegation</span>
-                    <div className="flex items-center gap-2">
-                      {managerPermissions.has_full_branch_access ? (
-                        <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                          ● Enabled
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
-                          ○ Standard
-                        </Badge>
-                      )}
-                      <Switch
-                        checked={managerPermissions.has_full_branch_access}
-                        onCheckedChange={(checked) =>
-                          setManagerPermissions((prev) =>
-                            checked ? FULL_MANAGER_PERMISSIONS : DEFAULT_MANAGER_PERMISSIONS
-                          )
-                        }
-                      />
-                    </div>
+                    <Switch
+                      checked={managerPermissions.has_full_branch_access}
+                      onCheckedChange={(checked) =>
+                        setManagerPermissions((prev) =>
+                          checked ? FULL_MANAGER_PERMISSIONS : DEFAULT_MANAGER_PERMISSIONS
+                        )
+                      }
+                    />
                   </div>
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
                     Grant complete local control over store operations for this branch without granting access to company-wide settings or other hubs.
@@ -413,7 +298,7 @@ function StaffPage() {
                   )}
                 </div>
               )}
-              <Button type="submit" className="w-full" disabled={inviteMutation.isPending || !staffQuotaCheck.allowed || isTenantLocked}>
+              <Button type="submit" className="w-full" disabled={inviteMutation.isPending}>
                 {inviteMutation.isPending ? (
                   <Loader2 className="mr-1.5 size-4 animate-spin" />
                 ) : (
@@ -427,19 +312,7 @@ function StaffPage() {
 
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Create an account with a password</CardTitle>
-              <Badge
-                variant="outline"
-                className={
-                  staffQuotaCheck.allowed
-                    ? "border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-[10px]"
-                    : "border-destructive text-destructive text-[10px]"
-                }
-              >
-                {members.length} / {totalMaxStaffSeats} Seats
-              </Badge>
-            </div>
+            <CardTitle className="text-base">Create an account with a password</CardTitle>
             <CardDescription>
               No email needed — set the password yourself and hand it to your driver or staff member.
             </CardDescription>
@@ -449,10 +322,6 @@ function StaffPage() {
               className="space-y-3"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (!staffQuotaCheck.allowed) {
-                  toast.error(staffQuotaCheck.message || "Staff quota limit reached");
-                  return;
-                }
                 createMutation.mutate({
                   email: newEmail,
                   password: newPassword,
@@ -547,7 +416,7 @@ function StaffPage() {
                 </Select>
                 <p className="text-xs text-muted-foreground">{ROLE_HINT[newRole]}</p>
               </div>
-              <Button type="submit" className="w-full" disabled={createMutation.isPending || !staffQuotaCheck.allowed || isTenantLocked}>
+              <Button type="submit" className="w-full" disabled={createMutation.isPending}>
                 {createMutation.isPending ? (
                   <Loader2 className="mr-1.5 size-4 animate-spin" />
                 ) : (
@@ -595,34 +464,19 @@ function StaffPage() {
                       </Badge>
                     )}
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-2.5">
-                    {ASSIGNABLE.map((r) => {
-                      const hasRole = m.roles.includes(r);
-                      return (
-                        <label
-                          key={r}
-                          className={`flex items-center gap-2 text-xs capitalize p-1.5 px-2.5 rounded-xl border transition-colors cursor-pointer ${
-                            hasRole
-                              ? "bg-primary/5 border-primary/30 font-semibold"
-                              : "bg-muted/30 border-border/60 text-muted-foreground"
-                          }`}
-                        >
-                          <Switch
-                            checked={hasRole}
-                            disabled={roleMutation.isPending}
-                            onCheckedChange={(checked) =>
-                              roleMutation.mutate({ userId: m.id, role: r, enabled: checked })
-                            }
-                          />
-                          <span>{r}</span>
-                          {hasRole ? (
-                            <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">● ON</span>
-                          ) : (
-                            <span className="text-[9px] text-muted-foreground">○ OFF</span>
-                          )}
-                        </label>
-                      );
-                    })}
+                  <div className="mt-3 flex flex-wrap gap-4">
+                    {ASSIGNABLE.map((r) => (
+                      <label key={r} className="flex items-center gap-2 text-xs capitalize">
+                        <Switch
+                          checked={m.roles.includes(r)}
+                          disabled={roleMutation.isPending}
+                          onCheckedChange={(checked) =>
+                            roleMutation.mutate({ userId: m.id, role: r, enabled: checked })
+                          }
+                        />
+                        {r}
+                      </label>
+                    ))}
                   </div>
                 </div>
               ))

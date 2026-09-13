@@ -116,20 +116,20 @@ export const getDripEvaluationSummary = createServerFn({ method: "GET" }).handle
     return [
       {
         sequenceId: "winback_7d",
-        eligibleCount: Math.max(inactiveOrders.length, 6),
-        sampleAudience: (inactiveOrders.slice(0, 3) as Record<string, unknown>[]).map((o) => ({
-          name: o.customer_name || "Customer",
-          phoneOrEmail: o.customer_email || o.customer_phone || "-",
+        eligibleCount: Math.max((inactiveOrders ?? []).length, 6),
+        sampleAudience: ((inactiveOrders ?? []).slice(0, 3) as Record<string, unknown>[]).map((o) => ({
+          name: String(o["customer_name"] || "Customer"),
+          phoneOrEmail: String(o["customer_email"] || o["customer_phone"] || "-"),
           reason: "Last purchase > 7 days ago",
         })),
       },
       {
         sequenceId: "review_48h",
-        eligibleCount: Math.max(deliveredRecent.length, 4),
-        sampleAudience: (deliveredRecent.slice(0, 3) as Record<string, unknown>[]).map((o) => ({
-          name: o.customer_name || "Customer",
-          phoneOrEmail: o.customer_email || o.customer_phone || "-",
-          reason: `Delivered order #${o.order_number || "recent"}`,
+        eligibleCount: Math.max((deliveredRecent ?? []).length, 4),
+        sampleAudience: ((deliveredRecent ?? []).slice(0, 3) as Record<string, unknown>[]).map((o) => ({
+          name: String(o["customer_name"] || "Customer"),
+          phoneOrEmail: String(o["customer_email"] || o["customer_phone"] || "-"),
+          reason: `Delivered order #${String(o["order_number"] || "recent")}`,
         })),
       },
       {

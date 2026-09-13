@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import type { Database } from "@/integrations/supabase/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { 
@@ -13,7 +14,7 @@ import {
   Layers, 
   Sparkles, 
   Store, 
-  Database, 
+  Database as DatabaseIcon, 
   Globe, 
   Server, 
   CheckCircle2,
@@ -30,34 +31,23 @@ import {
   Send,
   Image as ImageIcon,
   Trash2,
-  Search,
-  X,
-  Truck,
-  CreditCard,
 } from "lucide-react";
 import { testEmailDispatch } from "@/lib/emails.functions";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { settingsQuery } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { ImageUpload } from "@/components/ImageUpload";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { MapPinPickerModal } from "@/components/MapPinPickerModal";
 import { getGoogleMapsDirUrl, type GeocodedAddress } from "@/lib/maps";
 import { VERTICAL_CONFIGS, getVerticalConfig, type BusinessVertical } from "@/lib/verticals";
 import { getCurrentTenant } from "@/lib/tenant";
-import {
-  getStorePaymentConfig,
-  saveStorePaymentConfig,
-  type CustomPaymentMethod,
-  type StorePaymentConfig,
-} from "@/lib/storePayments";
 import { SeoSettingsManager } from "@/components/admin/SeoSettingsManager";
 import { BranchManagement } from "@/components/admin/BranchManagement";
 import { getDailyAtmosphere, isDailyAtmosphereEnabled, setDailyAtmosphereEnabled } from "@/lib/dailyAtmosphere";
@@ -78,69 +68,6 @@ function AdminSettings() {
   const [exportingBackup, setExportingBackup] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
   const [testEmailAddress, setTestEmailAddress] = useState("");
-
-  // POS Multi-Tenant Isolated Payment Methods & Default Tender
-  const [paymentConfig, setPaymentConfig] = useState<StorePaymentConfig>(() =>
-    getStorePaymentConfig(tenant.tenantId)
-  );
-  const [newMethodName, setNewMethodName] = useState("");
-  const [newMethodDesc, setNewMethodDesc] = useState("");
-  const [newMethodRequiresRef, setNewMethodRequiresRef] = useState(true);
-  const [newMethodRefPlaceholder, setNewMethodRefPlaceholder] = useState("");
-
-  const handleSavePaymentConfig = (updated: StorePaymentConfig) => {
-    setPaymentConfig(updated);
-    saveStorePaymentConfig(updated, tenant.tenantId);
-    toast.success("POS Payment Configuration saved!");
-  };
-
-  const handleAddCustomMethod = () => {
-    if (!newMethodName.trim()) {
-      toast.error("Please enter a payment method name");
-      return;
-    }
-    const id = newMethodName.trim().toLowerCase().replace(/[^a-z0-9]/g, "_");
-    if (["cash", "upi", "card", "split"].includes(id) || paymentConfig.customMethods.some((m) => m.id === id)) {
-      toast.error("A payment method with this name already exists");
-      return;
-    }
-    const newMethod: CustomPaymentMethod = {
-      id,
-      name: newMethodName.trim(),
-      description: newMethodDesc.trim() || undefined,
-      requiresRef: newMethodRequiresRef,
-      refPlaceholder: newMethodRefPlaceholder.trim() || "Transaction / Slip #",
-      isEnabled: true,
-    };
-    const updated: StorePaymentConfig = {
-      ...paymentConfig,
-      customMethods: [...paymentConfig.customMethods, newMethod],
-    };
-    handleSavePaymentConfig(updated);
-    setNewMethodName("");
-    setNewMethodDesc("");
-    setNewMethodRequiresRef(true);
-    setNewMethodRefPlaceholder("");
-  };
-
-  const handleToggleCustomMethod = (id: string, isEnabled: boolean) => {
-    const updated: StorePaymentConfig = {
-      ...paymentConfig,
-      customMethods: paymentConfig.customMethods.map((m) =>
-        m.id === id ? { ...m, isEnabled } : m
-      ),
-    };
-    handleSavePaymentConfig(updated);
-  };
-
-  const handleDeleteCustomMethod = (id: string) => {
-    const updated: StorePaymentConfig = {
-      ...paymentConfig,
-      defaultMethod: paymentConfig.defaultMethod === id ? "cash" : paymentConfig.defaultMethod,
-      customMethods: paymentConfig.customMethods.filter((m) => m.id !== id),
-    };
-    handleSavePaymentConfig(updated);
-  };
 
   const handleTestEmail = async () => {
     if (!testEmailAddress.trim() || !testEmailAddress.includes("@")) {
@@ -205,11 +132,11 @@ function AdminSettings() {
         supabase.from("marketing_campaigns").select("*"),
         supabase.from("inventory_batches").select("*"),
         supabase.from("customer_subscriptions").select("*"),
-        supabase.from("customers" as any).select("*"),
+        supabase.from("customers").select("*"),
         supabase.from("promotions").select("*"),
         supabase.from("suppliers").select("*"),
-        supabase.from("purchases" as any).select("*, purchase_items(*)"),
-        supabase.from("waste_logs" as any).select("*"),
+        supabase.from("purchases").select("*, purchase_items(*)"),
+        supabase.from("waste_logs").select("*"),
         supabase.from("delivery_windows").select("*"),
       ]);
 
@@ -288,7 +215,7 @@ function AdminSettings() {
       }
 
       const headers = ["Order ID", "Date", "Customer Name", "Customer Phone", "Status", "Payment Method", "Payment Status", "Subtotal (INR)", "Delivery Fee (INR)", "Discount (INR)", "Total (INR)", "Delivery Address"];
-      const rows = (orders as any[]).map((o: any) => [
+      const rows = (orders as unknown as Database["public"]["Tables"]["orders"]["Row"][]).map((o) => [
         o.id,
         new Date(o.created_at).toLocaleString("en-IN"),
         `"${(o.customer_name || "").replace(/"/g, '""')}"`,
@@ -298,9 +225,9 @@ function AdminSettings() {
         o.payment_status || "pending",
         o.subtotal || 0,
         o.delivery_fee || 0,
-        o.discount || (o as any).discount_amount || 0,
+        o.discount || o.discount_amount || 0,
         o.total || 0,
-        `"${(o.delivery_address || (o as any).address || "").replace(/"/g, '""')}"`,
+        `"${(o.delivery_address || "").replace(/"/g, '""')}"`,
       ]);
 
       const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
@@ -332,7 +259,7 @@ function AdminSettings() {
       }
 
       const headers = ["Product ID", "Item Name", "Retail Price (INR)", "Inward Cost (INR)", "HSN Code", "Stock", "Available"];
-      const rows = (products as any[]).map((p: any) => [
+      const rows = (products as Database["public"]["Tables"]["products"]["Row"][]).map((p) => [
         p.id,
         `"${(p.name || "").replace(/"/g, '""')}"`,
         p.price || 0,
@@ -436,29 +363,32 @@ function AdminSettings() {
     toast.success("Store GPS coordinates updated! Click 'Save Settings' below to persist.");
   };
 
-  // --- Smart Search & Tab State ---
-  interface SettingSectionItem {
-    id: string;
-    tab: "general" | "branches" | "delivery" | "payments" | "growth" | "system";
-    tabLabel: string;
-    title: string;
-    description: string;
-    keywords: string[];
-    content: React.ReactNode;
-  }
+  if (!settings) return null;
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"general" | "branches" | "delivery" | "payments" | "growth" | "system">("general");
+  return (
+    <AdminShell title="Store Settings" allow={["admin"]}>
+      <div className="mb-6 flex items-center justify-between rounded-2xl border p-4 bg-card">
+        <div>
+          <h3 className="font-semibold text-base">Store Status</h3>
+          <p className="text-xs text-muted-foreground">
+            {form.is_open ?? true ? "Store is currently OPEN and accepting orders." : "Store is CLOSED. Customers will see pre-order notification."}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-semibold ${form.is_open ?? true ? "text-green-600" : "text-destructive"}`}>
+            {form.is_open ?? true ? "OPEN" : "CLOSED"}
+          </span>
+          <input
+            type="checkbox"
+            id="store_is_open"
+            checked={form.is_open ?? true}
+            onChange={(e) => setForm({ ...form, is_open: e.target.checked })}
+            className="h-5 w-5 cursor-pointer"
+          />
+        </div>
+      </div>
 
-  const SETTINGS_SECTIONS: SettingSectionItem[] = useMemo(() => [
-    {
-      id: "logo",
-      tab: "general" as const,
-      tabLabel: "General & Brand",
-      title: "Store Brand Logo & Identity Manager",
-      description: "Manage store logo, brand name, and public tagline. Auto-compressed to under 500KB.",
-      keywords: ["logo", "brand", "identity", "image", "upload", "500kb", "favicon", "icon", "store name", "tagline", "catchphrase"],
-      content: (
+      {/* Store Identity & Brand Logo Manager (Compressed to <= 500KB with Edit & Delete options) */}
       <Card className="mb-6 border-border/80 shadow-xs">
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -562,16 +492,8 @@ function AdminSettings() {
           </div>
         </CardContent>
       </Card>
-      )
-    },
-    {
-      id: "vertical",
-      tab: "general" as const,
-      tabLabel: "General & Brand",
-      title: "Store Business Vertical & Industry Switcher",
-      description: "Switch store model between Coastal Seafood, Poultry & Meat, Multi-Meat Superstore, or Universal Mart.",
-      keywords: ["vertical", "industry", "seafood", "chicken", "meat", "poultry", "halal", "grocery", "mart", "electronics", "fashion", "tagline", "banner", "hero banner", "trust badge"],
-      content: (
+
+      {/* Store Business Vertical & Industry Theme Switcher */}
       <Card className="mb-6 border-border/80 shadow-xs">
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -716,16 +638,228 @@ function AdminSettings() {
           </div>
         </CardContent>
       </Card>
-      )
-    },
-    {
-      id: "app_customization",
-      tab: "general" as const,
-      tabLabel: "General & Brand",
-      title: "App Customization, Dynamic Atmosphere & Socials",
-      description: "Theme color palettes, daily coastal atmosphere engine, footer address, Google Maps link, and social profiles.",
-      keywords: ["theme", "color", "palette", "atmosphere", "daily", "footer", "address", "instagram", "facebook", "maps", "whatsapp", "social", "accent color", "dark mode"],
-      content: (
+
+      {/* Store Branches & Fulfillment Hubs (Client Admin Self-Service with Super Admin Quota Guard) */}
+      <div className="mb-6">
+        <BranchManagement />
+      </div>
+
+
+      {/* World-Class Search Engine Optimization (SEO) & Social Graph Studio */}
+      <div className="mb-6">
+        <SeoSettingsManager form={form} setForm={setForm} />
+      </div>
+
+      {/* Customer Live Catch & Landing Alerts Banner Settings */}
+      <Card className="mb-6 border-border/80 shadow-xs">
+        <CardHeader className="pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Bell className="size-5 text-sky-500" />
+                Customer Live Catch & Boat Landing Alerts Banner
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Control the top announcement alert banner shown to customers. Turn OFF if your store is inland or without boat landings.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-semibold ${form.live_alerts_enabled ?? true ? "text-green-600" : "text-muted-foreground"}`}>
+                {form.live_alerts_enabled ?? true ? "Banner Active" : "Banner Disabled"}
+              </span>
+              <Switch
+                checked={form.live_alerts_enabled ?? true}
+                onCheckedChange={(checked) => setForm({ ...form, live_alerts_enabled: checked })}
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-xs">Harbour / Sourcing Hub Name</Label>
+              <Input
+                value={form.harbour_source_name ?? ""}
+                onChange={(e) => setForm({ ...form, harbour_source_name: e.target.value })}
+                placeholder="Kasimedu Harbour, Chennai (or Local Farm Hub)"
+                className="mt-1 text-sm rounded-xl"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Appears on the pill badge in the top banner (e.g. Kasimedu Harbour, Cochin Harbour, Bio-Secure Farm Hub).
+              </p>
+            </div>
+            <div>
+              <Label className="text-xs">Default Alert Headline</Label>
+              <Input
+                value={form.harbour_alert_title ?? ""}
+                onChange={(e) => setForm({ ...form, harbour_alert_title: e.target.value })}
+                placeholder="🌅 Daily Morning Boat Catch Alert"
+                className="mt-1 text-sm rounded-xl"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Headline displayed when no manual broadcast alert is active.
+              </p>
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Default Alert Message</Label>
+            <textarea
+              className="mt-1 flex min-h-[60px] w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={form.harbour_alert_message ?? ""}
+              onChange={(e) => setForm({ ...form, harbour_alert_message: e.target.value })}
+              placeholder="Morning 06:30 AM & 02:00 PM boats arriving with fresh daily harvest..."
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="border-border/70 shadow-xs">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-lg">Shop Location & GPS Pin</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Exact store coordinates used for route calculations, distance delivery fees, and driver navigation.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-xl text-xs font-semibold text-primary border-primary/30 hover:bg-primary/5 shrink-0"
+              onClick={() => setShopPinModalOpen(true)}
+            >
+              <MapPin className="size-3.5 mr-1.5 text-primary" /> Move Pin on Map
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {form.shop_lat && form.shop_lng ? (
+              <div className="flex items-center justify-between rounded-xl bg-primary/5 border border-primary/20 p-2.5 text-xs text-foreground">
+                <div className="flex items-center gap-2">
+                  <span className="flex size-6 items-center justify-center rounded-full bg-primary/15 text-primary font-bold">
+                    📍
+                  </span>
+                  <div>
+                    <span className="font-semibold">Pinned Store Coordinates:</span>{" "}
+                    <code className="text-primary font-mono">{Number(form.shop_lat).toFixed(6)}, {Number(form.shop_lng).toFixed(6)}</code>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-[11px] text-blue-600 hover:text-blue-700 hover:bg-blue-500/10 px-2"
+                  asChild
+                >
+                  <a
+                    href={getGoogleMapsDirUrl(form.shop_lat, form.shop_lng)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Compass className="size-3 mr-1" /> Test Nav
+                  </a>
+                </Button>
+              </div>
+            ) : (
+              <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-2.5 text-xs text-amber-700 dark:text-amber-300">
+                ⚠️ Store GPS pin not set. Click &quot;Move Pin on Map&quot; to drop a doorstep pin on your physical store.
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div>
+                <Label className="text-xs">Latitude</Label>
+                <Input
+                  type="number"
+                  step="any"
+                  value={form.shop_lat ?? ""}
+                  onChange={(e) => setForm({ ...form, shop_lat: e.target.value ? Number(e.target.value) : null })}
+                  className="rounded-xl text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Longitude</Label>
+                <Input
+                  type="number"
+                  step="any"
+                  value={form.shop_lng ?? ""}
+                  onChange={(e) => setForm({ ...form, shop_lng: e.target.value ? Number(e.target.value) : null })}
+                  className="rounded-xl text-sm"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Delivery Pricing engine</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>Base Delivery Fee (₹)</Label>
+              <Input
+                type="number"
+                value={form.base_delivery_fee ?? ""}
+                onChange={(e) => setForm({ ...form, base_delivery_fee: Number(e.target.value) })}
+              />
+            </div>
+            <div>
+              <Label>Per KM Charge (₹)</Label>
+              <Input
+                type="number"
+                value={form.per_km_charge ?? ""}
+                onChange={(e) => setForm({ ...form, per_km_charge: Number(e.target.value) })}
+              />
+            </div>
+            <div>
+              <Label>Free Delivery Over (₹)</Label>
+              <Input
+                type="number"
+                value={form.free_delivery_over ?? ""}
+                onChange={(e) => setForm({ ...form, free_delivery_over: Number(e.target.value) })}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Customer Service</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>Complaint Window (Hours after order)</Label>
+              <Input
+                type="number"
+                value={form.complaint_window_hours ?? 24}
+                onChange={(e) => setForm({ ...form, complaint_window_hours: Number(e.target.value) })}
+              />
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                How many hours after placing the order can a customer raise a complaint?
+              </p>
+            </div>
+            <div>
+              <Label>Support Phone Number</Label>
+              <Input
+                value={form.support_phone ?? ""}
+                onChange={(e) => setForm({ ...form, support_phone: e.target.value })}
+                placeholder="+91..."
+              />
+            </div>
+            <div>
+              <Label>Support Email</Label>
+              <Input
+                type="email"
+                value={form.support_email ?? ""}
+                onChange={(e) => setForm({ ...form, support_email: e.target.value })}
+                placeholder="help@fishnfresh.com"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">App Customization & Socials</CardTitle>
@@ -773,15 +907,9 @@ function AdminSettings() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {(form.daily_atmosphere_enabled ?? true) ? (
-                    <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                      ● Active (Dynamic)
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
-                      ○ Disabled (Static)
-                    </Badge>
-                  )}
+                  <span className={`text-xs font-semibold ${(form.daily_atmosphere_enabled ?? true) ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
+                    {(form.daily_atmosphere_enabled ?? true) ? "Active (Dynamic)" : "Disabled (Static)"}
+                  </span>
                   <Switch
                     checked={form.daily_atmosphere_enabled ?? true}
                     onCheckedChange={(checked) => {
@@ -986,313 +1114,147 @@ function AdminSettings() {
             </div>
           </CardContent>
         </Card>
-      )
-    },
-    {
-      id: "branch",
-      tab: "branches" as const,
-      tabLabel: "Branches & Hubs",
-      title: "Multi-Branch & Store Hubs Management",
-      description: "Create and manage fulfillment hubs, store codes, tax GSTINs, delivery zones, and manager assignments.",
-      keywords: ["branch", "branches", "hub", "hubs", "dock", "multi-branch", "store code", "outlet", "flagship", "velachery", "harbour"],
-      content: (
-<div className="mb-6">
-        <BranchManagement />
-      </div>
-      )
-    },
-    {
-      id: "gps_pin",
-      tab: "branches" as const,
-      tabLabel: "Branches & Hubs",
-      title: "Shop Location & GPS Pin",
-      description: "Exact store GPS coordinates used for route calculations, distance delivery fees, and driver navigation.",
-      keywords: ["location", "gps", "pin", "coordinates", "latitude", "longitude", "map", "geocoding", "address", "store_address", "shop_lat", "shop_lng"],
-      content: (
-        <Card className="border-border/70 shadow-xs">
-          <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
-            <div>
-              <CardTitle className="text-lg">Shop Location & GPS Pin</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Exact store coordinates used for route calculations, distance delivery fees, and driver navigation.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="rounded-xl text-xs font-semibold text-primary border-primary/30 hover:bg-primary/5 shrink-0"
-              onClick={() => setShopPinModalOpen(true)}
-            >
-              <MapPin className="size-3.5 mr-1.5 text-primary" /> Move Pin on Map
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {form.shop_lat && form.shop_lng ? (
-              <div className="flex items-center justify-between rounded-xl bg-primary/5 border border-primary/20 p-2.5 text-xs text-foreground">
-                <div className="flex items-center gap-2">
-                  <span className="flex size-6 items-center justify-center rounded-full bg-primary/15 text-primary font-bold">
-                    📍
-                  </span>
-                  <div>
-                    <span className="font-semibold">Pinned Store Coordinates:</span>{" "}
-                    <code className="text-primary font-mono">{Number(form.shop_lat).toFixed(6)}, {Number(form.shop_lng).toFixed(6)}</code>
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-[11px] text-blue-600 hover:text-blue-700 hover:bg-blue-500/10 px-2"
-                  asChild
-                >
-                  <a
-                    href={getGoogleMapsDirUrl(form.shop_lat, form.shop_lng)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <Compass className="size-3 mr-1" /> Test Nav
-                  </a>
+
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <CardTitle className="text-lg">Legal, Tax Invoicing & Certifications</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Statutory details printed automatically on GST Tax Invoices and thermal slips.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" asChild className="rounded-xl text-xs h-7">
+                  <Link to="/licence" target="_blank">
+                    <FileText className="size-3 mr-1" /> View SLA &amp; License <ArrowUpRight className="size-3 ml-0.5" />
+                  </Link>
                 </Button>
               </div>
-            ) : (
-              <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-2.5 text-xs text-amber-700 dark:text-amber-300">
-                ⚠️ Store GPS pin not set. Click &quot;Move Pin on Map&quot; to drop a doorstep pin on your physical store.
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3 pt-1">
-              <div>
-                <Label className="text-xs">Latitude</Label>
-                <Input
-                  type="number"
-                  step="any"
-                  value={form.shop_lat ?? ""}
-                  onChange={(e) => setForm({ ...form, shop_lat: e.target.value ? Number(e.target.value) : null })}
-                  className="rounded-xl text-sm"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Longitude</Label>
-                <Input
-                  type="number"
-                  step="any"
-                  value={form.shop_lng ?? ""}
-                  onChange={(e) => setForm({ ...form, shop_lng: e.target.value ? Number(e.target.value) : null })}
-                  className="rounded-xl text-sm"
-                />
-              </div>
             </div>
-          </CardContent>
-        </Card>
-      )
-    },
-    {
-      id: "delivery_pricing",
-      tab: "delivery" as const,
-      tabLabel: "Delivery & Logistics",
-      title: "Delivery Pricing Engine & Service Radius",
-      description: "Base delivery fee, free delivery over threshold, per-km distance pricing, and maximum delivery radius.",
-      keywords: ["delivery", "fee", "pricing", "free delivery", "radius", "km", "distance", "shipping", "charges", "delivery_fee", "base_delivery_fee", "free_delivery_over"],
-      content: (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Delivery Pricing engine</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label>Base Delivery Fee (₹)</Label>
-              <Input
-                type="number"
-                value={form.base_delivery_fee ?? ""}
-                onChange={(e) => setForm({ ...form, base_delivery_fee: Number(e.target.value) })}
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="gstin">GSTIN (GST Number)</Label>
+                <Input
+                  id="gstin"
+                  value={form.gstin ?? ""}
+                  onChange={(e) => setForm({ ...form, gstin: e.target.value.toUpperCase() })}
+                  placeholder="e.g. 33AAAAA0000A1Z5"
+                  className="mt-1 font-mono uppercase text-xs"
+                  maxLength={15}
+                />
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Printed on official Tax Invoices. Leave empty if unregistered.
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="gst_legal_name">GST Registered Legal Trade Name</Label>
+                <Input
+                  id="gst_legal_name"
+                  value={form.gst_legal_name ?? ""}
+                  onChange={(e) => setForm({ ...form, gst_legal_name: e.target.value })}
+                  placeholder="e.g. Fish N Fresh Enterprises LLP"
+                  className="mt-1 text-xs"
+                />
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Official registered business entity name.
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="fssai_license_no">FSSAI 14-Digit License Number</Label>
+                <Input
+                  id="fssai_license_no"
+                  value={form.fssai_license_no || form.fssai_number || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setForm({ ...form, fssai_license_no: val, fssai_number: val });
+                  }}
+                  placeholder="e.g. 12423008000123"
+                  className="mt-1 font-mono text-xs"
+                  maxLength={14}
+                />
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Required by Food Safety and Standards Authority of India.
+                </p>
+              </div>
             </div>
+
             <div>
-              <Label>Per KM Charge (₹)</Label>
-              <Input
-                type="number"
-                value={form.per_km_charge ?? ""}
-                onChange={(e) => setForm({ ...form, per_km_charge: Number(e.target.value) })}
-              />
-            </div>
-            <div>
-              <Label>Free Delivery Over (₹)</Label>
-              <Input
-                type="number"
-                value={form.free_delivery_over ?? ""}
-                onChange={(e) => setForm({ ...form, free_delivery_over: Number(e.target.value) })}
+              <Label htmlFor="terms_and_conditions">Terms and Conditions &amp; Return Policies</Label>
+              <textarea
+                id="terms_and_conditions"
+                className="mt-1 flex min-h-[100px] w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={form.terms_and_conditions ?? ""}
+                onChange={(e) => setForm({ ...form, terms_and_conditions: e.target.value })}
+                placeholder="Write store return policies, complaint windows, and terms here..."
               />
             </div>
           </CardContent>
         </Card>
-      )
-    },
-    {
-      id: "express_delivery",
-      tab: "delivery" as const,
-      tabLabel: "Delivery & Logistics",
-      title: "Express Delivery Turnaround & SLA Settings",
-      description: "Enable express 30/45 minute priority delivery dispatch with custom surcharge fee.",
-      keywords: ["express", "sla", "turnaround", "30 mins", "45 mins", "fast", "speed", "express fee", "priority", "express_delivery_enabled", "express_delivery_fee", "express_sla_mins"],
-      content: (
-      <Card className="mt-6 rounded-2xl shadow-xs">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <Zap className="size-4 text-amber-500 fill-amber-500" />
-              ⚡ Express Delivery Turnaround & SLA Settings
-            </span>
-            <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-600 dark:text-amber-400">
-              High Priority Dispatch
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3">
-            <div className="space-y-0.5">
-              <Label className="text-sm font-semibold">Enable Express Turnaround (30–45 Mins)</Label>
-              <p className="text-xs text-muted-foreground">
-                Allows customers to pick fastest doorstep dispatch packed fresh on ice.
-              </p>
-            </div>
-            <div className="flex items-center gap-2.5">
-              {(form.express_delivery_enabled ?? true) ? (
-                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                  ● Enabled
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
-                  ○ Disabled
-                </Badge>
-              )}
-              <Switch
-                checked={form.express_delivery_enabled ?? true}
-                onCheckedChange={(val) => setForm({ ...form, express_delivery_enabled: val })}
-              />
-            </div>
-          </div>
+      </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="express_delivery_fee">Express Surcharge / Priority Fee (₹)</Label>
-              <Input
-                id="express_delivery_fee"
-                type="number"
-                min="0"
-                value={form.express_delivery_fee ?? 25}
-                onChange={(e) => setForm({ ...form, express_delivery_fee: Number(e.target.value) })}
-                className="mt-1"
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Added to delivery fee when express turnaround is selected (Default ₹25).
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="express_sla_mins">Turnaround Promised SLA (Minutes)</Label>
-              <Input
-                id="express_sla_mins"
-                type="number"
-                min="15"
-                max="120"
-                value={form.express_sla_mins ?? 35}
-                onChange={(e) => setForm({ ...form, express_sla_mins: Number(e.target.value) })}
-                className="mt-1"
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Badge displayed on product cards and checkout SLA guarantee (e.g. 35 mins).
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      )
-    },
-    {
-      id: "catch_alerts",
-      tab: "delivery" as const,
-      tabLabel: "Delivery & Logistics",
-      title: "Customer Live Catch & Boat Landing Alerts Banner",
-      description: "Real-time announcement ticker on customer app showing fresh harbour arrivals and boat timings.",
-      keywords: ["catch", "alerts", "boat", "landing", "banner", "harbour", "announcement", "live", "ticker", "live_alerts_enabled", "harbour_alert_title"],
-      content: (
-      <Card className="mb-6 border-border/80 shadow-xs">
-        <CardHeader className="pb-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Bell className="size-5 text-sky-500" />
-                Customer Live Catch & Boat Landing Alerts Banner
-              </CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Control the top announcement alert banner shown to customers. Turn OFF if your store is inland or without boat landings.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {(form.live_alerts_enabled ?? true) ? (
-                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                  ● Banner Active
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
-                  ○ Banner Disabled
-                </Badge>
-              )}
-              <Switch
-                checked={form.live_alerts_enabled ?? true}
-                onCheckedChange={(checked) => setForm({ ...form, live_alerts_enabled: checked })}
-              />
-            </div>
-          </div>
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle className="text-lg">Inventory, Taxes & Customer Urgency</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid gap-4 md:grid-cols-3">
             <div>
-              <Label className="text-xs">Harbour / Sourcing Hub Name</Label>
+              <Label>Default GST Percentage (%)</Label>
               <Input
-                value={form.harbour_source_name ?? ""}
-                onChange={(e) => setForm({ ...form, harbour_source_name: e.target.value })}
-                placeholder="Kasimedu Harbour, Chennai (or Local Farm Hub)"
-                className="mt-1 text-sm rounded-xl"
+                type="number"
+                value={form.default_gst_percent ?? 0}
+                onChange={(e) => setForm({ ...form, default_gst_percent: Number(e.target.value) })}
+                placeholder="0"
+                className="mt-1"
               />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Appears on the pill badge in the top banner (e.g. Kasimedu Harbour, Cochin Harbour, Bio-Secure Farm Hub).
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Default GST rate pre-filled when creating new seafood items.
               </p>
             </div>
+
             <div>
-              <Label className="text-xs">Default Alert Headline</Label>
+              <Label>Stock Urgency Alert Limit</Label>
               <Input
-                value={form.harbour_alert_title ?? ""}
-                onChange={(e) => setForm({ ...form, harbour_alert_title: e.target.value })}
-                placeholder="🌅 Daily Morning Boat Catch Alert"
-                className="mt-1 text-sm rounded-xl"
+                type="number"
+                value={form.stock_urgency_threshold ?? 5}
+                onChange={(e) => setForm({ ...form, stock_urgency_threshold: Number(e.target.value) })}
+                placeholder="5"
+                className="mt-1"
               />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Headline displayed when no manual broadcast alert is active.
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Displays "🔥 Only X left!" to customers when stock is below or equal to this limit.
               </p>
             </div>
-          </div>
-          <div>
-            <Label className="text-xs">Default Alert Message</Label>
-            <textarea
-              className="mt-1 flex min-h-[60px] w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              value={form.harbour_alert_message ?? ""}
-              onChange={(e) => setForm({ ...form, harbour_alert_message: e.target.value })}
-              placeholder="Morning 06:30 AM & 02:00 PM boats arriving with fresh daily harvest..."
-            />
+
+            <div className="flex flex-col justify-between rounded-xl border p-3 bg-muted/20">
+              <div className="space-y-0.5">
+                <Label htmlFor="show_stock_customer" className="font-semibold cursor-pointer">
+                  Show Live Stock Urgency
+                </Label>
+                <p className="text-[11px] text-muted-foreground">
+                  Displays remaining quantity badge to customers in catalog & product page to drive conversions.
+                </p>
+              </div>
+              <div className="pt-2 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="show_stock_customer"
+                  checked={form.show_stock_to_customers ?? true}
+                  onChange={(e) => setForm({ ...form, show_stock_to_customers: e.target.checked })}
+                  className="size-4 cursor-pointer"
+                />
+                <span className="text-xs font-semibold">
+                  {form.show_stock_to_customers ?? true ? "Enabled" : "Disabled"}
+                </span>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
-      )
-    },
-    {
-      id: "payments",
-      tab: "payments" as const,
-      tabLabel: "Payments & Tax",
-      title: "Payments & Checkout Gateways",
-      description: "Cash on Delivery (COD) switch, Razorpay / Stripe credentials, and online payment methods.",
-      keywords: ["payment", "payments", "cod", "cash on delivery", "upi", "gateway", "razorpay", "stripe", "checkout", "api key", "secret key", "online payment"],
-      content: (
+      
       <Card className="mt-4 border-primary">
         <CardHeader>
           <CardTitle className="text-lg">Payments & Checkout</CardTitle>
@@ -1388,589 +1350,8 @@ function AdminSettings() {
 
         </CardContent>
       </Card>
-      )
-    },
-    {
-      id: "pos_payments",
-      tab: "payments" as const,
-      tabLabel: "Payments & Tax",
-      title: "POS Counter Payment Methods & Tenders (Store-Isolated)",
-      description: "Default checkout tender selection and custom payment modes (Sodexo, Khata, Swiggy POS, Cheque) isolated per tenant store.",
-      keywords: ["pos payment", "tender", "sodexo", "khata", "credit", "custom payment", "default payment", "payment method", "pos tender", "split payment"],
-      content: (
-        <Card className="mt-4 border-primary/40 shadow-xs">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <CreditCard className="size-5 text-primary" />
-                  POS Counter Payment Tenders &amp; Custom Methods
-                </CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Tenant-isolated payment modes. Default tender is pre-selected on the counter billing drawer.
-                </p>
-              </div>
-              <Badge variant="outline" className="text-xs font-mono">
-                Store ID: {tenant.tenantId}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Default Method Selector */}
-            <div className="p-4 rounded-2xl bg-muted/40 border border-border/80 space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div>
-                  <Label className="text-xs font-bold text-foreground">Default POS Counter Payment Tender</Label>
-                  <p className="text-[11px] text-muted-foreground">
-                    Pre-selected payment method when opening the counter bill drawer for fast 1-click checkout.
-                  </p>
-                </div>
-                <div className="w-full sm:w-56">
-                  <select
-                    value={paymentConfig.defaultMethod}
-                    onChange={(e) => {
-                      const updated = { ...paymentConfig, defaultMethod: e.target.value };
-                      handleSavePaymentConfig(updated);
-                    }}
-                    className="flex h-9 w-full rounded-xl border border-input bg-background px-3 py-1 text-xs font-bold shadow-xs focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="cash">Cash (Default)</option>
-                    <option value="upi">UPI QR Payment</option>
-                    <option value="card">Card Swipe</option>
-                    <option value="split">Split Tender</option>
-                    {paymentConfig.customMethods
-                      .filter((m) => m.isEnabled)
-                      .map((cm) => (
-                        <option key={cm.id} value={cm.id}>
-                          {cm.name} (Custom)
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              </div>
-            </div>
 
-            {/* Custom Payment Methods List */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-sm font-bold text-foreground">Store Custom Payment Methods</h4>
-                  <p className="text-xs text-muted-foreground">
-                    Define client-specific tenders like Sodexo/Pluxee, Khata/Store Credit, Swiggy POS, Cheques, etc.
-                  </p>
-                </div>
-                <Badge variant="secondary" className="text-xs font-bold">
-                  {paymentConfig.customMethods.length} Configured
-                </Badge>
-              </div>
-
-              <div className="space-y-2">
-                {paymentConfig.customMethods.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-muted-foreground border border-dashed rounded-2xl">
-                    No custom payment methods defined. Add one below to offer custom billing tenders at the counter.
-                  </div>
-                ) : (
-                  paymentConfig.customMethods.map((cm) => (
-                    <div
-                      key={cm.id}
-                      className={`p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                        cm.isEnabled ? "bg-card border-border/80 shadow-2xs" : "bg-muted/20 border-dashed opacity-60"
-                      }`}
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-xs text-foreground">{cm.name}</span>
-                          {cm.requiresRef && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/40 text-primary">
-                              Ref Slip Mandatory
-                            </Badge>
-                          )}
-                          {paymentConfig.defaultMethod === cm.id && (
-                            <Badge className="bg-primary/20 text-primary hover:bg-primary/30 text-[10px] px-1.5 py-0">
-                              Default Tender
-                            </Badge>
-                          )}
-                        </div>
-                        {cm.description && (
-                          <p className="text-[11px] text-muted-foreground">{cm.description}</p>
-                        )}
-                        <p className="text-[10px] font-mono text-muted-foreground">
-                          ID: <code className="text-foreground">{cm.id}</code> • Placeholder: "{cm.refPlaceholder || 'Ref #'}"
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
-                        <div className="flex items-center gap-2">
-                          {cm.isEnabled ? (
-                            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                              ● Active
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
-                              ○ Disabled
-                            </Badge>
-                          )}
-                          <Switch
-                            checked={cm.isEnabled}
-                            onCheckedChange={(checked) => handleToggleCustomMethod(cm.id, checked)}
-                          />
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteCustomMethod(cm.id)}
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive rounded-xl"
-                          title="Delete payment method"
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Add New Custom Payment Method Form */}
-            <div className="p-4 rounded-2xl border border-primary/20 bg-primary/5 space-y-3.5">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                <Sparkles className="size-3.5" />
-                Add New Custom Payment Tender
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold">Payment Tender Name *</Label>
-                  <Input
-                    placeholder="e.g. Sodexo / Pluxee, Swiggy POS, Cheque"
-                    value={newMethodName}
-                    onChange={(e) => setNewMethodName(e.target.value)}
-                    className="h-8.5 rounded-xl text-xs bg-background"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold">Description / Instruction</Label>
-                  <Input
-                    placeholder="e.g. Meal card / customer credit account"
-                    value={newMethodDesc}
-                    onChange={(e) => setNewMethodDesc(e.target.value)}
-                    className="h-8.5 rounded-xl text-xs bg-background"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold">Reference / Slip Field Placeholder</Label>
-                  <Input
-                    placeholder="e.g. Card Slip # / Khata Mobile #"
-                    value={newMethodRefPlaceholder}
-                    onChange={(e) => setNewMethodRefPlaceholder(e.target.value)}
-                    className="h-8.5 rounded-xl text-xs bg-background"
-                  />
-                </div>
-                <div className="flex items-center justify-between p-2 rounded-xl bg-background border border-border/80 self-end h-8.5">
-                  <span className="text-xs font-medium">Require Ref # before billing</span>
-                  <div className="flex items-center gap-2">
-                    {newMethodRequiresRef ? (
-                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                        ● Mandatory
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
-                        ○ Optional
-                      </Badge>
-                    )}
-                    <Switch
-                      checked={newMethodRequiresRef}
-                      onCheckedChange={setNewMethodRequiresRef}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-end pt-1">
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleAddCustomMethod}
-                  className="rounded-xl h-8 text-xs font-bold gap-1.5 px-4"
-                >
-                  <Sparkles className="size-3.5" />
-                  Add Custom Payment Tender
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ),
-    },
-    {
-      id: "legal_tax",
-      tab: "payments" as const,
-      tabLabel: "Payments & Tax",
-      title: "Legal, Tax Invoicing & Certifications",
-      description: "Statutory details printed automatically on GST Tax Invoices and thermal receipts.",
-      keywords: ["gst", "gstin", "tax", "fssai", "license", "legal", "terms", "return policy", "invoice", "registered name", "gst_legal_name", "fssai_license_no"],
-      content: (
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <CardTitle className="text-lg">Legal, Tax Invoicing & Certifications</CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Statutory details printed automatically on GST Tax Invoices and thermal slips.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" asChild className="rounded-xl text-xs h-7">
-                  <Link to="/licence" target="_blank">
-                    <FileText className="size-3 mr-1" /> View SLA &amp; License <ArrowUpRight className="size-3 ml-0.5" />
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="gstin">GSTIN (GST Number)</Label>
-                <Input
-                  id="gstin"
-                  value={form.gstin ?? ""}
-                  onChange={(e) => setForm({ ...form, gstin: e.target.value.toUpperCase() })}
-                  placeholder="e.g. 33AAAAA0000A1Z5"
-                  className="mt-1 font-mono uppercase text-xs"
-                  maxLength={15}
-                />
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  Printed on official Tax Invoices. Leave empty if unregistered.
-                </p>
-              </div>
-              <div>
-                <Label htmlFor="gst_legal_name">GST Registered Legal Trade Name</Label>
-                <Input
-                  id="gst_legal_name"
-                  value={form.gst_legal_name ?? ""}
-                  onChange={(e) => setForm({ ...form, gst_legal_name: e.target.value })}
-                  placeholder="e.g. Fish N Fresh Enterprises LLP"
-                  className="mt-1 text-xs"
-                />
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  Official registered business entity name.
-                </p>
-              </div>
-              <div>
-                <Label htmlFor="fssai_license_no">FSSAI 14-Digit License Number</Label>
-                <Input
-                  id="fssai_license_no"
-                  value={form.fssai_license_no || form.fssai_number || ""}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setForm({ ...form, fssai_license_no: val, fssai_number: val });
-                  }}
-                  placeholder="e.g. 12423008000123"
-                  className="mt-1 font-mono text-xs"
-                  maxLength={14}
-                />
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  Required by Food Safety and Standards Authority of India.
-                </p>
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="terms_and_conditions">Terms and Conditions &amp; Return Policies</Label>
-              <textarea
-                id="terms_and_conditions"
-                className="mt-1 flex min-h-[100px] w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                value={form.terms_and_conditions ?? ""}
-                onChange={(e) => setForm({ ...form, terms_and_conditions: e.target.value })}
-                placeholder="Write store return policies, complaint windows, and terms here..."
-              />
-            </div>
-          </CardContent>
-        </Card>
-      )
-    },
-    {
-      id: "inventory_taxes",
-      tab: "payments" as const,
-      tabLabel: "Payments & Tax",
-      title: "Inventory, Taxes & Customer Urgency",
-      description: "Default GST tax percentage, low stock alert threshold, and social buying urgency badges.",
-      keywords: ["gst rate", "tax", "percent", "inventory", "low stock", "threshold", "urgency", "stock", "default_gst_percent", "low_stock_threshold"],
-      content: (
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle className="text-lg">Inventory, Taxes & Customer Urgency</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <Label>Default GST Percentage (%)</Label>
-              <Input
-                type="number"
-                value={form.default_gst_percent ?? 0}
-                onChange={(e) => setForm({ ...form, default_gst_percent: Number(e.target.value) })}
-                placeholder="0"
-                className="mt-1"
-              />
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Default GST rate pre-filled when creating new seafood items.
-              </p>
-            </div>
-
-            <div>
-              <Label>Stock Urgency Alert Limit</Label>
-              <Input
-                type="number"
-                value={form.stock_urgency_threshold ?? 5}
-                onChange={(e) => setForm({ ...form, stock_urgency_threshold: Number(e.target.value) })}
-                placeholder="5"
-                className="mt-1"
-              />
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Displays "🔥 Only X left!" to customers when stock is below or equal to this limit.
-              </p>
-            </div>
-
-            <div className="flex flex-col justify-between rounded-xl border p-3 bg-muted/20">
-              <div className="space-y-0.5">
-                <Label htmlFor="show_stock_customer" className="font-semibold cursor-pointer">
-                  Show Live Stock Urgency
-                </Label>
-                <p className="text-[11px] text-muted-foreground">
-                  Displays remaining quantity badge to customers in catalog & product page to drive conversions.
-                </p>
-              </div>
-              <div className="pt-2 flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="show_stock_customer"
-                  checked={form.show_stock_to_customers ?? true}
-                  onChange={(e) => setForm({ ...form, show_stock_to_customers: e.target.checked })}
-                  className="size-4 cursor-pointer"
-                />
-                <span className="text-xs font-semibold">
-                  {form.show_stock_to_customers ?? true ? "Enabled" : "Disabled"}
-                </span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      )
-    },
-    {
-      id: "seo",
-      tab: "growth" as const,
-      tabLabel: "Marketing, SEO & Loyalty",
-      title: "Search Engine Optimization (SEO) & Social Graph Studio",
-      description: "Dynamic canonical domain, Schema.org rich snippets, meta titles, social share preview cards, and Google/Bing tokens.",
-      keywords: ["seo", "meta", "google", "bing", "open graph", "domain", "canonical", "sitemap", "keywords", "search engine", "google search console", "meta description"],
-      content: (
-<div className="mb-6">
-        <SeoSettingsManager form={form} setForm={setForm} />
-      </div>
-      )
-    },
-    {
-      id: "loyalty",
-      tab: "growth" as const,
-      tabLabel: "Marketing, SEO & Loyalty",
-      title: "FreshCash Loyalty & Referral Wallet Program",
-      description: "Customer Refer & Earn program toggle, store credit cashback %, and maximum checkout wallet burn percent.",
-      keywords: ["wallet", "referral", "refer and earn", "loyalty", "freshcash", "cashback", "reward", "burn percent", "referral_program_enabled", "wallet_enabled", "max_wallet_burn_percent"],
-      content: (
-      <Card className="mt-6 rounded-2xl shadow-xs">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <Wallet className="size-4 text-primary" />
-              🎁 FreshCash Loyalty & Referral Wallet Program
-            </span>
-            <Badge variant="outline" className="text-xs border-primary/40 text-primary">
-              Toggleable & Ledger Audited
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3">
-            <div className="space-y-0.5">
-              <Label className="text-sm font-semibold">Enable FreshCash Loyalty Wallet</Label>
-              <p className="text-xs text-muted-foreground">
-                When enabled, customers get cashback credited on delivered orders, and can redeem balance at checkout.
-              </p>
-            </div>
-            <div className="flex items-center gap-2.5">
-              {(form.wallet_enabled ?? true) ? (
-                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                  ● Active
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
-                  ○ Disabled
-                </Badge>
-              )}
-              <Switch
-                checked={form.wallet_enabled ?? true}
-                onCheckedChange={(val) => setForm({ ...form, wallet_enabled: val })}
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3">
-            <div className="space-y-0.5">
-              <Label className="text-sm font-semibold">Customer Refer & Earn Program</Label>
-              <p className="text-xs text-muted-foreground">
-                When turned OFF, all referral modals, invite chips, account referral cards, and checkout invite code inputs are completely hidden from customers.
-              </p>
-            </div>
-            <div className="flex items-center gap-2.5">
-              {(((form as any).referral_program_enabled ?? form.wallet_enabled) ?? true) ? (
-                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                  ● Active
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
-                  ○ Disabled
-                </Badge>
-              )}
-              <Switch
-                checked={((form as any).referral_program_enabled ?? form.wallet_enabled) ?? true}
-                onCheckedChange={(val) => setForm({ ...form, referral_program_enabled: val } as any)}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="referral_reward_referrer">Referrer Bonus (₹)</Label>
-              <Input
-                id="referral_reward_referrer"
-                type="number"
-                min="0"
-                value={form.referral_reward_referrer ?? 50}
-                onChange={(e) => setForm({ ...form, referral_reward_referrer: Number(e.target.value) })}
-                className="mt-1"
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                FreshCash credited to the user who shared the code upon friend's first delivered order.
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="referral_reward_referee">Referee Welcome Discount (₹)</Label>
-              <Input
-                id="referral_reward_referee"
-                type="number"
-                min="0"
-                value={form.referral_reward_referee ?? 50}
-                onChange={(e) => setForm({ ...form, referral_reward_referee: Number(e.target.value) })}
-                className="mt-1"
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Instant checkout welcome discount for the newly invited friend.
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="cashback_percent">Order Cashback (%)</Label>
-              <Input
-                id="cashback_percent"
-                type="number"
-                min="0"
-                max="50"
-                step="0.5"
-                value={form.cashback_percent ?? 2.5}
-                onChange={(e) => setForm({ ...form, cashback_percent: Number(e.target.value) })}
-                className="mt-1"
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Cashback percentage credited to customer wallet upon successful order delivery.
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="max_wallet_burn_percent">Max Wallet Burn Per Order (%)</Label>
-              <Input
-                id="max_wallet_burn_percent"
-                type="number"
-                min="5"
-                max="100"
-                value={form.max_wallet_burn_percent ?? 50}
-                onChange={(e) => setForm({ ...form, max_wallet_burn_percent: Number(e.target.value) })}
-                className="mt-1"
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Max percentage of order subtotal that can be paid using FreshCash balance (e.g. 50%).
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      )
-    },
-    {
-      id: "fcm",
-      tab: "growth" as const,
-      tabLabel: "Marketing, SEO & Loyalty",
-      title: "Firebase Cloud Messaging (FCM) & Push Setup",
-      description: "Push notification credentials for instant order status alerts on mobile browsers and Android PWAs.",
-      keywords: ["fcm", "push", "firebase", "notifications", "server key", "project id", "alerts", "fcm_server_key", "fcm_project_id"],
-      content: (
-      <Card className="mt-6 rounded-2xl shadow-xs">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <Bell className="size-4 text-sky-500" />
-              🔔 Firebase Cloud Messaging (FCM) & Push Setup
-            </span>
-            <Badge className="bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30 text-xs">
-              PWA Foundation Ready
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="rounded-xl border border-sky-500/20 bg-sky-50/50 dark:bg-sky-950/20 p-3 text-xs text-sky-800 dark:text-sky-300">
-            <p className="font-semibold flex items-center gap-1.5">
-              <ShieldCheck className="size-4 text-sky-600 dark:text-sky-400" />
-              Push Architecture Active: Web Push & Token Registry Configured
-            </p>
-            <p className="mt-1 opacity-90">
-              Customer & staff device tokens are automatically captured in PostgreSQL <code className="font-mono bg-sky-100 dark:bg-sky-900/60 px-1 py-0.5 rounded">fcm_tokens</code> table. The system operates locally with service worker push fallback. When you are ready to configure your Firebase project, enter your credentials below.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="fcm_project_id">Firebase Project ID</Label>
-              <Input
-                id="fcm_project_id"
-                value={form.fcm_project_id ?? ""}
-                onChange={(e) => setForm({ ...form, fcm_project_id: e.target.value })}
-                placeholder="e.g. fish-n-fresh-hub"
-                className="mt-1 font-mono text-xs"
-              />
-            </div>
-            <div>
-              <Label htmlFor="fcm_server_key">FCM Server Key / Web VAPID Key (Add Later)</Label>
-              <Input
-                id="fcm_server_key"
-                type="password"
-                value={form.fcm_server_key ?? ""}
-                onChange={(e) => setForm({ ...form, fcm_server_key: e.target.value })}
-                placeholder="AAAA... or BOrz..."
-                className="mt-1 font-mono text-xs"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      )
-    },
-    {
-      id: "emails",
-      tab: "growth" as const,
-      tabLabel: "Marketing, SEO & Loyalty",
-      title: "Transactional Emails & GSTIN Invoice Attachments",
-      description: "Automatic PDF order confirmation and invoice email dispatch to customers upon placing orders.",
-      keywords: ["email", "emails", "smtp", "notifications", "test email", "sendgrid", "resend", "dispatch", "email_notifications_enabled"],
-      content: (
+      {/* Transactional Email & Tax Invoice Notifications Settings */}
       <Card className="mt-6 rounded-2xl shadow-xs border-sky-500/20">
         <CardHeader>
           <CardTitle className="text-base flex items-center justify-between">
@@ -2059,16 +1440,210 @@ function AdminSettings() {
           </div>
         </CardContent>
       </Card>
-      )
-    },
-    {
-      id: "modular",
-      tab: "system" as const,
-      tabLabel: "System & Modules",
-      title: "Modular Feature Modules & Tenant Capabilities",
-      description: "Toggle optional commercial modules like Culinary AI, Driver Route Optimization, Live Chat, and Retail POS.",
-      keywords: ["modules", "features", "ai benefits", "route optimization", "live chat", "pos", "terminal", "feature_pos_enabled", "feature_live_chat_enabled"],
-      content: (
+
+      {/* 1. Express Delivery Turnaround & SLA Settings */}
+      <Card className="mt-6 rounded-2xl shadow-xs">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Zap className="size-4 text-amber-500 fill-amber-500" />
+              ⚡ Express Delivery Turnaround & SLA Settings
+            </span>
+            <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-600 dark:text-amber-400">
+              High Priority Dispatch
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-semibold">Enable Express Turnaround (30–45 Mins)</Label>
+              <p className="text-xs text-muted-foreground">
+                Allows customers to pick fastest doorstep dispatch packed fresh on ice.
+              </p>
+            </div>
+            <Switch
+              checked={form.express_delivery_enabled ?? true}
+              onCheckedChange={(val) => setForm({ ...form, express_delivery_enabled: val })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="express_delivery_fee">Express Surcharge / Priority Fee (₹)</Label>
+              <Input
+                id="express_delivery_fee"
+                type="number"
+                min="0"
+                value={form.express_delivery_fee ?? 25}
+                onChange={(e) => setForm({ ...form, express_delivery_fee: Number(e.target.value) })}
+                className="mt-1"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Added to delivery fee when express turnaround is selected (Default ₹25).
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="express_sla_mins">Turnaround Promised SLA (Minutes)</Label>
+              <Input
+                id="express_sla_mins"
+                type="number"
+                min="15"
+                max="120"
+                value={form.express_sla_mins ?? 35}
+                onChange={(e) => setForm({ ...form, express_sla_mins: Number(e.target.value) })}
+                className="mt-1"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Badge displayed on product cards and checkout SLA guarantee (e.g. 35 mins).
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 2. FreshCash Loyalty & Referral Wallet Settings */}
+      <Card className="mt-6 rounded-2xl shadow-xs">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Wallet className="size-4 text-primary" />
+              🎁 FreshCash Loyalty & Referral Wallet Program
+            </span>
+            <Badge variant="outline" className="text-xs border-primary/40 text-primary">
+              Toggleable & Ledger Audited
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-semibold">Enable FreshCash Wallet & Referral Program</Label>
+              <p className="text-xs text-muted-foreground">
+                When enabled, customers get personal invite codes, cashback on delivered orders, and can redeem balance at checkout.
+              </p>
+            </div>
+            <Switch
+              checked={form.wallet_enabled ?? true}
+              onCheckedChange={(val) => setForm({ ...form, wallet_enabled: val })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="referral_reward_referrer">Referrer Bonus (₹)</Label>
+              <Input
+                id="referral_reward_referrer"
+                type="number"
+                min="0"
+                value={form.referral_reward_referrer ?? 50}
+                onChange={(e) => setForm({ ...form, referral_reward_referrer: Number(e.target.value) })}
+                className="mt-1"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                FreshCash credited to the user who shared the code upon friend's first delivered order.
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="referral_reward_referee">Referee Welcome Discount (₹)</Label>
+              <Input
+                id="referral_reward_referee"
+                type="number"
+                min="0"
+                value={form.referral_reward_referee ?? 50}
+                onChange={(e) => setForm({ ...form, referral_reward_referee: Number(e.target.value) })}
+                className="mt-1"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Instant checkout welcome discount for the newly invited friend.
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="cashback_percent">Order Cashback (%)</Label>
+              <Input
+                id="cashback_percent"
+                type="number"
+                min="0"
+                max="50"
+                step="0.5"
+                value={form.cashback_percent ?? 2.5}
+                onChange={(e) => setForm({ ...form, cashback_percent: Number(e.target.value) })}
+                className="mt-1"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Cashback percentage credited to customer wallet upon successful order delivery.
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="max_wallet_burn_percent">Max Wallet Burn Per Order (%)</Label>
+              <Input
+                id="max_wallet_burn_percent"
+                type="number"
+                min="5"
+                max="100"
+                value={form.max_wallet_burn_percent ?? 50}
+                onChange={(e) => setForm({ ...form, max_wallet_burn_percent: Number(e.target.value) })}
+                className="mt-1"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Max percentage of order subtotal that can be paid using FreshCash balance (e.g. 50%).
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 3. Firebase Cloud Messaging (FCM) Foundation */}
+      <Card className="mt-6 rounded-2xl shadow-xs">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Bell className="size-4 text-sky-500" />
+              🔔 Firebase Cloud Messaging (FCM) & Push Setup
+            </span>
+            <Badge className="bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30 text-xs">
+              PWA Foundation Ready
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-xl border border-sky-500/20 bg-sky-50/50 dark:bg-sky-950/20 p-3 text-xs text-sky-800 dark:text-sky-300">
+            <p className="font-semibold flex items-center gap-1.5">
+              <ShieldCheck className="size-4 text-sky-600 dark:text-sky-400" />
+              Push Architecture Active: Web Push & Token Registry Configured
+            </p>
+            <p className="mt-1 opacity-90">
+              Customer & staff device tokens are automatically captured in PostgreSQL <code className="font-mono bg-sky-100 dark:bg-sky-900/60 px-1 py-0.5 rounded">fcm_tokens</code> table. The system operates locally with service worker push fallback. When you are ready to configure your Firebase project, enter your credentials below.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="fcm_project_id">Firebase Project ID</Label>
+              <Input
+                id="fcm_project_id"
+                value={form.fcm_project_id ?? ""}
+                onChange={(e) => setForm({ ...form, fcm_project_id: e.target.value })}
+                placeholder="e.g. fish-n-fresh-hub"
+                className="mt-1 font-mono text-xs"
+              />
+            </div>
+            <div>
+              <Label htmlFor="fcm_server_key">FCM Server Key / Web VAPID Key (Add Later)</Label>
+              <Input
+                id="fcm_server_key"
+                type="password"
+                value={form.fcm_server_key ?? ""}
+                onChange={(e) => setForm({ ...form, fcm_server_key: e.target.value })}
+                placeholder="AAAA... or BOrz..."
+                className="mt-1 font-mono text-xs"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 4. Modular Feature Controls & Commercial Capabilities */}
       <Card className="mt-6 rounded-2xl shadow-xs border-border/80">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2101,22 +1676,11 @@ function AdminSettings() {
                   In-store barcode scanning, quick cash/QR billing, and direct ESC/POS thermal printing.
                 </p>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {(form.feature_pos_enabled ?? true) ? (
-                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                    ● Enabled
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
-                    ○ Disabled
-                  </Badge>
-                )}
-                <Switch
-                  id="toggle_feature_pos"
-                  checked={form.feature_pos_enabled ?? true}
-                  onCheckedChange={(checked) => setForm({ ...form, feature_pos_enabled: checked })}
-                />
-              </div>
+              <Switch
+                id="toggle_feature_pos"
+                checked={form.feature_pos_enabled ?? true}
+                onCheckedChange={(checked) => setForm({ ...form, feature_pos_enabled: checked })}
+              />
             </div>
 
             {/* Live Chat */}
@@ -2132,22 +1696,11 @@ function AdminSettings() {
                   Real-time two-way messaging desk for customer inquiries, order assistance, and WhatsApp dial.
                 </p>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {(form.feature_live_chat_enabled ?? true) ? (
-                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                    ● Enabled
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
-                    ○ Disabled
-                  </Badge>
-                )}
-                <Switch
-                  id="toggle_feature_chat"
-                  checked={form.feature_live_chat_enabled ?? true}
-                  onCheckedChange={(checked) => setForm({ ...form, feature_live_chat_enabled: checked })}
-                />
-              </div>
+              <Switch
+                id="toggle_feature_chat"
+                checked={form.feature_live_chat_enabled ?? true}
+                onCheckedChange={(checked) => setForm({ ...form, feature_live_chat_enabled: checked })}
+              />
             </div>
 
             {/* Wallet & Loyalty */}
@@ -2163,22 +1716,11 @@ function AdminSettings() {
                   Order cashback, referral rewards, and instant checkout wallet burn balances.
                 </p>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {(form.feature_wallet_enabled ?? true) ? (
-                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                    ● Enabled
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
-                    ○ Disabled
-                  </Badge>
-                )}
-                <Switch
-                  id="toggle_feature_wallet"
-                  checked={form.feature_wallet_enabled ?? true}
-                  onCheckedChange={(checked) => setForm({ ...form, feature_wallet_enabled: checked })}
-                />
-              </div>
+              <Switch
+                id="toggle_feature_wallet"
+                checked={form.feature_wallet_enabled ?? true}
+                onCheckedChange={(checked) => setForm({ ...form, feature_wallet_enabled: checked })}
+              />
             </div>
 
             {/* AI Benefits */}
@@ -2194,81 +1736,17 @@ function AdminSettings() {
                   Dynamic health benefits, cooking tips, and nutrient breakdowns on product pages.
                 </p>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {(form.feature_ai_benefits_enabled ?? true) ? (
-                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                    ● Enabled
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
-                    ○ Disabled
-                  </Badge>
-                )}
-                <Switch
-                  id="toggle_feature_ai"
-                  checked={form.feature_ai_benefits_enabled ?? true}
-                  onCheckedChange={(checked) => setForm({ ...form, feature_ai_benefits_enabled: checked })}
-                />
-              </div>
+              <Switch
+                id="toggle_feature_ai"
+                checked={form.feature_ai_benefits_enabled ?? true}
+                onCheckedChange={(checked) => setForm({ ...form, feature_ai_benefits_enabled: checked })}
+              />
             </div>
           </div>
         </CardContent>
       </Card>
-      )
-    },
-    {
-      id: "customer_service",
-      tab: "system" as const,
-      tabLabel: "System & Modules",
-      title: "Customer Service & Complaint SLA Resolution Window",
-      description: "Support hotline phone, customer service email, and allowable post-delivery complaint window in hours.",
-      keywords: ["customer service", "support", "phone", "email", "complaint", "hours", "sla", "contact_phone", "contact_email", "complaint_window_hours"],
-      content: (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Customer Service</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>Complaint Window (Hours after order)</Label>
-              <Input
-                type="number"
-                value={form.complaint_window_hours ?? 24}
-                onChange={(e) => setForm({ ...form, complaint_window_hours: Number(e.target.value) })}
-              />
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                How many hours after placing the order can a customer raise a complaint?
-              </p>
-            </div>
-            <div>
-              <Label>Support Phone Number</Label>
-              <Input
-                value={form.support_phone ?? ""}
-                onChange={(e) => setForm({ ...form, support_phone: e.target.value })}
-                placeholder="+91..."
-              />
-            </div>
-            <div>
-              <Label>Support Email</Label>
-              <Input
-                type="email"
-                value={form.support_email ?? ""}
-                onChange={(e) => setForm({ ...form, support_email: e.target.value })}
-                placeholder="help@fishnfresh.com"
-              />
-            </div>
-          </CardContent>
-        </Card>
-      )
-    },
-    {
-      id: "data",
-      tab: "system" as const,
-      tabLabel: "System & Modules",
-      title: "Data Management, Disaster Recovery & Versioning",
-      description: "1-click JSON database backups, Orders CSV ledger export, Products catalog CSV export, and schema audit.",
-      keywords: ["data", "export", "backup", "csv", "json", "orders csv", "products csv", "cogs", "disaster recovery", "database backup", "schema"],
-      content: (
+
+      {/* 5. Data Management, Disaster Recovery & Commercial License */}
       <Card className="mt-6 rounded-2xl shadow-xs border-emerald-500/30">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2386,306 +1864,14 @@ function AdminSettings() {
           </div>
         </CardContent>
       </Card>
-      )
-    },
-  ], [form, settings, schemaVersion, testingEmail, testEmailAddress, exportingBackup]);
-
-  // Filter sections when searching
-  const filteredSections: SettingSectionItem[] = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return [];
-    return SETTINGS_SECTIONS.filter((s: SettingSectionItem) => {
-      return (
-        s.title.toLowerCase().includes(q) ||
-        s.description.toLowerCase().includes(q) ||
-        s.tabLabel.toLowerCase().includes(q) ||
-        s.keywords.some((k: string) => k.toLowerCase().includes(q))
-      );
-    });
-  }, [searchQuery, SETTINGS_SECTIONS]);
-
-  const TAB_DEFINITIONS = [
-    { id: "general", label: "General & Brand", icon: Store, count: 3 },
-    { id: "branches", label: "Branches & Hubs", icon: MapPin, count: 2 },
-    { id: "delivery", label: "Delivery & Logistics", icon: Truck, count: 3 },
-    { id: "payments", label: "Payments & Tax", icon: CreditCard, count: 3 },
-    { id: "growth", label: "Marketing & Growth", icon: Sparkles, count: 4 },
-    { id: "system", label: "System & Modules", icon: SlidersHorizontal, count: 3 },
-  ] as const;
-
-  if (!settings) return null;
-
-  return (
-    <AdminShell title="Store Settings" allow={["admin"]}>
-      {/* Top Header & Save Control */}
-      <div className="mb-6 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card p-4 shadow-2xs">
-          <div className="flex items-center gap-3">
-            <div className="size-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <Store className="size-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-base text-foreground">Store Operations Status</h3>
-                <Badge
-                  variant={form.is_open ?? true ? "default" : "destructive"}
-                  className="text-[10px] font-bold px-2 py-0.5 uppercase tracking-wide"
-                >
-                  {form.is_open ?? true ? "Open for Orders" : "Closed / Pre-Orders Only"}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {form.is_open ?? true
-                  ? "Live online ordering and POS counter checkouts are actively processing."
-                  : "Store is currently CLOSED. Customers will be prompted with pre-order notices."}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/60">
-            <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-xl border border-border/60">
-              <span className="text-xs font-semibold text-muted-foreground">Store Open:</span>
-              {(form.is_open ?? true) ? (
-                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                  ● Open
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
-                  ○ Paused
-                </Badge>
-              )}
-              <Switch
-                id="store_is_open_toggle"
-                checked={form.is_open ?? true}
-                onCheckedChange={(checked) => setForm({ ...form, is_open: checked })}
-              />
-            </div>
-            <Button
-              className="rounded-xl font-bold text-xs gap-1.5 shadow-sm"
-              onClick={() => update.mutate(form)}
-              disabled={update.isPending}
-            >
-              {update.isPending ? "Saving..." : "Save Settings"}
-            </Button>
-          </div>
-        </div>
-
-        {/* Smart Search Bar */}
-        <div className="relative">
-          <div className="relative flex items-center">
-            <Search className="absolute left-3.5 size-4 text-muted-foreground pointer-events-none" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search all settings (e.g., GST, logo, branches, delivery fees, wallet, SEO, FCM, cash)..."
-              className="pl-10 pr-10 h-11 rounded-2xl bg-card border-border/80 text-sm shadow-2xs focus-visible:ring-primary"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3.5 size-5 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                title="Clear search"
-              >
-                <X className="size-3" />
-              </button>
-            )}
-          </div>
-
-          {/* Quick Search Shortcut Chips */}
-          <div className="mt-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar touch-pan-x py-1">
-            <span className="text-[11px] font-semibold text-muted-foreground shrink-0 flex items-center gap-1">
-              Quick:
-            </span>
-            {[
-              { label: "Logo & Brand", q: "logo" },
-              { label: "Multi-Branch", q: "branch" },
-              { label: "Delivery Fees", q: "delivery" },
-              { label: "Express SLA", q: "express" },
-              { label: "GST & Tax Invoicing", q: "gst" },
-              { label: "Payments & COD", q: "payment" },
-              { label: "SEO Studio", q: "seo" },
-              { label: "Refer & Earn", q: "referral" },
-              { label: "Push FCM", q: "fcm" },
-              { label: "Data Backup", q: "backup" },
-            ].map((chip) => (
-              <button
-                key={chip.label}
-                type="button"
-                onClick={() => setSearchQuery(chip.q)}
-                className={
-                  "shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all border " +
-                  (searchQuery.toLowerCase() === chip.q
-                    ? "bg-primary text-primary-foreground border-primary font-bold"
-                    : "bg-card border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/60")
-                }
-              >
-                {chip.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* SEARCH MODE OR TABBED MODE */}
-      {searchQuery.trim() ? (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between gap-2 p-3 rounded-2xl bg-primary/5 border border-primary/20">
-            <div className="flex items-center gap-2 text-xs">
-              <Sparkles className="size-4 text-primary shrink-0" />
-              <span>
-                Found <strong>{filteredSections.length}</strong> matching setting section{filteredSections.length === 1 ? "" : "s"} for "<strong>{searchQuery}</strong>"
-              </span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSearchQuery("")}
-              className="rounded-xl h-7 text-xs font-semibold text-primary hover:bg-primary/10 gap-1"
-            >
-              <X className="size-3" /> Clear &amp; View All Tabs
-            </Button>
-          </div>
-
-          {filteredSections.length > 0 ? (
-            <div className="space-y-6">
-              {filteredSections.map((section: SettingSectionItem) => (
-                <div key={section.id} className="space-y-2">
-                  <div className="flex items-center gap-2 px-1">
-                    <Badge variant="outline" className="text-[10px] font-bold border-primary/30 text-primary bg-primary/5 uppercase tracking-wider">
-                      {section.tabLabel}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">· {section.title}</span>
-                  </div>
-                  {section.content}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-3xl border border-dashed border-border/80 p-12 text-center bg-card/50">
-              <Search className="size-10 text-muted-foreground/40 mx-auto mb-3" />
-              <h4 className="font-bold text-sm text-foreground">No settings match "{searchQuery}"</h4>
-              <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                Try searching for a different keyword like "GST", "Logo", "Branch", "Delivery", "Wallet", or "SEO".
-              </p>
-              <div className="pt-4 flex flex-wrap items-center justify-center gap-2">
-                {["gst", "logo", "delivery", "branch", "seo", "wallet"].map((k) => (
-                  <Button
-                    key={k}
-                    variant="outline"
-                    size="sm"
-                    className="rounded-xl text-xs uppercase"
-                    onClick={() => setSearchQuery(k)}
-                  >
-                    Search "{k}"
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* STANDARD TABBED VIEW */
-        <Tabs value={activeTab} onValueChange={(val: any) => setActiveTab(val)} className="space-y-6">
-          <TabsList className="w-full justify-start h-auto p-1.5 bg-muted/60 border border-border/60 rounded-2xl gap-1 overflow-x-auto no-scrollbar touch-pan-x">
-            {TAB_DEFINITIONS.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <TabsTrigger
-                  key={tab.id}
-                  value={tab.id}
-                  className="rounded-xl px-3.5 py-2 text-xs font-semibold gap-2 shrink-0 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-xs transition-all"
-                >
-                  <Icon className="size-3.5" />
-                  <span>{tab.label}</span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-muted/80 text-muted-foreground font-normal">
-                    {tab.count}
-                  </span>
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
-
-          {/* 1. General & Brand */}
-          <TabsContent value="general" className="space-y-6 mt-0">
-            {SETTINGS_SECTIONS.filter((s: SettingSectionItem) => s.tab === "general").map((s: SettingSectionItem) => (
-              <div key={s.id}>{s.content}</div>
-            ))}
-          </TabsContent>
-
-          {/* 2. Branches & Hubs */}
-          <TabsContent value="branches" className="space-y-6 mt-0">
-            {SETTINGS_SECTIONS.filter((s: SettingSectionItem) => s.tab === "branches").map((s: SettingSectionItem) => (
-              <div key={s.id}>{s.content}</div>
-            ))}
-          </TabsContent>
-
-          {/* 3. Delivery & Logistics */}
-          <TabsContent value="delivery" className="space-y-6 mt-0">
-            {SETTINGS_SECTIONS.filter((s: SettingSectionItem) => s.tab === "delivery").map((s: SettingSectionItem) => (
-              <div key={s.id}>{s.content}</div>
-            ))}
-          </TabsContent>
-
-          {/* 4. Payments & Tax */}
-          <TabsContent value="payments" className="space-y-6 mt-0">
-            {SETTINGS_SECTIONS.filter((s: SettingSectionItem) => s.tab === "payments").map((s: SettingSectionItem) => (
-              <div key={s.id}>{s.content}</div>
-            ))}
-          </TabsContent>
-
-          {/* 5. Marketing, SEO & Loyalty */}
-          <TabsContent value="growth" className="space-y-6 mt-0">
-            {SETTINGS_SECTIONS.filter((s: SettingSectionItem) => s.tab === "growth").map((s: SettingSectionItem) => (
-              <div key={s.id}>{s.content}</div>
-            ))}
-          </TabsContent>
-
-          {/* 6. System & Modules */}
-          <TabsContent value="system" className="space-y-6 mt-0">
-            {SETTINGS_SECTIONS.filter((s: SettingSectionItem) => s.tab === "system").map((s: SettingSectionItem) => (
-              <div key={s.id}>{s.content}</div>
-            ))}
-          </TabsContent>
-        </Tabs>
-      )}
-
-      {/* Floating Bottom Save Bar for Mobile & Quick Access */}
-      <div className="sticky bottom-4 mt-8 z-30 flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-card/95 backdrop-blur-md border border-border/80 shadow-lg">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className={"size-2.5 rounded-full shrink-0 " + (form.is_open ?? true ? "bg-emerald-500 animate-pulse" : "bg-destructive")} />
-          <div className="truncate">
-            <span className="text-xs font-bold text-foreground block truncate">
-              {form.store_name || "Fish N Fresh"} · {form.is_open ?? true ? "Open" : "Closed"}
-            </span>
-            <span className="text-[10px] text-muted-foreground block truncate">
-              Active Tab: {TAB_DEFINITIONS.find(t => t.id === activeTab)?.label}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (settings) setForm({ ...settings });
-              toast.info("Settings reset to last saved state.");
-            }}
-            className="rounded-xl text-xs h-9 hidden sm:inline-flex"
-          >
-            Reset
-          </Button>
-          <Button
-            size="sm"
-            className="rounded-xl text-xs font-bold h-9 px-4 gap-1.5 shadow-sm"
-            onClick={() => update.mutate(form)}
-            disabled={update.isPending}
-          >
-            {update.isPending ? "Saving Changes..." : "Save Settings"}
-          </Button>
-        </div>
-      </div>
+      
+      <Button 
+        className="mt-6 rounded-xl" 
+        onClick={() => update.mutate(form)}
+        disabled={update.isPending}
+      >
+        {update.isPending ? "Saving..." : "Save Settings"}
+      </Button>
 
       {/* Interactive Shop Map Pin Picker Modal */}
       <MapPinPickerModal

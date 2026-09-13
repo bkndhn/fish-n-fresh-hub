@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import type { CustomerWallet } from "@/lib/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import {
@@ -44,7 +45,6 @@ import { useSessionUser } from "@/lib/session";
 import { useCart } from "@/lib/cart";
 import { inr, formatIST } from "@/lib/format";
 import { settingsQuery } from "@/lib/queries";
-import { isReferralProgramActive } from "@/lib/types";
 
 export const Route = createFileRoute("/_authenticated/account")({
   head: () => ({
@@ -775,9 +775,6 @@ function AddressesTab({
 }
 
 function WalletTab({ wallet, txns }: { wallet: any; txns: any[] }) {
-  const { data: settings } = useQuery(settingsQuery);
-  const referralActive = isReferralProgramActive(settings);
-
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-border bg-card p-5">
@@ -786,7 +783,7 @@ function WalletTab({ wallet, txns }: { wallet: any; txns: any[] }) {
           <span className="text-xs font-semibold uppercase tracking-wide">FreshCash balance</span>
         </div>
         <p className="mt-2 text-3xl font-bold">{inr(Number(wallet?.balance ?? 0))}</p>
-        {referralActive && wallet?.referral_code && (
+        {wallet?.referral_code && (
           <p className="mt-2 text-xs text-muted-foreground">
             Your referral code: <span className="font-mono font-bold">{wallet.referral_code}</span>
           </p>

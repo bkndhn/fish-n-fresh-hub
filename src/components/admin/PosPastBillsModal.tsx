@@ -59,6 +59,14 @@ import {
 import { TaxInvoiceModal } from "@/components/TaxInvoiceModal";
 import { ExportDropdown, type ExportColumn } from "@/lib/exportUtils";
 
+type PosBillRow = import("@/lib/admin").OrderRow & {
+  actual_payment_method?: string | null;
+  pos_split_payments?: { cash?: number; upi?: number; card?: number } | null;
+  pos_cashier_name?: string | null;
+  reprint_count?: number | null;
+  order_items?: unknown[] | null;
+};
+
 interface PosPastBillsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -84,13 +92,13 @@ export function PosPastBillsModal({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
-        .select("*, order_items(*)")
+        .select("*")
         .eq("fulfillment_type", "pos")
         .order("created_at", { ascending: false })
         .limit(300);
 
       if (error) throw error;
-      return (data || []) as unknown as PosOrderRow[];
+      return (data || []) as unknown as PosBillRow[];
     },
     enabled: open,
   });
@@ -171,7 +179,6 @@ export function PosPastBillsModal({
         .update({
           status: "cancelled",
           cancel_reason: reason || "Voided at POS counter",
-          
         })
         .eq("id", order.id);
 
@@ -202,7 +209,7 @@ export function PosPastBillsModal({
       // Increment reprint counter in database for audit trail
       await supabase
         .from("orders")
-        .update({ reprint_count: reprintCount, last_reprinted_at: new Date().toISOString() } as unknown as import("@/integrations/supabase/types").Database["public"]["Tables"]["orders"]["Update"])
+        .update({ reprint_count: reprintCount })
         .eq("id", order.id);
 
       const items: PosReceiptItem[] = (order.items || order.order_items || []).map((it: any) => ({
@@ -657,15 +664,5 @@ export function PosPastBillsModal({
     </>
   );
 }
-
-
-
-
-
-
-
-
-
-
 
 

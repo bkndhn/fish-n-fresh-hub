@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
+import type { Database } from "@/integrations/supabase/types";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { MapPin, Copy, QrCode, Smartphone, Tag, MessageCircle, AlertTriangle, CheckCircle2, Zap, Clock, Gift, Wallet, Sparkles, Upload, X, Check, Store } from "lucide-react";
@@ -32,8 +33,7 @@ import { notifyOrderStatusChange } from "@/lib/fcm";
 import { checkCartStockAvailability, deductOrderStock } from "@/lib/inventorySync";
 import { sendOrderConfirmedEmailServer } from "@/lib/emails.functions";
 import { evaluateCartRewardRule, recordCampaignConversion, type MarketingCampaign } from "@/lib/campaigns";
-import { getNextOrderSequenceNumber } from "@/lib/orderNumber";
-import { isReferralProgramActive, type SiteSettings } from '@/lib/types';
+import type { SiteSettings } from '@/lib/types';
 
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371; // Radius of the earth in km
@@ -429,12 +429,9 @@ function Checkout() {
       }
     }
 
-    const generatedOrderNumber = await getNextOrderSequenceNumber("online");
-
     const { data, error } = await supabase
       .from("orders")
       .insert({
-        order_number: generatedOrderNumber,
         customer_name: cleanName,
         customer_phone: cleanPhone,
         customer_email: email.trim() || null,
@@ -1096,47 +1093,45 @@ function Checkout() {
         )}
 
         {/* Friend Referral Code Box */}
-        {isReferralProgramActive(settings as SiteSettings) && (
-          <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
-            <Label className="text-xs font-semibold flex items-center gap-1.5">
-              <Gift className="size-3.5 text-primary" /> Have a Friend's Referral / Invite Code?
-            </Label>
-            {appliedReferral ? (
-              <div className="flex items-center justify-between rounded-xl bg-emerald-50 dark:bg-emerald-950/40 p-2.5 border border-emerald-200 dark:border-emerald-900">
-                <div>
-                  <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                    Invite Code {appliedReferral.code} Applied!
-                  </p>
-                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
-                    Welcome bonus discount: -{inr(appliedReferral.bonus)}
-                  </p>
-                </div>
-                <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:bg-destructive/10" onClick={removeReferralCode}>
-                  Remove
-                </Button>
+        <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
+          <Label className="text-xs font-semibold flex items-center gap-1.5">
+            <Gift className="size-3.5 text-primary" /> Have a Friend's Referral / Invite Code?
+          </Label>
+          {appliedReferral ? (
+            <div className="flex items-center justify-between rounded-xl bg-emerald-50 dark:bg-emerald-950/40 p-2.5 border border-emerald-200 dark:border-emerald-900">
+              <div>
+                <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                  Invite Code {appliedReferral.code} Applied!
+                </p>
+                <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                  Welcome bonus discount: -{inr(appliedReferral.bonus)}
+                </p>
               </div>
-            ) : (
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter friend's code (e.g. FNF-8X2M9)"
-                  value={referralInput}
-                  onChange={(e) => setReferralInput(e.target.value.toUpperCase())}
-                  className="rounded-xl text-xs uppercase font-mono"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="rounded-xl shrink-0 text-xs"
-                  disabled={!referralInput.trim() || validatingReferral}
-                  onClick={applyReferralCode}
-                >
-                  {validatingReferral ? "Checking..." : "Apply Code"}
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
+              <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:bg-destructive/10" onClick={removeReferralCode}>
+                Remove
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter friend's code (e.g. FNF-8X2M9)"
+                value={referralInput}
+                onChange={(e) => setReferralInput(e.target.value.toUpperCase())}
+                className="rounded-xl text-xs uppercase font-mono"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-xl shrink-0 text-xs"
+                disabled={!referralInput.trim() || validatingReferral}
+                onClick={applyReferralCode}
+              >
+                {validatingReferral ? "Checking..." : "Apply Code"}
+              </Button>
+            </div>
+          )}
+        </div>
 
         {/* Promo Code Box */}
         <div className="rounded-2xl border border-border bg-card p-3 space-y-2">

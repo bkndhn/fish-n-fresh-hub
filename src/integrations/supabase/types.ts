@@ -918,10 +918,12 @@ export type Database = {
           pos_cashier_name: string | null
           pos_change_due: number | null
           pos_scale_weight_kg: number | null
+          pos_split_payments: Json | null
           promotion_id: string | null
           referral_code: string | null
           refund_amount: number
           refunded_at: string | null
+          reprint_count: number
           settled_at: string | null
           settlement_id: string | null
           status: string
@@ -981,10 +983,12 @@ export type Database = {
           pos_cashier_name?: string | null
           pos_change_due?: number | null
           pos_scale_weight_kg?: number | null
+          pos_split_payments?: Json | null
           promotion_id?: string | null
           referral_code?: string | null
           refund_amount?: number
           refunded_at?: string | null
+          reprint_count?: number
           settled_at?: string | null
           settlement_id?: string | null
           status?: string
@@ -1044,10 +1048,12 @@ export type Database = {
           pos_cashier_name?: string | null
           pos_change_due?: number | null
           pos_scale_weight_kg?: number | null
+          pos_split_payments?: Json | null
           promotion_id?: string | null
           referral_code?: string | null
           refund_amount?: number
           refunded_at?: string | null
+          reprint_count?: number
           settled_at?: string | null
           settlement_id?: string | null
           status?: string
@@ -1654,6 +1660,7 @@ export type Database = {
           created_at: string
           custom_domain: string | null
           custom_holidays: Json | null
+          daily_atmosphere_enabled: boolean
           default_gst_percent: number
           delivery_enabled: boolean
           delivery_fee: number
@@ -1671,8 +1678,10 @@ export type Database = {
           feature_pos_enabled: boolean | null
           feature_route_optimization_enabled: boolean | null
           feature_wallet_enabled: boolean | null
+          firm_name: string | null
           footer_about: string | null
           free_delivery_over: number
+          free_delivery_threshold: number | null
           fssai_license_no: string | null
           fssai_number: string | null
           ga4_measurement_id: string | null
@@ -1680,6 +1689,7 @@ export type Database = {
           google_site_verification: string | null
           gst_enabled: boolean
           gst_legal_name: string | null
+          gst_number: string | null
           gst_percent: number
           gstin: string | null
           harbour_alert_message: string | null
@@ -1720,6 +1730,7 @@ export type Database = {
           printer_open_drawer: boolean
           printer_paper_width: string
           privacy_content: string | null
+          referral_program_enabled: boolean
           referral_reward_referee: number
           referral_reward_referrer: number
           refund_content: string | null
@@ -1791,6 +1802,7 @@ export type Database = {
           created_at?: string
           custom_domain?: string | null
           custom_holidays?: Json | null
+          daily_atmosphere_enabled?: boolean
           default_gst_percent?: number
           delivery_enabled?: boolean
           delivery_fee?: number
@@ -1808,8 +1820,10 @@ export type Database = {
           feature_pos_enabled?: boolean | null
           feature_route_optimization_enabled?: boolean | null
           feature_wallet_enabled?: boolean | null
+          firm_name?: string | null
           footer_about?: string | null
           free_delivery_over?: number
+          free_delivery_threshold?: number | null
           fssai_license_no?: string | null
           fssai_number?: string | null
           ga4_measurement_id?: string | null
@@ -1817,6 +1831,7 @@ export type Database = {
           google_site_verification?: string | null
           gst_enabled?: boolean
           gst_legal_name?: string | null
+          gst_number?: string | null
           gst_percent?: number
           gstin?: string | null
           harbour_alert_message?: string | null
@@ -1857,6 +1872,7 @@ export type Database = {
           printer_open_drawer?: boolean
           printer_paper_width?: string
           privacy_content?: string | null
+          referral_program_enabled?: boolean
           referral_reward_referee?: number
           referral_reward_referrer?: number
           refund_content?: string | null
@@ -1928,6 +1944,7 @@ export type Database = {
           created_at?: string
           custom_domain?: string | null
           custom_holidays?: Json | null
+          daily_atmosphere_enabled?: boolean
           default_gst_percent?: number
           delivery_enabled?: boolean
           delivery_fee?: number
@@ -1945,8 +1962,10 @@ export type Database = {
           feature_pos_enabled?: boolean | null
           feature_route_optimization_enabled?: boolean | null
           feature_wallet_enabled?: boolean | null
+          firm_name?: string | null
           footer_about?: string | null
           free_delivery_over?: number
+          free_delivery_threshold?: number | null
           fssai_license_no?: string | null
           fssai_number?: string | null
           ga4_measurement_id?: string | null
@@ -1954,6 +1973,7 @@ export type Database = {
           google_site_verification?: string | null
           gst_enabled?: boolean
           gst_legal_name?: string | null
+          gst_number?: string | null
           gst_percent?: number
           gstin?: string | null
           harbour_alert_message?: string | null
@@ -1994,6 +2014,7 @@ export type Database = {
           printer_open_drawer?: boolean
           printer_paper_width?: string
           privacy_content?: string | null
+          referral_program_enabled?: boolean
           referral_reward_referee?: number
           referral_reward_referrer?: number
           refund_content?: string | null
@@ -2438,6 +2459,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_super_admin_role: { Args: never; Returns: Json }
       deduct_order_stock_atomic: { Args: { p_order_id: string }; Returns: Json }
       get_auth_branch_id: { Args: never; Returns: string }
       has_role: {
