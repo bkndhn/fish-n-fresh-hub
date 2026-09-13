@@ -234,7 +234,12 @@ export async function connectBluetoothPrinter(): Promise<string> {
       ],
     });
 
-    const dev = device as { gatt?: { connect: () => Promise<{ getPrimaryServices: () => Promise<Array<{ getCharacteristics: () => Promise<Array<{ properties: { write?: boolean; writeWithoutResponse?: boolean } }>> }>> } }; name?: string };
+    type BleCharacteristic = { properties: { write?: boolean; writeWithoutResponse?: boolean } };
+    type BleService = { getCharacteristics: () => Promise<BleCharacteristic[]> };
+    type BleServer = { getPrimaryServices: () => Promise<BleService[]> };
+    type BleDevice = { gatt?: { connect: () => Promise<BleServer> }; name?: string };
+
+    const dev = device as BleDevice;
     const server = await dev.gatt?.connect();
     if (!server) throw new Error("Could not connect to GATT Server on printer.");
 
