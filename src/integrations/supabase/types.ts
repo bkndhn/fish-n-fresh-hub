@@ -1720,6 +1720,7 @@ export type Database = {
           printer_open_drawer: boolean
           printer_paper_width: string
           privacy_content: string | null
+          referral_program_enabled: boolean
           referral_reward_referee: number
           referral_reward_referrer: number
           refund_content: string | null
@@ -1857,6 +1858,7 @@ export type Database = {
           printer_open_drawer?: boolean
           printer_paper_width?: string
           privacy_content?: string | null
+          referral_program_enabled?: boolean
           referral_reward_referee?: number
           referral_reward_referrer?: number
           refund_content?: string | null
@@ -1994,6 +1996,7 @@ export type Database = {
           printer_open_drawer?: boolean
           printer_paper_width?: string
           privacy_content?: string | null
+          referral_program_enabled?: boolean
           referral_reward_referee?: number
           referral_reward_referrer?: number
           refund_content?: string | null
@@ -2438,6 +2441,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_super_admin_role: { Args: never; Returns: Json }
       deduct_order_stock_atomic: { Args: { p_order_id: string }; Returns: Json }
       get_auth_branch_id: { Args: never; Returns: string }
       has_role: {
