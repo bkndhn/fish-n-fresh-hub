@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import type { CartItem } from "@/lib/types";
 import type { Database } from "@/integrations/supabase/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
@@ -718,14 +719,14 @@ function OrdersAdmin() {
                       </span>
                     ) : o.payment_method === "upi" ? (
                       <div className="flex flex-wrap items-center gap-1.5">
-                        {(o as Database["public"]["Tables"]["orders"]["Row"]).upi_paid || o.payment_status === "paid" ? (
+                        {(o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).upi_paid || o.payment_status === "paid" ? (
                           <span className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                            ✅ UPI Verified Paid {(o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref ? `(UTR: ${(o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref})` : ""}
+                            ✅ UPI Verified Paid {(o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref ? `(UTR: ${(o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref})` : ""}
                           </span>
                         ) : (
                           <>
                             <span className="rounded-xl bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-300">
-                              ⏳ UPI Verification Pending {(o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref ? `(UTR: ${(o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref})` : ""}
+                              ⏳ UPI Verification Pending {(o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref ? `(UTR: ${(o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref})` : ""}
                             </span>
                             <Button
                               type="button"

@@ -51,7 +51,7 @@ function BadgesAdmin() {
       const next = (badges.data ?? []).reduce((m, b) => Math.max(m, Number(b.sort_order)), 0) + 1;
       const { error } = await supabase
         .from("trust_badges")
-        .insert({ label: label.trim(), icon, sort_order: next } as Database["public"]["Tables"]["orders"]["Update"]);
+        .insert({ label: label.trim(), icon, sort_order: next } as Database["public"]["Tables"]["trust_badges"]["Update"]);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -64,7 +64,7 @@ function BadgesAdmin() {
 
   const update = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: Record<string, unknown> }) => {
-      const { error } = await supabase.from("trust_badges").update(patch).eq("id", id);
+      const { error } = await supabase.from("trust_badges").update(patch as Database["public"]["Tables"]["trust_badges"]["Update"]).eq("id", id);
       if (error) throw error;
     },
     onSuccess: invalidate,

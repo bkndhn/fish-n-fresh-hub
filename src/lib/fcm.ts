@@ -70,7 +70,7 @@ export async function registerPushNotification(
     // Generate or fetch push subscription
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
-      const vapidKey = import.meta.env?.VITE_VAPID_PUBLIC_KEY || null;
+      const vapidKey = import.meta.env?.["VITE_VAPID_PUBLIC_KEY"] || null;
       if (vapidKey) {
         try {
           sub = await reg.pushManager.subscribe({

@@ -96,8 +96,8 @@ function Dashboard() {
   const aov = orderCount > 0 ? Math.round(grossRevenue / (nonCancelled.length || 1)) : 0;
 
   // POS vs Online breakdown
-  const posOrders = activeOrders.filter((o) => (o as Database["public"]["Tables"]["orders"]["Row"]).source === "pos" || (o.notes || "").toLowerCase().includes("pos"));
-  const onlineOrders = activeOrders.filter((o) => (o as Database["public"]["Tables"]["orders"]["Row"]).source !== "pos" && !(o.notes || "").toLowerCase().includes("pos"));
+  const posOrders = activeOrders.filter((o) => (o as unknown as Database["public"]["Tables"]["orders"]["Row"]).source === "pos" || (o.notes || "").toLowerCase().includes("pos"));
+  const onlineOrders = activeOrders.filter((o) => (o as unknown as Database["public"]["Tables"]["orders"]["Row"]).source !== "pos" && !(o.notes || "").toLowerCase().includes("pos"));
   const posRevenue = posOrders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + Number(o.total || 0), 0);
   const onlineRevenue = onlineOrders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + Number(o.total || 0), 0);
 
@@ -116,7 +116,7 @@ function Dashboard() {
     const productStats: Record<string, { name: string; count: number; revenue: number; unit: string }> = {};
     for (const order of activeOrders) {
       if (order.status === "cancelled") continue;
-      const items = Array.isArray((order as Database["public"]["Tables"]["orders"]["Row"]).items) ? (order as Database["public"]["Tables"]["orders"]["Row"]).items : [];
+      const items = Array.isArray((order as unknown as Database["public"]["Tables"]["orders"]["Row"]).items) ? (order as unknown as Database["public"]["Tables"]["orders"]["Row"]).items : [];
       for (const item of items) {
         const key = item.name || item.product_id || "Unknown";
         if (!productStats[key]) {
@@ -544,7 +544,7 @@ function Dashboard() {
           </CardHeader>
           <CardContent className="p-4 pt-2 space-y-2">
             {allOrders.slice(0, 6).map((o) => {
-              const isPos = (o as Database["public"]["Tables"]["orders"]["Row"]).source === "pos" || (o.notes || "").toLowerCase().includes("pos");
+              const isPos = (o as unknown as Database["public"]["Tables"]["orders"]["Row"]).source === "pos" || (o.notes || "").toLowerCase().includes("pos");
               return (
                 <Link
                   key={o.id}

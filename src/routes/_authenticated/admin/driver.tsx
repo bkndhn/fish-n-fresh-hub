@@ -156,7 +156,7 @@ export function DriverDispatchPage() {
 
   const updateOrder = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: Partial<OrderRow> }) => {
-      const { error } = await supabase.from("orders").update(patch).eq("id", id);
+      const { error } = await supabase.from("orders").update(patch as Database["public"]["Tables"]["orders"]["Update"]).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -319,14 +319,14 @@ export function DriverDispatchPage() {
         cur.completedRuns++;
         const orderTotal = Number(o.total || 0);
         const isBankDirect = Boolean(
-          (o as Database["public"]["Tables"]["orders"]["Row"]).paid_to_bank_directly ||
-          (o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_method === "upi_qr"
+          (o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).paid_to_bank_directly ||
+          (o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_method === "upi_qr"
         );
 
         if (isBankDirect) {
           cur.codTotal += orderTotal;
           // Direct bank UPI - driver has zero physical cash liability for this order
-        } else if (o.payment_method === "cod" || (o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_method === "cash") {
+        } else if (o.payment_method === "cod" || (o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_method === "cash") {
           cur.codTotal += orderTotal;
           if (o.cod_settled) {
             cur.codSettled += orderTotal;
@@ -339,8 +339,8 @@ export function DriverDispatchPage() {
         }
 
         const createdTime = new Date(o.created_at).getTime();
-        const deliveredTime = (o as Database["public"]["Tables"]["orders"]["Row"]).delivered_at
-          ? new Date((o as Database["public"]["Tables"]["orders"]["Row"]).delivered_at).getTime()
+        const deliveredTime = (o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).delivered_at
+          ? new Date((o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).delivered_at).getTime()
           : null;
         const durationMinutes = deliveredTime
           ? Math.max(5, Math.round((deliveredTime - createdTime) / 60000))

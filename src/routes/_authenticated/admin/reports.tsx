@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import type { SiteSettings, ProductVariant } from "@/lib/types";
 import type { Database } from "@/integrations/supabase/types";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -816,7 +817,7 @@ export function Reports() {
     let posCard = 0;
     for (const o of posOrders) {
       const tot = Number(o.total || 0);
-      const meth = ((o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_method || o.payment_method || "").toLowerCase();
+      const meth = ((o as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_method || o.payment_method || "").toLowerCase();
       if (meth === "cash") posCash += tot;
       else if (meth === "upi" || meth === "upi_qr") posUpi += tot;
       else posCard += tot;
@@ -827,7 +828,7 @@ export function Reports() {
     let onlinePrepaid = 0;
     for (const o of onlineOrders) {
       const tot = Number(o.total || 0);
-      const meth = ((o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_method || o.payment_method || "").toLowerCase();
+      const meth = ((o as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_method || o.payment_method || "").toLowerCase();
       if (meth === "cod" || meth === "cash") onlineCod += tot;
       else onlinePrepaid += tot;
     }
@@ -869,8 +870,8 @@ export function Reports() {
 
     for (const o of deliveredOrders) {
       const createdTime = new Date(o.created_at).getTime();
-      const deliveredTime = (o as Database["public"]["Tables"]["orders"]["Row"]).delivered_at
-        ? new Date((o as Database["public"]["Tables"]["orders"]["Row"]).delivered_at).getTime()
+      const deliveredTime = (o as unknown as Database["public"]["Tables"]["orders"]["Row"]).delivered_at
+        ? new Date((o as unknown as Database["public"]["Tables"]["orders"]["Row"]).delivered_at).getTime()
         : null;
 
       const durationMinutes = deliveredTime

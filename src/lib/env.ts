@@ -15,10 +15,10 @@ import { z } from "zod";
  */
 const clientEnvSchema = z.object({
   VITE_SUPABASE_URL: z
-    .string({ required_error: "VITE_SUPABASE_URL is required" })
+    .string({ error: "VITE_SUPABASE_URL is required" })
     .url("VITE_SUPABASE_URL must be a valid URL"),
   VITE_SUPABASE_ANON_KEY: z
-    .string({ required_error: "VITE_SUPABASE_ANON_KEY is required" })
+    .string({ error: "VITE_SUPABASE_ANON_KEY is required" })
     .min(20, "VITE_SUPABASE_ANON_KEY appears invalid (too short)"),
 });
 
@@ -39,8 +39,8 @@ const serverEnvSchema = z.object({
  */
 export function validateClientEnv(): z.infer<typeof clientEnvSchema> {
   const raw = {
-    VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
-    VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
+    VITE_SUPABASE_URL: import.meta.env["VITE_SUPABASE_URL"],
+    VITE_SUPABASE_ANON_KEY: import.meta.env["VITE_SUPABASE_ANON_KEY"],
   };
 
   const result = clientEnvSchema.safeParse(raw);

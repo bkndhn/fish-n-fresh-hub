@@ -52,7 +52,7 @@ export async function registerOrderDeliveryPin(
     const { error } = await supabase.from("order_delivery_pins").upsert(
       {
         order_id: orderId,
-        customer_id: customerId,
+        customer_id: customerId ?? null,
         pin_code: pin,
         pin_hash: pinHash,
         attempts: 0,
@@ -155,7 +155,7 @@ export async function verifyAndDeliverOrder(
       p_order_id: orderId,
       p_entered_pin: cleanPin,
       p_is_admin_override: isAdminOverride,
-      p_override_reason: overrideReason || null,
+      p_override_reason: overrideReason ?? undefined,
       p_actual_payment_method: paymentDetails?.actualMethod || null,
       p_actual_payment_ref: paymentDetails?.actualRef || null,
       p_paid_to_bank_directly: paymentDetails ? paymentDetails.paidToBankDirectly : null,

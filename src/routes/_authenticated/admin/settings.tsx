@@ -215,7 +215,7 @@ function AdminSettings() {
       }
 
       const headers = ["Order ID", "Date", "Customer Name", "Customer Phone", "Status", "Payment Method", "Payment Status", "Subtotal (INR)", "Delivery Fee (INR)", "Discount (INR)", "Total (INR)", "Delivery Address"];
-      const rows = (orders as Database["public"]["Tables"]["orders"]["Row"][]).map((o) => [
+      const rows = (orders as unknown as Database["public"]["Tables"]["orders"]["Row"][]).map((o) => [
         o.id,
         new Date(o.created_at).toLocaleString("en-IN"),
         `"${(o.customer_name || "").replace(/"/g, '""')}"`,

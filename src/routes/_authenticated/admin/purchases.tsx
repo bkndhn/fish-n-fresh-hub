@@ -69,7 +69,7 @@ import {
   type SupplierOutstandingBill,
   type SupplierStatementData,
 } from "@/lib/supplierLedgerPdf";
-import type { Supplier, PurchaseOrder, PurchaseItem, Product, SupplierPaymentRecord } from "@/lib/types";
+import type { Supplier, PurchaseOrder, PurchaseItem, Product, SupplierPaymentRecord, ProductVariant } from "@/lib/types";
 
 export interface PurchaseRequestOrder {
   id: string;

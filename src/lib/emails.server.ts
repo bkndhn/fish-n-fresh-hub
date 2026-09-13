@@ -79,12 +79,12 @@ async function dispatchOrderEmail(
     // 3. Format Items
     const rawItems = (Array.isArray(order.items) ? order.items : []) as Record<string, unknown>[];
     const items: EmailOrderItem[] = rawItems.map((it) => ({
-      name: (it.name as string) || "Seafood Item",
-      qty: Number(it.qty) || 1,
-      unit: (it.unit as string) || "kg",
-      price: Number(it.price) || 0,
-      total: (Number(it.qty) || 1) * (Number(it.price) || 0),
-      cuttingStyle: (it.cuttingStyle as string) || (it.cut_preference as string) || undefined,
+      name: (it["name"] as string) || "Seafood Item",
+      qty: Number(it["qty"]) || 1,
+      unit: (it["unit"] as string) || "kg",
+      price: Number(it["price"]) || 0,
+      total: (Number(it["qty"]) || 1) * (Number(it["price"]) || 0),
+      cuttingStyle: (it["cuttingStyle"] as string) || (it["cut_preference"] as string) || undefined,
     }));
 
     // 4. Construct Email Payload

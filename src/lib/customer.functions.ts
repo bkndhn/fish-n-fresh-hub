@@ -65,13 +65,14 @@ export const listAllCustomersDetailed = createServerFn({ method: "GET" })
           existingP.count += 1;
           existingP.spent += amt;
         } else {
-          statsByPhone.set(cleanPhone, {
+          const entry: { count: number; spent: number; lastOrder: string; name: string; userId?: string } = {
             count: 1,
             spent: amt,
             lastOrder: o.created_at,
             name: o.customer_name || "",
-            userId: o.user_id || undefined,
-          });
+          };
+          if (o.user_id) entry.userId = o.user_id;
+          statsByPhone.set(cleanPhone, entry);
         }
       }
     }
