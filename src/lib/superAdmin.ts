@@ -204,7 +204,7 @@ export const superAdminStatsQuery = queryOptions({
         .limit(1)
         .maybeSingle();
 
-      const quota: TenantQuota = quotaData || DEFAULT_TENANT_QUOTA;
+      const quota: TenantQuota = (quotaData as TenantQuota | null) || DEFAULT_TENANT_QUOTA;
 
       // 5. Fetch recent kill switch events count (last 24 hours)
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();

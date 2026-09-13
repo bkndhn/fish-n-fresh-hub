@@ -32,9 +32,10 @@ export type StaffMember = {
   confirmed: boolean;
 };
 
-async function assertAdmin(context: { supabase: any; userId: string }) {
-  const { data, error } = await context.supabase.rpc("has_role", {
-    _user_id: context.userId,
+async function assertAdmin(context: unknown) {
+  const ctx = context as { supabase: any; userId: string };
+  const { data, error } = await ctx.supabase.rpc("has_role", {
+    _user_id: ctx.userId,
     _role: "admin",
   });
   if (error) throw new Error(error.message);

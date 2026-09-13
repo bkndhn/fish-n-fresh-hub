@@ -234,7 +234,8 @@ export async function connectBluetoothPrinter(): Promise<string> {
       ],
     });
 
-    const server = await device.gatt?.connect();
+    const dev = device as { gatt?: { connect: () => Promise<{ getPrimaryServices: () => Promise<Array<{ getCharacteristics: () => Promise<Array<{ properties: { write?: boolean; writeWithoutResponse?: boolean } }>> }>> } }; name?: string };
+    const server = await dev.gatt?.connect();
     if (!server) throw new Error("Could not connect to GATT Server on printer.");
 
     // Find writable serial service
@@ -256,7 +257,7 @@ export async function connectBluetoothPrinter(): Promise<string> {
 
     activeBluetoothDevice = device;
     activeBluetoothCharacteristic = charFound;
-    return device.name || "Bluetooth Thermal Printer";
+    return dev.name || "Bluetooth Thermal Printer";
   } catch (err: any) {
     throw new Error(`Bluetooth Connection Failed: ${err.message}`);
   }
@@ -272,9 +273,10 @@ export async function connectSerialUsbPrinter(): Promise<string> {
 
   try {
     const port = await (navigator as unknown as { serial: { requestPort: () => Promise<unknown> } }).serial.requestPort();
-    await port.open({ baudRate: 9600 });
+    const p = port as { open: (opts: { baudRate: number }) => Promise<void>; writable: { getWriter: () => unknown } };
+    await p.open({ baudRate: 9600 });
     activeSerialPort = port;
-    activeSerialWriter = port.writable.getWriter();
+    activeSerialWriter = p.writable.getWriter();
     return "USB Thermal Receipt Printer";
   } catch (err: any) {
     throw new Error(`USB Serial Connection Failed: ${err.message}`);
@@ -692,7 +694,7 @@ export function buildPosReceiptHtml(
         (it) => `
       <div class="row">
         <span>${it.brand ? `[${it.brand}] ` : ""}${it.name}${it.cuttingStyle ? ` [${it.cuttingStyle}]` : ""}</span>
-        <span class="bold">₹${(it.totalPrice ?? ((it as Record<string, unknown>).total as number | undefined) ?? (it.unitPrice * (it.qty || 1))).toFixed(0)}</span>
+        <span class="bold">₹${(it.totalPrice ?? ((it as unknown as Record<string, unknown>)["total"] as number | undefined) ?? (it.unitPrice * (it.qty || 1))).toFixed(0)}</span>
       </div>
       <div class="row muted font-mono" style="padding-left: 6px; font-size: 0.9em;">
         <span>${it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} pcs`} × ₹${(it.unitPrice || 0).toFixed(0)}</span>
@@ -709,7 +711,7 @@ export function buildPosReceiptHtml(
     ${(data.discount || 0) > 0 ? `<div class="row"><span>Discount:</span><span>-₹${data.discount.toFixed(0)}</span></div>` : ""}
     ${(data.gstAmount || 0) > 0 ? `<div class="row"><span>GST:</span><span>₹${data.gstAmount.toFixed(0)}</span></div>` : ""}
     <div class="hr"></div>
-    <div class="row bold total"><span>TOTAL PAYABLE:</span><span>₹${(data.total ?? ((data as Record<string, unknown>).finalTotal as number | undefined) ?? 0).toFixed(0)}</span></div>
+    <div class="row bold total"><span>TOTAL PAYABLE:</span><span>₹${(data.total ?? ((data as unknown as Record<string, unknown>)["finalTotal"] as number | undefined) ?? 0).toFixed(0)}</span></div>
     <div class="hr"></div>
     ${
       data.splitPayments
@@ -739,7 +741,7 @@ export function generatePosWhatsAppText(data: PosReceiptData, orderId?: string):
   const store = data.storeName || "Universal Store Hub";
   const lines: string[] = [];
   lines.push(`🧾 *${store.toUpperCase()} - TAX INVOICE*`);
-  lines.push(`Bill No: *${data.receiptNo || ((data as Record<string, unknown>).receiptNumber as string | undefined) || "INV"}*`);
+  lines.push(`Bill No: *${data.receiptNo || ((data as unknown as Record<string, unknown>)["receiptNumber"] as string | undefined) || "INV"}*`);
   lines.push(`Date: ${data.date}`);
   lines.push(`Cashier: ${data.cashierName}`);
   if (data.customerName && data.customerName !== "Walk-in Customer") {
@@ -750,7 +752,7 @@ export function generatePosWhatsAppText(data: PosReceiptData, orderId?: string):
     const qtyStr = it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} unit`;
     const cutStr = it.cuttingStyle ? ` [${it.cuttingStyle}]` : "";
     const brandStr = it.brand ? `[${it.brand}] ` : "";
-    const itemTotal = it.totalPrice ?? ((it as Record<string, unknown>).total as number | undefined) ?? (it.unitPrice * (it.qty || 1));
+    const itemTotal = it.totalPrice ?? ((it as unknown as Record<string, unknown>)["total"] as number | undefined) ?? (it.unitPrice * (it.qty || 1));
     lines.push(`• *${brandStr}${it.name}*${cutStr}\n   ${qtyStr} × ₹${it.unitPrice.toFixed(0)} = ₹${itemTotal.toFixed(0)}`);
     if (it.variant) lines.push(`   Variant: ${it.variant}`);
     if (it.serialNumbers && it.serialNumbers.length > 0) lines.push(`   IMEI/SN: ${it.serialNumbers.join(", ")}`);

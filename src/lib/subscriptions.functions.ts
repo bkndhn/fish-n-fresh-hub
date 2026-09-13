@@ -128,7 +128,7 @@ export const generateDueSubscriptionOrders = createServerFn({ method: "POST" }).
 
     const generatedOrders: any[] = [];
 
-    for (const sub of dueSubs) {
+    for (const sub of (dueSubs ?? [])) {
       const orderNumber = `SUB-${Math.floor(100000 + Math.random() * 900000)}`;
       const item = {
         productId: sub.product_id,
@@ -174,7 +174,7 @@ export const generateDueSubscriptionOrders = createServerFn({ method: "POST" }).
 
       // Advance next_delivery_date by frequency
       const nextDate = calculateNextDeliveryDate(
-        sub.frequency,
+        sub.frequency as "bi_weekly" | "daily" | "monthly" | "weekly",
         sub.day_of_week,
         new Date(Date.now() + 24 * 3600 * 1000)
       );
