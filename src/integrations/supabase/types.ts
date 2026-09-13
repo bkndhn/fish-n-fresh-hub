@@ -918,10 +918,12 @@ export type Database = {
           pos_cashier_name: string | null
           pos_change_due: number | null
           pos_scale_weight_kg: number | null
+          pos_split_payments: Json | null
           promotion_id: string | null
           referral_code: string | null
           refund_amount: number
           refunded_at: string | null
+          reprint_count: number
           settled_at: string | null
           settlement_id: string | null
           status: string
@@ -981,10 +983,12 @@ export type Database = {
           pos_cashier_name?: string | null
           pos_change_due?: number | null
           pos_scale_weight_kg?: number | null
+          pos_split_payments?: Json | null
           promotion_id?: string | null
           referral_code?: string | null
           refund_amount?: number
           refunded_at?: string | null
+          reprint_count?: number
           settled_at?: string | null
           settlement_id?: string | null
           status?: string
@@ -1044,10 +1048,12 @@ export type Database = {
           pos_cashier_name?: string | null
           pos_change_due?: number | null
           pos_scale_weight_kg?: number | null
+          pos_split_payments?: Json | null
           promotion_id?: string | null
           referral_code?: string | null
           refund_amount?: number
           refunded_at?: string | null
+          reprint_count?: number
           settled_at?: string | null
           settlement_id?: string | null
           status?: string
@@ -1654,6 +1660,7 @@ export type Database = {
           created_at: string
           custom_domain: string | null
           custom_holidays: Json | null
+          daily_atmosphere_enabled: boolean
           default_gst_percent: number
           delivery_enabled: boolean
           delivery_fee: number
@@ -1671,8 +1678,10 @@ export type Database = {
           feature_pos_enabled: boolean | null
           feature_route_optimization_enabled: boolean | null
           feature_wallet_enabled: boolean | null
+          firm_name: string | null
           footer_about: string | null
           free_delivery_over: number
+          free_delivery_threshold: number | null
           fssai_license_no: string | null
           fssai_number: string | null
           ga4_measurement_id: string | null
@@ -1680,6 +1689,7 @@ export type Database = {
           google_site_verification: string | null
           gst_enabled: boolean
           gst_legal_name: string | null
+          gst_number: string | null
           gst_percent: number
           gstin: string | null
           harbour_alert_message: string | null
@@ -1792,6 +1802,7 @@ export type Database = {
           created_at?: string
           custom_domain?: string | null
           custom_holidays?: Json | null
+          daily_atmosphere_enabled?: boolean
           default_gst_percent?: number
           delivery_enabled?: boolean
           delivery_fee?: number
@@ -1809,8 +1820,10 @@ export type Database = {
           feature_pos_enabled?: boolean | null
           feature_route_optimization_enabled?: boolean | null
           feature_wallet_enabled?: boolean | null
+          firm_name?: string | null
           footer_about?: string | null
           free_delivery_over?: number
+          free_delivery_threshold?: number | null
           fssai_license_no?: string | null
           fssai_number?: string | null
           ga4_measurement_id?: string | null
@@ -1818,6 +1831,7 @@ export type Database = {
           google_site_verification?: string | null
           gst_enabled?: boolean
           gst_legal_name?: string | null
+          gst_number?: string | null
           gst_percent?: number
           gstin?: string | null
           harbour_alert_message?: string | null
@@ -1930,6 +1944,7 @@ export type Database = {
           created_at?: string
           custom_domain?: string | null
           custom_holidays?: Json | null
+          daily_atmosphere_enabled?: boolean
           default_gst_percent?: number
           delivery_enabled?: boolean
           delivery_fee?: number
@@ -1947,8 +1962,10 @@ export type Database = {
           feature_pos_enabled?: boolean | null
           feature_route_optimization_enabled?: boolean | null
           feature_wallet_enabled?: boolean | null
+          firm_name?: string | null
           footer_about?: string | null
           free_delivery_over?: number
+          free_delivery_threshold?: number | null
           fssai_license_no?: string | null
           fssai_number?: string | null
           ga4_measurement_id?: string | null
@@ -1956,6 +1973,7 @@ export type Database = {
           google_site_verification?: string | null
           gst_enabled?: boolean
           gst_legal_name?: string | null
+          gst_number?: string | null
           gst_percent?: number
           gstin?: string | null
           harbour_alert_message?: string | null
