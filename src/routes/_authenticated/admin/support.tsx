@@ -86,7 +86,7 @@ export function AdminSupportPage() {
         .order("last_message_at", { ascending: false });
 
       if (error) return [];
-      return data || [];
+      return (data || []) as Conversation[];
     },
     refetchInterval: 4000,
   });
@@ -125,7 +125,7 @@ export function AdminSupportPage() {
         .order("created_at", { ascending: true });
 
       if (error) return [];
-      return data || [];
+      return (data || []) as Message[];
     },
     enabled: Boolean(activeConvId),
     refetchInterval: 3000,
@@ -207,7 +207,7 @@ export function AdminSupportPage() {
         .from("support_conversations")
         .update({
           last_message_at: new Date().toISOString(),
-          status: activeConv?.status === "open" ? "in_progress" : activeConv?.status,
+          status: activeConv?.status === "open" ? "in_progress" : (activeConv?.status ?? "open"),
         })
         .eq("id", activeConvId);
     },

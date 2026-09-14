@@ -422,7 +422,7 @@ export function Reports() {
       const byName = p.name ? salesMap.get(p.name.toLowerCase().trim()) : undefined;
       const match = byId || byName || { qty: 0, value: 0, count: 0 };
 
-      const costPrice = Number((p as ProductVariant).cost_price) || Math.round(Number(p.price || 0) * 0.68);
+      const costPrice = Number(p.cost_price) || Math.round(Number(p.price || 0) * 0.68);
       const cogs = Math.round(costPrice * match.qty);
       const grossProfit = Math.max(0, match.value - cogs);
       const marginPct = match.value > 0 ? Math.round((grossProfit / match.value) * 100) : 0;
@@ -439,7 +439,7 @@ export function Reports() {
         marginPct,
         stock: Number(p.stock || 0),
         unit: p.unit || "kg",
-        lowStockThreshold: (p as ProductVariant).low_stock_threshold ?? 5,
+        lowStockThreshold: p.low_stock_threshold ?? 5,
         isActive: p.is_available ?? true,
         qtySold: match.qty,
         revenue: match.value,
@@ -870,8 +870,9 @@ export function Reports() {
 
     for (const o of deliveredOrders) {
       const createdTime = new Date(o.created_at).getTime();
-      const deliveredTime = (o as unknown as Database["public"]["Tables"]["orders"]["Row"]).delivered_at
-        ? new Date((o as unknown as Database["public"]["Tables"]["orders"]["Row"]).delivered_at).getTime()
+      const deliveredAtValue = (o as unknown as Database["public"]["Tables"]["orders"]["Row"]).delivered_at;
+      const deliveredTime = deliveredAtValue
+        ? new Date(deliveredAtValue).getTime()
         : null;
 
       const durationMinutes = deliveredTime
@@ -2484,7 +2485,7 @@ export function Reports() {
                 <span className="text-xs text-muted-foreground font-medium">Tender:</span>
                 <select
                   value={posPaymentFilter}
-                  onChange={(e) => setPosPaymentFilter(e.target.value as "daily" | "weekly" | "custom")}
+                  onChange={(e) => setPosPaymentFilter(e.target.value as "all" | "cash" | "upi" | "card")}
                   className="h-8 rounded-xl border border-input bg-transparent px-2.5 text-xs shadow-2xs"
                 >
                   <option value="all">All Tenders</option>
