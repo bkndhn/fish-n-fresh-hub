@@ -207,7 +207,7 @@ export function AdminSupportPage() {
         .from("support_conversations")
         .update({
           last_message_at: new Date().toISOString(),
-          status: activeConv?.status === "open" ? "in_progress" : activeConv?.status,
+          status: activeConv?.status === "open" ? "in_progress" : (activeConv?.status ?? "open"),
         })
         .eq("id", activeConvId);
     },

@@ -369,7 +369,7 @@ function PurchasesAdmin() {
           matchedSupplier = suppliers.find((s) => s.id === "sup-1") || suppliers[0];
         }
 
-        const estRate = (p as ProductVariant).cost_price ? Number((p as ProductVariant).cost_price) : Math.round(Number(p.price) * 0.7);
+        const estRate = p.cost_price ? Number(p.cost_price) : Math.round(Number(p.price) * 0.7);
 
         return {
           product: p,
@@ -997,7 +997,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
         </Card>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full min-w-0 max-w-full">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "ledger" | "outstanding" | "new" | "po_requests" | "suppliers" | "batches")} className="w-full min-w-0 max-w-full">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 w-full min-w-0">
           <div className="w-full min-w-0 overflow-x-auto no-scrollbar touch-pan-x scroll-smooth pb-0.5">
             <TabsList className="rounded-2xl p-1 bg-muted/60 flex-nowrap w-max">
@@ -1512,7 +1512,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
                   <Label className="text-xs font-bold">Payment Method</Label>
                   <select
                     value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value as "daily" | "weekly" | "custom")}
+                    onChange={(e) => setPaymentMethod(e.target.value as "cash" | "upi" | "bank" | "credit")}
                     className="flex h-9 w-full rounded-xl border border-input bg-background px-3 py-1 text-xs shadow-xs"
                   >
                     <option value="cash">Cash on Dock</option>
@@ -1800,7 +1800,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
                 className="rounded-xl h-8 text-xs font-bold gap-1.5 border-rose-500/30 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
                 onClick={() => {
                   if (inventoryBatches.length > 0) {
-                    setSelectedRecallBatch(inventoryBatches[0].batch_number);
+                    setSelectedRecallBatch(inventoryBatches[0]!.batch_number);
                   }
                   setBatchRecallModalOpen(true);
                 }}
@@ -3103,7 +3103,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
                     <Label className="text-xs font-bold">Payment Method</Label>
                     <select
                       value={paymentDisburseMethod}
-                      onChange={(e) => setPaymentDisburseMethod(e.target.value as "daily" | "weekly" | "custom")}
+                      onChange={(e) => setPaymentDisburseMethod(e.target.value as "cash" | "upi" | "bank" | "cheque")}
                       className="flex h-9 w-full rounded-xl border border-input bg-background px-3 py-1 text-xs font-semibold shadow-2xs"
                     >
                       <option value="upi">Direct UPI Transfer</option>
