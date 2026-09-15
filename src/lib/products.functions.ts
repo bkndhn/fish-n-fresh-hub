@@ -226,7 +226,7 @@ export const applyRealProductsCatalog = createServerFn({ method: "POST" })
         const realIds = REAL_SEAFOOD_PRODUCTS.map((p) => p.id);
         await supabaseAdmin
           .from("products")
-          .update({ is_active: false })
+          .update({ is_available: false })
           .not("id", "in", `(${realIds.join(",")})`);
       }
 
