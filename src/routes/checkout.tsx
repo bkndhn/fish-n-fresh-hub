@@ -162,8 +162,8 @@ function Checkout() {
   const storeStatus = getStoreStatus(settings);
   const selectedHoliday = isDateHoliday(
     deliveryDate,
-    (settings as SiteSettings)?.working_days,
-    (settings as SiteSettings)?.custom_holidays
+    (settings as SiteSettings)?.working_days as number[] | undefined,
+    (settings as SiteSettings)?.custom_holidays as string[] | undefined
   );
 
   // Auto-adjust delivery date to next working date if store is closed or current selection is a holiday
