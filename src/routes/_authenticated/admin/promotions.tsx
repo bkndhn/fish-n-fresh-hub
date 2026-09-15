@@ -222,7 +222,7 @@ function PromotionsAdmin() {
         conversions_b: 0,
       };
 
-      const { error } = await supabase.from("marketing_campaigns").insert([record]);
+      const { error } = await supabase.from("marketing_campaigns").insert([record] as never);
       if (error) throw error;
     },
     onSuccess: () => {
