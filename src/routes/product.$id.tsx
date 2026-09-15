@@ -539,7 +539,7 @@ function ProductPage() {
                     <Label className="text-xs font-semibold">Frequency</Label>
                     <select
                       value={subFrequency}
-                      onChange={(e) => setSubFrequency(e.target.value as "daily" | "weekly" | "custom")}
+                      onChange={(e) => setSubFrequency(e.target.value as typeof subFrequency)}
                       className="w-full h-9 rounded-xl border border-border bg-background px-2 text-xs mt-1"
                     >
                       <option value="weekly">Weekly (Recommended)</option>
@@ -551,7 +551,7 @@ function ProductPage() {
                     <Label className="text-xs font-semibold">Delivery Day</Label>
                     <select
                       value={subDay}
-                      onChange={(e) => setSubDay(e.target.value as "daily" | "weekly" | "custom")}
+                      onChange={(e) => setSubDay(e.target.value as typeof subDay)}
                       className="w-full h-9 rounded-xl border border-border bg-background px-2 text-xs mt-1 capitalize"
                     >
                       <option value="sunday">Sunday (Morning Catch)</option>

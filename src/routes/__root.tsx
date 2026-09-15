@@ -200,7 +200,7 @@ function RealtimeSubscriber({ queryClient }: { queryClient: QueryClient }) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "platform_revocations" },
         async (payload) => {
-          const revocation = payload.new as { token_id?: string };
+          const revocation = payload.new as { token_id?: string; scope?: string; target_id?: string | null; reason?: string };
           if (!revocation) return;
 
           const { data: authData } = await supabase.auth.getUser();

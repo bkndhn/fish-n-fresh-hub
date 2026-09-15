@@ -1148,7 +1148,7 @@ export function RetailPosCounterPage() {
         try {
           const { data: orderRes, error: orderErr } = await supabase
             .from("orders")
-            .insert(orderPayload)
+            .insert(orderPayload as never)
             .select("id, order_number")
             .single();
 

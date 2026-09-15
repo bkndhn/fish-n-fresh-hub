@@ -339,9 +339,7 @@ export function DriverDispatchPage() {
         }
 
         const createdTime = new Date(o.created_at).getTime();
-        const deliveredTime = (o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).delivered_at
-          ? new Date((o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).delivered_at).getTime()
-          : null;
+        const deliveredTime = o.delivered_at ? new Date(o.delivered_at).getTime() : null;
         const durationMinutes = deliveredTime
           ? Math.max(5, Math.round((deliveredTime - createdTime) / 60000))
           : (o.eta_minutes || 40);
@@ -395,7 +393,7 @@ export function DriverDispatchPage() {
   return (
     <AdminShell title="Driver Dispatch & Fleet Management" allow={["admin", "driver", "staff"]}>
       {/* Tab Controls & Auto-Assign Header */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="space-y-4 w-full min-w-0 max-w-full">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="space-y-4 w-full min-w-0 max-w-full">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3 w-full min-w-0">
           <div className="w-full min-w-0 overflow-x-auto no-scrollbar touch-pan-x scroll-smooth pb-0.5">
             <TabsList className="h-9 rounded-xl p-1 bg-muted/60 flex-nowrap w-max">

@@ -127,16 +127,16 @@ function AdminSettings() {
         { data: deliveryWindows },
       ] = await Promise.all([
         supabase.from("products").select("*"),
-        supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(2000),
+        supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(2000),
         supabase.from("categories").select("*"),
         supabase.from("marketing_campaigns").select("*"),
         supabase.from("inventory_batches").select("*"),
         supabase.from("customer_subscriptions").select("*"),
-        supabase.from("customers").select("*"),
+        supabase.from("profiles").select("*"),
         supabase.from("promotions").select("*"),
         supabase.from("suppliers").select("*"),
-        supabase.from("purchases").select("*, purchase_items(*)"),
-        supabase.from("waste_logs").select("*"),
+        supabase.from("purchase_orders").select("*"),
+        supabase.from("waste_entries").select("*"),
         supabase.from("delivery_windows").select("*"),
       ]);
 
@@ -225,9 +225,9 @@ function AdminSettings() {
         o.payment_status || "pending",
         o.subtotal || 0,
         o.delivery_fee || 0,
-        o.discount || o.discount_amount || 0,
+        o.discount || 0,
         o.total || 0,
-        `"${(o.delivery_address || "").replace(/"/g, '""')}"`,
+        `"${(o.customer_address || "").replace(/"/g, '""')}"`,
       ]);
 
       const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");

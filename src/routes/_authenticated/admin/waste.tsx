@@ -431,7 +431,7 @@ function WasteAdmin() {
               <Label className="text-xs font-bold">Reason for Loss *</Label>
               <select
                 value={wasteReason}
-                onChange={(e) => setWasteReason(e.target.value as "daily" | "weekly" | "custom")}
+                onChange={(e) => setWasteReason(e.target.value as typeof wasteReason)}
                 className="flex h-9 w-full rounded-xl border border-input bg-background px-3 py-1 text-xs shadow-xs"
               >
                 {REASONS.map((r) => (

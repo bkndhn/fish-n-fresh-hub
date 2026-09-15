@@ -117,7 +117,7 @@ function AccountPage() {
     queryFn: async (): Promise<AccountOrder[]> => {
       if (!user?.id) return [];
       const storedPhone = typeof window !== "undefined" ? localStorage.getItem("fnf_phone") : null;
-      const userPhone = (user.user_metadata as Record<string, any>)?.phone || storedPhone;
+      const userPhone = (user.user_metadata as Record<string, any>)?.['phone'] || storedPhone;
 
       let query = supabase
         .from("orders")
@@ -352,7 +352,7 @@ function OrdersTab({
           price: Number(it.price),
           unit: it.unit || "kg",
           image_url: null,
-        },
+        } as unknown as Parameters<typeof add>[0],
         Number(it.qty) || 1,
         it.cut_preference || "Curry Cut",
         it.branch_id ? { id: it.branch_id, name: it.branch_name || "Hub" } : undefined

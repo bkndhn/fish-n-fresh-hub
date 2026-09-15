@@ -155,10 +155,7 @@ export async function verifyAndDeliverOrder(
       p_order_id: orderId,
       p_entered_pin: cleanPin,
       p_is_admin_override: isAdminOverride,
-      p_override_reason: overrideReason ?? undefined,
-      p_actual_payment_method: paymentDetails?.actualMethod || null,
-      p_actual_payment_ref: paymentDetails?.actualRef || null,
-      p_paid_to_bank_directly: paymentDetails ? paymentDetails.paidToBankDirectly : null,
+      ...(overrideReason ? { p_override_reason: overrideReason } : {}),
     });
 
     if (!error && data && typeof data === "object") {

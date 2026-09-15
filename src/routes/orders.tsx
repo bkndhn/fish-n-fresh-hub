@@ -70,7 +70,7 @@ function MyOrders() {
             price: Number(it.price),
             unit: it.unit || "kg",
             image_url: it.image_url || null,
-          },
+          } as unknown as Parameters<typeof add>[0],
           Number(it.qty) || 1,
           it.cut_preference || "Curry Cut",
           it.branch_id ? { id: it.branch_id, name: it.branch_name || "Hub" } : undefined
