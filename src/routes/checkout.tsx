@@ -438,7 +438,7 @@ function Checkout() {
         customer_address: fulfillment === "delivery" ? address : null,
         location_lat: fulfillment === "delivery" ? finalLat : null,
         location_lng: fulfillment === "delivery" ? finalLng : null,
-        items: items as unknown as Database["public"]["Tables"]["orders"]["Insert"]["items"],
+        items: items as unknown as NonNullable<Database["public"]["Tables"]["orders"]["Insert"]["items"]>,
         subtotal,
         delivery_fee: deliveryFee,
         gst_amount: gstAmount,
