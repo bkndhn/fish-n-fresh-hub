@@ -155,7 +155,7 @@ export async function verifyAndDeliverOrder(
       p_order_id: orderId,
       p_entered_pin: cleanPin,
       p_is_admin_override: isAdminOverride,
-      p_override_reason: overrideReason ?? undefined,
+      ...(overrideReason ? { p_override_reason: overrideReason } : {}),
     });
 
     if (!error && data && typeof data === "object") {
