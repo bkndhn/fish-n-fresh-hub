@@ -2260,7 +2260,7 @@ function ProductsAdmin() {
 
       {/* Quick Refill Modal */}
       <Dialog open={Boolean(refillProduct)} onOpenChange={(open) => !open && setRefillProduct(null)}>
-        <DialogContent className="rounded-2xl w-[calc(100vw-1.5rem)] sm:max-w-md p-4 sm:p-6 mx-auto">
+        <DialogContent className="rounded-2xl w-[calc(100vw-1.5rem)] sm:max-w-md max-h-[88vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6 mx-auto">
           {refillProduct && (
             <>
               <DialogHeader>
