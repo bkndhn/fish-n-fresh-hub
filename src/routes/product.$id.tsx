@@ -730,6 +730,9 @@ function ProductPage() {
 function ProductReviewsSection({ productId, productName }: { productId: string; productName: string }) {
   const qc = useQueryClient();
   const { user } = useSessionUser();
+  const { data: settings } = useQuery(settingsQuery);
+  const storeVertical = getStoreVertical(settings);
+  const formFields = getVerticalFormFields(storeVertical.id, settings?.store_name ?? undefined);
   const [openReview, setOpenReview] = useState(false);
   const [rating, setRating] = useState(5);
   const [name, setName] = useState("");

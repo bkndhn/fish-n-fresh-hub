@@ -135,6 +135,16 @@ export function CatchAlertBanner() {
         ? "🍗 Morning Fresh Farm Harvest Arrival"
         : vertical.id === "all_meat"
         ? "🥩 Fresh Daily Farm & Harbour Arrival"
+        : vertical.id === "snacks_sweets"
+        ? "🍿 Fresh Batch & Hot Crisps In-Stock"
+        : vertical.id === "footwear"
+        ? "👟 New Collection & Fresh Pairs Arrival"
+        : vertical.id === "electronics_appliances"
+        ? "⚡ New Tech & Appliance Inventory Arrival"
+        : vertical.id === "clothing_fashion"
+        ? "✨ Curated Apparel & Fresh Fits Arrival"
+        : vertical.id === "grocery_supermarket"
+        ? "🛒 Daily Farm Produce & Grocery Arrival"
         : "🌅 Kasimedu Harbour Boat Landing Alert");
 
     message =
@@ -144,6 +154,16 @@ export function CatchAlertBanner() {
         ? "Daily morning harvest of antibiotic-free broiler & country chicken just arrived fresh at our counter."
         : vertical.id === "all_meat"
         ? "Fresh day-catch seafood, tender poultry and fresh cuts arrived for express home delivery."
+        : vertical.id === "snacks_sweets"
+        ? "Freshly prepared traditional sweets, savoury snacks, and crunchy packs ready for fast dispatch."
+        : vertical.id === "footwear"
+        ? "Freshly unpacked premium footwear, running sneakers, and comfort daily wear ready in stock."
+        : vertical.id === "electronics_appliances"
+        ? "100% genuine brand electronics and tech accessories with manufacturer warranty available now."
+        : vertical.id === "clothing_fashion"
+        ? "Trendy daily fashion, casuals, and premium fabric collections ready for swift delivery."
+        : vertical.id === "grocery_supermarket"
+        ? "Fresh farm-sourced staples, vegetables, and daily household essentials ready at best prices."
         : "Morning 06:30 AM & 02:00 PM boats arriving with fresh Vanjaram (Seer), White Prawns, and Red Snapper.");
 
     badgeLabel =
@@ -153,6 +173,16 @@ export function CatchAlertBanner() {
         ? "Bio-Secure Farm Hub"
         : vertical.id === "all_meat"
         ? "Daily Central Hub"
+        : vertical.id === "snacks_sweets"
+        ? "Fresh Kitchen Depot"
+        : vertical.id === "footwear"
+        ? "Studio Central Hub"
+        : vertical.id === "electronics_appliances"
+        ? "Verified Tech Hub"
+        : vertical.id === "clothing_fashion"
+        ? "Fashion Depot"
+        : vertical.id === "grocery_supermarket"
+        ? "Central Market Hub"
         : "Kasimedu Harbour, Chennai");
   }
 
@@ -168,8 +198,8 @@ export function CatchAlertBanner() {
 
   return (
     <aside
-      aria-label="Daily Catch & Harvest Alerts"
-      className="relative overflow-hidden bg-gradient-to-r from-sky-900 via-primary/95 to-teal-900 text-white shadow-sm border-b border-sky-700/50"
+      aria-label={`${vertical.shortName} Live Alerts`}
+      className="relative overflow-hidden bg-primary text-primary-foreground shadow-sm border-b border-primary/20"
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-2.5 sm:px-6 sm:py-3">
         <div className="flex min-w-0 items-center gap-2.5">

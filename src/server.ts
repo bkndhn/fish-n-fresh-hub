@@ -159,6 +159,8 @@ export default {
     // ── Rate limiting ──
     maybeCleanupBuckets();
     const clientIp =
+      request.headers.get("x-real-ip") ??
+      request.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ??
       request.headers.get("cf-connecting-ip") ??
       request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
       "unknown";
@@ -167,7 +169,7 @@ export default {
       url.pathname.includes("/_build/") ||
       /\.(js|css|png|jpg|webp|svg|woff2|ico)$/.test(url.pathname);
 
-    if (isRateLimited(clientIp, isStatic)) {
+    if (clientIp !== "unknown" && isRateLimited(clientIp, isStatic)) {
       return new Response(
         JSON.stringify({ error: "Too many requests. Please try again later." }),
         {

@@ -21,11 +21,11 @@ export const getRouter = () => {
     context: { queryClient },
     scrollRestoration: true,
     defaultPreload: "intent",
-    defaultPreloadDelay: 0, // 0ms instantaneous hover/touch prefetching
+    defaultPreloadDelay: 50,
     defaultPreloadStaleTime: 1000 * 60 * 15,
-    defaultPendingMs: 1000, // Never show loading flicker for sub-second transitions
-    defaultPendingMinMs: 400,
-    defaultViewTransition: true,
+    defaultPendingMs: 1000,
+    defaultPendingMinMs: 0,
+    defaultViewTransition: false,
   });
 
   return router;

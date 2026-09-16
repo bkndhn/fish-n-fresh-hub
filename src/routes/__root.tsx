@@ -10,7 +10,6 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CartProvider } from "@/lib/cart";
 import { Toaster } from "@/components/ui/sonner";
 import { initSentry, captureException } from "@/lib/sentry";
@@ -38,21 +37,40 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
+  console.error("[Root Error Boundary]", error);
   const router = useRouter();
   useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
     captureException(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
 
+  const handleClearCacheAndReload = () => {
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.clear();
+        sessionStorage.clear();
+        if ("caches" in window) {
+          caches.keys().then((keys) => {
+            keys.forEach((k) => caches.delete(k));
+          });
+        }
+        window.location.href = "/";
+      }
+    } catch {
+      window.location.reload();
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
+      <div className="max-w-md w-full text-center">
+        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+          <span className="text-2xl">⚠️</span>
+        </div>
+        <h1 className="text-xl font-bold tracking-tight text-foreground">
           This page didn't load
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          Something went wrong loading this view. You can retry, clear your browser cache, or return to the storefront.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -60,17 +78,40 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 shadow-xs cursor-pointer"
           >
             Try again
           </button>
           <a
             href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            className="inline-flex items-center justify-center rounded-xl border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent cursor-pointer"
           >
             Go home
           </a>
+          <button
+            type="button"
+            onClick={handleClearCacheAndReload}
+            className="inline-flex items-center justify-center rounded-xl border border-dashed border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
+          >
+            Clear Cache & Refresh
+          </button>
         </div>
+
+        {error?.message && (
+          <details className="mt-6 text-left rounded-xl border border-border/80 bg-muted/40 p-3 text-xs">
+            <summary className="cursor-pointer font-semibold text-muted-foreground select-none">
+              Technical diagnostics
+            </summary>
+            <p className="mt-2 font-mono text-[11px] text-destructive break-words whitespace-pre-wrap">
+              {error.message}
+            </p>
+            {error.stack && (
+              <pre className="mt-2 max-h-36 overflow-auto font-mono text-[10px] text-muted-foreground/80 leading-relaxed whitespace-pre-wrap">
+                {error.stack}
+              </pre>
+            )}
+          </details>
+        )}
       </div>
     </div>
   );
@@ -110,12 +151,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      // favicon — real logo PNG (browsers accept PNG as .ico)
-      { rel: "icon", href: "/favicon.ico", type: "image/png", sizes: "32x32" },
+      // High-DPI Mascot Logo Favicons
       { rel: "icon", href: "/icons/icon-192.png", type: "image/png", sizes: "192x192" },
       { rel: "icon", href: "/icons/icon-512.png", type: "image/png", sizes: "512x512" },
-      // iOS Safari home screen icon — dedicated 180x180 file (no letter, real logo)
-      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+      { rel: "icon", href: "/favicon.ico" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/icons/icon-192.png" },
       { rel: "manifest", href: "/manifest.json" },
       { rel: "preconnect", href: "https://images.unsplash.com" },
       { rel: "dns-prefetch", href: "https://images.unsplash.com" },

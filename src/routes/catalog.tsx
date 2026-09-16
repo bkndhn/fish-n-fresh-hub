@@ -697,7 +697,7 @@ function RequestProductDialog({
   defaultQuery?: string;
   itemTerm?: string;
   verticalId?: BusinessVertical;
-  storeName?: string;
+  storeName?: string | null | undefined;
 }) {
   const [open, setOpen] = useState(false);
   const [productName, setProductName] = useState(defaultQuery);
@@ -706,7 +706,7 @@ function RequestProductDialog({
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const formFields = getVerticalFormFields(verticalId, storeName);
+  const formFields = getVerticalFormFields(verticalId, storeName ?? undefined);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

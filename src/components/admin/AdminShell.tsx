@@ -249,13 +249,35 @@ export function AdminShell({
             <Button asChild variant="outline" className="rounded-xl text-xs h-9 flex-1">
               <Link to={fallbackRoute}>Go to Store Front</Link>
             </Button>
-            <Button
-              variant="ghost"
-              className="rounded-xl text-xs h-9 text-muted-foreground hover:text-destructive"
-              onClick={() => supabase.auth.signOut().then(() => navigate({ to: "/auth" }))}
-            >
-              Sign out / Switch Account
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="rounded-xl text-xs h-9 text-muted-foreground hover:text-destructive cursor-pointer"
+                >
+                  Sign out / Switch
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="rounded-2xl">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Sign out of Admin Console?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to sign out? Any unsaved edits in open product forms, POS bills, or settings will be lost.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => {
+                      supabase.auth.signOut().then(() => navigate({ to: "/auth" }));
+                    }}
+                  >
+                    Sign out
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </div>
@@ -334,15 +356,15 @@ export function AdminShell({
                 </AlertDialogTrigger>
                 <AlertDialogContent className="rounded-2xl">
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Sign out</AlertDialogTitle>
+                    <AlertDialogTitle>Sign out of Admin Console?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Are you sure you want to sign out? You will need to log in again to access the admin console.
+                      Are you sure you want to sign out? Any unsaved edits in open product forms, POS bills, or settings will be lost.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
                     <AlertDialogAction 
-                      className="rounded-xl"
+                      className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       onClick={() => {
                         supabase.auth.signOut().then(() => navigate({ to: "/auth" }));
                       }}

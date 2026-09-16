@@ -64,6 +64,7 @@ import { SeoSettingsManager } from "@/components/admin/SeoSettingsManager";
 import { BranchManagement } from "@/components/admin/BranchManagement";
 import { getDailyAtmosphere, isDailyAtmosphereEnabled, setDailyAtmosphereEnabled } from "@/lib/dailyAtmosphere";
 import { ThermalPrinterCustomizer } from "@/components/admin/ThermalPrinterCustomizer";
+import { AdminActionConfirmationModal } from "@/components/admin/AdminActionConfirmationModal";
 import type { SiteSettings } from "@/lib/types";
 
 export const Route = createFileRoute("/_authenticated/admin/settings")({
@@ -79,6 +80,7 @@ function AdminSettings() {
   const [form, setForm] = useState<any>({});
   const [gatewayForm, setGatewayForm] = useState<GatewayCreds>({ provider: "none", api_key: "", secret_key: "" });
   const [shopPinModalOpen, setShopPinModalOpen] = useState(false);
+  const [confirmStoreNameModalOpen, setConfirmStoreNameModalOpen] = useState(false);
   const [exportingBackup, setExportingBackup] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
   const [testEmailAddress, setTestEmailAddress] = useState("");
@@ -430,6 +432,16 @@ function AdminSettings() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const handleAttemptSaveSettings = () => {
+    const currentName = (settings?.store_name || "").trim();
+    const newName = (form.store_name || "").trim();
+    if (newName && currentName && newName.toLowerCase() !== currentName.toLowerCase()) {
+      setConfirmStoreNameModalOpen(true);
+      return;
+    }
+    update.mutate(form);
+  };
 
   const handleShopPinConfirm = (loc: GeocodedAddress) => {
     setForm((prev: any) => ({
@@ -2738,7 +2750,7 @@ function AdminSettings() {
             </div>
             <Button
               className="rounded-xl font-bold text-xs gap-1.5 shadow-sm"
-              onClick={() => update.mutate(form)}
+              onClick={handleAttemptSaveSettings}
               disabled={update.isPending}
             >
               {update.isPending ? "Saving..." : "Save Settings"}
@@ -2955,7 +2967,7 @@ function AdminSettings() {
           <Button
             size="sm"
             className="rounded-xl text-xs font-bold h-9 px-4 gap-1.5 shadow-sm"
-            onClick={() => update.mutate(form)}
+            onClick={handleAttemptSaveSettings}
             disabled={update.isPending}
           >
             {update.isPending ? "Saving Changes..." : "Save Settings"}
@@ -2972,6 +2984,20 @@ function AdminSettings() {
         title="Set Physical Shop Location"
         confirmLabel="Confirm Store Location"
         onConfirm={handleShopPinConfirm}
+      />
+
+      {/* Admin Password & Risk Confirmation Modal for Store Name Change */}
+      <AdminActionConfirmationModal
+        open={confirmStoreNameModalOpen}
+        onOpenChange={setConfirmStoreNameModalOpen}
+        title="Authorize Store Name & Brand Identity Change"
+        description={`You are changing the store name from "${settings?.store_name || 'Current'}" to "${form.store_name}".`}
+        riskWarning="Changing the Store Brand Name immediately alters your store's public identity, SEO metadata, tax invoices, thermal POS receipts, customer order tracking headers, and automatically re-detects your retail vertical (e.g. Snacks, Footwear, Electronics, Seafood). All category structures and unit presets across the entire application will synchronize to this new vertical model. Please ensure you have backed up any critical reports."
+        requiresPassword={true}
+        confirmText="Confirm & Apply Brand Change"
+        onConfirm={async () => {
+          await update.mutateAsync(form);
+        }}
       />
     </AdminShell>
   );

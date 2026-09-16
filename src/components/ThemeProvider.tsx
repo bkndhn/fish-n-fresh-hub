@@ -94,6 +94,9 @@ export function ThemeProvider({
       const appleTitleMeta = document.querySelector("meta[name='apple-mobile-web-app-title']");
       if (appleTitleMeta) appleTitleMeta.setAttribute("content", storeName);
 
+      const appleStatusMeta = document.querySelector("meta[name='apple-mobile-web-app-status-bar-style']");
+      if (appleStatusMeta) appleStatusMeta.setAttribute("content", isDark ? "black-translucent" : "default");
+
       if (dailyEnabled) {
         // Procedural daily atmosphere theme (different every single day)
         applyDailyAtmosphere(true, isDark);
@@ -102,6 +105,27 @@ export function ThemeProvider({
         applyDailyAtmosphere(false, isDark);
         root.style.setProperty("--primary", effectiveThemeColor);
         root.style.setProperty("--ring", effectiveThemeColor);
+
+        // Compute high-contrast primary foreground (WCAG compliant)
+        const hex = effectiveThemeColor.replace("#", "").trim();
+        let yiq = 0;
+        if (hex.length === 3) {
+          const c0 = hex[0] ?? "0";
+          const c1 = hex[1] ?? "0";
+          const c2 = hex[2] ?? "0";
+          const r = parseInt(c0 + c0, 16);
+          const g = parseInt(c1 + c1, 16);
+          const b = parseInt(c2 + c2, 16);
+          yiq = (r * 299 + g * 587 + b * 114) / 1000;
+        } else if (hex.length === 6) {
+          const r = parseInt(hex.substring(0, 2), 16);
+          const g = parseInt(hex.substring(2, 4), 16);
+          const b = parseInt(hex.substring(4, 6), 16);
+          yiq = (r * 299 + g * 587 + b * 114) / 1000;
+        }
+        const contrastFg = yiq >= 150 ? "#0f172a" : "#ffffff";
+        root.style.setProperty("--primary-foreground", contrastFg);
+
         updateStatusBarColor(effectiveThemeColor, isDark ? "#0b1120" : effectiveThemeColor);
       }
     };

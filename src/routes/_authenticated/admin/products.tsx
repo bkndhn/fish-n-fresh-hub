@@ -114,6 +114,7 @@ function ProductsAdmin() {
   const [search, setSearch] = useState("");
   const [openAdd, setOpenAdd] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  const [confirmEditProductOpen, setConfirmEditProductOpen] = useState(false);
   const [refillProduct, setRefillProduct] = useState<Product | null>(null);
   const [refillQty, setRefillQty] = useState<string>("10");
   const [makeLiveOnRefill, setMakeLiveOnRefill] = useState<boolean>(true);
@@ -2099,7 +2100,7 @@ function ProductsAdmin() {
               </Button>
               <Button
                 disabled={saveEditedProduct.isPending || !editingProduct.name}
-                onClick={() => saveEditedProduct.mutate()}
+                onClick={() => setConfirmEditProductOpen(true)}
                 className="rounded-xl text-xs font-bold h-9 px-4 shadow-xs"
               >
                 {saveEditedProduct.isPending ? "Updating Product..." : "Save Changes"}
@@ -2109,6 +2110,31 @@ function ProductsAdmin() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Confirmation Dialog before Applying Product Edits */}
+      <AlertDialog open={confirmEditProductOpen} onOpenChange={setConfirmEditProductOpen}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save Changes to {editingProduct?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to save changes to this product? The modified selling price (₹{editingProduct?.price}), stock level ({editingProduct?.stock}), and live visibility ({editingProduct?.is_available ? "Active" : "Hidden"}) will immediately take effect across the storefront and POS registers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-xl font-bold"
+              disabled={saveEditedProduct.isPending}
+              onClick={() => {
+                saveEditedProduct.mutate();
+                setConfirmEditProductOpen(false);
+              }}
+            >
+              Confirm Update
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Bulk Product CSV Import & Template Suite Dialog */}
       <Dialog open={csvModalOpen} onOpenChange={setCsvModalOpen}>
