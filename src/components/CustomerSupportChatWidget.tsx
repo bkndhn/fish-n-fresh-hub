@@ -350,7 +350,22 @@ export function CustomerSupportChatWidget() {
           </div>
 
           {/* Body */}
-          {!isStarted ? (
+          {!user?.id ? (
+            <div className="p-6 space-y-4 flex-1 flex flex-col justify-center text-center">
+              <div className="mx-auto size-12 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                <ShieldCheck className="size-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-bold text-base text-foreground">Sign in to chat with us</h3>
+                <p className="text-xs text-muted-foreground">
+                  Your conversation stays private to your account, so please sign in first.
+                </p>
+              </div>
+              <Button asChild className="w-full rounded-xl h-9 text-xs font-bold shadow-xs">
+                <a href="/auth">Sign in / Create account</a>
+              </Button>
+            </div>
+          ) : !isStarted ? (
             <form onSubmit={handleStartChat} className="p-5 space-y-4 flex-1 flex flex-col justify-center">
               <div className="text-center space-y-1">
                 <div className="mx-auto size-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-2">
