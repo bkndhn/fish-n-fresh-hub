@@ -791,7 +791,7 @@ ON CONFLICT (user_id, role) DO NOTHING;`}
               /* Active / Inactive Clients List */
               <div className="divide-y divide-border">
                 {filteredClients.map((client) => {
-                  const verticalInfo = VERTICAL_LABELS[client.vertical] || VERTICAL_LABELS.custom;
+                  const verticalInfo = VERTICAL_LABELS[client.vertical] || VERTICAL_LABELS["custom"] || { label: "General", color: "text-muted-foreground" };
                   const hubsUtilizationPct = Math.round((client.active_branches_count / client.max_branches) * 100);
 
                   return (

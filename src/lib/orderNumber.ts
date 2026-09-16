@@ -22,7 +22,8 @@ export async function getNextOrderSequenceNumber(type: "online" | "pos" = "onlin
     let nextNum = 1;
     if (!error && data && data.length > 0 && data[0]?.order_number) {
       const parts = data[0].order_number.split("-");
-      const lastSeq = parseInt(parts[parts.length - 1], 10);
+      const lastPart = parts[parts.length - 1];
+      const lastSeq = lastPart ? parseInt(lastPart, 10) : NaN;
       if (!isNaN(lastSeq)) {
         nextNum = lastSeq + 1;
       }

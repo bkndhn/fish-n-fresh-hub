@@ -245,15 +245,20 @@ import type { SiteSettings } from "./types";
  * Checks whether Daily Atmosphere is enabled.
  * Respects customer local preference if set, falling back to store settings (default true).
  */
-export function isDailyAtmosphereEnabled(settings?: SiteSettings): boolean {
-  if (typeof window === "undefined") return true;
-  const localPref = localStorage.getItem("fnf_daily_atmosphere_enabled");
-  if (localPref !== null) {
-    return localPref === "true";
+export function isDailyAtmosphereEnabled(settings?: { daily_atmosphere_enabled?: boolean | null; theme_color?: string | null; business_vertical?: string | null } | null): boolean {
+  if (typeof window !== "undefined") {
+    const localPref = localStorage.getItem("fnf_daily_atmosphere_enabled");
+    if (localPref !== null) {
+      return localPref === "true";
+    }
   }
-  // Store setting fallback (defaults to true for world-class daily experience)
-  if (settings && settings.daily_atmosphere_enabled !== undefined) {
+  // If explicitly configured in store settings
+  if (settings && settings.daily_atmosphere_enabled !== undefined && settings.daily_atmosphere_enabled !== null) {
     return Boolean(settings.daily_atmosphere_enabled);
+  }
+  // If custom theme color or non-seafood vertical is active, default daily atmosphere to false so custom store branding shines
+  if (settings?.theme_color || (settings?.business_vertical && settings.business_vertical !== "seafood")) {
+    return false;
   }
   return true;
 }
@@ -282,41 +287,36 @@ export function applyDailyAtmosphere(enabled: boolean, isDark: boolean): DailyAt
     root.style.setProperty("--ring", isDark ? atmosphere.primaryDarkOklch : atmosphere.primaryLightOklch);
     root.style.setProperty("--daily-glow", atmosphere.glowGradient);
     root.setAttribute("data-daily-atmosphere", atmosphere.id);
+    updateStatusBarColor(atmosphere.primaryHex, isDark ? "#0b1120" : atmosphere.primaryDarkHex);
   } else {
-    // Revert to classic brand ocean azure
-    root.style.removeProperty("--primary");
-    root.style.removeProperty("--ring");
+    // Revert daily atmosphere attributes
     root.style.removeProperty("--daily-glow");
     root.removeAttribute("data-daily-atmosphere");
   }
-
-  // 2. Synchronize Status Bar color across mobile browsers and installed PWA
-  const targetThemeColor = isDark
-    ? "#0b1120" // Midnight navy matching dark header
-    : enabled
-      ? atmosphere.primaryHex
-      : "#0284c7"; // Classic Fish N Fresh Azure
-
-  updateStatusBarColor(targetThemeColor);
 
   return atmosphere;
 }
 
 /**
- * Sets <meta name="theme-color"> across all browser engines
+ * Sets <meta name="theme-color"> across all browser engines with light/dark support
  */
-export function updateStatusBarColor(hexColor: string) {
+export function updateStatusBarColor(lightHex: string, darkHex: string = "#0b1120") {
   if (typeof document === "undefined") return;
 
-  const metaTags = document.querySelectorAll("meta[name='theme-color']");
-  if (metaTags.length > 0) {
-    metaTags.forEach((tag) => {
-      tag.setAttribute("content", hexColor);
-    });
+  const lightMeta = document.querySelector("meta[name='theme-color'][media*='light']");
+  if (lightMeta) lightMeta.setAttribute("content", lightHex);
+
+  const darkMeta = document.querySelector("meta[name='theme-color'][media*='dark']");
+  if (darkMeta) darkMeta.setAttribute("content", darkHex);
+
+  const defaultMeta = document.querySelector("meta[name='theme-color']:not([media])");
+  if (defaultMeta) {
+    const isDark = document.documentElement.classList.contains("dark");
+    defaultMeta.setAttribute("content", isDark ? darkHex : lightHex);
   } else {
     const newTag = document.createElement("meta");
     newTag.name = "theme-color";
-    newTag.content = hexColor;
+    newTag.content = lightHex;
     document.head.appendChild(newTag);
   }
 }

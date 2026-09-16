@@ -7,7 +7,8 @@ import { Plus, Trash2, Search, Edit, AlertTriangle, Zap, PackagePlus, CheckCircl
 import { AdminShell } from "@/components/admin/AdminShell";
 import { useAdminBranch } from "@/lib/branchContext";
 import { adminProductsQuery } from "@/lib/admin";
-import { categoriesQuery } from "@/lib/queries";
+import { categoriesQuery, settingsQuery } from "@/lib/queries";
+import { getStoreVertical } from "@/lib/verticals";
 import type { Product } from "@/lib/types";
 import { formatINR, formatStockDisplay, formatStockUnitLabel } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
@@ -51,10 +52,10 @@ import {
 export const Route = createFileRoute("/_authenticated/admin/products")({
   head: () => ({
     meta: [
-      { title: "Products | Fish N Fresh Admin" },
-      { name: "description", content: "Manage seafood catalogue pricing, stock levels and availability." },
-      { property: "og:title", content: "Products | Fish N Fresh Admin" },
-      { property: "og:description", content: "Manage seafood catalogue pricing, stock and availability." },
+      { title: "Products & Inventory | Admin Hub" },
+      { name: "description", content: "Manage product catalogue pricing, stock levels and availability." },
+      { property: "og:title", content: "Products & Inventory | Admin Hub" },
+      { property: "og:description", content: "Manage product catalogue pricing, stock and availability." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -92,6 +93,8 @@ function ProductsAdmin() {
   const { selectedBranchId, selectedBranch, isConsolidated, branches } = useAdminBranch();
   const products = useQuery(adminProductsQuery(selectedBranchId));
   const { data: categories } = useQuery(categoriesQuery);
+  const { data: settings } = useQuery(settingsQuery);
+  const storeVertical = getStoreVertical(settings);
   const allProducts = products.data ?? [];
 
   const nextSuggestedPosCode = useMemo(() => {
@@ -600,12 +603,12 @@ function ProductsAdmin() {
 
   const [seedingCatalog, setSeedingCatalog] = useState(false);
   const handleApplyRealCatalog = async () => {
-    if (!confirm("This will load 10 authentic dock-fresh coastal seafood & meat items (Vanjaram ₹950, Pomfret ₹880, Tiger Prawns ₹720, etc.) with real market prices, photos, and PLU codes into your store. Proceed?")) return;
+    if (!confirm(`This will load authentic ${storeVertical.name} items with verified real market prices, high-res photos, barcodes, and specs into your store. Proceed?`)) return;
     try {
       setSeedingCatalog(true);
-      const res = await applyRealProductsCatalog({ data: { archiveExisting: false } });
+      const res = await applyRealProductsCatalog({ data: { archiveExisting: false, vertical: storeVertical.id } });
       if (res.success) {
-        toast.success(`Successfully loaded ${res.inserted} authentic real seafood & meat products!`);
+        toast.success(`Successfully loaded ${res.inserted} authentic ${storeVertical.shortName} products!`);
         qc.invalidateQueries({ queryKey: ["admin", "products"] });
         qc.invalidateQueries({ queryKey: ["products"] });
       } else {
@@ -630,7 +633,7 @@ function ProductsAdmin() {
             onClick={handleApplyRealCatalog}
             disabled={seedingCatalog}
           >
-            <Sparkles className="size-3.5 text-primary" /> <span>{seedingCatalog ? "Loading Real Catch…" : "Apply Real Seafood Catalog"}</span>
+            <Sparkles className="size-3.5 text-primary" /> <span>{seedingCatalog ? `Loading ${storeVertical.shortName}…` : `Apply Real ${storeVertical.shortName} Catalog`}</span>
           </Button>
           <Button
             variant="outline"
@@ -641,7 +644,7 @@ function ProductsAdmin() {
               const url = URL.createObjectURL(blob);
               const a = document.createElement("a");
               a.href = url;
-              a.download = `fish-n-fresh-catalog-${new Date().toISOString().slice(0, 10)}.csv`;
+              a.download = `catalog-${new Date().toISOString().slice(0, 10)}.csv`;
               a.click();
               URL.revokeObjectURL(url);
               toast.success(`Exported ${allProducts.length} products to CSV`);
@@ -1368,7 +1371,7 @@ function ProductsAdmin() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete {selectedProductIds.length} Products?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently delete {selectedProductIds.length} selected items from your seafood catalog. This action cannot be undone.
+                    This will permanently delete {selectedProductIds.length} selected items from your catalog. This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

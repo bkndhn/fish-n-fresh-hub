@@ -39,6 +39,8 @@ import {
   FileText,
   Trash2,
 } from "lucide-react";
+import type { Database } from "@/integrations/supabase/types";
+import type { SiteSettings, ProductVariant } from "@/lib/types";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { useAdminBranch } from "@/lib/branchContext";
 import { adminOrdersQuery, adminProductsQuery } from "@/lib/admin";
@@ -448,7 +450,7 @@ export function Reports() {
       const byName = p.name ? salesMap.get(p.name.toLowerCase().trim()) : undefined;
       const match = byId || byName || { qty: 0, value: 0, count: 0 };
 
-      const costPrice = Number((p as ProductVariant).cost_price) || Math.round(Number(p.price || 0) * 0.68);
+      const costPrice = Number(p.cost_price) || Math.round(Number(p.price || 0) * 0.68);
       const cogs = Math.round(costPrice * match.qty);
       const grossProfit = Math.max(0, match.value - cogs);
       const marginPct = match.value > 0 ? Math.round((grossProfit / match.value) * 100) : 0;
@@ -465,7 +467,7 @@ export function Reports() {
         marginPct,
         stock: Number(p.stock || 0),
         unit: p.unit || "kg",
-        lowStockThreshold: (p as ProductVariant).low_stock_threshold ?? 5,
+        lowStockThreshold: p.low_stock_threshold ?? 5,
         isActive: p.is_available ?? true,
         qtySold: match.qty,
         revenue: match.value,
@@ -843,7 +845,7 @@ export function Reports() {
     let posCard = 0;
     for (const o of posOrders) {
       const tot = Number(o.total || 0);
-      const meth = ((o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_method || o.payment_method || "").toLowerCase();
+      const meth = (o.actual_payment_method || o.payment_method || "").toLowerCase();
       if (meth === "cash") posCash += tot;
       else if (meth === "upi" || meth === "upi_qr") posUpi += tot;
       else posCard += tot;
@@ -854,7 +856,7 @@ export function Reports() {
     let onlinePrepaid = 0;
     for (const o of onlineOrders) {
       const tot = Number(o.total || 0);
-      const meth = ((o as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_method || o.payment_method || "").toLowerCase();
+      const meth = (o.actual_payment_method || o.payment_method || "").toLowerCase();
       if (meth === "cod" || meth === "cash") onlineCod += tot;
       else onlinePrepaid += tot;
     }
@@ -896,9 +898,7 @@ export function Reports() {
 
     for (const o of deliveredOrders) {
       const createdTime = new Date(o.created_at).getTime();
-      const deliveredTime = (o as Database["public"]["Tables"]["orders"]["Row"]).delivered_at
-        ? new Date((o as Database["public"]["Tables"]["orders"]["Row"]).delivered_at).getTime()
-        : null;
+      const deliveredTime = o.delivered_at ? new Date(o.delivered_at).getTime() : null;
 
       const durationMinutes = deliveredTime
         ? Math.max(5, Math.round((deliveredTime - createdTime) / 60000))

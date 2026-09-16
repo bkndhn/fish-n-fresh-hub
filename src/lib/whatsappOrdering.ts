@@ -10,6 +10,7 @@
 
 import { inr } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 export interface WhatsAppOrderCustomerInfo {
   name: string;
@@ -158,7 +159,7 @@ export async function recordWhatsAppOrderInCrm(data: WhatsAppOrderSummary): Prom
         unit: it.unit,
         cutting_style: it.cutPreference || null,
         line_total: it.totalPrice,
-      })) as unknown as Record<string, unknown>[],
+      })) as unknown as Json,
       notes: `Order via WhatsApp Deep Link${data.customer.notes ? ` | Notes: ${data.customer.notes}` : ""}`,
       created_at: new Date().toISOString(),
     };

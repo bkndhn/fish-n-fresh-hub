@@ -22,10 +22,10 @@ import { TaxInvoiceModal } from "@/components/TaxInvoiceModal";
 export const Route = createFileRoute("/orders")({
   head: () => ({
     meta: [
-      { title: "My Orders — Fish N Fresh" },
-      { name: "description", content: "See your Fish N Fresh order history and track live delivery status." },
-      { property: "og:title", content: "My Orders — Fish N Fresh" },
-      { property: "og:description", content: "Track your seafood orders and reorder favourites." },
+      { title: "My Orders" },
+      { name: "description", content: "See your order history and track live delivery status." },
+      { property: "og:title", content: "My Orders" },
+      { property: "og:description", content: "Track your orders and reorder favourites." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { BannerCarousel } from "@/components/BannerCarousel";
 import { TrustBadges } from "@/components/TrustBadges";
 import { ProductCard } from "@/components/ProductCard";
-import { getVerticalConfig } from "@/lib/verticals";
+import { getStoreVertical, getVerticalFaqs } from "@/lib/verticals";
 import { bannersQuery, categoriesQuery, productsQuery, trustBadgesQuery, settingsQuery } from "@/lib/queries";
 import { useTranslation } from "@/lib/i18n";
 import { getStoreStatus } from "@/lib/storeSchedule";
@@ -17,16 +17,16 @@ import { useCustomerBranch } from "@/lib/customerBranchContext";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Fish N Fresh — Fresh Seafood Delivered in Chennai" },
+      { title: "Fresh Deliveries to Your Doorstep | Fast & Direct" },
       {
         name: "description",
         content:
-          "Order fresh fish, prawns and crab online in Chennai. Same-day delivery, lab-tested quality, COD and UPI payments.",
+          "Order directly online. Express same-day delivery, verified authentic quality, COD and UPI supported.",
       },
-      { property: "og:title", content: "Fish N Fresh — Fresh Seafood Delivered" },
+      { property: "og:title", content: "Fresh Deliveries to Your Doorstep" },
       {
         property: "og:description",
-        content: "Daily-catch seafood delivered to your door in Chennai. COD & UPI supported.",
+        content: "Fresh products delivered directly to your doorstep. COD & UPI supported.",
       },
     ],
   }),
@@ -53,33 +53,18 @@ function Home() {
     })
     .slice(0, 6);
 
-  const vertical = getVerticalConfig(settings?.business_vertical);
+  const vertical = getStoreVertical(settings);
+  const storeName = settings?.store_name || "Our Store";
+  const faqs = getVerticalFaqs(vertical.id, storeName);
 
   return (
     <AppShell>
       <SeoStructuredData
         breadcrumbs={[{ name: "Home", path: "/" }]}
-        faqs={[
-          {
-            question: "Is your seafood guaranteed 100% chemical-free and fresh?",
-            answer: "Yes, our seafood is sourced daily directly from deep sea trawlers at Kasimedu harbour and local coastal fishers. We never use ammonia, formalin, or chemical preservatives — our catch is preserved strictly in food-grade crushed sea ice.",
-          },
-          {
-            question: "How fast is the delivery to my doorstep?",
-            answer: "We deliver within 35 to 45 minutes of order confirmation across Chennai, packed in temperature-controlled insulated ice boxes with live driver GPS tracking and OTP verification.",
-          },
-          {
-            question: "Can I choose custom cutting styles for my fish?",
-            answer: "Yes, you can customize your cuts (curry cut, slice/steaks, whole cleaned with gills removed, or head/tail separated) at zero extra charge.",
-          },
-          {
-            question: "What payment methods are supported at doorstep delivery?",
-            answer: "We accept Cash on Delivery (COD), UPI QR scan at doorstep (Google Pay, PhonePe, Paytm), and instant online card/netbanking payments.",
-          },
-        ]}
+        faqs={faqs}
       />
       <h1 className="sr-only">
-        {settings?.store_name || "Fish N Fresh"} — {vertical.name}
+        {storeName} — {vertical.name}
       </h1>
 
       {storeStatus && !storeStatus.isOpen && (
@@ -116,7 +101,7 @@ function Home() {
             <div className="truncate">
               <span className="text-muted-foreground">Delivering from </span>
               <span className="font-bold text-foreground">{activeBranch.name}</span>
-              <span className="text-muted-foreground hidden sm:inline"> · 35-min ice-box express</span>
+              <span className="text-muted-foreground hidden sm:inline"> · {vertical.badgeText}</span>
             </div>
           </div>
           <button
@@ -159,7 +144,7 @@ function Home() {
             className="group flex min-w-[76px] flex-col items-center gap-1.5 text-center text-xs transition-transform active:scale-95 shrink-0"
           >
             <span className="size-16 overflow-hidden rounded-full border-2 border-dashed border-primary/40 bg-primary/5 flex items-center justify-center shadow-xs group-hover:border-primary group-hover:bg-primary/10 group-hover:shadow-md transition-all duration-200">
-              <span className="text-xl">🌊</span>
+              <span className="text-xl">{vertical.emoji}</span>
             </span>
             <span className="font-semibold text-foreground group-hover:text-primary transition-colors leading-tight line-clamp-1">
               All Items

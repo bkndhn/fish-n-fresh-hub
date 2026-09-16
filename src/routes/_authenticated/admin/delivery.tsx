@@ -27,6 +27,7 @@ import { cancelAndRefundOrder } from "@/lib/refunds.functions";
 import { getStripeEnvironment, isPaymentsConfigured } from "@/lib/stripe";
 import { formatINR } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -192,7 +193,7 @@ function DeliveryTracking() {
   }, [selected?.id]);
 
   const update = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: Partial<OrderRow> }) => {
+    mutationFn: async ({ id, patch }: { id: string; patch: Database["public"]["Tables"]["orders"]["Update"] }) => {
       const { error } = await supabase.from("orders").update(patch).eq("id", id);
       if (error) throw error;
     },
@@ -208,7 +209,7 @@ function DeliveryTracking() {
     const phone = order.customer_phone.replace(/\D/g, "");
     const to = phone.length === 10 ? `91${phone}` : phone;
     window.open(`https://wa.me/${to}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
-    update.mutate({ id: order.id, patch: { whatsapp_sent: true } as Partial<OrderRow> });
+    update.mutate({ id: order.id, patch: { whatsapp_sent: true } });
     setMessage("");
   }
 
@@ -778,7 +779,7 @@ function DeliveryTracking() {
                             driver_name: driverName || null,
                             eta_minutes: eta ? Number(eta) : null,
                             delivery_note: note || null,
-                          } as Partial<OrderRow>,
+                          },
                         });
                       }}
                     >

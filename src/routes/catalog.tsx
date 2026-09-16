@@ -15,7 +15,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { categoriesQuery, productsQuery } from "@/lib/queries";
+import { categoriesQuery, productsQuery, settingsQuery } from "@/lib/queries";
+import {
+  getStoreVertical,
+  getVerticalProductTerm,
+  getVerticalSearchPlaceholder,
+} from "@/lib/verticals";
 
 type Search = { category?: string | undefined };
 
@@ -25,10 +30,10 @@ export const Route = createFileRoute("/catalog")({
   }),
   head: ({ search }: any) => {
     const cat = search?.category;
-    const title = cat ? `${cat} | Fresh Daily Catch Catalog` : "Fresh Seafood & Farm Meat Catalog | Kasimedu Catch";
+    const title = cat ? `${cat} | Catalog` : "Products Catalog | Express Delivery";
     const desc = cat
-      ? `Explore premium fresh ${cat} sourced daily from Kasimedu harbour trawlers. Express ice-box delivery across Chennai.`
-      : "Browse fresh fish, tiger prawns, blue crabs, squid, and farm meat by category. Same-day express ice-box delivery.";
+      ? `Explore premium ${cat} available for express delivery.`
+      : "Browse products by category with fast same-day express delivery.";
     return {
       meta: [
         { title },
@@ -76,6 +81,10 @@ function Catalog() {
   const { activeBranch, setIsLocationModalOpen } = useCustomerBranch();
   const { data: products } = useQuery(productsQuery(activeBranch?.id));
   const { data: categories } = useQuery(categoriesQuery);
+  const { data: settings } = useQuery(settingsQuery);
+
+  const vertical = getStoreVertical(settings);
+  const productTerm = getVerticalProductTerm(vertical.id);
 
   const allBrands = useMemo(() => {
     const brands = (products ?? []).map((p: any) => p.brand).filter(Boolean) as string[];
@@ -188,13 +197,15 @@ function Catalog() {
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Seafood Catalog</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              {settings?.store_name ? `${settings.store_name} Catalog` : `${vertical.shortName} Catalog`}
+            </h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-              Fresh coastal catch, cut to order & packed in chill ice
+              {vertical.tagline}
             </p>
           </div>
           <span className="text-xs font-medium text-muted-foreground bg-muted/60 px-3 py-1 rounded-full border">
-            {filtered.length} {filtered.length === 1 ? "Catch" : "Catches"}
+            {filtered.length} {filtered.length === 1 ? productTerm.singular : productTerm.plural}
           </span>
         </div>
 
@@ -204,7 +215,7 @@ function Catalog() {
             <div className="flex items-center gap-2 min-w-0">
               <Store className="size-3.5 text-primary shrink-0" />
               <div className="truncate">
-                <span className="text-muted-foreground">Catch supplied from </span>
+                <span className="text-muted-foreground">Orders dispatched from </span>
                 <span className="font-bold text-foreground">{activeBranch.name}</span>
                 <span className="text-muted-foreground hidden sm:inline"> ({activeBranch.delivery_radius_km} km zone)</span>
               </div>
@@ -224,7 +235,7 @@ function Catalog() {
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search fish, prawns, crab, or Tamil name (e.g. Vanjaram, Nethili)…"
+            placeholder={getVerticalSearchPlaceholder(vertical.id, settings?.store_name)}
             className="pl-10 h-11 rounded-2xl bg-card border-border shadow-xs text-sm"
           />
           {q && (
@@ -363,7 +374,7 @@ function Catalog() {
                   <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Sort By</Label>
                   <div className="mt-2 grid grid-cols-2 gap-1.5">
                     {[
-                      { id: "featured", label: "✨ Featured Catch" },
+                      { id: "featured", label: `✨ Featured ${productTerm.plural}` },
                       { id: "price-asc", label: "💰 Price: Low to High" },
                       { id: "price-desc", label: "💎 Price: High to Low" },
                       { id: "rating", label: "⭐ Highest Rated" },
@@ -619,7 +630,7 @@ function Catalog() {
       {filtered.length > 0 && (
         <div className="mt-6 flex flex-col items-center gap-2.5">
           <p className="text-xs text-muted-foreground">
-            Showing <span className="font-semibold text-foreground">{visibleProducts.length}</span> of <span className="font-semibold text-foreground">{filtered.length}</span> catches
+            Showing <span className="font-semibold text-foreground">{visibleProducts.length}</span> of <span className="font-semibold text-foreground">{filtered.length}</span> {productTerm.plural.toLowerCase()}
           </p>
           <div className="h-1.5 w-44 sm:w-56 rounded-full bg-muted overflow-hidden">
             <div
@@ -636,14 +647,14 @@ function Catalog() {
                 onClick={() => setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filtered.length))}
                 className="mt-1.5 rounded-xl text-xs h-9 px-4 gap-1.5 hover:bg-primary/10 hover:text-primary hover:border-primary transition-colors shadow-2xs"
               >
-                <span>Load More Catches (+{Math.min(PAGE_SIZE, filtered.length - visibleProducts.length)})</span>
+                <span>Load More {productTerm.plural} (+{Math.min(PAGE_SIZE, filtered.length - visibleProducts.length)})</span>
               </Button>
               {/* Invisible sentinel observed by IntersectionObserver for automatic background loading */}
               <div ref={observerTarget} className="h-4 w-full" />
             </>
           ) : filtered.length > PAGE_SIZE ? (
             <p className="text-xs text-muted-foreground pt-1">
-              ✨ You have viewed all {filtered.length} catches!
+              ✨ You have viewed all {filtered.length} {productTerm.plural.toLowerCase()}!
             </p>
           ) : null}
         </div>
@@ -651,31 +662,37 @@ function Catalog() {
 
       {filtered.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-6 text-center space-y-3">
-          <p className="font-semibold text-base">No catches matched your filters</p>
+          <p className="font-semibold text-base">No {productTerm.plural.toLowerCase()} matched your filters</p>
           <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            Try adjusting your budget or category filters, or request any rare fish and our harbour crew will source it!
+            Try adjusting your budget or category filters, or request any specific item and our team will arrange it for you!
           </p>
           <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
             <Button size="sm" variant="outline" onClick={clearAllFilters}>
               Reset All Filters
             </Button>
-            <RequestFishDialog defaultQuery={q} />
+            <RequestProductDialog defaultQuery={q} itemTerm={productTerm.singular} />
           </div>
         </div>
       ) : (
         <div className="mt-12 rounded-2xl border p-4 bg-muted/30 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
           <div>
-            <p className="font-semibold text-sm">Looking for a specific fish not listed?</p>
-            <p className="text-xs text-muted-foreground">Request any seasonal or rare catch and we'll get it for you.</p>
+            <p className="font-semibold text-sm">Looking for a specific item not listed?</p>
+            <p className="text-xs text-muted-foreground">Request any item and our team will get it for you.</p>
           </div>
-          <RequestFishDialog />
+          <RequestProductDialog itemTerm={productTerm.singular} />
         </div>
       )}
     </AppShell>
   );
 }
 
-function RequestFishDialog({ defaultQuery = "" }: { defaultQuery?: string }) {
+function RequestProductDialog({
+  defaultQuery = "",
+  itemTerm = "Item",
+}: {
+  defaultQuery?: string;
+  itemTerm?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [productName, setProductName] = useState(defaultQuery);
   const [name, setName] = useState("");
@@ -686,7 +703,7 @@ function RequestFishDialog({ defaultQuery = "" }: { defaultQuery?: string }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!productName.trim() || phone.length < 10) {
-      toast.error("Please enter the fish name and your 10-digit phone number");
+      toast.error(`Please enter the ${itemTerm.toLowerCase()} name and your 10-digit phone number`);
       return;
     }
     setLoading(true);
@@ -699,7 +716,7 @@ function RequestFishDialog({ defaultQuery = "" }: { defaultQuery?: string }) {
         status: "pending",
       });
       if (error) throw error;
-      toast.success("Request received! We'll message you when this catch arrives.");
+      toast.success(`Request received! We'll message you when this ${itemTerm.toLowerCase()} is available.`);
       setOpen(false);
       setProductName("");
       setNotes("");
@@ -714,20 +731,20 @@ function RequestFishDialog({ defaultQuery = "" }: { defaultQuery?: string }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" className="rounded-xl shrink-0">
-          Request Special Catch
+          Request Special {itemTerm}
         </Button>
       </DialogTrigger>
       <DialogContent className="rounded-2xl sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Request a Fish Variety</DialogTitle>
+          <DialogTitle>Request a Special {itemTerm}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3 pt-2">
           <div className="space-y-1">
-            <Label htmlFor="req-prod">Fish / Seafood Name *</Label>
+            <Label htmlFor="req-prod">{itemTerm} Name *</Label>
             <Input
               id="req-prod"
               required
-              placeholder="e.g. Mud Crab, Lobster, White Pomfret..."
+              placeholder={`e.g. Favorite brand, specific variety or cut...`}
               value={productName}
               onChange={(e) => setProductName(e.target.value)}
             />
@@ -755,10 +772,10 @@ function RequestFishDialog({ defaultQuery = "" }: { defaultQuery?: string }) {
             </div>
           </div>
           <div className="space-y-1">
-            <Label htmlFor="req-notes">Quantity or Specific Cut Requirement</Label>
+            <Label htmlFor="req-notes">Quantity or Specific Requirements</Label>
             <Input
               id="req-notes"
-              placeholder="e.g. Need ~2kg for Sunday lunch, curry cut"
+              placeholder="e.g. Need ~2kg or specific brand / cut"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SiteSettings } from "@/lib/types";
+import type { Database, Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import {
   Clock,
@@ -96,27 +97,28 @@ function SchedulePage() {
   // Sync settings when loaded
   useEffect(() => {
     if (settings) {
-      if ((settings as SiteSettings).open_time) setOpenTime((settings as SiteSettings).open_time);
-      if ((settings as SiteSettings).close_time) setCloseTime((settings as SiteSettings).close_time);
-      if ((settings as SiteSettings).lunch_start) {
-        setLunchStart((settings as SiteSettings).lunch_start);
+      const s = settings as SiteSettings;
+      if (s.open_time) setOpenTime(s.open_time);
+      if (s.close_time) setCloseTime(s.close_time);
+      if (s.lunch_start) {
+        setLunchStart(s.lunch_start);
         setLunchEnabled(true);
       }
-      if ((settings as SiteSettings).lunch_end) setLunchEnd((settings as SiteSettings).lunch_end);
-      if ((settings as SiteSettings).block_during_lunch !== undefined) {
-        setBlockDuringLunch(Boolean((settings as SiteSettings).block_during_lunch));
+      if (s.lunch_end) setLunchEnd(s.lunch_end);
+      if (s.block_during_lunch !== undefined && s.block_during_lunch !== null) {
+        setBlockDuringLunch(Boolean(s.block_during_lunch));
       }
-      if ((settings as SiteSettings).working_days) {
-        const wd = (settings as SiteSettings).working_days;
+      if (s.working_days) {
+        const wd = s.working_days;
         setWorkingDays(Array.isArray(wd) ? wd : typeof wd === "string" ? JSON.parse(wd) : ALL_WEEKDAYS);
       }
-      if ((settings as SiteSettings).allow_preorders_when_closed !== undefined) {
-        setAllowPreorders(Boolean((settings as SiteSettings).allow_preorders_when_closed));
+      if (s.allow_preorders_when_closed !== undefined && s.allow_preorders_when_closed !== null) {
+        setAllowPreorders(Boolean(s.allow_preorders_when_closed));
       }
-      if ((settings as SiteSettings).closed_message) setClosedMessage((settings as SiteSettings).closed_message);
-      if ((settings as SiteSettings).custom_holidays) {
-        const ch = (settings as SiteSettings).custom_holidays;
-        setCustomHolidays(Array.isArray(ch) ? ch : typeof ch === "string" ? JSON.parse(ch) : []);
+      if (s.closed_message) setClosedMessage(s.closed_message);
+      if (s.custom_holidays) {
+        const ch = s.custom_holidays;
+        setCustomHolidays(Array.isArray(ch) ? (ch as unknown as CustomHoliday[]) : typeof ch === "string" ? JSON.parse(ch) : []);
       }
     }
   }, [settings]);
@@ -151,8 +153,8 @@ function SchedulePage() {
   });
 
   const update = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: Partial<DeliveryWindow> }) => {
-      const { error } = await supabase.from("delivery_windows").update(patch as Record<string, unknown>).eq("id", id);
+    mutationFn: async ({ id, patch }: { id: string; patch: Database["public"]["Tables"]["delivery_windows"]["Update"] }) => {
+      const { error } = await supabase.from("delivery_windows").update(patch).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -181,7 +183,7 @@ function SchedulePage() {
       if (!settings?.id) return;
       const { error } = await supabase.from("store_settings").update({
         is_open: newIsOpen,
-      } as Record<string, unknown>).eq("id", settings.id);
+      }).eq("id", settings.id);
       if (error) throw error;
     },
     onSuccess: (_, newIsOpen) => {
@@ -201,11 +203,11 @@ function SchedulePage() {
         lunch_start: lunchEnabled && lunchStart.trim() ? lunchStart.trim() : null,
         lunch_end: lunchEnabled && lunchEnd.trim() ? lunchEnd.trim() : null,
         block_during_lunch: blockDuringLunch,
-        working_days: workingDays,
-        custom_holidays: customHolidays,
+        working_days: workingDays as unknown as Json,
+        custom_holidays: customHolidays as unknown as Json,
         allow_preorders_when_closed: allowPreorders,
         closed_message: closedMessage.trim() || null,
-      } as Record<string, unknown>).eq("id", settings.id);
+      }).eq("id", settings.id);
       if (error) throw error;
     },
     onSuccess: () => {

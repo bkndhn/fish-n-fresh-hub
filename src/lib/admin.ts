@@ -38,6 +38,7 @@ export type OrderRow = {
   cod_settled?: boolean;
   settlement_id?: string | null;
   settled_at?: string | null;
+  actual_payment_method?: string | null;
 };
 
 export type PromotionRow = {
@@ -276,13 +277,13 @@ export function getAdminCustomersQuery(branchId?: string | "all") {
             unit,
             timesBought: 0,
             totalSpent: 0,
-            cuts: {},
+            cuts: {} as Record<string, number>,
           };
 
           existingItem.qty += qty;
           existingItem.timesBought += 1;
           existingItem.totalSpent += itemTotal;
-          if (cutStyle) {
+          if (cutStyle && typeof cutStyle === "string") {
             existingItem.cuts[cutStyle] = (existingItem.cuts[cutStyle] || 0) + 1;
           }
           cust.itemMap.set(itemName, existingItem);
@@ -306,8 +307,11 @@ export function getAdminCustomersQuery(branchId?: string | "all") {
             let preferredCut: string | undefined;
             const cutEntries = Object.entries(stat.cuts);
             if (cutEntries.length > 0) {
-              cutEntries.sort((a, b) => b[1] - a[1]);
-              preferredCut = cutEntries[0][0];
+              cutEntries.sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0));
+              const topCut = cutEntries[0];
+              if (topCut && topCut[0]) {
+                preferredCut = topCut[0];
+              }
             }
             return {
               name,
@@ -315,15 +319,15 @@ export function getAdminCustomersQuery(branchId?: string | "all") {
               unit: stat.unit,
               timesBought: stat.timesBought,
               totalSpent: Math.round(stat.totalSpent),
-              preferredCut,
+              ...(preferredCut ? { preferredCut } : {}),
             };
           })
           .sort((a, b) => b.totalSpent - a.totalSpent);
 
         // Determine preferred payment method
         const paymentEntries = Object.entries(cust.paymentCounts);
-        paymentEntries.sort((a, b) => b[1] - a[1]);
-        const preferredPayment = paymentEntries.length > 0 ? paymentEntries[0][0] : "cash";
+        paymentEntries.sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0));
+        const preferredPayment = paymentEntries.length > 0 && paymentEntries[0] ? paymentEntries[0][0] : "cash";
 
         const daysSinceLastOrder = Math.max(
           0,
@@ -345,7 +349,7 @@ export function getAdminCustomersQuery(branchId?: string | "all") {
           topItems: sortedItems,
           daysSinceLastOrder,
           preferredPayment,
-          favoriteItemName: sortedItems[0]?.name,
+          ...(sortedItems[0]?.name ? { favoriteItemName: sortedItems[0].name } : {}),
         });
       }
 

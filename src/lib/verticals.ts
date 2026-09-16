@@ -380,6 +380,43 @@ export const VERTICAL_CONFIGS: Record<BusinessVertical, VerticalConfig> = {
   },
 };
 
+export function detectVerticalFromStoreName(storeName?: string | null): BusinessVertical {
+  if (!storeName) return "seafood";
+  const name = storeName.toLowerCase();
+
+  if (name.includes("fish") || name.includes("seafood") || name.includes("meen") || name.includes("marine") || name.includes("harbour") || name.includes("dock") || name.includes("prawn") || name.includes("crab") || name.includes("salmon") || name.includes("catch")) {
+    return "seafood";
+  }
+  if (name.includes("chicken") || name.includes("mutton") || name.includes("meat") || name.includes("poultry") || name.includes("butcher") || name.includes("halal") || name.includes("kozhi")) {
+    if (name.includes("fish") || name.includes("superstore")) return "all_meat";
+    return "chicken_meat";
+  }
+  if (name.includes("grocery") || name.includes("supermarket") || name.includes("mart") || name.includes("organic") || name.includes("harvest") || name.includes("veggie") || name.includes("vegetable") || name.includes("fruit") || name.includes("kirana") || name.includes("provision")) {
+    return "grocery_supermarket";
+  }
+  if (name.includes("electronic") || name.includes("mobile") || name.includes("gadget") || name.includes("appliance") || name.includes("tech") || name.includes("laptop") || name.includes("computer")) {
+    return "electronics_appliances";
+  }
+  if (name.includes("fashion") || name.includes("clothing") || name.includes("apparel") || name.includes("textile") || name.includes("garment") || name.includes("boutique") || name.includes("wear") || name.includes("saree") || name.includes("dress")) {
+    return "clothing_fashion";
+  }
+  if (name.includes("departmental") || name.includes("hypermarket") || name.includes("mall") || name.includes("bazaar")) {
+    return "departmental_store";
+  }
+  return "seafood";
+}
+
+export function getStoreVertical(settings?: { business_vertical?: string | null; store_name?: string | null } | null): VerticalConfig {
+  if (settings?.business_vertical && settings.business_vertical in VERTICAL_CONFIGS) {
+    return VERTICAL_CONFIGS[settings.business_vertical as BusinessVertical];
+  }
+  if (settings?.store_name) {
+    const detected = detectVerticalFromStoreName(settings.store_name);
+    return VERTICAL_CONFIGS[detected];
+  }
+  return VERTICAL_CONFIGS.seafood;
+}
+
 export function getVerticalConfig(vertical?: string | null): VerticalConfig {
   if (!vertical) return VERTICAL_CONFIGS.seafood;
   const key = vertical.toLowerCase().trim() as BusinessVertical;
@@ -407,6 +444,199 @@ export function getVerticalCapabilities(vertical?: string | null) {
 
 export function getVerticalPreset(vertical?: string | null): VerticalConfig {
   return getVerticalConfig(vertical);
+}
+
+export function getVerticalSearchPlaceholder(vertical: BusinessVertical, storeName?: string): string {
+  const name = storeName || "our store";
+  switch (vertical) {
+    case "seafood":
+      return "Search fresh fish, tiger prawns, crab, or local catch (e.g. Vanjaram, Nethili)…";
+    case "chicken_meat":
+      return "Search tender chicken, country chicken, mutton, biryani cut, fresh eggs…";
+    case "all_meat":
+      return "Search chicken, mutton, fish, prawns, tender keema, eggs…";
+    case "grocery_supermarket":
+      return "Search organic vegetables, fruits, atta, rice, dal, oils, spices, dairy…";
+    case "electronics_appliances":
+      return "Search smartphones, smart TVs, laptops, headphones, kitchen appliances…";
+    case "clothing_fashion":
+      return "Search shirts, sarees, jeans, casual wear, dresses, footwear…";
+    case "departmental_store":
+      return `Search across all departments in ${name} (groceries, home, lifestyle)…`;
+    case "universal":
+    default:
+      return `Search products, brands, or categories in ${name}…`;
+  }
+}
+
+export function getVerticalProductTerm(vertical: BusinessVertical): { singular: string; plural: string } {
+  switch (vertical) {
+    case "seafood":
+      return { singular: "Catch", plural: "Catches" };
+    case "chicken_meat":
+    case "all_meat":
+      return { singular: "Cut", plural: "Cuts" };
+    case "grocery_supermarket":
+      return { singular: "Item", plural: "Items" };
+    case "electronics_appliances":
+    case "clothing_fashion":
+    case "departmental_store":
+    case "universal":
+    default:
+      return { singular: "Product", plural: "Products" };
+  }
+}
+
+export function getVerticalCutOptions(vertical: BusinessVertical): string[] {
+  switch (vertical) {
+    case "seafood":
+      return [
+        "Curry Cut",
+        "Biryani Cut",
+        "Fillet / Boneless",
+        "Whole Cleaned (Head On)",
+        "Whole Cleaned (Head Off)",
+        "Steaks / Slices",
+      ];
+    case "chicken_meat":
+    case "all_meat":
+      return [
+        "Biryani Cut (Large)",
+        "Curry Cut (Medium)",
+        "Boneless / Breast Fillet",
+        "Keema / Minced Meat",
+        "Drumsticks Only",
+        "Whole Cleaned & Dressed",
+      ];
+    case "grocery_supermarket":
+      return [
+        "Standard Pack",
+        "Washed & Cleaned",
+        "Diced / Pre-cut",
+        "Whole / Uncut",
+      ];
+    default:
+      return ["Standard Packaging", "Gift Wrapped", "Eco-Friendly Bag"];
+  }
+}
+
+export function getVerticalUnitOptions(vertical: BusinessVertical): string[] {
+  switch (vertical) {
+    case "seafood":
+    case "chicken_meat":
+    case "all_meat":
+      return ["kg", "500g", "250g", "pack", "unit"];
+    case "grocery_supermarket":
+      return ["kg", "g", "500g", "liter", "ml", "pack", "bunch", "unit"];
+    case "electronics_appliances":
+      return ["unit", "piece", "set", "pack"];
+    case "clothing_fashion":
+      return ["piece", "pair", "set", "unit"];
+    default:
+      return ["unit", "piece", "kg", "pack", "set"];
+  }
+}
+
+export function getVerticalFaqs(vertical: BusinessVertical, storeName: string): { question: string; answer: string }[] {
+  switch (vertical) {
+    case "chicken_meat":
+    case "all_meat":
+      return [
+        {
+          question: `Is the meat at ${storeName} 100% fresh and antibiotic-free?`,
+          answer: `Yes, all poultry and meat at ${storeName} is raised ethically in bio-secure farms with zero antibiotics or artificial growth promoters. Each order is cut fresh on order.`,
+        },
+        {
+          question: "How fast is delivery to my doorstep?",
+          answer: "We deliver within 30 to 45 minutes of order confirmation in temperature-controlled insulated cold-boxes to preserve peak juiciness and tenderness.",
+        },
+        {
+          question: "Can I choose customized butcher cuts?",
+          answer: "Absolutely. Choose Biryani cut, Curry cut, Boneless fillet, or tender Keema during checkout at zero extra charge.",
+        },
+        {
+          question: "What payment methods are supported?",
+          answer: "We accept Cash on Delivery (COD), UPI QR scan at doorstep (Google Pay, PhonePe, Paytm), and instant WhatsApp ordering.",
+        },
+      ];
+    case "grocery_supermarket":
+      return [
+        {
+          question: `Are fresh vegetables and fruits at ${storeName} sourced daily?`,
+          answer: `Yes, fresh produce at ${storeName} is harvested daily and sourced directly from verified farmer clusters every morning with strict pesticide-free quality checks.`,
+        },
+        {
+          question: "What is the delivery turnaround time?",
+          answer: "We offer express 30-minute delivery for daily essentials as well as convenient scheduled morning and evening delivery slots.",
+        },
+        {
+          question: "Can I order wholesale and family budget packs?",
+          answer: "Yes, 5kg and 10kg bulk bags for staple grains, rice, and atta are available with maximum budget savings.",
+        },
+        {
+          question: "Can I place my grocery order directly on WhatsApp?",
+          answer: "Yes! Use our 1-click 'Order on WhatsApp' button in your cart to dispatch your itemized grocery list directly to our order desk.",
+        },
+      ];
+    case "electronics_appliances":
+      return [
+        {
+          question: `Are all electronics and gadgets at ${storeName} 100% original?`,
+          answer: `Yes, ${storeName} sells only 100% brand-genuine products with verified serial/IMEI numbers and official manufacturer warranty valid pan-India.`,
+        },
+        {
+          question: "Do you provide GST tax invoices for business input credit?",
+          answer: "Yes, all orders include a downloadable GST tax invoice with full HSN code, GSTIN, and serial number breakdown.",
+        },
+        {
+          question: "How are high-value products packed for transit?",
+          answer: "High-value electronics are packed in shock-proof tamper-evident sealed packaging with delivery PIN verification at doorstep.",
+        },
+        {
+          question: "What is your return and warranty policy?",
+          answer: "All items carry full brand warranty support plus an immediate 7-day DOA (dead on arrival) replacement guarantee.",
+        },
+      ];
+    case "clothing_fashion":
+      return [
+        {
+          question: `How do I ensure the right fit when shopping at ${storeName}?`,
+          answer: "Every apparel item features an accurate size chart in inches and centimeters. If the fit isn't perfect, we offer a hassle-free 7-day size exchange.",
+        },
+        {
+          question: "What fabrics are used in your apparel collection?",
+          answer: "We specialize in premium breathable natural fibers including 100% pure combed cotton, linen blends, and handcrafted textiles.",
+        },
+        {
+          question: "Can I order multiple sizes to try on?",
+          answer: "Yes, you can order your preferred sizes and try them with our easy exchange policy.",
+        },
+        {
+          question: "How fast will my fashion order arrive?",
+          answer: "Orders are dispatched express and delivered within 24 to 48 hours with live tracking.",
+        },
+      ];
+    case "seafood":
+    default:
+      return [
+        {
+          question: `Is seafood from ${storeName} guaranteed 100% chemical-free and fresh?`,
+          answer: `Yes, our seafood is sourced daily directly from coastal harbor boats and trawlers. We never use ammonia, formalin, or chemical preservatives — our catch is preserved strictly in food-grade crushed sea ice.`,
+        },
+        {
+          question: "How fast is the delivery to my doorstep?",
+          answer: "We deliver within 35 to 45 minutes of order confirmation, packed in temperature-controlled insulated ice boxes with live driver GPS tracking and secret delivery PIN.",
+        },
+        {
+          question: "Can I choose custom cutting styles for my fish?",
+          answer: "Yes, you can customize your cuts (curry cut, slice/steaks, whole cleaned with gills removed, or head/tail separated) at zero extra charge.",
+        },
+        {
+          question: "What payment methods are supported?",
+          answer: "We accept Cash on Delivery (COD), UPI QR scan at doorstep (Google Pay, PhonePe, Paytm), and instant WhatsApp ordering.",
+        },
+      ];
+  }
 }
 
 

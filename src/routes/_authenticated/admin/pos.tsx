@@ -54,6 +54,8 @@ import { formatINR, formatStockDisplay, formatStockUnitLabel, formatStockBadge, 
 import { supabase } from "@/integrations/supabase/client";
 import { deductOrderStock } from "@/lib/inventorySync";
 import type { Product } from "@/lib/types";
+import type { Json } from "@/integrations/supabase/types";
+import { getStoreVertical } from "@/lib/verticals";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -217,6 +219,7 @@ export function RetailPosCounterPage() {
   const { data: rawProducts = [], isLoading: productsLoading } = useQuery(adminProductsQuery());
   const { data: categories = [] } = useQuery(categoriesQuery);
   const { data: settings } = useQuery(settingsQuery);
+  const storeVertical = getStoreVertical(settings as SiteSettings);
 
   // Filter products that are active
   const products = useMemo(() => {
@@ -289,7 +292,7 @@ export function RetailPosCounterPage() {
             name: bestName || "Returning Customer",
             ordersCount: data.length,
             totalSpent: Math.round(totalSpent),
-            favoriteItem: favItem,
+            ...(favItem ? { favoriteItem: favItem } : {}),
           });
 
           if (bestName && !customerName.trim()) {
@@ -1232,7 +1235,7 @@ export function RetailPosCounterPage() {
           variant: it.variant || null,
           warranty_months: it.warrantyMonths || 0,
           aisle_location: it.aisleLocation || null,
-        })) as unknown as Record<string, unknown>[],
+        })) as unknown as Json,
         pos_cashier_id: cashierId,
         pos_cashier_name: cashierName,
         pos_amount_tendered: paymentMode === "cash" ? (tenderedNum || totalPayable) : null,
@@ -1913,14 +1916,14 @@ export function RetailPosCounterPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                 <Input
                   ref={searchInputRef}
-                  placeholder="Fast search seafood / meat by name (English or Tamil) [F1]..."
+                  placeholder={`Fast search ${storeVertical.shortName} by name or PLU [F1]...`}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
                       const trimmed = searchQuery.trim();
-                      if (displayedProducts.length === 1) {
+                      if (displayedProducts.length === 1 && displayedProducts[0]) {
                         handleOpenItem(displayedProducts[0]);
                       } else if (/^\d+$/.test(trimmed)) {
                         const num = parseInt(trimmed, 10);

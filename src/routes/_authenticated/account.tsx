@@ -49,16 +49,16 @@ import { settingsQuery } from "@/lib/queries";
 export const Route = createFileRoute("/_authenticated/account")({
   head: () => ({
     meta: [
-      { title: "My Account — Fish N Fresh" },
+      { title: "My Account" },
       {
         name: "description",
         content:
-          "Your Fish N Fresh account: order history, live delivery status, payments, refunds, saved addresses and FreshCash wallet.",
+          "Your account: order history, live delivery status, payments, refunds, saved addresses and wallet balance.",
       },
-      { property: "og:title", content: "My Account — Fish N Fresh" },
+      { property: "og:title", content: "My Account" },
       {
         property: "og:description",
-        content: "Track your seafood orders, payments and rewards in one place.",
+        content: "Track your orders, payments and rewards in one place.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -868,20 +868,20 @@ function SubscriptionsTab({
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-sm sm:text-base font-bold text-foreground">
-              Fresh Seafood Repeat Subscriptions
+              Repeat Subscriptions
             </h2>
             <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-extrabold px-2 py-0.5 border border-emerald-500/20">
               Save 5% Always
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Never run out of fresh harbour catch. Automated morning deliveries with priority cutting and free cleaning.
+            Never run out of your regular essentials. Automated deliveries with priority dispatch.
           </p>
         </div>
 
         <Button asChild size="sm" className="rounded-xl h-8 text-xs font-bold gap-1 bg-primary shadow-2xs">
           <Link to="/catalog">
-            <Plus className="size-3.5" /> Subscribe to New Fish
+            <Plus className="size-3.5" /> Subscribe to Products
           </Link>
         </Button>
       </div>
@@ -889,12 +889,12 @@ function SubscriptionsTab({
       {subscriptions.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-10 text-center space-y-3">
           <Calendar className="size-8 mx-auto text-muted-foreground/60" />
-          <p className="text-sm font-semibold text-foreground">No active seafood subscriptions yet</p>
+          <p className="text-sm font-semibold text-foreground">No active subscriptions yet</p>
           <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            Subscribe to your weekly Sunday Vanjaram steaks or Wednesday tiger prawns and save 5% on every order!
+            Subscribe to your regular weekly items and save 5% on every delivery automatically!
           </p>
           <Button asChild size="sm" className="rounded-xl">
-            <Link to="/catalog">Explore Fresh Catch</Link>
+            <Link to="/catalog">Explore Catalog</Link>
           </Button>
         </div>
       ) : (

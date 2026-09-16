@@ -80,10 +80,10 @@ export function WhatsAppOrderDialog({
       const savedName = localStorage.getItem("fnf_name") || "";
       const savedAddress = localStorage.getItem("fnf_address") || "";
 
-      setName(user?.user_metadata?.full_name || savedName || "");
-      setPhone(user?.phone || user?.user_metadata?.phone || savedPhone || "");
+      setName(user?.user_metadata?.["full_name"] || savedName || "");
+      setPhone(user?.phone || user?.user_metadata?.["phone"] || savedPhone || "");
       setAddress(savedAddress || "");
-      setPreferredDate(new Date().toISOString().split("T")[0]);
+      setPreferredDate(new Date().toISOString().split("T")[0] ?? "");
     }
   }, [open, user]);
 

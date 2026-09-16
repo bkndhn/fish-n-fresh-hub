@@ -23,32 +23,31 @@ import { settingsQuery, productsQuery } from "@/lib/queries";
 import { getStoreStatus } from "@/lib/storeSchedule";
 import { WhatsAppOrderDialog } from "@/components/WhatsAppOrderDialog";
 import { getStoreOrderingMode, type Product, type SiteSettings } from "@/lib/types";
+import {
+  getStoreVertical,
+  getVerticalCutOptions,
+  getVerticalProductTerm,
+} from "@/lib/verticals";
 
 export const Route = createFileRoute("/cart")({
   head: () => ({
     meta: [
-      { title: "Your Cart — Fish N Fresh" },
-      { name: "description", content: "Review your seafood order before checkout." },
-      { property: "og:title", content: "Your Cart — Fish N Fresh" },
-      { property: "og:description", content: "Review your seafood order before checkout." },
+      { title: "Your Cart" },
+      { name: "description", content: "Review your order before checkout." },
+      { property: "og:title", content: "Your Cart" },
+      { property: "og:description", content: "Review your order before checkout." },
     ],
   }),
   component: CartPage,
 });
 
-const CUT_OPTIONS = [
-  "Curry Cut",
-  "Biryani Cut",
-  "Fillet / Boneless",
-  "Whole Cleaned (Head On)",
-  "Whole Cleaned (Head Off)",
-  "Steaks / Slices",
-];
-
 function CartPage() {
   const { items, subtotal, setQty, setCutPreference, remove, clear } = useCart();
   const { data: settings } = useQuery(settingsQuery);
   const { data: products = [] } = useQuery(productsQuery());
+  const vertical = getStoreVertical(settings);
+  const cutOptions = getVerticalCutOptions(vertical.id);
+  const productTerm = getVerticalProductTerm(vertical.id);
   const storeStatus = settings ? getStoreStatus(settings) : null;
   const freeOver = Number(settings?.free_delivery_over ?? 500);
   const progress = Math.min(100, (subtotal / freeOver) * 100);
@@ -82,7 +81,7 @@ function CartPage() {
       return {
         productId: i.product_id,
         name: i.name,
-        cutPreference: i.cut_preference || i.cutting_style,
+        cutPreference: i.cut_preference || undefined,
         qty: clampedQty,
         unit: i.matched?.unit || i.unit || "unit",
         price: i.price,
@@ -99,7 +98,7 @@ function CartPage() {
         <div className="py-20 text-center">
           <h1 className="text-xl font-bold">Your cart is empty</h1>
           <Button asChild className="mt-4 rounded-xl">
-            <Link to="/catalog">Browse seafood</Link>
+            <Link to="/catalog">Browse catalog</Link>
           </Button>
         </div>
       </AppShell>
@@ -154,49 +153,56 @@ function CartPage() {
             }`}
           >
             <div className="flex gap-3 items-center flex-1 min-w-0">
-              {item.image_url && (
-                <div className="relative size-20 rounded-xl overflow-hidden shrink-0">
-                  <img src={item.image_url} alt={item.name} className="size-full object-cover" />
+              {item.image_url ? (
+                <div className="relative size-16 rounded-xl overflow-hidden shrink-0">
+                  <img
+                    src={item.image_url}
+                    alt={item.name}
+                    className="size-16 rounded-xl object-cover"
+                  />
                   {item.isSoldOut && (
                     <div className="absolute inset-0 bg-background/80 flex items-center justify-center p-1 text-center">
                       <span className="text-[9px] font-black uppercase text-destructive">OUT</span>
                     </div>
                   )}
                 </div>
+              ) : (
+                <div className="size-16 rounded-xl bg-muted shrink-0" />
               )}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-semibold truncate">{item.name}</p>
-                  {item.isSoldOut && (
-                    <span className="rounded-md bg-destructive text-destructive-foreground text-[10px] font-extrabold px-1.5 py-0.5">
-                      SOLD OUT
+                <div className="flex items-center gap-2">
+                  <h3 className="font-medium truncate">{item.name}</h3>
+                  {item.isSoldOut ? (
+                    <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-destructive/15 text-destructive">
+                      Sold Out
                     </span>
-                  )}
-                  {item.isExceedingStock && !item.isSoldOut && (
-                    <span className="rounded-md bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5">
-                      Only {item.availableStock} in stock
+                  ) : item.isExceedingStock ? (
+                    <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                      Only {item.availableStock} left
                     </span>
-                  )}
+                  ) : null}
                 </div>
 
                 <p className="text-sm text-muted-foreground">
                   {inr(item.price)} / {item.unit}
                 </p>
                 
-                <div className="mt-1 flex items-center gap-1.5">
-                  <span className="text-[11px] text-muted-foreground">Cut:</span>
-                  <select
-                    value={item.cut_preference || "Curry Cut"}
-                    onChange={(e) => setCutPreference(item.product_id, e.target.value)}
-                    className="h-6 rounded-lg border border-input bg-transparent px-1.5 text-[11px] text-foreground focus:outline-none"
-                  >
-                    {CUT_OPTIONS.map((c) => (
-                      <option key={c} value={c} className="bg-background text-foreground">
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {vertical.hasCutPreferences && cutOptions.length > 0 && (
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <span className="text-[11px] text-muted-foreground">Cut/Prep:</span>
+                    <select
+                      value={item.cut_preference || cutOptions[0] || "Standard"}
+                      onChange={(e) => setCutPreference(item.product_id, e.target.value)}
+                      className="h-6 rounded-lg border border-input bg-transparent px-1.5 text-[11px] text-foreground focus:outline-none"
+                    >
+                      {cutOptions.map((c) => (
+                        <option key={c} value={c} className="bg-background text-foreground">
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -329,7 +335,7 @@ function CartPage() {
                   Clear your shopping cart?
                 </AlertDialogTitle>
                 <AlertDialogDescription className="text-xs text-muted-foreground mt-1">
-                  Are you sure you want to remove all {items.length} {items.length === 1 ? "item" : "items"} ({inr(subtotal)}) from your seafood cart? This action cannot be undone.
+                  Are you sure you want to remove all {items.length} {items.length === 1 ? "item" : "items"} ({inr(subtotal)}) from your cart? This action cannot be undone.
                 </AlertDialogDescription>
               </div>
             </AlertDialogHeader>

@@ -184,14 +184,14 @@ describe("WhatsApp Deep-Link Ordering Utility", () => {
       });
 
     expect(availableItems).toHaveLength(2);
-    expect(availableItems[0].name).toBe("Seer Fish");
-    expect(availableItems[0].qty).toBe(2);
-    expect(availableItems[0].totalPrice).toBe(1600);
+    expect(availableItems[0]!.name).toBe("Seer Fish");
+    expect(availableItems[0]!.qty).toBe(2);
+    expect(availableItems[0]!.totalPrice).toBe(1600);
 
     // Overstock item was clamped to available stock (2 instead of 4)
-    expect(availableItems[1].name).toBe("Prawns (Overstock Request)");
-    expect(availableItems[1].qty).toBe(2);
-    expect(availableItems[1].totalPrice).toBe(800);
+    expect(availableItems[1]!.name).toBe("Prawns (Overstock Request)");
+    expect(availableItems[1]!.qty).toBe(2);
+    expect(availableItems[1]!.totalPrice).toBe(800);
 
     const subtotal = availableItems.reduce((acc, it) => acc + it.totalPrice, 0);
     expect(subtotal).toBe(2400);
@@ -224,7 +224,6 @@ describe("Thermal Printer Header & Footer Customization Engine", () => {
     customerPhone: "9876543210",
     items: [
       {
-        id: "1",
         name: "Fresh Seer Fish",
         qty: 1,
         weightKg: 1.0,

@@ -590,14 +590,14 @@ function Checkout() {
         address: fulfillment === "delivery" ? address.trim() : undefined,
         fulfillment,
         preferredDate: deliveryDate || undefined,
-        notes: orderNotes || undefined,
+        notes: notes.trim() || undefined,
       },
       items: items.map((it) => {
         const matched = products?.find((p) => p.id === it.product_id);
         return {
           productId: it.product_id,
           name: it.name,
-          cutPreference: it.cutting_style || undefined,
+          cutPreference: it.cut_preference || undefined,
           qty: it.qty,
           unit: matched?.unit || "unit",
           price: it.price,

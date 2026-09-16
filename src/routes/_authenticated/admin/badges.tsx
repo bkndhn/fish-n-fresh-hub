@@ -12,16 +12,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import type { Database } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/_authenticated/admin/badges")({
   head: () => ({
     meta: [
-      { title: "Home Cards | Fish N Fresh Admin" },
+      { title: "Home Cards | Store Admin" },
       {
         name: "description",
-        content: "Customize the highlight cards shown under the home page banner of your Fish N Fresh store.",
+        content: "Customize the highlight cards shown under the home page banner of your store.",
       },
-      { property: "og:title", content: "Home Cards | Fish N Fresh Admin" },
+      { property: "og:title", content: "Home Cards | Store Admin" },
       {
         property: "og:description",
         content: "Add, rename, reorder or hide the trust highlight cards on the storefront home page.",
@@ -30,11 +32,11 @@ export const Route = createFileRoute("/_authenticated/admin/badges")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: BadgesAdmin,
+  component: AdminBadges,
 });
 
 
-function BadgesAdmin() {
+function AdminBadges() {
   const qc = useQueryClient();
   const badges = useQuery(adminTrustBadgesQuery);
   const [label, setLabel] = useState("");
@@ -50,7 +52,7 @@ function BadgesAdmin() {
       const next = (badges.data ?? []).reduce((m, b) => Math.max(m, Number(b.sort_order)), 0) + 1;
       const { error } = await supabase
         .from("trust_badges")
-        .insert({ label: label.trim(), icon, sort_order: next } as Database["public"]["Tables"]["orders"]["Update"]);
+        .insert({ label: label.trim(), icon, sort_order: next });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -62,7 +64,7 @@ function BadgesAdmin() {
   });
 
   const update = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: Record<string, unknown> }) => {
+    mutationFn: async ({ id, patch }: { id: string; patch: Database["public"]["Tables"]["trust_badges"]["Update"] }) => {
       const { error } = await supabase.from("trust_badges").update(patch).eq("id", id);
       if (error) throw error;
     },

@@ -34,8 +34,10 @@ import {
   X,
   Truck,
   CreditCard,
+  PackagePlus,
 } from "lucide-react";
 import { testEmailDispatch } from "@/lib/emails.functions";
+import { applyRealProductsCatalog } from "@/lib/products.functions";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { settingsQuery } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,7 +52,7 @@ import { ImageUpload } from "@/components/ImageUpload";
 import { useState, useEffect, useMemo } from "react";
 import { MapPinPickerModal } from "@/components/MapPinPickerModal";
 import { getGoogleMapsDirUrl, type GeocodedAddress } from "@/lib/maps";
-import { VERTICAL_CONFIGS, getVerticalConfig, type BusinessVertical } from "@/lib/verticals";
+import { VERTICAL_CONFIGS, getVerticalConfig, detectVerticalFromStoreName, type BusinessVertical } from "@/lib/verticals";
 import { getCurrentTenant } from "@/lib/tenant";
 import {
   getStorePaymentConfig,
@@ -80,6 +82,7 @@ function AdminSettings() {
   const [exportingBackup, setExportingBackup] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
   const [testEmailAddress, setTestEmailAddress] = useState("");
+  const [seedingCatalog, setSeedingCatalog] = useState(false);
 
   // POS Multi-Tenant Isolated Payment Methods & Default Tender
   const [paymentConfig, setPaymentConfig] = useState<StorePaymentConfig>(() =>
@@ -109,7 +112,7 @@ function AdminSettings() {
     const newMethod: CustomPaymentMethod = {
       id,
       name: newMethodName.trim(),
-      description: newMethodDesc.trim() || undefined,
+      ...(newMethodDesc.trim() ? { description: newMethodDesc.trim() } : {}),
       requiresRef: newMethodRequiresRef,
       refPlaceholder: newMethodRefPlaceholder.trim() || "Transaction / Slip #",
       isEnabled: true,
@@ -544,11 +547,18 @@ function AdminSettings() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
             <div>
-              <Label className="text-xs font-semibold">Store Brand Name</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">Store Brand Name</Label>
+                {form.store_name && (
+                  <span className="text-[10px] text-muted-foreground">
+                    Inferred Model: <strong className="text-primary font-semibold">{VERTICAL_CONFIGS[detectVerticalFromStoreName(form.store_name)]?.shortName}</strong>
+                  </span>
+                )}
+              </div>
               <Input
                 value={form.store_name ?? ""}
                 onChange={(e) => setForm({ ...form, store_name: e.target.value })}
-                placeholder="Fish N Fresh"
+                placeholder="e.g. Fish N Fresh, Prime Meats, Super Mart, Fresh Organics…"
                 className="mt-1 text-sm rounded-xl"
               />
             </div>
@@ -557,7 +567,7 @@ function AdminSettings() {
               <Input
                 value={form.tagline ?? ""}
                 onChange={(e) => setForm({ ...form, tagline: e.target.value })}
-                placeholder="100% Chemical-Free Fresh Catch Delivered Daily"
+                placeholder={VERTICAL_CONFIGS[form.business_vertical as BusinessVertical || detectVerticalFromStoreName(form.store_name) || "seafood"]?.tagline || "Fresh Products Delivered Daily"}
                 className="mt-1 text-sm rounded-xl"
               />
             </div>
@@ -660,23 +670,52 @@ function AdminSettings() {
                     Sets theme color ({currentCfg.recommendedThemeColor}), tagline, and guarantee badge.
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="rounded-xl h-8 text-xs font-semibold text-primary border-primary/30 hover:bg-primary/10 shrink-0"
-                  onClick={() => {
-                    setForm({
-                      ...form,
-                      theme_color: currentCfg.recommendedThemeColor,
-                      vertical_tagline: currentCfg.tagline,
-                      vertical_badge_text: currentCfg.badgeText,
-                    });
-                    toast.success(`Applied ${currentCfg.name} theme and presets!`);
-                  }}
-                >
-                  <Sparkles className="size-3 mr-1" /> Apply {currentCfg.shortName} Presets
-                </Button>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl h-8 text-xs font-semibold text-primary border-primary/30 hover:bg-primary/10"
+                    onClick={() => {
+                      setForm({
+                        ...form,
+                        theme_color: currentCfg.recommendedThemeColor,
+                        vertical_tagline: currentCfg.tagline,
+                        vertical_badge_text: currentCfg.badgeText,
+                      });
+                      toast.success(`Applied ${currentCfg.name} theme and presets!`);
+                    }}
+                  >
+                    <Sparkles className="size-3 mr-1" /> Apply {currentCfg.shortName} Presets
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="rounded-xl h-8 text-xs font-semibold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20"
+                    disabled={seedingCatalog}
+                    onClick={async () => {
+                      if (!confirm(`Load 10 authentic ${currentCfg.name} items with verified real prices, photos, and specs into your store catalog?`)) return;
+                      try {
+                        setSeedingCatalog(true);
+                        const res = await applyRealProductsCatalog({ data: { archiveExisting: false, vertical: currentCfg.id } });
+                        if (res.success) {
+                          toast.success(`Successfully seeded ${res.inserted} authentic ${currentCfg.shortName} products!`);
+                          qc.invalidateQueries({ queryKey: ["admin", "products"] });
+                          qc.invalidateQueries({ queryKey: ["products"] });
+                        } else {
+                          toast.error(res.error || "Failed to seed catalog");
+                        }
+                      } catch (e: any) {
+                        toast.error(e.message || "Failed to seed catalog");
+                      } finally {
+                        setSeedingCatalog(false);
+                      }
+                    }}
+                  >
+                    <PackagePlus className="size-3 mr-1" /> {seedingCatalog ? "Seeding…" : `Seed ${currentCfg.shortName} Products`}
+                  </Button>
+                </div>
               </div>
             );
           })()}
@@ -1090,9 +1129,9 @@ function AdminSettings() {
                 </div>
               </div>
 
-              {/* Theme Live Preview */}
-              <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground">
-                <span>Preview:</span>
+              {/* Theme Live Preview & Mobile Status/Notification Bar Preview */}
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">Live App & Mobile Preview:</span>
                 <span
                   className="rounded-md px-2.5 py-0.5 text-xs font-semibold text-white shadow-xs"
                   style={{ backgroundColor: form.theme_color || "#0ea5e9" }}
@@ -1108,6 +1147,16 @@ function AdminSettings() {
                   }}
                 >
                   Active Badge
+                </span>
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium border bg-background text-foreground shadow-2xs"
+                  style={{
+                    borderLeftColor: form.theme_color || "#0ea5e9",
+                    borderLeftWidth: 4,
+                  }}
+                >
+                  <span className="size-2 rounded-full" style={{ backgroundColor: form.theme_color || "#0ea5e9" }} />
+                  Mobile Notification / Status Bar Active
                 </span>
               </div>
             </div>

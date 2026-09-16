@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -86,9 +86,11 @@ export function PortionChipsModal({
   };
 
   const handleStartEdit = (index: number) => {
+    const target = chips[index];
+    if (!target) return;
     setEditingIndex(index);
-    setEditVal(chips[index].val.toString());
-    setEditLabel(chips[index].label);
+    setEditVal(target.val.toString());
+    setEditLabel(target.label);
   };
 
   const handleSaveEdit = (index: number) => {

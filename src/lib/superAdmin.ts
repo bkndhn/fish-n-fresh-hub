@@ -49,7 +49,7 @@ export interface SuperAdminStats {
   ordersQuotaUtilizationPct: number;
   activeKillSwitchesCount: number;
   isTenantLocked: boolean;
-  tier: "starter" | "growth" | "enterprise";
+  tier: "starter" | "growth" | "enterprise" | "custom";
 }
 
 export const DEFAULT_TENANT_QUOTA: TenantQuota = {
@@ -205,7 +205,21 @@ export const superAdminStatsQuery = queryOptions({
         .limit(1)
         .maybeSingle();
 
-      const quota: TenantQuota = quotaData || DEFAULT_TENANT_QUOTA;
+      const quota: TenantQuota = quotaData
+        ? {
+            id: quotaData.id,
+            tenant_name: quotaData.tenant_name,
+            tenant_code: quotaData.tenant_code,
+            max_branches: quotaData.max_branches,
+            max_staff_per_branch: quotaData.max_staff_per_branch,
+            max_monthly_orders: quotaData.max_monthly_orders,
+            max_storage_mb: quotaData.max_storage_mb,
+            tier: (quotaData.tier as "starter" | "growth" | "enterprise" | "custom") || "enterprise",
+            is_locked: quotaData.is_locked,
+            ...(quotaData.created_at ? { created_at: quotaData.created_at } : {}),
+            ...(quotaData.updated_at ? { updated_at: quotaData.updated_at } : {}),
+          }
+        : DEFAULT_TENANT_QUOTA;
 
       // 5. Fetch recent kill switch events count (last 24 hours)
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -691,7 +705,7 @@ export async function onboardNewClient(input: OnboardClientInput): Promise<Onboa
       monthly_orders_count: 0,
       created_at: new Date().toISOString(),
       last_active_at: "Just provisioned",
-      onboarding_notes: input.onboarding_notes?.trim(),
+      ...(input.onboarding_notes?.trim() ? { onboarding_notes: input.onboarding_notes.trim() } : {}),
     };
 
     const updated = [newClient, ...clients];

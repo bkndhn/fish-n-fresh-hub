@@ -7,6 +7,8 @@ import {
   updateStatusBarColor,
 } from "@/lib/dailyAtmosphere";
 
+import { getStoreVertical } from "@/lib/verticals";
+
 type Theme = "dark" | "light" | "system";
 
 type ThemeProviderProps = {
@@ -79,20 +81,28 @@ export function ThemeProvider({
 
     const syncColors = () => {
       const isDark = root.classList.contains("dark");
+      const vertical = getStoreVertical(settings);
+      const storeName = settings?.store_name?.trim() || "Fish N Fresh Hub";
+      const customThemeColor = settings?.theme_color?.trim();
+      const effectiveThemeColor = customThemeColor || vertical.recommendedThemeColor || "#0284c7";
       const dailyEnabled = settings ? isDailyAtmosphereEnabled(settings) : false;
+
+      // Update PWA / mobile app meta names based on store name
+      const appNameMeta = document.querySelector("meta[name='application-name']");
+      if (appNameMeta) appNameMeta.setAttribute("content", storeName);
+
+      const appleTitleMeta = document.querySelector("meta[name='apple-mobile-web-app-title']");
+      if (appleTitleMeta) appleTitleMeta.setAttribute("content", storeName);
 
       if (dailyEnabled) {
         // Procedural daily atmosphere theme (different every single day)
         applyDailyAtmosphere(true, isDark);
-      } else if (settings?.theme_color) {
-        // Static brand theme color configured by store admin
-        applyDailyAtmosphere(false, isDark);
-        root.style.setProperty("--primary", settings.theme_color);
-        root.style.setProperty("--ring", settings.theme_color);
-        updateStatusBarColor(isDark ? "#0b1120" : settings.theme_color);
       } else {
-        // Classic Ocean theme
+        // Static brand theme color or vertical recommended theme color
         applyDailyAtmosphere(false, isDark);
+        root.style.setProperty("--primary", effectiveThemeColor);
+        root.style.setProperty("--ring", effectiveThemeColor);
+        updateStatusBarColor(effectiveThemeColor, isDark ? "#0b1120" : effectiveThemeColor);
       }
     };
 
@@ -103,7 +113,7 @@ export function ThemeProvider({
     return () => {
       window.removeEventListener("daily-atmosphere-changed", onAtmosphereChanged);
     };
-  }, [settings?.theme_color, settings?.logo_url, (settings as import("@/lib/types").SiteSettings & { daily_atmosphere_enabled?: boolean })?.daily_atmosphere_enabled, theme]);
+  }, [settings?.theme_color, settings?.business_vertical, settings?.store_name, settings?.logo_url, (settings as import("@/lib/types").SiteSettings & { daily_atmosphere_enabled?: boolean })?.daily_atmosphere_enabled, theme]);
 
   const value = {
     theme,

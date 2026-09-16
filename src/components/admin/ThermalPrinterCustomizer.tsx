@@ -30,11 +30,12 @@ import {
   buildPosReceiptEscPos,
 } from "@/lib/thermalPrinter";
 import type { SiteSettings } from "@/lib/types";
+import type { Database } from "@/integrations/supabase/types";
 
 interface ThermalPrinterCustomizerProps {
   tenantId?: string;
   settings?: SiteSettings | null;
-  onSaveToDatabase?: (patch: Record<string, unknown>) => Promise<void>;
+  onSaveToDatabase?: (patch: Database['public']['Tables']['store_settings']['Update']) => Promise<void>;
 }
 
 export function ThermalPrinterCustomizer({
@@ -52,6 +53,7 @@ export function ThermalPrinterCustomizer({
   // Sync initial settings from database if available
   useEffect(() => {
     if (settings) {
+      const fssai = settings.fssai_license_no || (settings as any).fssai_number;
       setConfig((prev) => ({
         ...prev,
         showHeaderStoreName: true,
@@ -66,7 +68,7 @@ export function ThermalPrinterCustomizer({
         whatsappNumber: settings.printer_whatsapp_number || settings.contact_phone || prev.whatsappNumber || "+91 98430 61919",
         socialHandle: settings.printer_social_handle || prev.socialHandle || "@fishnfreshhub",
         supportPhone: settings.contact_phone || prev.supportPhone || "+91 98430 61919",
-        fssaiNumber: settings.fssai_license_no || settings.fssai_number || undefined,
+        ...(fssai ? { fssaiNumber: fssai } : {}),
         customFooterNote: settings.printer_custom_footer_message || prev.customFooterNote || "",
         footerText: settings.terms_and_conditions || prev.footerText || "Fresh Catch Daily · No Returns After Cutting",
       }));
@@ -139,17 +141,15 @@ export function ThermalPrinterCustomizer({
       // 2. Persist to Supabase store_settings if callback provided
       if (onSaveToDatabase) {
         await onSaveToDatabase({
-          printer_show_gstin: config.showHeaderGstin,
-          printer_show_fssai: config.showHeaderFssai,
-          printer_show_address: config.showHeaderAddress,
-          printer_show_phone: config.showHeaderPhone,
-          printer_show_whatsapp: config.showFooterWhatsapp,
-          printer_show_social: config.showFooterSocial,
-          printer_show_support: config.showFooterSupport,
-          printer_show_return_policy: config.showFooterReturnPolicy,
-          printer_custom_footer_message: config.customFooterNote || null,
-          printer_whatsapp_number: config.whatsappNumber || null,
-          printer_social_handle: config.socialHandle || null,
+          printer_auto_cut: config.autoCut,
+          printer_paper_width: config.paperWidth,
+          printer_open_drawer: config.openCashDrawer,
+          printer_header_line1: config.headerLine1,
+          printer_header_line2: config.headerLine2,
+          printer_footer_text: config.customFooterNote || config.footerText,
+          ...(config.whatsappNumber ? { support_whatsapp: config.whatsappNumber } : {}),
+          ...(config.socialHandle ? { social_instagram: config.socialHandle } : {}),
+          ...(config.fssaiNumber ? { fssai_license_no: config.fssaiNumber } : {}),
         });
       }
 
