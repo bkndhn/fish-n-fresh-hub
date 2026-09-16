@@ -138,6 +138,8 @@ interface ParkedCart {
   customerName: string;
   customerPhone: string;
   discountAmount: number;
+  discountMode?: "amount" | "percent";
+  discountValue?: number;
 }
 
 const CUTTING_STYLES = [
@@ -232,7 +234,8 @@ export function RetailPosCounterPage() {
   const [cart, setCart] = useState<PosCartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [discountMode, setDiscountMode] = useState<"amount" | "percent">("amount");
+  const [discountValue, setDiscountValue] = useState<number>(0);
 
   // Returning Customer CRM Auto-Lookup
   const [returningCustomerInfo, setReturningCustomerInfo] = useState<{
@@ -732,6 +735,14 @@ export function RetailPosCounterPage() {
     }, 0);
   }, [cart, isGstActive]);
 
+  const discountAmount = useMemo(() => {
+    if (discountMode === "percent") {
+      const pct = Math.min(100, Math.max(0, discountValue));
+      return Math.min(subtotal, Math.round((subtotal * pct) / 100));
+    }
+    return Math.min(subtotal, Math.max(0, discountValue));
+  }, [discountMode, discountValue, subtotal]);
+
   const totalPayable = Math.max(0, subtotal - discountAmount + gstTotal);
 
   const tenderedNum = parseFloat(tenderedAmount) || 0;
@@ -1052,7 +1063,8 @@ export function RetailPosCounterPage() {
 
   const handleClearBill = () => {
     setCart([]);
-    setDiscountAmount(0);
+    setDiscountMode("amount");
+    setDiscountValue(0);
     setTenderedAmount("");
     setUpiUtr("");
     setSplitCash("");
@@ -1078,6 +1090,8 @@ export function RetailPosCounterPage() {
       customerName,
       customerPhone,
       discountAmount,
+      discountMode,
+      discountValue,
     };
     const updated = [newParked, ...parkedCarts];
     setParkedCarts(updated);
@@ -1096,7 +1110,8 @@ export function RetailPosCounterPage() {
     setCart(p.cart);
     setCustomerName(p.customerName);
     setCustomerPhone(p.customerPhone);
-    setDiscountAmount(p.discountAmount);
+    setDiscountMode(p.discountMode || "amount");
+    setDiscountValue(p.discountValue !== undefined ? p.discountValue : p.discountAmount);
     const updated = parkedCarts.filter((x) => x.id !== p.id);
     setParkedCarts(updated);
     try {
@@ -1186,6 +1201,7 @@ export function RetailPosCounterPage() {
       items: receiptItems,
       subtotal,
       discount: discountAmount,
+      discountPercent: discountMode === "percent" && discountValue > 0 ? discountValue : undefined,
       gstAmount: gstTotal,
       total: totalPayable,
       paymentMethod: paymentLabel,
@@ -2334,18 +2350,112 @@ export function RetailPosCounterPage() {
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between text-muted-foreground">
-                      <span>Counter Discount</span>
-                      <div className="flex items-center gap-1">
-                        <span>-₹</span>
-                        <input
-                          type="number"
-                          value={discountAmount || ""}
-                          onChange={(e) => setDiscountAmount(Math.max(0, Number(e.target.value)))}
-                          placeholder="0"
-                          className="w-16 h-6 text-right px-1 text-xs rounded border border-border bg-background font-mono outline-none"
-                        />
+                    <div className="space-y-1.5 pt-1 border-t border-dashed border-border/60">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-foreground">Discount</span>
+                          <div className="inline-flex rounded-lg border border-border bg-muted/60 p-0.5 text-[10px] font-bold">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (discountMode !== "amount") {
+                                  setDiscountMode("amount");
+                                  setDiscountValue(0);
+                                }
+                              }}
+                              className={`px-1.5 py-0.5 rounded transition-colors ${
+                                discountMode === "amount"
+                                  ? "bg-background text-foreground shadow-2xs"
+                                  : "text-muted-foreground hover:text-foreground"
+                              }`}
+                              title="Flat Rupee Amount Discount (Default)"
+                            >
+                              ₹ Amount
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (discountMode !== "percent") {
+                                  setDiscountMode("percent");
+                                  setDiscountValue(0);
+                                }
+                              }}
+                              className={`px-1.5 py-0.5 rounded transition-colors ${
+                                discountMode === "percent"
+                                  ? "bg-background text-foreground shadow-2xs"
+                                  : "text-muted-foreground hover:text-foreground"
+                              }`}
+                              title="Percentage Discount (%)"
+                            >
+                              % Percent
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          {discountMode === "amount" ? (
+                            <div className="flex items-center gap-1">
+                              <span className="font-mono text-xs">-₹</span>
+                              <input
+                                type="number"
+                                min="0"
+                                max={subtotal}
+                                value={discountValue || ""}
+                                onChange={(e) => setDiscountValue(Math.max(0, Number(e.target.value)))}
+                                placeholder="0"
+                                className="w-16 h-6 text-right px-1.5 text-xs rounded border border-border bg-background font-mono outline-none focus:ring-1 focus:ring-primary"
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={discountValue || ""}
+                                onChange={(e) => setDiscountValue(Math.min(100, Math.max(0, Number(e.target.value))))}
+                                placeholder="0"
+                                className="w-12 h-6 text-right px-1 text-xs rounded border border-border bg-background font-mono outline-none focus:ring-1 focus:ring-primary"
+                              />
+                              <span className="font-mono text-xs font-bold">%</span>
+                              {discountAmount > 0 && (
+                                <span className="font-mono text-[11px] text-emerald-600 dark:text-emerald-400 font-bold ml-1">
+                                  (-{formatINR(discountAmount)})
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
+
+                      {discountMode === "percent" && (
+                        <div className="flex items-center gap-1 justify-end pt-0.5">
+                          {[5, 10, 15, 20].map((pct) => (
+                            <button
+                              key={pct}
+                              type="button"
+                              onClick={() => setDiscountValue(pct)}
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition-all border ${
+                                discountValue === pct
+                                  ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs"
+                                  : "bg-muted/40 hover:bg-muted text-muted-foreground border-border/70"
+                              }`}
+                            >
+                              {pct}%
+                            </button>
+                          ))}
+                          {discountValue > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setDiscountValue(0)}
+                              className="px-1 py-0.5 rounded text-[10px] text-muted-foreground hover:text-destructive"
+                              title="Clear discount"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex justify-between items-center pt-2 border-t border-border/80 font-bold text-sm text-foreground">

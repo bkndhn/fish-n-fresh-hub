@@ -66,6 +66,12 @@ import { getDailyAtmosphere, isDailyAtmosphereEnabled, setDailyAtmosphereEnabled
 import { ThermalPrinterCustomizer } from "@/components/admin/ThermalPrinterCustomizer";
 import { AdminActionConfirmationModal } from "@/components/admin/AdminActionConfirmationModal";
 import type { SiteSettings } from "@/lib/types";
+import {
+  type ProductLayoutConfig,
+  getProductLayoutConfig,
+  saveProductLayoutConfig,
+  getDefaultProductLayoutConfig,
+} from "@/lib/productLayout";
 
 export const Route = createFileRoute("/_authenticated/admin/settings")({
   component: AdminSettings,
@@ -99,6 +105,30 @@ function AdminSettings() {
     setPaymentConfig(updated);
     saveStorePaymentConfig(updated, tenant.tenantId);
     toast.success("POS Payment Configuration saved!");
+  };
+
+  // Product Page Layout & Customization State
+  const [layoutConfig, setLayoutConfig] = useState<ProductLayoutConfig>(() =>
+    getProductLayoutConfig(tenant.tenantId, settings?.store_name, settings?.business_vertical)
+  );
+
+  useEffect(() => {
+    if (settings) {
+      setLayoutConfig(getProductLayoutConfig(tenant.tenantId, settings.store_name, settings.business_vertical));
+    }
+  }, [settings?.store_name, settings?.business_vertical, tenant.tenantId]);
+
+  const handleSaveLayoutConfig = (updated: ProductLayoutConfig) => {
+    setLayoutConfig(updated);
+    saveProductLayoutConfig(updated, tenant.tenantId);
+    toast.success("Product page layout preferences saved!");
+  };
+
+  const handleResetLayoutConfig = () => {
+    const defaultCfg = getDefaultProductLayoutConfig(form.business_vertical || settings?.business_vertical, form.store_name || settings?.store_name);
+    setLayoutConfig(defaultCfg);
+    saveProductLayoutConfig(defaultCfg, tenant.tenantId);
+    toast.info("Product page layout reset to industry model defaults!");
   };
 
   const handleAddCustomMethod = () => {
@@ -940,6 +970,317 @@ function AdminSettings() {
                 <p className="text-xs text-muted-foreground">
                   Orders dispatched via WhatsApp deep link will be sent directly to this WhatsApp chat.
                 </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ),
+    },
+    {
+      id: "product_layout",
+      tab: "general" as const,
+      tabLabel: "General & Brand",
+      title: "Product Detail & Storefront Layout Customization",
+      description: "Granularly control which sections (Nutrition, Culinary Specs, Portion Chips, Subscriptions, AI Intelligence, Reviews) appear on product pages and customize their titles.",
+      keywords: [
+        "product layout",
+        "customization",
+        "nutrition",
+        "calories",
+        "protein",
+        "specs",
+        "specifications",
+        "culinary",
+        "portion",
+        "chips",
+        "subscription",
+        "subscribe & save",
+        "ai benefits",
+        "reviews",
+        "related products",
+        "display",
+      ],
+      content: (
+        <Card className="mb-6 border-border/80 shadow-xs">
+          <CardHeader className="pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <SlidersHorizontal className="size-5 text-primary" />
+                  Product Detail &amp; Storefront Layout Customization
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Tailor exactly which sections, specifications, and text labels appear across all product pages for your store vertical.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetLayoutConfig}
+                  className="rounded-xl text-xs h-8 gap-1.5"
+                  title="Reset sections and titles to your store's vertical defaults"
+                >
+                  <RotateCcw className="size-3.5" />
+                  <span>Reset to Defaults</span>
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => handleSaveLayoutConfig(layoutConfig)}
+                  className="rounded-xl text-xs h-8 font-bold gap-1.5 bg-primary text-primary-foreground shadow-2xs"
+                >
+                  <CheckCircle2 className="size-3.5" />
+                  <span>Save Layout</span>
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              {/* 1. Nutritional Highlights */}
+              <div className="rounded-2xl border border-border/70 p-3.5 bg-card/60 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5 pr-2">
+                    <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <span>🥗 Nutritional Highlights (Calories &amp; Protein)</span>
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Display calories (kcal) and protein count per 100g.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={layoutConfig.showNutrition}
+                    onCheckedChange={(checked) => {
+                      const updated = { ...layoutConfig, showNutrition: checked };
+                      setLayoutConfig(updated);
+                      saveProductLayoutConfig(updated, tenant.tenantId);
+                    }}
+                  />
+                </div>
+                {layoutConfig.showNutrition && (
+                  <div>
+                    <Label className="text-[10px] font-semibold text-muted-foreground">Section Title</Label>
+                    <Input
+                      value={layoutConfig.nutritionTitle}
+                      onChange={(e) => {
+                        const updated = { ...layoutConfig, nutritionTitle: e.target.value };
+                        setLayoutConfig(updated);
+                        saveProductLayoutConfig(updated, tenant.tenantId);
+                      }}
+                      placeholder="e.g. Nutritional Highlights (Per 100g)"
+                      className="h-8 text-xs mt-1 rounded-xl"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Sourcing & Culinary / Technical Specs */}
+              <div className="rounded-2xl border border-border/70 p-3.5 bg-card/60 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5 pr-2">
+                    <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <span>⚙️ Specifications &amp; Sourcing Details</span>
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Best for, origin, storage, temperature, and harvest traceability.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={layoutConfig.showCulinarySpecs}
+                    onCheckedChange={(checked) => {
+                      const updated = { ...layoutConfig, showCulinarySpecs: checked };
+                      setLayoutConfig(updated);
+                      saveProductLayoutConfig(updated, tenant.tenantId);
+                    }}
+                  />
+                </div>
+                {layoutConfig.showCulinarySpecs && (
+                  <div>
+                    <Label className="text-[10px] font-semibold text-muted-foreground">Section Title</Label>
+                    <Input
+                      value={layoutConfig.specsTitle}
+                      onChange={(e) => {
+                        const updated = { ...layoutConfig, specsTitle: e.target.value };
+                        setLayoutConfig(updated);
+                        saveProductLayoutConfig(updated, tenant.tenantId);
+                      }}
+                      placeholder="e.g. Culinary & Sourcing Specifications"
+                      className="h-8 text-xs mt-1 rounded-xl"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Quick Portion / Weight Selection Chips */}
+              <div className="rounded-2xl border border-border/70 p-3.5 bg-card/60 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5 pr-2">
+                    <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <span>⚖️ Quick Portion / Weight Selection Chips</span>
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Show quick-tap portion buttons (250g, 500g, 1kg, 2kg) above Add to Cart.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={layoutConfig.showPortionChips}
+                    onCheckedChange={(checked) => {
+                      const updated = { ...layoutConfig, showPortionChips: checked };
+                      setLayoutConfig(updated);
+                      saveProductLayoutConfig(updated, tenant.tenantId);
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* 4. Subscribe & Save Recurring Orders */}
+              <div className="rounded-2xl border border-border/70 p-3.5 bg-card/60 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5 pr-2">
+                    <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <span>🔁 Subscribe &amp; Save Card (Recurring Orders)</span>
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Offer weekly or bi-weekly automated delivery subscriptions at 5% discount.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={layoutConfig.showSubscriptions}
+                    onCheckedChange={(checked) => {
+                      const updated = { ...layoutConfig, showSubscriptions: checked };
+                      setLayoutConfig(updated);
+                      saveProductLayoutConfig(updated, tenant.tenantId);
+                    }}
+                  />
+                </div>
+                {layoutConfig.showSubscriptions && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-[10px] font-semibold text-muted-foreground">Card Title</Label>
+                      <Input
+                        value={layoutConfig.subscriptionTitle}
+                        onChange={(e) => {
+                          const updated = { ...layoutConfig, subscriptionTitle: e.target.value };
+                          setLayoutConfig(updated);
+                          saveProductLayoutConfig(updated, tenant.tenantId);
+                        }}
+                        placeholder="Subscribe & Save 5%"
+                        className="h-8 text-xs mt-1 rounded-xl"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-semibold text-muted-foreground">Badge / Subtitle</Label>
+                      <Input
+                        value={layoutConfig.subscriptionSubtitle}
+                        onChange={(e) => {
+                          const updated = { ...layoutConfig, subscriptionSubtitle: e.target.value };
+                          setLayoutConfig(updated);
+                          saveProductLayoutConfig(updated, tenant.tenantId);
+                        }}
+                        placeholder="Weekly Priority Catch"
+                        className="h-8 text-xs mt-1 rounded-xl"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 5. AI Culinary & Health Benefits */}
+              <div className="rounded-2xl border border-border/70 p-3.5 bg-card/60 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5 pr-2">
+                    <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <span>✨ AI Health &amp; Culinary Intelligence Card</span>
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Multi-language health highlights, taste profile, and culinary preparation tips.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={layoutConfig.showAiBenefits}
+                    onCheckedChange={(checked) => {
+                      const updated = { ...layoutConfig, showAiBenefits: checked };
+                      setLayoutConfig(updated);
+                      saveProductLayoutConfig(updated, tenant.tenantId);
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* 6. Customer Reviews & Ratings */}
+              <div className="rounded-2xl border border-border/70 p-3.5 bg-card/60 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5 pr-2">
+                    <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <span>⭐ Verified Customer Reviews &amp; Rating Form</span>
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Enable verified buyer testimonials, star ratings, and photo feedback.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={layoutConfig.showReviews}
+                    onCheckedChange={(checked) => {
+                      const updated = { ...layoutConfig, showReviews: checked };
+                      setLayoutConfig(updated);
+                      saveProductLayoutConfig(updated, tenant.tenantId);
+                    }}
+                  />
+                </div>
+                {layoutConfig.showReviews && (
+                  <div>
+                    <Label className="text-[10px] font-semibold text-muted-foreground">Section Title</Label>
+                    <Input
+                      value={layoutConfig.reviewsTitle}
+                      onChange={(e) => {
+                        const updated = { ...layoutConfig, reviewsTitle: e.target.value };
+                        setLayoutConfig(updated);
+                        saveProductLayoutConfig(updated, tenant.tenantId);
+                      }}
+                      placeholder="Verified Customer Reviews"
+                      className="h-8 text-xs mt-1 rounded-xl"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* 7. Similar / Related Recommendations */}
+              <div className="rounded-2xl border border-border/70 p-3.5 bg-card/60 space-y-2.5 md:col-span-2">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5 pr-2">
+                    <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <span>📦 "You May Also Like" Related Products Shelf</span>
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Automated cross-sell carousel featuring matching items from the same category.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={layoutConfig.showRelatedProducts}
+                    onCheckedChange={(checked) => {
+                      const updated = { ...layoutConfig, showRelatedProducts: checked };
+                      setLayoutConfig(updated);
+                      saveProductLayoutConfig(updated, tenant.tenantId);
+                    }}
+                  />
+                </div>
+                {layoutConfig.showRelatedProducts && (
+                  <div>
+                    <Label className="text-[10px] font-semibold text-muted-foreground">Section Title</Label>
+                    <Input
+                      value={layoutConfig.relatedTitle}
+                      onChange={(e) => {
+                        const updated = { ...layoutConfig, relatedTitle: e.target.value };
+                        setLayoutConfig(updated);
+                        saveProductLayoutConfig(updated, tenant.tenantId);
+                      }}
+                      placeholder="You May Also Like"
+                      className="h-8 text-xs mt-1 rounded-xl max-w-sm"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>

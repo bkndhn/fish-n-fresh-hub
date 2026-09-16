@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -39,7 +39,7 @@ import { AdminBranchProvider } from "@/lib/branchContext";
 import { AdminBranchSwitcher } from "@/components/admin/AdminBranchSwitcher";
 import { GoLiveChecklistModal } from "@/components/admin/GoLiveChecklistModal";
 import { supabase } from "@/integrations/supabase/client";
-import { myRolesQuery, type AppRole, getDevRoleOverride, setDevRoleOverride, clearDevRoleOverride } from "@/lib/admin";
+import { myRolesQuery, type AppRole } from "@/lib/admin";
 import { settingsQuery } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import {
@@ -113,30 +113,22 @@ export function AdminShell({
   const isDirectlyAllowed = myRoles.some((r) => allow.includes(r));
   const allowed = isDirectlyAllowed || isSuperAdmin;
   const qc = useQueryClient();
-  const currentDevOverride = getDevRoleOverride();
-  const [activatingDevRole, setActivatingDevRole] = useState(false);
-
-  const handleSetRole = (rolesToSet: AppRole[], label: string) => {
-    setActivatingDevRole(true);
-    setDevRoleOverride(rolesToSet);
-    qc.invalidateQueries({ queryKey: ["admin", "my-roles"] });
-    toast.success(`Active role set to ${label}!`);
-    setTimeout(() => {
-      setActivatingDevRole(false);
-      window.location.reload();
-    }, 250);
-  };
-
-  const handleResetDevOverride = () => {
-    clearDevRoleOverride();
-    qc.invalidateQueries({ queryKey: ["admin", "my-roles"] });
-    toast.info("Reset to live database roles");
-    setTimeout(() => {
-      window.location.reload();
-    }, 250);
-  };
 
   const nav = NAV.filter((item) => isSuperAdmin || (item.roles as readonly AppRole[]).some((r) => myRoles.includes(r)));
+
+  // Automatic seamless routing to permitted workspace based on role
+  useEffect(() => {
+    if (!isLoading && roles !== undefined && !allowed) {
+      if (nav.length > 0 && nav[0]) {
+        const target = nav[0];
+        toast.info(`Redirected to your authorized workspace: ${target.label}`);
+        navigate({ to: target.to, replace: true });
+      } else {
+        toast.error("Access restricted: Staff credentials required");
+        navigate({ to: "/", replace: true });
+      }
+    }
+  }, [allowed, isLoading, roles, nav, navigate]);
 
   const primaryNav = nav.filter((item) => PRIMARY_MOBILE_PATHS.includes(item.to));
   const moreNav = nav.filter((item) => !PRIMARY_MOBILE_PATHS.includes(item.to));
@@ -146,144 +138,15 @@ export function AdminShell({
   }
 
   if (!allowed) {
-    const fallbackRoute = nav[0]?.to || "/";
     return (
-      <div className="flex min-h-screen items-center justify-center p-4 bg-muted/30">
-        <div className="max-w-lg w-full p-6 rounded-3xl bg-card border border-border/80 shadow-2xl space-y-5 text-center">
-          <div className="size-14 rounded-2xl bg-destructive/10 text-destructive mx-auto flex items-center justify-center font-bold shadow-inner">
-            <ShieldAlert className="size-7" />
-          </div>
-
-          <div>
-            <h2 className="text-xl font-extrabold text-foreground tracking-tight">Access Restricted</h2>
-            <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-              Your staff role (<span className="font-mono font-bold text-foreground px-1.5 py-0.5 rounded bg-muted">{myRoles.join(", ") || "unassigned"}</span>) does not have permission to view <span className="font-semibold text-foreground">"{title}"</span>.
-            </p>
-          </div>
-
-          {/* Explanation Alert */}
-          <div className="text-left rounded-2xl bg-amber-500/10 border border-amber-500/25 p-3.5 space-y-1.5 text-xs">
-            <p className="font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-              <Zap className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
-              <span>Why am I seeing this alert?</span>
-            </p>
-            <p className="text-muted-foreground text-[11.5px] leading-relaxed">
-              In Supabase Auth, any newly registered or logged-in account defaults to normal customer status (<strong className="text-foreground">unassigned</strong>) for security. To test the app freely without having direct SQL editor access in Lovable Cloud or Supabase backend, enable <strong>Developer / Testing Mode</strong> below.
-            </p>
-          </div>
-
-          {/* Instant Role Activation Options */}
-          <div className="p-4 rounded-2xl bg-muted/40 border border-border/80 space-y-3 text-left">
-            <p className="text-xs font-bold text-foreground flex items-center justify-between">
-              <span>Instant Testing Access (No SQL needed)</span>
-              <span className="text-[10px] text-primary font-mono uppercase bg-primary/10 px-1.5 py-0.5 rounded">1-Click</span>
-            </p>
-
-            <Button
-              type="button"
-              disabled={activatingDevRole}
-              onClick={() =>
-                handleSetRole(
-                  ["super_admin", "admin", "cashier", "manager", "staff", "driver", "inventory_manager", "support_staff"],
-                  "Super Admin & Store Admin (All Permissions)"
-                )
-              }
-              className="w-full rounded-xl font-bold text-xs h-10 gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md"
-            >
-              <Zap className="size-4" />
-              <span>Unlock Super Admin &amp; Store Admin (All 23 Tabs)</span>
-            </Button>
-
-            <div className="pt-1">
-              <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">Or test a specific staff role:</p>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={activatingDevRole}
-                  onClick={() => handleSetRole(["cashier"], "POS Cashier")}
-                  className="rounded-xl text-xs h-8 justify-start text-foreground hover:border-primary/50"
-                >
-                  <Store className="size-3.5 mr-1.5 text-emerald-600" />
-                  <span>POS Cashier</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={activatingDevRole}
-                  onClick={() => handleSetRole(["driver"], "Delivery Driver")}
-                  className="rounded-xl text-xs h-8 justify-start text-foreground hover:border-primary/50"
-                >
-                  <Truck className="size-3.5 mr-1.5 text-blue-600" />
-                  <span>Delivery Driver</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={activatingDevRole}
-                  onClick={() => handleSetRole(["admin", "manager"], "Store Admin")}
-                  className="rounded-xl text-xs h-8 justify-start text-foreground hover:border-primary/50"
-                >
-                  <ShieldCheck className="size-3.5 mr-1.5 text-indigo-600" />
-                  <span>Store Admin</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={activatingDevRole}
-                  onClick={() => handleSetRole(["super_admin"], "Super Admin Governance")}
-                  className="rounded-xl text-xs h-8 justify-start text-foreground hover:border-primary/50"
-                >
-                  <ShieldAlert className="size-3.5 mr-1.5 text-amber-600" />
-                  <span>Super Admin</span>
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-1 flex items-center justify-between gap-2">
-            <Button asChild variant="outline" className="rounded-xl text-xs h-9 flex-1">
-              <Link to={fallbackRoute}>Go to Store Front</Link>
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="rounded-xl text-xs h-9 text-muted-foreground hover:text-destructive cursor-pointer"
-                >
-                  Sign out / Switch
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="rounded-2xl">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Sign out of Admin Console?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to sign out? Any unsaved edits in open product forms, POS bills, or settings will be lost.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    onClick={() => {
-                      supabase.auth.signOut().then(() => navigate({ to: "/auth" }));
-                    }}
-                  >
-                    Sign out
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+      <div className="flex min-h-screen items-center justify-center p-4 bg-background">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <div className="size-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <p className="text-xs text-muted-foreground font-medium">Routing to authorized workspace...</p>
         </div>
       </div>
     );
   }
-
 
   return (
     <AdminBranchProvider>
@@ -304,23 +167,6 @@ export function AdminShell({
             </div>
 
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-              {currentDevOverride && (
-                <div className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-xl bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30 text-[10px] sm:text-xs font-bold">
-                  <Zap className="size-3 sm:size-3.5 text-amber-600 animate-pulse" />
-                  <span className="hidden md:inline">Test Mode:</span>
-                  <span className="font-mono uppercase font-black">
-                    {currentDevOverride.includes("super_admin") ? "Super Admin" : currentDevOverride[0]}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleResetDevOverride}
-                    className="ml-1 text-muted-foreground hover:text-destructive size-4 flex items-center justify-center rounded-full hover:bg-amber-500/20"
-                    title="Reset to Live Database Roles"
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
               <Button
                 asChild
                 variant="outline"

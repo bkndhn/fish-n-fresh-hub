@@ -69,8 +69,35 @@ function AuthPage() {
       window.location.href = next;
       return;
     }
-    const { data } = await supabase.rpc("is_staff");
-    navigate({ to: data ? "/admin" : "/orders" });
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const uid = sessionData.session?.user?.id;
+      if (!uid) {
+        navigate({ to: "/orders" });
+        return;
+      }
+
+      const { data: rolesData } = await supabase.from("user_roles").select("role").eq("user_id", uid);
+      const roles = (rolesData ?? []).map((r) => r.role as string);
+
+      if (roles.includes("super_admin") || roles.includes("admin") || roles.includes("manager")) {
+        navigate({ to: "/admin" });
+      } else if (roles.includes("cashier")) {
+        navigate({ to: "/admin/pos" });
+      } else if (roles.includes("driver")) {
+        navigate({ to: "/admin/driver" });
+      } else if (roles.includes("inventory_manager")) {
+        navigate({ to: "/admin/products" });
+      } else if (roles.includes("support_staff")) {
+        navigate({ to: "/admin/support" });
+      } else if (roles.includes("staff")) {
+        navigate({ to: "/admin" });
+      } else {
+        navigate({ to: "/orders" });
+      }
+    } catch {
+      navigate({ to: "/orders" });
+    }
   }
 
   // Detect recovery mode from hash or URL query param

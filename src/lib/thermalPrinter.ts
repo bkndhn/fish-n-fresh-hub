@@ -629,6 +629,7 @@ export interface PosReceiptData {
   items: PosReceiptItem[];
   subtotal: number;
   discount: number;
+  discountPercent?: number | undefined;
   gstAmount: number;
   total: number;
   paymentMethod: string;
@@ -737,7 +738,8 @@ export function buildPosReceiptEscPos(
     .row("Subtotal:", `₹${data.subtotal.toFixed(0)}`);
 
   if (data.discount > 0) {
-    b.row("Discount:", `-₹${data.discount.toFixed(0)}`);
+    const discountLabel = data.discountPercent && data.discountPercent > 0 ? `Discount (${data.discountPercent}%):` : "Discount:";
+    b.row(discountLabel, `-₹${data.discount.toFixed(0)}`);
   }
   if (data.gstAmount > 0) {
     b.row("GST:", `₹${data.gstAmount.toFixed(0)}`);
@@ -869,7 +871,7 @@ export function buildPosReceiptHtml(
       .join("")}
     <div class="hr"></div>
     <div class="row"><span>Subtotal:</span><span>₹${(data.subtotal || 0).toFixed(0)}</span></div>
-    ${(data.discount || 0) > 0 ? `<div class="row"><span>Discount:</span><span>-₹${data.discount.toFixed(0)}</span></div>` : ""}
+    ${(data.discount || 0) > 0 ? `<div class="row"><span>${data.discountPercent && data.discountPercent > 0 ? `Discount (${data.discountPercent}%):` : "Discount:"}</span><span>-₹${data.discount.toFixed(0)}</span></div>` : ""}
     ${(data.gstAmount || 0) > 0 ? `<div class="row"><span>GST:</span><span>₹${data.gstAmount.toFixed(0)}</span></div>` : ""}
     <div class="hr"></div>
     <div class="row bold total"><span>TOTAL PAYABLE:</span><span>₹${(data.total || 0).toFixed(0)}</span></div>
@@ -928,7 +930,10 @@ export function generatePosWhatsAppText(data: PosReceiptData, orderId?: string):
   }
   lines.push("--------------------------------");
   lines.push(`Subtotal: ₹${data.subtotal.toFixed(0)}`);
-  if (data.discount > 0) lines.push(`Discount: -₹${data.discount.toFixed(0)}`);
+  if (data.discount > 0) {
+    const discLabel = data.discountPercent && data.discountPercent > 0 ? `Discount (${data.discountPercent}%):` : "Discount:";
+    lines.push(`${discLabel} -₹${data.discount.toFixed(0)}`);
+  }
   if (data.gstAmount > 0) lines.push(`GST: ₹${data.gstAmount.toFixed(0)}`);
   lines.push(`*NET TOTAL: ₹${data.total.toFixed(0)}*`);
 
@@ -1136,7 +1141,7 @@ export function buildA4InvoiceHtml(data: PosReceiptData, config: ThermalPrinterC
 
           <div class="summary-box">
             <div class="summary-row"><span>Subtotal:</span><span class="bold">₹${data.subtotal.toFixed(2)}</span></div>
-            ${data.discount > 0 ? `<div class="summary-row" style="color: #16a34a;"><span>Discount:</span><span>-₹${data.discount.toFixed(2)}</span></div>` : ""}
+            ${data.discount > 0 ? `<div class="summary-row" style="color: #16a34a;"><span>${data.discountPercent && data.discountPercent > 0 ? `Discount (${data.discountPercent}%):` : "Discount:"}</span><span>-₹${data.discount.toFixed(2)}</span></div>` : ""}
             <div class="summary-row"><span>CGST (2.5%):</span><span>₹${(data.gstAmount / 2).toFixed(2)}</span></div>
             <div class="summary-row"><span>SGST (2.5%):</span><span>₹${(data.gstAmount / 2).toFixed(2)}</span></div>
             <div class="summary-row total-row"><span>Grand Total:</span><span>₹${data.total.toFixed(2)}</span></div>

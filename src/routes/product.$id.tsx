@@ -30,6 +30,7 @@ import { useCustomerBranch } from "@/lib/customerBranchContext";
 import { useSessionUser } from "@/lib/session";
 import { getStoreVertical, getVerticalFormFields } from "@/lib/verticals";
 import type { SiteSettings } from '@/lib/types';
+import { type ProductLayoutConfig, getProductLayoutConfig } from "@/lib/productLayout";
 
 const PORTION_CHIPS = [
   { label: "250g", val: 0.25 },
@@ -89,6 +90,7 @@ function ProductPage() {
   const { data: all } = useQuery(productsQuery());
   const { data: settings } = useQuery(settingsQuery);
   const storeVertical = getStoreVertical(settings);
+  const isFoodVertical = ["seafood", "chicken_meat", "all_meat", "snacks_sweets", "grocery_supermarket"].includes(storeVertical.id);
   const formFields = getVerticalFormFields(storeVertical.id, settings?.store_name);
   const { add, items } = useCart();
   const { activeBranch } = useCustomerBranch();
@@ -108,6 +110,23 @@ function ProductPage() {
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<any | null>(null);
   const [sizeChartOpen, setSizeChartOpen] = useState(false);
+
+  // Deep Layout & Section Visibility Configuration
+  const [layoutConfig, setLayoutConfig] = useState<ProductLayoutConfig>(() =>
+    getProductLayoutConfig(undefined, settings?.store_name, storeVertical.id)
+  );
+
+  useEffect(() => {
+    setLayoutConfig(getProductLayoutConfig(undefined, settings?.store_name, storeVertical.id));
+
+    const handleLayoutUpdate = (e: CustomEvent<ProductLayoutConfig>) => {
+      if (e.detail) setLayoutConfig(e.detail);
+    };
+    window.addEventListener("fnf_product_layout_updated", handleLayoutUpdate as EventListener);
+    return () => {
+      window.removeEventListener("fnf_product_layout_updated", handleLayoutUpdate as EventListener);
+    };
+  }, [settings?.store_name, storeVertical.id]);
 
   useEffect(() => {
     if (product?.variants && product.variants.length > 0) {
@@ -292,7 +311,7 @@ function ProductPage() {
 
           <div className="mt-5 space-y-3">
             {/* Quick Portion Chips for weight-based items */}
-            {(product.unit?.toLowerCase().includes("kg") || product.unit?.toLowerCase() === "g") && (
+            {layoutConfig.showPortionChips && (product.unit?.toLowerCase().includes("kg") || product.unit?.toLowerCase() === "g") && (
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-muted-foreground flex items-center justify-between">
                   <span>Choose Portion / Weight:</span>
@@ -427,34 +446,38 @@ function ProductPage() {
               </div>
             )}
 
-            {/* Subscribe & Save 5% Card */}
-            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3.5 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="flex size-6 items-center justify-center rounded-lg bg-emerald-500 text-white text-xs font-bold">
-                    %
-                  </span>
-                  <div>
-                    <span className="text-xs font-bold text-foreground">Subscribe &amp; Save 5%</span>
-                    <span className="ml-2 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-1.5 py-0.2 rounded-md">
-                      Weekly Catch
+            {/* Subscribe & Save Recurring Card */}
+            {layoutConfig.showSubscriptions && (
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-6 items-center justify-center rounded-lg bg-emerald-500 text-white text-xs font-bold">
+                      %
                     </span>
+                    <div>
+                      <span className="text-xs font-bold text-foreground">
+                        {layoutConfig.subscriptionTitle || "Subscribe & Save 5%"}
+                      </span>
+                      <span className="ml-2 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-1.5 py-0.2 rounded-md">
+                        {layoutConfig.subscriptionSubtitle || (isFoodVertical ? "Weekly Catch" : "Recurring Drops")}
+                      </span>
+                    </div>
                   </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isOutOfStock}
+                    className="rounded-xl h-8 text-xs font-bold text-emerald-700 dark:text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/10"
+                    onClick={() => setSubscribeModalOpen(true)}
+                  >
+                    Set Schedule
+                  </Button>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={isOutOfStock}
-                  className="rounded-xl h-8 text-xs font-bold text-emerald-700 dark:text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/10"
-                  onClick={() => setSubscribeModalOpen(true)}
-                >
-                  Set Schedule
-                </Button>
+                <p className="text-[11px] text-muted-foreground">
+                  Get this {storeVertical.shortName} delivered automatically every week with priority hub dispatch. Pause or cancel anytime in your account.
+                </p>
               </div>
-              <p className="text-[11px] text-muted-foreground">
-                Get this {storeVertical.shortName} delivered automatically every week with priority hub dispatch. Pause or cancel anytime in your account.
-              </p>
-            </div>
+            )}
           </div>
 
           {/* Subscribe & Save Modal */}
@@ -639,22 +662,46 @@ function ProductPage() {
             </DialogContent>
           </Dialog>
 
-          <dl className="mt-6 grid grid-cols-2 gap-3 text-sm">
-            {product.calories != null && <Info label="Calories" value={`${product.calories} kcal`} />}
-            {product.protein && <Info label="Protein" value={product.protein} />}
-            {product.best_for && <Info label="Best for" value={product.best_for} />}
-            {product.source_origin && <Info label="Origin" value={product.source_origin} />}
-            {product.storage && <Info label="Storage" value={product.storage} />}
-            {product.traceability && <Info label="Traceability" value={product.traceability} />}
-          </dl>
+          {/* Nutritional Highlights */}
+          {layoutConfig.showNutrition && (product.calories != null || product.protein) && (
+            <div className="mt-6 rounded-2xl border border-border/80 bg-muted/20 p-3.5 space-y-2">
+              <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <span>🥗 {layoutConfig.nutritionTitle || "Nutritional Highlights (Per 100g)"}</span>
+              </h4>
+              <dl className="grid grid-cols-2 gap-2 text-xs">
+                {product.calories != null && <Info label="Calories" value={`${product.calories} kcal`} />}
+                {product.protein && <Info label="Protein" value={product.protein} />}
+              </dl>
+            </div>
+          )}
+
+          {/* Sourcing, Origin, Storage & Culinary Details */}
+          {layoutConfig.showCulinarySpecs && (product.best_for || product.source_origin || product.storage || product.traceability) && (
+            <div className="mt-4 rounded-2xl border border-border/80 bg-card p-3.5 space-y-2">
+              <div className="space-y-0.5">
+                <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <span>⚙️ {layoutConfig.specsTitle || "Culinary & Sourcing Specifications"}</span>
+                </h4>
+                {layoutConfig.specsSubtitle && (
+                  <p className="text-[10px] text-muted-foreground">{layoutConfig.specsSubtitle}</p>
+                )}
+              </div>
+              <dl className="grid grid-cols-2 gap-2 text-xs pt-1">
+                {product.best_for && <Info label="Best for" value={product.best_for} />}
+                {product.source_origin && <Info label="Origin" value={product.source_origin} />}
+                {product.storage && <Info label="Storage" value={product.storage} />}
+                {product.traceability && <Info label="Traceability" value={product.traceability} />}
+              </dl>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Technical Specifications & Details (For Electronics, Appliances & Fashion) */}
-      {product.specifications && Object.keys(product.specifications).length > 0 && (
+      {layoutConfig.showCulinarySpecs && product.specifications && Object.keys(product.specifications).length > 0 && (
         <section className="mt-8 rounded-2xl border border-border bg-card p-5 shadow-2xs">
           <h2 className="text-base font-bold flex items-center gap-2 mb-3">
-            ⚙️ Technical Specifications & Product Details
+            ⚙️ {layoutConfig.specsTitle || "Technical Specifications & Product Details"}
           </h2>
           <div className="divide-y divide-border/60 rounded-xl border border-border/60 overflow-hidden">
             {Object.entries(product.specifications).map(([key, val], idx) => (
@@ -699,9 +746,11 @@ function ProductPage() {
       </Dialog>
 
       {/* AI Multi-Language Health & Culinary Intelligence */}
-      <div className="mt-8">
-        <ProductAiBenefitsCard product={product} />
-      </div>
+      {layoutConfig.showAiBenefits && (
+        <div className="mt-8">
+          <ProductAiBenefitsCard product={product} />
+        </div>
+      )}
 
       {product.recipe_title && (
         <section className="mt-8 rounded-2xl border border-border bg-card p-4">
@@ -711,11 +760,14 @@ function ProductPage() {
       )}
 
       {/* Customer Reviews Section */}
-      <ProductReviewsSection productId={product.id} productName={product.name} />
+      {layoutConfig.showReviews && (
+        <ProductReviewsSection productId={product.id} productName={product.name} customTitle={layoutConfig.reviewsTitle} />
+      )}
 
-      {related.length > 0 && (
+      {/* Related Products Shelf */}
+      {layoutConfig.showRelatedProducts && related.length > 0 && (
         <section className="mt-8">
-          <h2 className="mb-3 text-lg font-bold">You may also like</h2>
+          <h2 className="mb-3 text-lg font-bold">{layoutConfig.relatedTitle || "You may also like"}</h2>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
             {related.map((p) => (
               <ProductCard key={p.id} product={p} />
@@ -727,7 +779,7 @@ function ProductPage() {
   );
 }
 
-function ProductReviewsSection({ productId, productName }: { productId: string; productName: string }) {
+function ProductReviewsSection({ productId, productName, customTitle }: { productId: string; productName: string; customTitle?: string }) {
   const qc = useQueryClient();
   const { user } = useSessionUser();
   const { data: settings } = useQuery(settingsQuery);
@@ -790,9 +842,11 @@ function ProductReviewsSection({ productId, productName }: { productId: string; 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3">
         <div>
           <h2 className="text-lg font-bold flex items-center gap-2">
-            Customer Reviews {avgRating && <span className="text-sm font-normal text-muted-foreground">({avgRating} ★ / {reviews.length} reviews)</span>}
+            {customTitle || "Customer Reviews"} {avgRating && <span className="text-sm font-normal text-muted-foreground">({avgRating} ★ / {reviews.length} reviews)</span>}
           </h2>
-          <p className="text-xs text-muted-foreground">Real feedback from verified seafood lovers.</p>
+          <p className="text-xs text-muted-foreground">
+            {["seafood", "chicken_meat", "all_meat", "grocery_supermarket"].includes(storeVertical.id) ? "Real feedback from verified food lovers." : "Real feedback from verified customer buyers."}
+          </p>
         </div>
 
         {!user?.id ? (
