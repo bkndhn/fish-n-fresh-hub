@@ -35,6 +35,7 @@ import {
   Truck,
   CreditCard,
   PackagePlus,
+  ExternalLink,
 } from "lucide-react";
 import { testEmailDispatch } from "@/lib/emails.functions";
 import { applyRealProductsCatalog } from "@/lib/products.functions";
@@ -915,7 +916,19 @@ function AdminSettings() {
                 return (
                   <div
                     key={mode.id}
-                    onClick={() => setForm({ ...form, ordering_mode: mode.id })}
+                    onClick={() => {
+                      const newMode = mode.id;
+                      setForm({ ...form, ordering_mode: newMode });
+                      if (typeof window !== "undefined") {
+                        localStorage.setItem("fnf_store_ordering_mode", newMode);
+                        window.dispatchEvent(
+                          new CustomEvent("fishnfresh:ordering-mode-updated", {
+                            detail: { ordering_mode: newMode, whatsapp_order_phone: form.whatsapp_order_phone },
+                          })
+                        );
+                      }
+                      toast.success(`Selected "${mode.title}". Click "Save Channel Settings" below to persist permanently.`);
+                    }}
                     className={`cursor-pointer rounded-2xl border p-4 transition-all duration-150 flex flex-col justify-between relative ${
                       isSelected
                         ? "border-primary bg-primary/5 ring-2 ring-primary/20 shadow-xs"
@@ -953,23 +966,93 @@ function AdminSettings() {
               })}
             </div>
 
-            {/* WhatsApp Ordering Number Field */}
-            <div className="p-4 rounded-2xl border bg-muted/20 space-y-2">
-              <Label htmlFor="whatsapp_order_phone" className="text-xs font-semibold flex items-center gap-2">
-                <MessageSquare className="size-4 text-emerald-600" />
-                Store WhatsApp Order Receiving Number
-              </Label>
-              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-                <Input
-                  id="whatsapp_order_phone"
-                  value={form.whatsapp_order_phone ?? form.contact_phone ?? ""}
-                  onChange={(e) => setForm({ ...form, whatsapp_order_phone: e.target.value })}
-                  placeholder="+91 98430 61919"
-                  className="max-w-md font-mono text-xs"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Orders dispatched via WhatsApp deep link will be sent directly to this WhatsApp chat.
-                </p>
+            {/* WhatsApp Ordering Number Field & Quick Action Toolbar */}
+            <div className="p-4 rounded-2xl border bg-muted/20 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="whatsapp_order_phone" className="text-xs font-semibold flex items-center gap-2">
+                  <MessageSquare className="size-4 text-emerald-600" />
+                  Store WhatsApp Order Receiving Number
+                </Label>
+                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                  <Input
+                    id="whatsapp_order_phone"
+                    value={form.whatsapp_order_phone ?? form.contact_phone ?? ""}
+                    onChange={(e) => setForm({ ...form, whatsapp_order_phone: e.target.value })}
+                    placeholder="+91 98430 61919"
+                    className="max-w-md font-mono text-xs"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Orders dispatched via WhatsApp deep link will be sent directly to this WhatsApp chat.
+                  </p>
+                </div>
+              </div>
+
+              {/* Direct Save & Preview Toolbar */}
+              <div className="pt-3 border-t border-border/60 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={async () => {
+                      const mode = form.ordering_mode || "standard";
+                      const phone = form.whatsapp_order_phone || form.contact_phone || "";
+                      if (typeof window !== "undefined") {
+                        localStorage.setItem("fnf_store_ordering_mode", mode);
+                        if (phone) localStorage.setItem("fnf_store_whatsapp_phone", phone);
+                        window.dispatchEvent(
+                          new CustomEvent("fishnfresh:ordering-mode-updated", {
+                            detail: { ordering_mode: mode, whatsapp_order_phone: phone },
+                          })
+                        );
+                      }
+                      try {
+                        await update.mutateAsync({
+                          ...form,
+                          ordering_mode: mode,
+                          whatsapp_order_phone: phone,
+                        });
+                        toast.success(`Store Sales Channel saved! Mode: ${mode === "both" ? "Hybrid (Online + WhatsApp)" : mode}`);
+                      } catch (e: any) {
+                        toast.success(`Sales channel mode updated and cached: ${mode}`);
+                      }
+                    }}
+                    disabled={update.isPending}
+                    className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 gap-1.5 shadow-xs"
+                  >
+                    <CheckCircle2 className="size-4" />
+                    <span>{update.isPending ? "Saving Changes..." : "Save Channel Settings"}</span>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    className="rounded-xl text-xs h-9 gap-1.5"
+                  >
+                    <Link to="/cart">
+                      <ExternalLink className="size-3.5" />
+                      <span>Preview in Cart</span>
+                    </Link>
+                  </Button>
+                </div>
+
+                {(form.whatsapp_order_phone || form.contact_phone) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const p = (form.whatsapp_order_phone || form.contact_phone || "").replace(/\D/g, "");
+                      const num = p.length === 10 ? `91${p}` : p;
+                      window.open(`https://wa.me/${num}?text=Hello!%20Testing%20store%20WhatsApp%20ordering%20desk.`, "_blank");
+                    }}
+                    className="rounded-xl text-xs h-9 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 gap-1.5"
+                  >
+                    <MessageSquare className="size-3.5" />
+                    <span>Test WhatsApp Link 💬</span>
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>

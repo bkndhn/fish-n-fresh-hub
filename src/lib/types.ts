@@ -43,10 +43,26 @@ export function isGstEnabled(settings?: Partial<SiteSettings> | null): boolean {
  * - 'catalog_only': Showcase only (browse products, enquire only)
  */
 export function getStoreOrderingMode(settings?: Partial<SiteSettings> | null): StoreOrderingMode {
-  if (!settings) return "standard";
-  const mode = (settings as any).ordering_mode;
-  if (mode === "both" || mode === "whatsapp_only" || mode === "catalog_only") {
-    return mode;
+  // If settings explicitly specifies a valid mode other than undefined
+  const dbMode = (settings as any)?.ordering_mode;
+  if (dbMode === "both" || dbMode === "whatsapp_only" || dbMode === "catalog_only") {
+    return dbMode;
+  }
+  if (dbMode === "standard") {
+    // If standard is explicitly in db, check if there is an active local override from recent admin actions
+    if (typeof window !== "undefined") {
+      const local = localStorage.getItem("fnf_store_ordering_mode") as StoreOrderingMode | null;
+      if (local && ["both", "whatsapp_only", "catalog_only"].includes(local)) {
+        return local;
+      }
+    }
+    return "standard";
+  }
+  if (typeof window !== "undefined") {
+    const local = localStorage.getItem("fnf_store_ordering_mode") as StoreOrderingMode | null;
+    if (local && ["standard", "both", "whatsapp_only", "catalog_only"].includes(local)) {
+      return local;
+    }
   }
   return "standard";
 }

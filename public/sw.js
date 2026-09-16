@@ -1,5 +1,5 @@
-// Fish N Fresh Hub — PWA Service Worker v4 (Native App Grade)
-const CACHE_NAME = 'fnf-pwa-v4';
+// Fish N Fresh Hub — PWA Service Worker v5 (Native App Grade)
+const CACHE_NAME = 'fnf-pwa-v5';
 const IMAGE_CACHE_NAME = 'fnf-images-v2';
 const STATIC_ASSETS = [
   '/',
