@@ -212,7 +212,7 @@ export async function recordWhatsAppOrderInCrm(data: WhatsAppOrderSummary): Prom
         cutting_style: it.cutPreference || null,
         line_total: it.totalPrice,
       })) as unknown as Json,
-      notes: `Order via WhatsApp Deep Link${navLink ? ` | Nav: ${navLink}` : ""}${data.customer.notes ? ` | Notes: ${data.customer.notes}` : ""}`,
+      notes: data.customer.notes?.trim() || null,
       created_at: new Date().toISOString(),
     };
 

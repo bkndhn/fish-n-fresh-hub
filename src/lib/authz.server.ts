@@ -64,8 +64,43 @@ export async function getCallerUserId(): Promise<string | null> {
 
 export async function getCallerRoles(userId: string): Promise<CallerRole[]> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", userId);
-  return (data ?? []).map((r) => r.role as CallerRole);
+  const roles: CallerRole[] = [];
+
+  try {
+    const { data } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", userId);
+    if (data && data.length > 0) {
+      roles.push(...data.map((r) => r.role as CallerRole));
+    }
+  } catch {
+    // ignore
+  }
+
+  // Also inspect auth user app_metadata / user_metadata as fallback
+  const token = bearerToken();
+  if (token) {
+    try {
+      const { data } = await supabaseAdmin.auth.getUser(token);
+      const user = data?.user;
+      if (user) {
+        const appMeta = user.app_metadata as Record<string, unknown> | undefined;
+        const userMeta = user.user_metadata as Record<string, unknown> | undefined;
+        const candidateRole = (appMeta?.["role"] || userMeta?.["role"] || user.role) as CallerRole;
+        if (candidateRole && !roles.includes(candidateRole)) {
+          roles.push(candidateRole);
+        }
+        const candidateRoles = (appMeta?.["roles"] || userMeta?.["roles"]) as CallerRole[] | undefined;
+        if (Array.isArray(candidateRoles)) {
+          for (const r of candidateRoles) {
+            if (r && !roles.includes(r)) roles.push(r);
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return roles;
 }
 
 /** Throws unless the caller is signed in. Returns the caller's user id. */

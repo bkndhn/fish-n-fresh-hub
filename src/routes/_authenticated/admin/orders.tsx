@@ -120,15 +120,55 @@ function OrdersAdmin() {
   const [bulkDriverName, setBulkDriverName] = useState("Murugan (Express Delivery)");
   const [bulkProcessing, setBulkProcessing] = useState(false);
 
+  // Helper to strip automated tracking URLs and display only customer notes
+  const cleanOrderNotes = (rawNotes: string | null | undefined): string | null => {
+    if (!rawNotes) return null;
+    let text = rawNotes;
+    if (text.includes("Order via WhatsApp Deep Link")) {
+      const match = text.match(/\|\s*Notes?:\s*(.+)$/i);
+      if (match && match[1]?.trim()) {
+        text = match[1].trim();
+      } else {
+        return null;
+      }
+    }
+    text = text.replace(/\|\s*Nav:\s*https?:\/\/\S+/gi, "").trim();
+    return text || null;
+  };
+
   const update = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      await updateOrderStatusWithEmail({ data: { orderId: id, status } });
+      const patch: Database["public"]["Tables"]["orders"]["Update"] = {
+        status,
+        updated_at: new Date().toISOString(),
+      };
+      if (status === "delivered") {
+        patch.delivered_at = new Date().toISOString();
+      }
+      const { error } = await supabase
+        .from("orders")
+        .update(patch)
+        .eq("id", id);
+      if (error) throw error;
+
+      // 2. If cancelled, restore stock
       if (status === "cancelled") {
-        await restoreOrderStock(id);
+        try {
+          await restoreOrderStock(id);
+        } catch (e) {
+          console.warn("[OrdersAdmin] Stock restoral notice:", e);
+        }
+      }
+
+      // 3. Trigger email notification in background (non-blocking)
+      try {
+        await updateOrderStatusWithEmail({ data: { orderId: id, status } });
+      } catch (err) {
+        console.warn("[OrdersAdmin] Email trigger notice:", err);
       }
     },
     onSuccess: () => {
-      toast.success("Order updated");
+      toast.success("Order status updated!");
       qc.invalidateQueries({ queryKey: ["admin", "orders"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -907,9 +947,9 @@ function OrdersAdmin() {
                   </div>
                 </div>
 
-                {o.notes && (
+                {cleanOrderNotes(o.notes) && (
                   <p className="rounded-xl bg-amber-500/10 p-2 text-xs text-amber-900 dark:text-amber-200">
-                    <strong>Note:</strong> {o.notes}
+                    <strong>Customer Note:</strong> {cleanOrderNotes(o.notes)}
                   </p>
                 )}
 

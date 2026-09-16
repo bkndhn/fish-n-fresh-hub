@@ -15,6 +15,7 @@ import {
   type PosReceiptData,
   type ThermalPrinterConfig,
 } from "@/lib/thermalPrinter";
+import { getAutoReply } from "@/components/CustomerSupportChatWidget";
 
 // Mock localStorage and window for vitest node environment
 const storageMock: Record<string, string> = {};
@@ -358,5 +359,80 @@ describe("Thermal Printer Header & Footer Customization Engine", () => {
 
     expect(bytes).toBeInstanceOf(Uint8Array);
     expect(bytes.length).toBeGreaterThan(50);
+  });
+});
+
+describe("Storefront Live Support Instant Auto-Replies & Order Note Sanitizer", () => {
+  it("answers freshness and dock landing questions instantly", () => {
+    const reply = getAutoReply("How fresh is today's seafood?");
+    expect(reply).toContain("Kasimedu & coastal harbours at 6:00 AM");
+    expect(reply).toContain("0–4°C");
+  });
+
+  it("answers cutting style questions instantly with complimentary cut details", () => {
+    const reply = getAutoReply("Can I get curry cut or fry slices?");
+    expect(reply).toContain("Curry Cut");
+    expect(reply).toContain("zero extra charge");
+  });
+
+  it("answers live GPS tracking and delivery PIN questions instantly", () => {
+    const reply = getAutoReply("Where is my rider? How to track order?");
+    expect(reply).toContain("live GPS WebSocket radar");
+    expect(reply).toContain("4-digit Delivery PIN");
+  });
+
+  it("answers express delivery speed questions instantly", () => {
+    const reply = getAutoReply("What is the express delivery time?");
+    expect(reply).toContain("30–45 minutes");
+  });
+
+  it("answers payment methods and COD questions instantly", () => {
+    const reply = getAutoReply("Do you accept cash on delivery or GPay?");
+    expect(reply).toContain("UPI (Google Pay, PhonePe, Paytm)");
+    expect(reply).toContain("Cash on Delivery (COD)");
+  });
+
+  it("answers WhatsApp ordering inquiries with direct contact", () => {
+    const reply = getAutoReply("Can I order fish via WhatsApp?");
+    expect(reply).toContain("+91 98430 61919");
+  });
+
+  it("answers refund and freshness guarantee questions", () => {
+    const reply = getAutoReply("What if the seafood smells bad? Can I refund?");
+    expect(reply).toContain("100% Freshness Guarantee");
+    expect(reply).toContain("within 2 hours of delivery");
+  });
+
+  it("correctly sanitizes order notes by stripping automated tracking URLs while preserving customer notes", () => {
+    const cleanNotes = (raw: string | null | undefined): string | null => {
+      if (!raw) return null;
+      let text = raw;
+      if (text.includes("Order via WhatsApp Deep Link")) {
+        const match = text.match(/\|\s*Notes?:\s*(.+)$/i);
+        if (match && match[1]?.trim()) {
+          text = match[1].trim();
+        } else {
+          return null;
+        }
+      }
+      text = text.replace(/\|\s*Nav:\s*https?:\/\/\S+/gi, "").trim();
+      return text || null;
+    };
+
+    // Case 1: Legacy order with automated deep link, nav URL, and customer notes
+    const legacyWithNote = "Order via WhatsApp Deep Link | Nav: https://maps.google.com/?q=11.10589,77.3327 | Notes: Cut very slice";
+    expect(cleanNotes(legacyWithNote)).toBe("Cut very slice");
+
+    // Case 2: Legacy order with automated deep link and nav URL, but no customer notes
+    const legacyWithoutNote = "Order via WhatsApp Deep Link | Nav: https://maps.google.com/?q=11.10589,77.3327";
+    expect(cleanNotes(legacyWithoutNote)).toBeNull();
+
+    // Case 3: Clean customer note
+    const cleanNote = "Please ring bell and leave with security";
+    expect(cleanNotes(cleanNote)).toBe("Please ring bell and leave with security");
+
+    // Case 4: Null or empty
+    expect(cleanNotes(null)).toBeNull();
+    expect(cleanNotes("")).toBeNull();
   });
 });
