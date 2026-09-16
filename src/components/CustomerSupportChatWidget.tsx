@@ -83,8 +83,11 @@ export function CustomerSupportChatWidget() {
     const savedPhone = localStorage.getItem("fnf_phone") || "";
     if (savedName) setGuestName(savedName);
     if (savedPhone) setGuestPhone(savedPhone);
-    if (user?.id || savedName) {
+    // Chat is available to signed-in customers only, so their conversation stays private.
+    if (user?.id) {
       setIsStarted(true);
+    } else {
+      setIsStarted(false);
     }
   }, [user]);
 
