@@ -64,6 +64,7 @@ function AdminSettings() {
   const tenant = getCurrentTenant();
   const [form, setForm] = useState<any>({});
   const [gatewayForm, setGatewayForm] = useState<GatewayCreds>({ provider: "none", api_key: "", secret_key: "" });
+  const [secretsForm, setSecretsForm] = useState<StoreSecretsForm>({ resend_api_key: "", fcm_server_key: "" });
   const [shopPinModalOpen, setShopPinModalOpen] = useState(false);
   const [exportingBackup, setExportingBackup] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
