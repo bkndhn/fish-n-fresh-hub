@@ -2,7 +2,7 @@ import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe
 import { getStripe, getStripeEnvironment } from "@/lib/stripe";
 import { createOrderCheckout } from "@/lib/payments.functions";
 
-export function StripeOrderCheckout({ orderId, returnUrl, guestPhone }: { orderId: string; returnUrl: string; guestPhone?: string }) {
+export function StripeOrderCheckout({ orderId, returnUrl, guestPhone }: { orderId: string; returnUrl: string; guestPhone?: string | undefined }) {
   const fetchClientSecret = async (): Promise<string> => {
     const result = await createOrderCheckout({
       data: { orderId, returnUrl, environment: getStripeEnvironment(), guestPhone: guestPhone ?? localStorage.getItem("fnf_phone") ?? undefined },

@@ -15,7 +15,7 @@ export const testEmailDispatch = createServerFn({ method: "POST" })
   });
 
 export const sendOrderConfirmedEmailServer = createServerFn({ method: "POST" })
-  .inputValidator((data: { orderId: string; guestPhone?: string }) => data)
+  .inputValidator((data: { orderId: string; guestPhone?: string | undefined }) => data)
   .handler(async ({ data }) => {
     // The recipient always comes from the order record itself, never from the caller.
     await requireOrderAccess(data.orderId, data.guestPhone ?? null);

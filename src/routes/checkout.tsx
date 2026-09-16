@@ -656,7 +656,7 @@ function Checkout() {
         </div>
         <StripeOrderCheckout
           orderId={checkoutOrderId}
-          guestPhone={form.phone}
+          guestPhone={phone}
           returnUrl={`${window.location.origin}/payment-status?order=${checkoutOrderId}`}
         />
       </AppShell>
