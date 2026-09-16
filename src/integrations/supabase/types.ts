@@ -1637,6 +1637,42 @@ export type Database = {
         }
         Relationships: []
       }
+      store_secrets: {
+        Row: {
+          created_at: string
+          fcm_server_key: string | null
+          id: string
+          resend_api_key: string | null
+          smtp_host: string | null
+          smtp_pass: string | null
+          smtp_port: number | null
+          smtp_user: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          fcm_server_key?: string | null
+          id?: string
+          resend_api_key?: string | null
+          smtp_host?: string | null
+          smtp_pass?: string | null
+          smtp_port?: number | null
+          smtp_user?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          fcm_server_key?: string | null
+          id?: string
+          resend_api_key?: string | null
+          smtp_host?: string | null
+          smtp_pass?: string | null
+          smtp_port?: number | null
+          smtp_user?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       store_settings: {
         Row: {
           accent_color: string
@@ -1671,7 +1707,6 @@ export type Database = {
           express_sla_mins: number
           facebook_url: string | null
           fcm_project_id: string | null
-          fcm_server_key: string | null
           feature_ai_benefits_enabled: boolean | null
           feature_fcm_enabled: boolean | null
           feature_live_chat_enabled: boolean | null
@@ -1735,7 +1770,6 @@ export type Database = {
           referral_reward_referrer: number
           refund_content: string | null
           require_online_payment: boolean | null
-          resend_api_key: string | null
           sender_email: string | null
           sender_name: string | null
           seo_default_description: string | null
@@ -1747,10 +1781,6 @@ export type Database = {
           shop_lng: number | null
           shop_logo: string | null
           show_stock_to_customers: boolean
-          smtp_host: string | null
-          smtp_pass: string | null
-          smtp_port: number | null
-          smtp_user: string | null
           social_facebook: string | null
           social_instagram: string | null
           social_whatsapp: string | null
@@ -1813,7 +1843,6 @@ export type Database = {
           express_sla_mins?: number
           facebook_url?: string | null
           fcm_project_id?: string | null
-          fcm_server_key?: string | null
           feature_ai_benefits_enabled?: boolean | null
           feature_fcm_enabled?: boolean | null
           feature_live_chat_enabled?: boolean | null
@@ -1877,7 +1906,6 @@ export type Database = {
           referral_reward_referrer?: number
           refund_content?: string | null
           require_online_payment?: boolean | null
-          resend_api_key?: string | null
           sender_email?: string | null
           sender_name?: string | null
           seo_default_description?: string | null
@@ -1889,10 +1917,6 @@ export type Database = {
           shop_lng?: number | null
           shop_logo?: string | null
           show_stock_to_customers?: boolean
-          smtp_host?: string | null
-          smtp_pass?: string | null
-          smtp_port?: number | null
-          smtp_user?: string | null
           social_facebook?: string | null
           social_instagram?: string | null
           social_whatsapp?: string | null
@@ -1955,7 +1979,6 @@ export type Database = {
           express_sla_mins?: number
           facebook_url?: string | null
           fcm_project_id?: string | null
-          fcm_server_key?: string | null
           feature_ai_benefits_enabled?: boolean | null
           feature_fcm_enabled?: boolean | null
           feature_live_chat_enabled?: boolean | null
@@ -2019,7 +2042,6 @@ export type Database = {
           referral_reward_referrer?: number
           refund_content?: string | null
           require_online_payment?: boolean | null
-          resend_api_key?: string | null
           sender_email?: string | null
           sender_name?: string | null
           seo_default_description?: string | null
@@ -2031,10 +2053,6 @@ export type Database = {
           shop_lng?: number | null
           shop_logo?: string | null
           show_stock_to_customers?: boolean
-          smtp_host?: string | null
-          smtp_pass?: string | null
-          smtp_port?: number | null
-          smtp_user?: string | null
           social_facebook?: string | null
           social_instagram?: string | null
           social_whatsapp?: string | null
