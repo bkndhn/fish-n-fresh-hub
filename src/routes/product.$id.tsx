@@ -869,6 +869,7 @@ function ProductReviewsSection({ productId, productName }: { productId: string; 
             </div>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       <div className="mt-4 space-y-3">

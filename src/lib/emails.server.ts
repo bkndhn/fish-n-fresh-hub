@@ -172,7 +172,8 @@ async function dispatchOrderEmail(
     }
 
     // 6. Dynamic Sender & Resend API Key resolution (Database store_settings > Process.env)
-    const resendApiKey = settings?.resend_api_key || process.env['RESEND_API_KEY'];
+    const { data: secrets } = await supabaseAdmin.from("store_secrets").select("resend_api_key").maybeSingle();
+    const resendApiKey = secrets?.resend_api_key || process.env['RESEND_API_KEY'];
     const fromEmail = settings?.sender_email || process.env['MAIL_FROM'] || `orders@${process.env['RESEND_DOMAIN'] || "resend.dev"}`;
     const fromName = settings?.sender_name || storeName;
 
