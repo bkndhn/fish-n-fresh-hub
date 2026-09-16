@@ -1,4 +1,39 @@
-# Logs
+﻿# ── Environment & Secret Configuration (CRITICAL SECURITY) ───────────────────
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+*.pem
+*.key
+*.crt
+*.cer
+*.pfx
+*.p12
+id_rsa*
+id_ed25519*
+credentials.json
+client_secret*.json
+service-account*.json
+
+# ── Dependencies & Package Managers ──────────────────────────────────────────
+node_modules
+.pnp
+.pnp.js
+
+# ── Production Builds & SSR Artifacts ─────────────────────────────────────────
+dist
+dist-ssr
+.output
+.vinxi
+.tanstack/**
+.nitro
+build
+out
+
+# ── Logs & Debugging ──────────────────────────────────────────────────────────
 logs
 *.log
 npm-debug.log*
@@ -7,26 +42,37 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-.output
-.vinxi
-.tanstack/**
-.nitro
-*.local
-
-# Wrangler / Cloudflare
+# ── Cloudflare & Edge Worker Runtimes ─────────────────────────────────────────
 .wrangler/
 .dev.vars
 
-# Editor directories and files
+# ── Testing & Code Coverage ───────────────────────────────────────────────────
+coverage/
+.nyc_output/
+*.lcov
+test-results/
+
+# ── TypeScript & Compiler Caches ──────────────────────────────────────────────
+*.tsbuildinfo
+.cache/
+.parcel-cache/
+.eslintcache
+
+# ── Operating System & File System Debris ─────────────────────────────────────
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ── IDEs & Editors ───────────────────────────────────────────────────────────
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.bak
+*.tmp

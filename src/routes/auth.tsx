@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { checkRateLimit, recordRateLimitAttempt, resetRateLimit } from "@/lib/rateLimiter";
 
 function safeNext(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -108,19 +109,33 @@ function AuthPage() {
 
   async function signIn(e: React.FormEvent) {
     e.preventDefault();
+    const rlCheck = checkRateLimit("auth_signin", email || "guest");
+    if (!rlCheck.allowed) {
+      toast.error(rlCheck.errorMessage || "Too many sign in attempts. Please wait.");
+      return;
+    }
+
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
+      recordRateLimitAttempt("auth_signin", email || "guest");
       toast.error(error.message);
       return;
     }
+    resetRateLimit("auth_signin", email || "guest");
     toast.success("Welcome back");
     await routeAfterLogin();
   }
 
   async function signUp(e: React.FormEvent) {
     e.preventDefault();
+    const rlCheck = checkRateLimit("auth_signup", email || "guest");
+    if (!rlCheck.allowed) {
+      toast.error(rlCheck.errorMessage || "Too many registration attempts. Please wait.");
+      return;
+    }
+
     if (!/^[6-9]\d{9}$/.test(phone)) {
       toast.error("Please enter a valid 10-digit phone number starting with 6-9.");
       return;
@@ -137,10 +152,12 @@ function AuthPage() {
     });
     setLoading(false);
     if (error) {
+      recordRateLimitAttempt("auth_signup", email || "guest");
       toast.error(error.message);
       return;
     }
     
+    resetRateLimit("auth_signup", email || "guest");
     if (data.session) {
       toast.success("Account created successfully!");
       await routeAfterLogin();
@@ -156,6 +173,12 @@ function AuthPage() {
       return;
     }
 
+    const rlCheck = checkRateLimit("auth_reset", forgotEmail.trim());
+    if (!rlCheck.allowed) {
+      toast.error(rlCheck.errorMessage || "Too many reset attempts. Please wait.");
+      return;
+    }
+
     if (cooldown > 0) {
       toast.info(`Please wait ${cooldown}s before requesting another reset email.`);
       return;
@@ -167,6 +190,8 @@ function AuthPage() {
       redirectTo: redirectUrl,
     });
     setLoading(false);
+
+    recordRateLimitAttempt("auth_reset", forgotEmail.trim());
 
     if (error) {
       toast.error(error.message);

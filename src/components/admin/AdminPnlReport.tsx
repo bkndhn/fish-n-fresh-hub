@@ -673,7 +673,11 @@ export function AdminPnlReport() {
                 size="sm"
                 variant={tierFilter === "high_profit" ? "default" : "outline"}
                 onClick={() => setTierFilter("high_profit")}
-                className="rounded-xl h-7 px-2.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400"
+                className={`rounded-xl h-7 px-2.5 text-[11px] font-semibold ${
+                  tierFilter === "high_profit"
+                    ? "text-primary-foreground font-bold shadow-xs"
+                    : "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+                }`}
               >
                 🔥 High Margin (&gt;40%)
               </Button>
@@ -681,7 +685,11 @@ export function AdminPnlReport() {
                 size="sm"
                 variant={tierFilter === "healthy" ? "default" : "outline"}
                 onClick={() => setTierFilter("healthy")}
-                className="rounded-xl h-7 px-2.5 text-[11px] font-semibold text-blue-600 dark:text-blue-400"
+                className={`rounded-xl h-7 px-2.5 text-[11px] font-semibold ${
+                  tierFilter === "healthy"
+                    ? "text-primary-foreground font-bold shadow-xs"
+                    : "text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
+                }`}
               >
                 ⚖️ Healthy (20-40%)
               </Button>
@@ -689,7 +697,11 @@ export function AdminPnlReport() {
                 size="sm"
                 variant={tierFilter === "slim" ? "default" : "outline"}
                 onClick={() => setTierFilter("slim")}
-                className="rounded-xl h-7 px-2.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400"
+                className={`rounded-xl h-7 px-2.5 text-[11px] font-semibold ${
+                  tierFilter === "slim"
+                    ? "text-primary-foreground font-bold shadow-xs"
+                    : "text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                }`}
               >
                 ⚠️ Slim (0-20%)
               </Button>
@@ -697,7 +709,11 @@ export function AdminPnlReport() {
                 size="sm"
                 variant={tierFilter === "loss_making" ? "default" : "outline"}
                 onClick={() => setTierFilter("loss_making")}
-                className="rounded-xl h-7 px-2.5 text-[11px] font-semibold text-rose-600 dark:text-rose-400"
+                className={`rounded-xl h-7 px-2.5 text-[11px] font-semibold ${
+                  tierFilter === "loss_making"
+                    ? "text-primary-foreground font-bold shadow-xs"
+                    : "text-rose-600 dark:text-rose-400 hover:bg-rose-500/10"
+                }`}
               >
                 ❄️ Loss Making
               </Button>

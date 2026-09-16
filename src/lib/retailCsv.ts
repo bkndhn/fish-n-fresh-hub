@@ -50,6 +50,18 @@ export function generateSampleCsv(vertical: string = "electronics_appliances"): 
       'Fortune Sunlite Refined Sunflower Oil 1L,Edible Oils & Ghee,115,135,160,pack,120,Fortune,FORT-SUN-1L,0,false,"Aisle 3, Shelf B-1","Enriched: Vitamin A & D | Zero Cholesterol",303,"Light and healthy edible cooking oil for everyday family meals"',
       'Amul Butter Pasteurised 500g,Dairy Bread & Eggs,235,275,285,pack,50,Amul,AMUL-BUT-500,0,false,"Dairy Chiller #1","Milk Fat: 80% | Storage: Refrigerate 4°C",304,"The classic Taste of India butter made from pure fresh cream"',
     ];
+  } else if (vertical === "snacks_sweets") {
+    sampleRows = [
+      'Crispy Masala Potato Chips 85g,Chips & Crisps,14,20,20,pack,150,Lays,SNK-CHP-20,0,false,"Rack S-1","Shelf Life: 4 Months | Net Weight: 85g | Veg: 100% Pure Veg",501,"Classic crispy thinly-sliced potato chips seasoned with Indian spices"',
+      'Traditional Ribbon Murukku 150g,Namkeen & Mixture,21,30,35,pack,100,Grand Sweets,SNK-MRK-30,0,false,"Rack S-2","Shelf Life: 3 Months | Net Weight: 150g | Style: Hand-pressed",502,"Crunchy golden south-Indian murukku made with pure rice flour and butter"',
+      'Pure Ghee Mysore Pak 250g,Sweets & Mithai,140,210,230,pack,40,Sri Krishna,SWT-MP-250,0,false,"Sweet Counter #1","Ghee: 100% Pure Cow Ghee | Shelf Life: 15 Days",503,"Melt-in-mouth traditional royal Mysore Pak prepared in aromatic golden cow ghee"',
+    ];
+  } else if (vertical === "footwear") {
+    sampleRows = [
+      'Apex Pro Lightweight Running Shoes,Sports Shoes & Sneakers,1100,1899,2499,pair,30,Puma,FTW-RUN-01,6,false,"Shoe Rack A-1","Upper: Breathable Mesh | Sole: EVA Cushion | Size Range: UK 6-11",601,"High-rebound cushioning athletic shoe for daily running, jogging, and gym workouts"',
+      'Regal Oxford Derby Formal Shoes,Formal Shoes,1450,2499,3299,pair,25,Bata,FTW-OXF-01,6,false,"Shoe Rack B-2","Upper: Genuine Leather | Sole: Anti-skid TPR | Size Range: UK 6-10",602,"Handcrafted formal lace-up Oxford shoe in rich tan leather for corporate and festive styling"',
+      'SoftStep Ortho Comfort Daily Sandals,Sandals & Floaters,340,599,799,pair,50,Paragon,FTW-SND-01,3,false,"Shoe Rack C-1","Strap: Padded Synthetic | Footbed: Orthopedic Memory Foam",603,"Daily wear orthopedic comfort sandals with arch support for fatigue-free walking"',
+    ];
   } else {
     // Universal / Departmental
     sampleRows = [

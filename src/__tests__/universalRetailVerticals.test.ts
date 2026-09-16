@@ -19,13 +19,15 @@ import {
 import type { Product, CartItem } from "@/lib/types";
 
 describe("Universal Business Verticals & Capabilities", () => {
-  it("includes all 8 supported retail models and excludes restaurant/hotel models", () => {
+  it("includes all 10 supported retail models and excludes restaurant/hotel models", () => {
     const verticalIds = BUSINESS_VERTICALS.map((v) => v.id);
 
     // Expected retail verticals
     expect(verticalIds).toContain("electronics_appliances");
     expect(verticalIds).toContain("clothing_fashion");
+    expect(verticalIds).toContain("footwear");
     expect(verticalIds).toContain("grocery_supermarket");
+    expect(verticalIds).toContain("snacks_sweets");
     expect(verticalIds).toContain("departmental_store");
     expect(verticalIds).toContain("universal");
     expect(verticalIds).toContain("seafood");
@@ -37,7 +39,7 @@ describe("Universal Business Verticals & Capabilities", () => {
     expect(verticalIds).not.toContain("hotel");
     expect(verticalIds).not.toContain("cloud_kitchen");
     expect(verticalIds).not.toContain("bar");
-    expect(verticalIds.length).toBe(8);
+    expect(verticalIds.length).toBe(10);
   });
 
   it("assigns electronics-specific capabilities correctly", () => {
@@ -57,6 +59,23 @@ describe("Universal Business Verticals & Capabilities", () => {
     expect(caps.hasImeiSerialTracking).toBe(false);
     expect(caps.hasWeighingScale).toBe(false);
     expect(caps.hasCutPreferences).toBe(false);
+  });
+
+  it("assigns footwear capabilities correctly", () => {
+    const caps = getVerticalCapabilities("footwear");
+    expect(caps.hasSizeColorVariants).toBe(true);
+    expect(caps.hasSizeChart).toBe(true);
+    expect(caps.hasImeiSerialTracking).toBe(false);
+    expect(caps.hasWeighingScale).toBe(false);
+    expect(caps.hasCutPreferences).toBe(false);
+  });
+
+  it("assigns snacks and sweets capabilities correctly", () => {
+    const caps = getVerticalCapabilities("snacks_sweets");
+    expect(caps.hasAisleRackLocation).toBe(true);
+    expect(caps.hasWeighingScale).toBe(true);
+    expect(caps.hasCutPreferences).toBe(false);
+    expect(caps.hasImeiSerialTracking).toBe(false);
   });
 
   it("assigns grocery and supermarket capabilities correctly", () => {
@@ -87,6 +106,14 @@ describe("Universal Business Verticals & Capabilities", () => {
     const groceryPreset = getVerticalPreset("grocery_supermarket");
     expect(groceryPreset.defaultCategories).toContain("Atta, Rice & Whole Grains");
     expect(groceryPreset.defaultCategories).toContain("Dals, Pulses & Dry Fruits");
+
+    const snacksPreset = getVerticalPreset("snacks_sweets");
+    expect(snacksPreset.defaultCategories).toContain("₹10 & ₹20 Snack Packs");
+    expect(snacksPreset.defaultCategories).toContain("Chips & Crisps");
+
+    const footwearPreset = getVerticalPreset("footwear");
+    expect(footwearPreset.defaultCategories).toContain("Sports Shoes & Sneakers");
+    expect(footwearPreset.defaultCategories).toContain("Sandals & Floaters");
   });
 });
 

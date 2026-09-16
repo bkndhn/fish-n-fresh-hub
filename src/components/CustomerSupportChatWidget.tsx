@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSessionUser } from "@/lib/session";
 import { playOrderNotificationSound } from "@/lib/realtime";
 import { toast } from "sonner";
+import { checkRateLimit, recordRateLimitAttempt } from "@/lib/rateLimiter";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -241,6 +242,13 @@ export function CustomerSupportChatWidget() {
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!inputText.trim() || !conversationId) return;
+
+    const rlCheck = checkRateLimit("support_chat", user?.id || conversationId);
+    if (!rlCheck.allowed) {
+      toast.error(rlCheck.errorMessage || "Too many messages. Please slow down.");
+      return;
+    }
+    recordRateLimitAttempt("support_chat", user?.id || conversationId);
 
     const text = inputText.trim();
     setInputText("");

@@ -4,6 +4,8 @@ export type BusinessVertical =
   | "all_meat"
   | "electronics_appliances"
   | "clothing_fashion"
+  | "footwear"
+  | "snacks_sweets"
   | "grocery_supermarket"
   | "departmental_store"
   | "universal";
@@ -251,6 +253,92 @@ export const VERTICAL_CONFIGS: Record<BusinessVertical, VerticalConfig> = {
     hasCutPreferences: false,
   },
 
+  footwear: {
+    id: "footwear",
+    name: "Footwear, Shoes & Sandal Studio",
+    shortName: "Footwear",
+    emoji: "👟",
+    tagline: "Everyday Comfort, Sports Sneakers, Formal Shoes & Casual Slides",
+    badgeText: "All Sizes In-Stock (UK 6–11) · 7-Day Exchange Guarantee",
+    recommendedThemeColor: "#2563eb",
+    defaultCategories: [
+      "Sports Shoes & Sneakers",
+      "Formal Oxford & Derby Shoes",
+      "Everyday Casual Loafers",
+      "Sandals & Floaters",
+      "Waterproof Chappals & Slides",
+      "Kids Footwear",
+      "Shoe Care & Insoles",
+    ],
+    motto: {
+      en: "Step Into Comfort · Engineered Durability & Modern Style",
+      ta: "ஆறுதலான நடை · நீண்ட உழைப்பு மற்றும் நவீன வடிவமைப்பு",
+      hi: "कम्फर्ट और मजबूती का भरोसा · हर कदम पर बेहतरीन स्टाइल",
+    },
+    subMotto: {
+      en: "Full range of UK/India shoe sizes 6 to 11 with cushion arch support and non-slip soles.",
+      ta: "அனைத்து அளவுகளிலும் தரமான காலணிகள் மற்றும் எளிதான அளவு மாற்றம்.",
+      hi: "सभी साइज में कम्फर्टेबल जूते और चप्पलें, आसान साइज एक्सचेंज के साथ।",
+    },
+    features: [
+      { title: "Exact Shoe Sizes (6–11)", desc: "Clear UK/India sizing charts with half-sizes and wide-fit options." },
+      { title: "Ergonomic Cushion Soles", desc: "Memory foam insoles and EVA shock-absorption for all-day comfort." },
+      { title: "Waterproof & Monsoon Ready", desc: "Durable PU and rubber slides designed for tough everyday use." },
+      { title: "7-Day Size Exchange", desc: "Doorstep size swap if the fit isn't 100% comfortable." },
+    ],
+    hasWeighingScale: false,
+    hasImeiSerialTracking: false,
+    hasSizeColorVariants: true,
+    hasAisleRackLocation: true,
+    hasWarrantyManagement: true,
+    hasTechnicalSpecs: true,
+    hasSizeChart: true,
+    hasCutPreferences: false,
+  },
+
+  snacks_sweets: {
+    id: "snacks_sweets",
+    name: "Crispy Snacks, Namkeen & Pure Ghee Sweets Hub",
+    shortName: "Snacks & Namkeen",
+    emoji: "🥨",
+    tagline: "Freshly Fried Savouries, ₹10/₹20/₹30 Snack Packs & Mithai",
+    badgeText: "Fresh & Crispy Daily · ₹10/₹20/₹30 Pocket Packs",
+    recommendedThemeColor: "#d97706",
+    defaultCategories: [
+      "₹10 & ₹20 Snack Packs",
+      "₹30 Party Packs",
+      "Chips & Crisps",
+      "Traditional Murukku & Mixture",
+      "Pure Ghee Sweets & Mithai",
+      "Roasted Nuts & Savouries",
+      "Tea Time & Biscuits",
+    ],
+    motto: {
+      en: "Crispy, Crunchy & Irresistible · Fresh Everyday Flavours",
+      ta: "சுவையான மொறுமொறு நொறுக்குத்தீனி · தினசரி புத்தம் புது சுவை",
+      hi: "कुरकुरा और लाजवाब स्वाद · रोज़ाना ताज़ा नमकीन और मिठाइयाँ",
+    },
+    subMotto: {
+      en: "Handcrafted savouries, authentic regional murukkus, and festival sweets at affordable everyday prices.",
+      ta: "பாரம்பரிய கார வகைகள், நாட்டு முறுக்கு மற்றும் நெய் இனிப்புகள் நியாயமான விலையில்.",
+      hi: "पारंपरिक नमकीन, चटपटे चिप्स और शुद्ध घी की मिठाइयाँ सबसे किफायती दामों में।",
+    },
+    features: [
+      { title: "₹10, ₹20, ₹30 Value Packs", desc: "Pocket-friendly single-serve and family sharing packets for quick snacking." },
+      { title: "100% Freshly Prepared", desc: "Fried in clean, pure cold-pressed oils with zero stale preservatives." },
+      { title: "Airtight Seal Packaging", desc: "Pouch packaging locks in crisp crunchiness for days." },
+      { title: "Bulk & Party Boxes", desc: "Wholesale 500g, 1kg, and 2kg tins for celebrations and corporate events." },
+    ],
+    hasWeighingScale: true,
+    hasImeiSerialTracking: false,
+    hasSizeColorVariants: false,
+    hasAisleRackLocation: true,
+    hasWarrantyManagement: false,
+    hasTechnicalSpecs: false,
+    hasSizeChart: false,
+    hasCutPreferences: false,
+  },
+
   grocery_supermarket: {
     id: "grocery_supermarket",
     name: "Fresh Grocery & Daily Supermarket",
@@ -400,6 +488,46 @@ export function detectVerticalFromStoreName(storeName?: string | null): Business
   if (name.includes("fashion") || name.includes("clothing") || name.includes("apparel") || name.includes("textile") || name.includes("garment") || name.includes("boutique") || name.includes("wear") || name.includes("saree") || name.includes("dress")) {
     return "clothing_fashion";
   }
+  if (
+    name.includes("snack") ||
+    name.includes("namkeen") ||
+    name.includes("chips") ||
+    name.includes("murukku") ||
+    name.includes("mixture") ||
+    name.includes("sweet") ||
+    name.includes("mithai") ||
+    name.includes("bakery") ||
+    name.includes("bikkis") ||
+    name.includes("biscuit") ||
+    name.includes("savouries") ||
+    name.includes("haldiram") ||
+    name.includes("20rs") ||
+    name.includes("30rs") ||
+    name.includes("hot chips") ||
+    name.includes("chaat") ||
+    name.includes("bikanervala") ||
+    name.includes("anand sweets")
+  ) {
+    return "snacks_sweets";
+  }
+  if (
+    name.includes("footwear") ||
+    name.includes("shoe") ||
+    name.includes("chappal") ||
+    name.includes("sandal") ||
+    name.includes("sneaker") ||
+    name.includes("boot") ||
+    name.includes("slipper") ||
+    name.includes("crocs") ||
+    name.includes("bata") ||
+    name.includes("khadim") ||
+    name.includes("metro shoes") ||
+    name.includes("walkwell") ||
+    name.includes("sole") ||
+    name.includes("heel")
+  ) {
+    return "footwear";
+  }
   if (name.includes("departmental") || name.includes("hypermarket") || name.includes("mall") || name.includes("bazaar")) {
     return "departmental_store";
   }
@@ -461,6 +589,10 @@ export function getVerticalSearchPlaceholder(vertical: BusinessVertical, storeNa
       return "Search smartphones, smart TVs, laptops, headphones, kitchen appliances…";
     case "clothing_fashion":
       return "Search shirts, sarees, jeans, casual wear, dresses, footwear…";
+    case "footwear":
+      return "Search sports sneakers, formal leather shoes, daily comfort sandals, chappals (Size 6-11)…";
+    case "snacks_sweets":
+      return "Search spicy mixture, potato chips, murukku, ₹20/₹30 snack packs, ghee sweets…";
     case "departmental_store":
       return `Search across all departments in ${name} (groceries, home, lifestyle)…`;
     case "universal":
@@ -478,6 +610,10 @@ export function getVerticalProductTerm(vertical: BusinessVertical): { singular: 
       return { singular: "Cut", plural: "Cuts" };
     case "grocery_supermarket":
       return { singular: "Item", plural: "Items" };
+    case "footwear":
+      return { singular: "Pair", plural: "Pairs" };
+    case "snacks_sweets":
+      return { singular: "Pack", plural: "Packs" };
     case "electronics_appliances":
     case "clothing_fashion":
     case "departmental_store":
@@ -515,6 +651,24 @@ export function getVerticalCutOptions(vertical: BusinessVertical): string[] {
         "Diced / Pre-cut",
         "Whole / Uncut",
       ];
+    case "footwear":
+      return [
+        "UK/India Size 6",
+        "UK/India Size 7",
+        "UK/India Size 8",
+        "UK/India Size 9",
+        "UK/India Size 10",
+        "UK/India Size 11",
+      ];
+    case "snacks_sweets":
+      return [
+        "₹10 Pocket Pack",
+        "₹20 Value Pack",
+        "₹30 Party Pack",
+        "250g Fresh Box",
+        "500g Family Pack",
+        "1kg Bulk Tin",
+      ];
     default:
       return ["Standard Packaging", "Gift Wrapped", "Eco-Friendly Bag"];
   }
@@ -528,6 +682,10 @@ export function getVerticalUnitOptions(vertical: BusinessVertical): string[] {
       return ["kg", "500g", "250g", "pack", "unit"];
     case "grocery_supermarket":
       return ["kg", "g", "500g", "liter", "ml", "pack", "bunch", "unit"];
+    case "footwear":
+      return ["pair", "unit", "box"];
+    case "snacks_sweets":
+      return ["pkt", "pack", "250g", "500g", "kg", "box", "piece"];
     case "electronics_appliances":
       return ["unit", "piece", "set", "pack"];
     case "clothing_fashion":
@@ -614,6 +772,44 @@ export function getVerticalFaqs(vertical: BusinessVertical, storeName: string): 
         {
           question: "How fast will my fashion order arrive?",
           answer: "Orders are dispatched express and delivered within 24 to 48 hours with live tracking.",
+        },
+      ];
+    case "snacks_sweets":
+      return [
+        {
+          question: `Are the snacks and savouries at ${storeName} freshly prepared daily?`,
+          answer: `Yes, all potato chips, murukku, mixture, and savouries at ${storeName} are prepared fresh daily in pure, unadulterated cold-pressed edible oils.`,
+        },
+        {
+          question: "Do you have single-serve ₹10, ₹20, and ₹30 snack packs?",
+          answer: "Yes! We offer a full range of budget-friendly ₹10, ₹20, and ₹30 packets alongside 250g, 500g, and 1kg family sharing packs.",
+        },
+        {
+          question: "How long do the snacks maintain their crisp crunch?",
+          answer: "Our airtight, nitrogen-sealed packaging keeps savouries crisp, fresh, and crunchy for up to 60 days from packaging.",
+        },
+        {
+          question: "Can I order snack combos directly via WhatsApp?",
+          answer: "Yes! Simply add your favorite snack packs to your cart and tap 'Order on WhatsApp' for instant dispatch.",
+        },
+      ];
+    case "footwear":
+      return [
+        {
+          question: `What shoe sizes are available at ${storeName}?`,
+          answer: `We stock full Indian / UK shoe sizes from Size 6 up to Size 11 across all sports, formal, and casual models with accurate size charts.`,
+        },
+        {
+          question: "What if the footwear does not fit properly?",
+          answer: "We offer a 100% hassle-free 7-day doorstep size exchange policy. If the shoe is too tight or loose, our rider will swap it for the right size.",
+        },
+        {
+          question: "Are your sandals and slides waterproof for rainy season?",
+          answer: "Yes, our daily comfort slides and chappals are engineered with high-grade anti-slip EVA and waterproof PU materials ideal for rainy weather.",
+        },
+        {
+          question: "How fast is delivery for footwear orders?",
+          answer: "Orders are dispatched express within 24 to 48 hours in premium protective shoe boxes.",
         },
       ];
     case "seafood":

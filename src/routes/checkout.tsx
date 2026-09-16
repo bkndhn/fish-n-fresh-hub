@@ -40,6 +40,7 @@ import {
   recordWhatsAppOrderInCrm,
   type WhatsAppOrderSummary,
 } from "@/lib/whatsappOrdering";
+import { checkRateLimit, recordRateLimitAttempt } from "@/lib/rateLimiter";
 
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371; // Radius of the earth in km
@@ -376,11 +377,19 @@ function Checkout() {
       toast.error("Please fill in your name, phone and address");
       return;
     }
+
+    const rlCheck = checkRateLimit("checkout_order", cleanPhone || "guest");
+    if (!rlCheck.allowed) {
+      toast.error(rlCheck.errorMessage || "Too many order requests. Please wait a moment.");
+      return;
+    }
+
     if (payment === "card" && !isPaymentsConfigured()) {
       toast.error("Card payments are not available right now");
       return;
     }
     
+    recordRateLimitAttempt("checkout_order", cleanPhone || "guest");
     setSaving(true);
 
     // Pre-flight live stock check before processing payment or creating order
@@ -577,6 +586,13 @@ function Checkout() {
       toast.error("Please enter your delivery address");
       return;
     }
+
+    const rlCheck = checkRateLimit("checkout_order", cleanPhone || "guest");
+    if (!rlCheck.allowed) {
+      toast.error(rlCheck.errorMessage || "Too many order requests. Please wait a moment.");
+      return;
+    }
+    recordRateLimitAttempt("checkout_order", cleanPhone || "guest");
 
     const storePhone = (settings as SiteSettings)?.whatsapp_order_phone || settings?.contact_phone || "9843061919";
     const storeName = settings?.store_name || "Fish N Fresh Hub";
