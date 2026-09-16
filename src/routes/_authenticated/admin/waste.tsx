@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminProductsQuery } from "@/lib/admin";
+import { settingsQuery } from "@/lib/queries";
+import { getStoreVertical, getVerticalFormFields } from "@/lib/verticals";
 import { supabase } from "@/integrations/supabase/client";
 import { formatINR, formatIST, formatStockDisplay } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -99,6 +101,9 @@ function WasteAdmin() {
   const qc = useQueryClient();
   const productsQueryObj = useQuery(adminProductsQuery());
   const products = productsQueryObj.data ?? [];
+  const { data: settings } = useQuery(settingsQuery);
+  const storeVertical = getStoreVertical(settings);
+  const formFields = useMemo(() => getVerticalFormFields(storeVertical.id, settings?.store_name), [storeVertical.id, settings?.store_name]);
 
   const [wasteList, setWasteList] = useState<WasteEntry[]>(() => {
     try {
@@ -136,7 +141,7 @@ function WasteAdmin() {
 
   const handleSaveWaste = async () => {
     if (!selectedProductId) {
-      toast.error("Please select a seafood product");
+      toast.error(`Please select a ${storeVertical.shortName.toLowerCase()} product`);
       return;
     }
     const qty = Number(wasteQty);
@@ -151,7 +156,7 @@ function WasteAdmin() {
       id: `w-${Date.now()}`,
       date: wasteDate,
       product_id: selectedProductId,
-      product_name: selectedProduct?.name || "Seafood Item",
+      product_name: selectedProduct?.name || `${storeVertical.shortName} Item`,
       quantity: qty,
       unit: selectedProduct?.unit || "kg",
       reason: wasteReason,
@@ -285,7 +290,7 @@ function WasteAdmin() {
           <div className="relative flex-1 sm:w-64">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <Input
-              placeholder="Search product, notes..."
+              placeholder={`Search ${storeVertical.shortName}, notes...`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8 h-8 rounded-xl text-xs"
@@ -386,13 +391,13 @@ function WasteAdmin() {
 
           <div className="space-y-3 pt-2">
             <div className="space-y-1">
-              <Label className="text-xs font-bold">Select Fish / Seafood Item *</Label>
+              <Label className="text-xs font-bold">Select {storeVertical.shortName} Item *</Label>
               <select
                 value={selectedProductId}
                 onChange={(e) => setSelectedProductId(e.target.value)}
                 className="flex h-9 w-full rounded-xl border border-input bg-background px-3 py-1 text-xs shadow-xs"
               >
-                <option value="">Select seafood from inventory...</option>
+                <option value="">Select {storeVertical.shortName.toLowerCase()} from inventory...</option>
                 {products.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name} (Live Stock: {formatStockDisplay(p.stock, p.unit)})
@@ -428,10 +433,10 @@ function WasteAdmin() {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-bold">Reason for Loss *</Label>
+              <Label className="text-xs font-bold">Reason for Loss</Label>
               <select
                 value={wasteReason}
-                onChange={(e) => setWasteReason(e.target.value as typeof wasteReason)}
+                onChange={(e) => setWasteReason(e.target.value as WasteEntry["reason"])}
                 className="flex h-9 w-full rounded-xl border border-input bg-background px-3 py-1 text-xs shadow-xs"
               >
                 {REASONS.map((r) => (
@@ -443,10 +448,10 @@ function WasteAdmin() {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-bold">Estimated Financial Cost Loss (₹)</Label>
+              <Label className="text-xs font-bold">Estimated Cost Loss (₹)</Label>
               <Input
                 type="number"
-                placeholder={Math.round(estimatedCost).toString()}
+                placeholder={`Auto approx: ₹${Math.round(estimatedCost)}`}
                 value={costLossCustom}
                 onChange={(e) => setCostLossCustom(e.target.value)}
                 className="rounded-xl h-9 text-xs"
@@ -459,7 +464,7 @@ function WasteAdmin() {
             <div className="space-y-1">
               <Label className="text-xs font-bold">Notes / Explanation</Label>
               <Textarea
-                placeholder="e.g. Skinning & gutting wastage, melted ice on top layer..."
+                placeholder={formFields.wasteReasonPlaceholder}
                 value={wasteNotes}
                 onChange={(e) => setWasteNotes(e.target.value)}
                 className="rounded-xl text-xs min-h-[60px]"

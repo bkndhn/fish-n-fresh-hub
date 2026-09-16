@@ -1789,7 +1789,7 @@ export function RetailPosCounterPage() {
                 setScaleConfig(newCfg);
                 toast.info(`Hands-Free Auto-Capture ${updated ? "Enabled" : "Disabled"}`);
               }}
-              title="Automatically captures stable weight when seafood is placed on the plate"
+              title={`Automatically captures stable weight when ${storeVertical.shortName.toLowerCase()} is placed on the plate`}
             >
               <Zap className="size-3.5" />
               <span>Auto: {scaleConfig.handsFreeMode ? "ON" : "OFF"}</span>
@@ -2314,7 +2314,7 @@ export function RetailPosCounterPage() {
                     <div className="py-8 text-center text-muted-foreground text-xs space-y-1">
                       <ShoppingBag className="size-8 mx-auto opacity-30" />
                       <p>Counter bill is empty</p>
-                      <p className="text-[10px]">Click any seafood / meat on the left to add</p>
+                      <p className="text-[10px]">Click any {storeVertical.shortName.toLowerCase()} item on the left to add</p>
                     </div>
                   )}
                 </div>
@@ -2848,7 +2848,7 @@ export function RetailPosCounterPage() {
                       className="h-8 rounded-xl text-xs font-bold bg-cyan-700 hover:bg-cyan-600 text-white gap-1"
                       onClick={() => {
                         if (scaleReading.weightKg <= 0) {
-                          toast.info("Please place seafood catch on the physical scale plate first.");
+                          toast.info("Please place item on the physical scale plate first.");
                           return;
                         }
                         setModalWeightInput(scaleReading.weightKg.toFixed(3));
@@ -3021,7 +3021,7 @@ export function RetailPosCounterPage() {
                             onClick={() => setChipScope("product")}
                             className={`px-1.5 py-0.5 rounded ${chipScope === "product" ? "bg-primary text-primary-foreground font-bold" : "text-muted-foreground hover:text-foreground"}`}
                           >
-                            This Fish Only
+                            This Product Only
                           </button>
                         </div>
                       </div>
@@ -3029,13 +3029,13 @@ export function RetailPosCounterPage() {
                         <Input
                           type="text"
                           inputMode="decimal"
-                          placeholder="Weight (e.g. 0.4, 1.25)"
+                          placeholder={storeVertical.hasWeighingScale ? "Weight (e.g. 0.4, 1.25)" : "Qty (e.g. 1, 2, 5)"}
                           value={chipInputVal}
                           onChange={(e) => setChipInputVal(e.target.value)}
                           className="h-7 text-xs font-mono bg-background rounded-lg flex-1"
                         />
                         <Input
-                          placeholder="Label (e.g. 400g)"
+                          placeholder={storeVertical.hasWeighingScale ? "Label (e.g. 400g)" : "Label (e.g. 1 pc, 2 pairs)"}
                           value={chipInputLabel}
                           onChange={(e) => setChipInputLabel(e.target.value)}
                           className="h-7 text-xs bg-background rounded-lg flex-1"
@@ -3356,28 +3356,28 @@ export function RetailPosCounterPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
               <Sliders className="size-5 text-primary" />
-              Universal Quick Portion Chips Manager
+              Universal Quick {storeVertical.hasWeighingScale ? "Portion" : "Quantity"} Chips Manager
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Configure store-wide universal portion weight chips used across all seafood and meat items at the POS counter.
+              Configure store-wide universal {storeVertical.hasWeighingScale ? "portion weight" : "quantity"} chips used across all {storeVertical.shortName.toLowerCase()} items at the POS counter.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 pt-2">
             {/* Add Universal Chip Form */}
             <div className="p-3.5 rounded-2xl bg-muted/50 border border-border/80 space-y-2">
-              <span className="text-xs font-bold text-foreground">Add Universal Portion Preset:</span>
+              <span className="text-xs font-bold text-foreground">Add Universal {storeVertical.hasWeighingScale ? "Portion" : "Quantity"} Preset:</span>
               <div className="flex items-center gap-2">
                 <Input
                   type="text"
                   inputMode="decimal"
-                  placeholder="Weight in kg (e.g. 0.4, 1.25, 2.5)"
+                  placeholder={storeVertical.hasWeighingScale ? "Weight in kg (e.g. 0.4, 1.25, 2.5)" : "Quantity (e.g. 1, 2, 5, 10)"}
                   value={newGlobalVal}
                   onChange={(e) => setNewGlobalVal(e.target.value)}
                   className="h-8 text-xs font-mono bg-background rounded-xl flex-1"
                 />
                 <Input
-                  placeholder="Label (e.g. 400g, 1.25 kg)"
+                  placeholder={storeVertical.hasWeighingScale ? "Label (e.g. 400g, 1.25 kg)" : `Label (e.g. 1 ${storeVertical.shortName.toLowerCase() === "footwear" ? "pair" : "pc"}, 5 packs)`}
                   value={newGlobalLabel}
                   onChange={(e) => setNewGlobalLabel(e.target.value)}
                   className="h-8 text-xs bg-background rounded-xl flex-1"

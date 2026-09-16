@@ -695,6 +695,184 @@ export function getVerticalUnitOptions(vertical: BusinessVertical): string[] {
   }
 }
 
+export interface VerticalFormFields {
+  namePlaceholder: string;
+  tamilNamePlaceholder: string;
+  brandPlaceholder: string;
+  skuPlaceholder: string;
+  locationPlaceholder: string;
+  specsPlaceholder: string;
+  descriptionPlaceholder: string;
+  units: string[];
+  refillPresets: string[];
+  wasteReasonPlaceholder: string;
+  reviewPlaceholder: string;
+  customRequestPlaceholder: string;
+  supplierPlaceholder: string;
+  supplierNotePlaceholder: string;
+}
+
+export function getVerticalFormFields(vertical: BusinessVertical, storeName?: string): VerticalFormFields {
+  const name = storeName || "our store";
+  switch (vertical) {
+    case "footwear":
+      return {
+        namePlaceholder: "e.g. Apex Pro Running Shoes (UK 6-11), Regal Oxford Derby, SoftStep Sandals",
+        tamilNamePlaceholder: "e.g. காலணி, விளையாட்டு காலணி, தோல் காலணி",
+        brandPlaceholder: "e.g. Puma, Bata, Nike, Paragon, Sparx, Woodland, Campus",
+        skuPlaceholder: "e.g. FTW-RUN-01, OXF-UK-08, SND-BRN-09",
+        locationPlaceholder: "e.g. Shoe Rack A-1, Display Shelf 2, Bin 4",
+        specsPlaceholder: "Size Range: UK 6-11 | Sole: EVA Cushion | Upper: Breathable Mesh | Closure: Lace-up",
+        descriptionPlaceholder: "High-rebound cushioning athletic shoe for daily running, jogging, and gym workouts. Anti-skid sole with 7-day size exchange guarantee.",
+        units: ["pair", "unit", "box", "set", "custom"],
+        refillPresets: ["5", "10", "20", "50"],
+        wasteReasonPlaceholder: "e.g. Damaged sole box, display scuff mark, transit return defect, sizing pair mismatch",
+        reviewPlaceholder: "How was the fit, comfort, arch support, and sole durability?",
+        customRequestPlaceholder: "e.g. Looking for Size UK 10 in Black Formal Derby or White Sneakers",
+        supplierPlaceholder: "e.g. Metro Footwear Distributors, Bata Regional Hub",
+        supplierNotePlaceholder: "Box carton condition, batch size assortment (UK 6-11), 7-day return guarantee terms...",
+      };
+    case "snacks_sweets":
+      return {
+        namePlaceholder: "e.g. Crispy Masala Potato Chips (₹20), Ribbon Murukku (₹30), Pure Ghee Mysore Pak",
+        tamilNamePlaceholder: "e.g. உருளைக்கிழங்கு சிப்ஸ், கை முறுக்கு, நெய் மைசூர் பாக்",
+        brandPlaceholder: "e.g. Grand Sweets, Sri Krishna, Lays, Haldiram's, A2B, Balaji",
+        skuPlaceholder: "e.g. SNK-20-CHP, MRK-30-PKT, SWT-MP-250",
+        locationPlaceholder: "e.g. Snack Stand S-1, Sweet Counter #1, Aisle 1 Rack B",
+        specsPlaceholder: "Pack Size: ₹20 (85g) | Shelf Life: 4 Months | Veg: 100% Pure Veg | Oil: Cold-Pressed Groundnut",
+        descriptionPlaceholder: "Crispy golden fried savouries prepared in fresh cold-pressed oil with zero trans fats. Airtight moisture-proof pouch locks in crunchiness.",
+        units: ["pack", "pkt", "box", "kg", "g", "500g", "250g", "custom"],
+        refillPresets: ["10", "25", "50", "100"],
+        wasteReasonPlaceholder: "e.g. Crushed packet in transit, expired shelf-life date, torn pouch seal",
+        reviewPlaceholder: "How was the crunchiness, spice balance, taste, and freshness?",
+        customRequestPlaceholder: "e.g. Looking for ₹20 Ribbon Murukku, Madras Mixture 500g, or Fresh Tirunelveli Halwa",
+        supplierPlaceholder: "e.g. Sri Krishna Sweets Wholesalers, Grand Sweets Depot",
+        supplierNotePlaceholder: "Fresh batch manufacturing date, airtight carton sealing, pure ghee certification...",
+      };
+    case "electronics_appliances":
+      return {
+        namePlaceholder: "e.g. Apple iPhone 15 128GB, Samsung 55-inch 4K TV, boAt Rockerz 450",
+        tamilNamePlaceholder: "e.g. ஸ்மார்ட்போன், எல்இடி டிவி, புளூடூத் ஹெட்போன்",
+        brandPlaceholder: "e.g. Apple, Samsung, Sony, boAt, Dell, LG, OnePlus",
+        skuPlaceholder: "e.g. A3090, UA55-4K, DEL-3520, BOAT-450",
+        locationPlaceholder: "e.g. Tech Showcase A-1, Aisle 2 Rack 3, Locker B",
+        specsPlaceholder: "RAM: 8GB | Storage: 256GB SSD | Screen: 15.6 FHD | Battery: 54Wh | Warranty: 1 Year",
+        descriptionPlaceholder: "High performance smart device engineered with industry-leading components and official 1-year manufacturer warranty support.",
+        units: ["unit", "piece", "set", "pack", "box", "custom"],
+        refillPresets: ["2", "5", "10", "20"],
+        wasteReasonPlaceholder: "e.g. Scratched display unit, transit vibration shock, dead on arrival (DOA)",
+        reviewPlaceholder: "How was the build quality, battery life, performance, and screen display?",
+        customRequestPlaceholder: "e.g. Looking for specific 65-inch OLED TV model or 65W GaN adapter",
+        supplierPlaceholder: "e.g. Ingram Micro India, Redington Electronics Dist.",
+        supplierNotePlaceholder: "Serial number manifest, seal intact verification, GST input invoice...",
+      };
+    case "clothing_fashion":
+      return {
+        namePlaceholder: "e.g. Men Pure Cotton Slim Fit Oxford Shirt, Women Rayon Anarkali Kurti",
+        tamilNamePlaceholder: "e.g. பருத்தி சட்டை, சுடிதார், ஜீன்ஸ் பேன்ட்",
+        brandPlaceholder: "e.g. Allen Solly, Levi's, Peter England, Biba, Zara, Raymond",
+        skuPlaceholder: "e.g. SHT-OXF-M, JNS-511-32, KRT-BB-09",
+        locationPlaceholder: "e.g. Hanger Rack 2, Section B, Shelf 4",
+        specsPlaceholder: "Fabric: 100% Pure Cotton | Fit: Slim Fit | Size: M (38) | Pattern: Solid | Care: Machine Wash",
+        descriptionPlaceholder: "Breathable pure cotton apparel designed for comfortable daily and formal wear with reinforced stitching and color-fast dyes.",
+        units: ["piece", "pair", "set", "pack", "dozen", "custom"],
+        refillPresets: ["10", "25", "50", "100"],
+        wasteReasonPlaceholder: "e.g. Fabric weave defect, dye stain, loose stitching, customer trial tear",
+        reviewPlaceholder: "How was the fabric feel, fit, stitching quality, and color vibrancy?",
+        customRequestPlaceholder: "e.g. Looking for Pure Linen Shirt Size 42 or Kanchipuram Silk Saree",
+        supplierPlaceholder: "e.g. Tirupur Apparel Mill, Raymond Textile Agency",
+        supplierNotePlaceholder: "GSM fabric specification, size ratio carton pack, color assortment...",
+      };
+    case "grocery_supermarket":
+      return {
+        namePlaceholder: "e.g. Sona Masoori Raw Rice 5kg, Tata Sampann Toor Dal 1kg, Sunlite Sunflower Oil 1L",
+        tamilNamePlaceholder: "e.g. சோனா மசூரி அரிசி, துவரம் பருப்பு, கடலை எண்ணெய்",
+        brandPlaceholder: "e.g. Tata Sampann, Aashirvaad, Fortune, Amul, Britannia, Daawat",
+        skuPlaceholder: "e.g. ATT-10K, DAL-1K, OIL-1L, BAS-5K",
+        locationPlaceholder: "e.g. Aisle 1 Shelf C, Grain Bin 4, Cold Chiller #1",
+        specsPlaceholder: "Net Weight: 5kg | Grade: Premium Aged | Shelf Life: 12 Months | Packaging: Airtight",
+        descriptionPlaceholder: "Farm-fresh natural produce and staples sourced directly from certified farms with strict quality assurance and unadulterated purity.",
+        units: ["kg", "g", "500g", "pack", "pc", "liter", "ml", "box", "dozen", "custom"],
+        refillPresets: ["5", "10", "25", "50"],
+        wasteReasonPlaceholder: "e.g. Overripe vegetable, broken packaging bag, spilled grain, expired dairy seal",
+        reviewPlaceholder: "How was the freshness, taste, cooking quality, and packaging?",
+        customRequestPlaceholder: "e.g. Looking for Brown Basmati Rice 5kg or Cold-Pressed Virgin Coconut Oil",
+        supplierPlaceholder: "e.g. APMC Grain Market, Organic Farmer Federation",
+        supplierNotePlaceholder: "FSSAI batch test report, moisture level < 12%, organic certification...",
+      };
+    case "chicken_meat":
+      return {
+        namePlaceholder: "e.g. Farm Fresh Chicken Curry Cut, Country Chicken (Nattu Kozhi), Tender Mutton Curry Cut",
+        tamilNamePlaceholder: "e.g. பண்ணைக்கோழி, நாட்டுக்கோழி, ஆட்டிறைச்சி",
+        brandPlaceholder: "e.g. Suguna, Godrej Real Good, Farm Fresh Co, Local Certified Halal Hub",
+        skuPlaceholder: "e.g. CHK-CUR-1K, NAT-KOZ-1K, MUT-BRL-1K",
+        locationPlaceholder: "e.g. Fresh Meat Chiller #1, Deep Chiller -2°C, Counter Display",
+        specsPlaceholder: "Feed: 100% Vegetarian Bio-Secure | Halal: Certified | Cut: Curry Cut | Temp: 0-4°C",
+        descriptionPlaceholder: "Tender antibiotic-free farm poultry and meat, humanely processed and hygienic halal butchery cuts vacuum-packed and delivered chilled.",
+        units: ["kg", "g", "500g", "250g", "pack", "tray", "pc", "custom"],
+        refillPresets: ["5", "10", "25", "50"],
+        wasteReasonPlaceholder: "e.g. Trimming wastage, fat removal loss, skinning loss, overnight unsold spoilage",
+        reviewPlaceholder: "How was the tenderness, juiciness, freshness, and butchery cut?",
+        customRequestPlaceholder: "e.g. Looking for Country Chicken (Nattu Kozhi) or Tender Mutton Chops",
+        supplierPlaceholder: "e.g. Bio-Secure Poultry Farm, Certified Halal Livestock Mandi",
+        supplierNotePlaceholder: "Antibiotic-free lab certificate, morning dispatch temperature 2°C, halal slaughter certificate...",
+      };
+    case "all_meat":
+      return {
+        namePlaceholder: "e.g. Vanjaram Fish Steaks, Tender Goat Mutton, Broiler Chicken Curry Cut, Tiger Prawns",
+        tamilNamePlaceholder: "e.g. வஞ்சிரம், ஆட்டிறைச்சி, கோழி இறைச்சி, இறால்",
+        brandPlaceholder: "e.g. FreshCo Superstore, Kasimedu Dock, Suguna",
+        skuPlaceholder: "e.g. VNJ-1K, MUT-1K, CHK-1K, PRW-500G",
+        locationPlaceholder: "e.g. Fish Chiller A, Meat Freezer B, Display Showcase",
+        specsPlaceholder: "Origin: Daily Fresh Harvest | Halal: 100% Certified | Temperature: 0-2°C on Flake Ice",
+        descriptionPlaceholder: "All-in-one fresh meat and seafood superstore selection. Cleaned, prepped, and packed fresh on order within temperature-controlled processing rooms.",
+        units: ["kg", "g", "500g", "250g", "pack", "tray", "pc", "custom"],
+        refillPresets: ["5", "10", "25", "50"],
+        wasteReasonPlaceholder: "e.g. Trimming & gutting wastage, melted ice on top layer, bone write-off",
+        reviewPlaceholder: "How was the tenderness, freshness, taste, and cutting quality?",
+        customRequestPlaceholder: "e.g. Looking for Vanjaram Steaks (>1kg) and Tender Mutton Biryani Cut",
+        supplierPlaceholder: "e.g. Kasimedu Harbour & Livestock Mandi",
+        supplierNotePlaceholder: "Harbour landing grade-A inspection, cold chain ice sheet, food-grade transport...",
+      };
+    case "seafood":
+      return {
+        namePlaceholder: "e.g. Vanjaram / King Fish (Seer), Fresh Tiger Prawns, Black Pomfret, Nethili",
+        tamilNamePlaceholder: "e.g. வஞ்சிரம் மீன், காரைப்பொடி, இறால், வவ்வால்",
+        brandPlaceholder: "e.g. Kasimedu Dock, Daily Fresh Catch, Rameshwaram Fish Co",
+        skuPlaceholder: "e.g. VNJ-1KG, POM-500G, PRW-1KG, NETH-500G",
+        locationPlaceholder: "e.g. Ice Display Chiller A, Deep Freezer 2, Live Shellfish Tank",
+        specsPlaceholder: "Catch: Wild Sea Catch | Clean Rate: ~80% Net Yield | Storage: 0-4°C on Food-Grade Flake Ice",
+        descriptionPlaceholder: "Wild ocean catch landed at local fishing harbour, cleaned and vacuum-packed on food-grade flake ice within hours of harvest.",
+        units: ["kg", "g", "500g", "250g", "pc", "pack", "tray", "custom"],
+        refillPresets: ["5", "10", "25", "50"],
+        wasteReasonPlaceholder: "e.g. Head & gutting trimming loss, descaling waste, overnight uniced spoilage",
+        reviewPlaceholder: "How was the ocean freshness, meat firmness, taste, and master cutting?",
+        customRequestPlaceholder: "e.g. Looking for Big Size Vanjaram (>2kg) or Fresh Blue Mud Crab",
+        supplierPlaceholder: "e.g. Kasimedu Deep Sea Trawlers Association",
+        supplierNotePlaceholder: "Boat registration, dawn auction lot, zero chemical / formalin certified...",
+      };
+    case "departmental_store":
+    case "universal":
+    default:
+      return {
+        namePlaceholder: `e.g. Quality Retail Item / Product Name in ${name}`,
+        tamilNamePlaceholder: "e.g. பொருளின் பெயர் / விவரம்",
+        brandPlaceholder: "e.g. Premium Brand / In-House",
+        skuPlaceholder: "e.g. SKU-1001, PRD-01",
+        locationPlaceholder: "e.g. Aisle 1, Shelf B, Rack 3",
+        specsPlaceholder: "Key: Value | Model: Standard | Warranty: As Applicable",
+        descriptionPlaceholder: `High quality product sourced and curated for customers of ${name}, backed by our customer satisfaction guarantee.`,
+        units: ["pc", "pack", "kg", "box", "pair", "set", "unit", "custom"],
+        refillPresets: ["5", "10", "25", "50"],
+        wasteReasonPlaceholder: "e.g. Damaged inventory packaging, transit handling loss, expired stock",
+        reviewPlaceholder: "Share your experience with this item's quality, durability, and value",
+        customRequestPlaceholder: "e.g. Looking for a specific brand, model, size, or variety",
+        supplierPlaceholder: `e.g. ${name} Central Distribution Warehouse`,
+        supplierNotePlaceholder: "Delivery dispatch lot, purchase order terms, barcode verification...",
+      };
+  }
+}
+
 export function getVerticalFaqs(vertical: BusinessVertical, storeName: string): { question: string; answer: string }[] {
   switch (vertical) {
     case "chicken_meat":

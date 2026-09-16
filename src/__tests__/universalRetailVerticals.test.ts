@@ -3,6 +3,8 @@ import {
   BUSINESS_VERTICALS,
   getVerticalCapabilities,
   getVerticalPreset,
+  getVerticalFormFields,
+  getVerticalSearchPlaceholder,
   type BusinessVertical,
 } from "@/lib/verticals";
 import {
@@ -270,5 +272,91 @@ describe("Thermal Receipt & WhatsApp Engine for Retail", () => {
     expect(waText).toContain("IMEI354890123456789");
     expect(waText).toContain("12M Brand Cover");
     expect(waText).toContain("L / Navy Blue");
+  });
+});
+
+describe("Universal Retail Form Fields Engine (getVerticalFormFields)", () => {
+  it("adapts form fields and placeholders for snacks and sweets vertical", () => {
+    const fields = getVerticalFormFields("snacks_sweets", "Murukku & Chips Haven");
+    expect(fields.namePlaceholder).toContain("Potato Chips (₹20)");
+    expect(fields.namePlaceholder).toContain("Ribbon Murukku (₹30)");
+    expect(fields.units).toContain("pkt");
+    expect(fields.units).toContain("box");
+    expect(fields.wasteReasonPlaceholder).toContain("Crushed packet");
+    expect(fields.reviewPlaceholder).toContain("crunchiness");
+    expect(fields.customRequestPlaceholder).toContain("₹20 Ribbon Murukku");
+  });
+
+  it("adapts form fields and placeholders for footwear vertical", () => {
+    const fields = getVerticalFormFields("footwear", "WalkWell Footwear Hub");
+    expect(fields.namePlaceholder).toContain("Running Shoes");
+    expect(fields.units).toContain("pair");
+    expect(fields.units).toContain("box");
+    expect(fields.skuPlaceholder).toContain("FTW");
+    expect(fields.specsPlaceholder).toContain("UK");
+    expect(fields.wasteReasonPlaceholder).toContain("Damaged sole box");
+    expect(fields.reviewPlaceholder).toContain("fit");
+    expect(fields.customRequestPlaceholder).toContain("UK 10");
+  });
+
+  it("adapts form fields and placeholders for electronics vertical", () => {
+    const fields = getVerticalFormFields("electronics_appliances", "Apex Electronics");
+    expect(fields.namePlaceholder).toContain("Apple iPhone 15");
+    expect(fields.units).toContain("unit");
+    expect(fields.units).toContain("piece");
+    expect(fields.skuPlaceholder).toContain("A3090");
+    expect(fields.specsPlaceholder).toContain("RAM");
+    expect(fields.wasteReasonPlaceholder).toContain("dead on arrival");
+    expect(fields.customRequestPlaceholder).toContain("OLED TV");
+  });
+
+  it("adapts form fields and placeholders for clothing and fashion vertical", () => {
+    const fields = getVerticalFormFields("clothing_fashion", "Urban Trends Fashion");
+    expect(fields.namePlaceholder).toContain("Oxford Shirt");
+    expect(fields.units).toContain("piece");
+    expect(fields.units).toContain("set");
+    expect(fields.skuPlaceholder).toContain("SHT");
+    expect(fields.specsPlaceholder).toContain("Fabric");
+    expect(fields.wasteReasonPlaceholder).toContain("loose stitching");
+  });
+
+  it("adapts form fields and placeholders for grocery vertical", () => {
+    const fields = getVerticalFormFields("grocery_supermarket", "FreshMart Grocery");
+    expect(fields.namePlaceholder).toContain("Raw Rice");
+    expect(fields.units).toContain("kg");
+    expect(fields.units).toContain("liter");
+    expect(fields.wasteReasonPlaceholder).toContain("broken packaging");
+  });
+
+  it("adapts form fields and placeholders for poultry & meat vertical", () => {
+    const fields = getVerticalFormFields("chicken_meat", "Al-Barakah Halal Farm Fresh");
+    expect(fields.namePlaceholder).toContain("Chicken Curry Cut");
+    expect(fields.specsPlaceholder).toContain("Halal");
+    expect(fields.wasteReasonPlaceholder).toContain("Trimming wastage");
+    expect(fields.reviewPlaceholder).toContain("tenderness");
+  });
+
+  it("adapts form fields and placeholders for seafood vertical", () => {
+    const fields = getVerticalFormFields("seafood", "Fish N Fresh Seafoods");
+    expect(fields.namePlaceholder).toContain("Vanjaram");
+    expect(fields.specsPlaceholder).toContain("Wild Sea Catch");
+    expect(fields.wasteReasonPlaceholder).toContain("Head & gutting");
+    expect(fields.reviewPlaceholder).toContain("ocean freshness");
+  });
+
+  it("generates vertical-aware search placeholders with fallback and custom store name", () => {
+    const snackSearch = getVerticalSearchPlaceholder("snacks_sweets", "Hot Chips Express");
+    expect(snackSearch).toContain("potato chips");
+    expect(snackSearch).toContain("₹20/₹30");
+
+    const footwearSearch = getVerticalSearchPlaceholder("footwear", "StepUp Studio");
+    expect(footwearSearch).toContain("sports sneakers");
+    expect(footwearSearch).toContain("Size 6-11");
+
+    const electSearch = getVerticalSearchPlaceholder("electronics_appliances", "TechWorld");
+    expect(electSearch).toContain("smartphones");
+
+    const seafoodSearch = getVerticalSearchPlaceholder("seafood", "Fish N Fresh");
+    expect(seafoodSearch).toContain("fresh fish");
   });
 });

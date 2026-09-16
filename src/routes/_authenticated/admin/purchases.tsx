@@ -46,6 +46,8 @@ import {
 } from "@/lib/batches.functions";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminProductsQuery } from "@/lib/admin";
+import { settingsQuery } from "@/lib/queries";
+import { getStoreVertical, getVerticalFormFields } from "@/lib/verticals";
 import { supabase } from "@/integrations/supabase/client";
 import { formatINR, formatIST, formatStockDisplay } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -205,6 +207,12 @@ function PurchasesAdmin() {
   const qc = useQueryClient();
   const productsQueryObj = useQuery(adminProductsQuery());
   const products = productsQueryObj.data ?? [];
+  const { data: settings } = useQuery(settingsQuery);
+  const storeVertical = getStoreVertical(settings);
+  const formFields = useMemo(
+    () => getVerticalFormFields(storeVertical.id, settings?.store_name),
+    [storeVertical.id, settings?.store_name]
+  );
 
   // Local storage backed state with fallback
   const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
@@ -334,7 +342,12 @@ function PurchasesAdmin() {
     d.setDate(d.getDate() + 1);
     return d.toISOString().slice(0, 10);
   });
-  const [poFormNotes, setPoFormNotes] = useState<string>("Morning harbour landing 05:30 AM. Chemical-free on ice.");
+  const [poFormNotes, setPoFormNotes] = useState<string>("");
+  useEffect(() => {
+    if (!poFormNotes && formFields.supplierNotePlaceholder) {
+      setPoFormNotes(formFields.supplierNotePlaceholder);
+    }
+  }, [formFields.supplierNotePlaceholder]);
   const [poFormItems, setPoFormItems] = useState<
     { product_id: string; product_name: string; suggested_qty: number; unit: string; estimated_rate: number; current_stock: number }[]
   >([]);
@@ -396,20 +409,21 @@ function PurchasesAdmin() {
       .map((it, idx) => `${idx + 1}. *${it.product_name}* — ${it.suggested_qty} ${it.unit} (~₹${it.estimated_rate}/${it.unit})`)
       .join("\n");
 
-    const text = `📋 *PURCHASE ORDER (P.O.) — FISH N FRESH CHENNAI*
+    const storeTitle = (settings?.store_name || "RETAIL HUB").toUpperCase();
+    const text = `📋 *PURCHASE ORDER (P.O.) — ${storeTitle}*
 *PO Ref:* ${po.po_number}
 *Date:* ${new Date(po.created_at).toLocaleDateString("en-IN")}
 *Supplier:* ${po.supplier_name}
-*Required Arrival:* ${po.expected_delivery_date || "Tomorrow 06:00 AM Dock Landing"}
+*Required Arrival:* ${po.expected_delivery_date || "Tomorrow Morning Dispatch"}
 
-*Requested Catch Items:*
+*Requested Order Items:*
 ${itemsText}
 
 *Estimated Outlay:* ₹${po.total_estimated_cost.toLocaleString("en-IN")}
-*Quality Mandate:* 100% Chemical-free, strictly chilled on crushed sea-ice (0–4°C).
-*Instructions:* ${po.notes || "Please reply to confirm boat landing & dispatch rate."}
+*Quality Mandate:* High-grade inventory adhering strictly to 100% store quality standards.
+*Instructions:* ${po.notes || "Please reply to confirm delivery schedule & dispatch rates."}
 
-_Generated via Fish N Fresh Hub Purchasing System_`;
+_Generated via ${settings?.store_name || "Store"} Purchasing System_`;
 
     const url = `https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`;
     window.open(url, "_blank");
@@ -747,7 +761,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
       rawEvents.push({
         date: po.inward_date,
         referenceNo: po.reference_no,
-        description: `Catch Inward: ${summary || "Harbour Seafood Catch"}`,
+        description: `Stock Inward: ${summary || `${storeVertical.shortName} Inventory`}`,
         type: "inward_catch",
         debit: po.total_amount,
         credit: 0,
@@ -827,13 +841,15 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
     const totalCredits = relevantPOs.reduce((s, p) => s + p.paid_amount, 0);
     const closingBalanceDue = Math.max(0, totalDebits - totalCredits);
 
+    const defaultSupplierLoc = storeVertical.id === "seafood" ? "Kasimedu Harbour, Chennai" : `${storeVertical.shortName} Wholesale Depot`;
+
     const statementData: SupplierStatementData = {
-      storeName: "Fish N Fresh Seafoods",
-      storeAddress: "Harbour Wholesale & Retail Terminal, Marina Coast",
-      storePhone: "+91 98430 61919",
-      storeEmail: "billing@fishnfresh.in",
-      storeGstin: "33AABCT1234F1Z5",
-      storeFssai: "12423008000456",
+      storeName: settings?.store_name || "Fish N Fresh Seafoods",
+      storeAddress: (settings as any)?.address || "Wholesale & Retail Terminal Hub",
+      storePhone: settings?.contact_phone || "+91 98430 61919",
+      storeEmail: (settings as any)?.email || "billing@store.in",
+      storeGstin: (settings as any)?.gstin || "33AABCT1234F1Z5",
+      storeFssai: (settings as any)?.fssai_license_no || "12423008000456",
 
       supplierName,
       supplierHarbour: targetSupplier?.harbour || undefined,
@@ -864,10 +880,11 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
       toast.error("Supplier name and phone number are required");
       return;
     }
+    const defaultSupplierLoc = storeVertical.id === "seafood" ? "Kasimedu Harbour, Chennai" : `${storeVertical.shortName} Wholesale Depot`;
     const sup: Supplier = {
       id: `sup-${Date.now()}`,
       name: newSupplier.name.trim(),
-      harbour: newSupplier.harbour || "Kasimedu Harbour, Chennai",
+      harbour: newSupplier.harbour || defaultSupplierLoc,
       contact_person: newSupplier.contact_person || null,
       phone: newSupplier.phone.trim(),
       whatsapp: newSupplier.whatsapp?.trim() || newSupplier.phone.trim(),
@@ -882,7 +899,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
     setOpenAddSupplier(false);
     setNewSupplier({
       name: "",
-      harbour: "Kasimedu Harbour, Chennai",
+      harbour: defaultSupplierLoc,
       contact_person: "",
       phone: "",
       whatsapp: "",
@@ -953,23 +970,23 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
       },
     ];
     return {
-      filename: `harbour-catch-purchases-${new Date().toISOString().slice(0, 10)}`,
-      title: "Harbour Catch Purchases & Inward Stock Ledger",
+      filename: `${storeVertical.shortName.toLowerCase()}-purchases-${new Date().toISOString().slice(0, 10)}`,
+      title: `${storeVertical.shortName} Purchases & Inward Stock Ledger`,
       subtitle: `Exported on ${new Date().toLocaleDateString("en-IN")} | ${filteredPurchases.length} inward lots`,
       columns,
       data: filteredPurchases,
       orientation: "landscape",
     };
-  }, [filteredPurchases]);
+  }, [filteredPurchases, storeVertical.shortName]);
 
   return (
-    <AdminShell title="Catch Inward & Suppliers" allow={["admin", "manager", "inventory_manager", "staff"]}>
+    <AdminShell title={`${storeVertical.shortName} Inward & Suppliers`} allow={["admin", "manager", "inventory_manager", "staff"]}>
       {/* Top Level Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         <Card className="rounded-2xl border-border/80 p-3.5 shadow-2xs">
           <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Purchases</p>
           <p className="text-xl font-extrabold text-foreground mt-0.5">{formatINR(totalInwardAmount)}</p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">{purchases.length} catch lots inwarded</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">{purchases.length} inward lots processed</p>
         </Card>
 
         <Card className="rounded-2xl border-border/80 p-3.5 shadow-2xs">
@@ -1027,7 +1044,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
                 <Building2 className="mr-1.5 size-3.5" /> Suppliers Directory ({suppliers.length})
               </TabsTrigger>
               <TabsTrigger value="batches" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0">
-                <ShieldAlert className="mr-1.5 size-3.5 text-cyan-600" /> Catch Batches & Recall
+                <ShieldAlert className="mr-1.5 size-3.5 text-cyan-600" /> {storeVertical.shortName} Batches & Recall
                 {inventoryBatches.filter((b: any) => b.status === "active").length > 0 && (
                   <span className="ml-1.5 rounded-full bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 px-1.5 py-0.2 text-[10px] font-extrabold">
                     {inventoryBatches.filter((b: any) => b.status === "active").length}
@@ -1042,7 +1059,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
               <div className="relative flex-1 sm:w-64">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
                 <Input
-                  placeholder="Search reference, harbour..."
+                  placeholder={`Search reference, ${storeVertical.shortName.toLowerCase()}...`}
                   value={searchLedger}
                   onChange={(e) => setSearchLedger(e.target.value)}
                   className="pl-8 h-8 rounded-xl text-xs"
@@ -1466,7 +1483,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-base font-bold">Harbour Catch Inward & Stock Entry</CardTitle>
+                  <CardTitle className="text-base font-bold">{storeVertical.shortName} Inward & Stock Entry</CardTitle>
                   <p className="text-xs text-muted-foreground">
                     Record supplier purchase, calculate costs, and automatically refill store inventory.
                   </p>
@@ -1484,7 +1501,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold">Select Supplier / Harbour Trawler *</Label>
+                  <Label className="text-xs font-bold">Select Supplier / Vendor *</Label>
                   <select
                     value={selectedSupplierId}
                     onChange={(e) => setSelectedSupplierId(e.target.value)}
@@ -1492,7 +1509,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
                   >
                     {suppliers.map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.name} ({s.harbour || "Harbour"})
+                        {s.name} ({s.harbour || "Primary Depot"})
                       </option>
                     ))}
                   </select>
@@ -1515,19 +1532,19 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
                     onChange={(e) => setPaymentMethod(e.target.value as "cash" | "upi" | "bank" | "credit")}
                     className="flex h-9 w-full rounded-xl border border-input bg-background px-3 py-1 text-xs shadow-xs"
                   >
-                    <option value="cash">Cash on Dock</option>
+                    <option value="cash">Direct Cash</option>
                     <option value="upi">Direct UPI Transfer</option>
                     <option value="bank">Bank IMPS / NEFT</option>
-                    <option value="credit">Harbour Credit (Due)</option>
+                    <option value="credit">Supplier Credit (Due)</option>
                   </select>
                 </div>
               </div>
 
-              {/* Inward Catch Items Table */}
+              {/* Inward Items Table */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Catch Itemization & Weight
+                    {storeVertical.shortName} Itemization & Stock
                   </Label>
                   <Button
                     type="button"
@@ -1536,7 +1553,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
                     className="h-7 text-xs rounded-xl"
                     onClick={addItemRow}
                   >
-                    <Plus className="mr-1 size-3" /> Add Fish Item
+                    <Plus className="mr-1 size-3" /> Add {storeVertical.shortName} Item
                   </Button>
                 </div>
 
@@ -1559,11 +1576,11 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
                               {p.name} (Current Stock: {formatStockDisplay(p.stock, p.unit)})
                             </option>
                           ))}
-                          <option value="custom">+ Other / Custom Catch</option>
+                          <option value="custom">+ Other / Custom {storeVertical.shortName} Item</option>
                         </select>
                         {item.product_id === "custom" && (
                           <Input
-                            placeholder="Enter custom fish name..."
+                            placeholder={formFields.namePlaceholder}
                             value={item.product_name}
                             onChange={(e) => updateItemRow(idx, "product_name", e.target.value)}
                             className="h-7 text-xs rounded-xl mt-1"
@@ -1638,9 +1655,9 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-bold">Harbour / Lot Notes</Label>
+                    <Label className="text-xs font-bold">Supplier / Lot Notes</Label>
                     <Textarea
-                      placeholder="e.g. Trawler: Sagar Kanya, Boat Reg: TN-02-F-990, Box 1-4 on dry ice..."
+                      placeholder={formFields.supplierNotePlaceholder}
                       value={purchaseNotes}
                       onChange={(e) => setPurchaseNotes(e.target.value)}
                       className="rounded-2xl text-xs min-h-[70px]"
@@ -2491,7 +2508,7 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
                             }
                           }}
                           className="h-8 rounded-lg text-xs"
-                          placeholder="Rate/kg"
+                          placeholder={`Rate/${formFields.units[0] || "unit"}`}
                         />
                       </div>
 
@@ -2513,11 +2530,11 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
             </div>
 
             <div>
-              <Label className="text-xs font-semibold">Special Instructions / Cold Chain Notes</Label>
+              <Label className="text-xs font-semibold">Special Instructions / Procurement Notes</Label>
               <Textarea
                 value={poFormNotes}
                 onChange={(e) => setPoFormNotes(e.target.value)}
-                placeholder="Morning landing time, chemical-free testing requirement, crushed sea-ice standards..."
+                placeholder={formFields.supplierNotePlaceholder}
                 rows={2}
                 className="mt-1 text-xs rounded-xl"
               />
@@ -3164,13 +3181,13 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
       <Dialog open={openAddSupplier} onOpenChange={setOpenAddSupplier}>
         <DialogContent className="max-w-md rounded-3xl p-5">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold">Add Seafood Supplier</DialogTitle>
+            <DialogTitle className="text-base font-bold">Add {storeVertical.shortName} Supplier</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 pt-2">
             <div className="space-y-1">
-              <Label className="text-xs">Supplier / Society Name *</Label>
+              <Label className="text-xs">Supplier / Vendor Name *</Label>
               <Input
-                placeholder="e.g. Kasimedu Deep Sea Fishermen"
+                placeholder={formFields.supplierPlaceholder}
                 value={newSupplier.name}
                 onChange={(e) => setNewSupplier({ ...newSupplier, name: e.target.value })}
                 className="rounded-xl text-xs"
@@ -3178,9 +3195,9 @@ _Generated via Fish N Fresh Hub Purchasing System_`;
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-xs">Harbour / Jetty Location</Label>
+                <Label className="text-xs">Location / Depot Address</Label>
                 <Input
-                  placeholder="e.g. Kasimedu, Chennai"
+                  placeholder={formFields.locationPlaceholder}
                   value={newSupplier.harbour ?? ""}
                   onChange={(e) => setNewSupplier({ ...newSupplier, harbour: e.target.value })}
                   className="rounded-xl text-xs"

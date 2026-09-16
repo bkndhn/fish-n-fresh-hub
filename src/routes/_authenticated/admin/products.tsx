@@ -8,7 +8,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { useAdminBranch } from "@/lib/branchContext";
 import { adminProductsQuery } from "@/lib/admin";
 import { categoriesQuery, settingsQuery } from "@/lib/queries";
-import { getStoreVertical } from "@/lib/verticals";
+import { getStoreVertical, getVerticalFormFields, getVerticalSearchPlaceholder } from "@/lib/verticals";
 import type { Product } from "@/lib/types";
 import { formatINR, formatStockDisplay, formatStockUnitLabel } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,13 +63,15 @@ export const Route = createFileRoute("/_authenticated/admin/products")({
   component: ProductsAdmin,
 });
 
-const UNIT_OPTIONS = ["kg", "g", "500g", "250g", "100g", "pc", "pack", "dozen", "tray", "custom"];
+const BASE_UNIT_OPTIONS = ["kg", "g", "500g", "250g", "100g", "pc", "pack", "pkt", "pair", "box", "dozen", "tray", "liter", "ml", "custom"];
 
 const getRefillPresets = (unit: string) => {
   const u = (unit || "").toLowerCase();
   if (u === "kg") return ["5", "10", "25", "50"];
   if (u === "g" || u === "gram" || u === "grams") return ["100", "250", "500", "1000"];
   if (u === "pc" || u === "piece" || u === "pcs" || u === "pieces") return ["10", "25", "50", "100"];
+  if (u === "pair") return ["5", "10", "20", "50"];
+  if (u === "pack" || u === "pkt") return ["10", "25", "50", "100"];
   return ["5", "10", "20", "50"];
 };
 
@@ -95,6 +97,8 @@ function ProductsAdmin() {
   const { data: categories } = useQuery(categoriesQuery);
   const { data: settings } = useQuery(settingsQuery);
   const storeVertical = getStoreVertical(settings);
+  const formFields = useMemo(() => getVerticalFormFields(storeVertical.id, settings?.store_name), [storeVertical.id, settings?.store_name]);
+  const UNIT_OPTIONS = useMemo(() => Array.from(new Set([...formFields.units, ...BASE_UNIT_OPTIONS])), [formFields.units]);
   const allProducts = products.data ?? [];
 
   const nextSuggestedPosCode = useMemo(() => {
@@ -783,7 +787,7 @@ function ProductsAdmin() {
       <div className="mb-3 relative w-full">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input
-          placeholder="Search products by name, tamil name, or category..."
+          placeholder={getVerticalSearchPlaceholder(storeVertical.id, settings?.store_name)}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9 pr-8 rounded-xl h-10 bg-card text-sm w-full"
@@ -931,7 +935,7 @@ function ProductsAdmin() {
                 <Label htmlFor="prod-name" className="text-xs font-semibold">Name (English) *</Label>
                 <Input
                   id="prod-name"
-                  placeholder="e.g. Vanjaram / King Fish, Fresh Mutton, Tiger Prawns"
+                  placeholder={formFields.namePlaceholder}
                   value={newProduct.name}
                   onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
                   className="rounded-xl h-9 text-xs"
@@ -941,7 +945,7 @@ function ProductsAdmin() {
                 <Label htmlFor="prod-tamil" className="text-xs font-semibold">Name (Tamil / Local)</Label>
                 <Input
                   id="prod-tamil"
-                  placeholder="e.g. வஞ்சிரம், ஆட்டிறைச்சி"
+                  placeholder={formFields.tamilNamePlaceholder}
                   value={newProduct.name_tamil}
                   onChange={(e) => setNewProduct({ ...newProduct, name_tamil: e.target.value })}
                   className="rounded-xl h-9 text-xs"
@@ -1113,7 +1117,7 @@ function ProductsAdmin() {
                 <Label htmlFor="prod-desc">Description</Label>
                 <Textarea
                   id="prod-desc"
-                  placeholder="High quality product details and description..."
+                  placeholder={formFields.descriptionPlaceholder}
                   value={newProduct.description}
                   onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
                 />
@@ -1143,7 +1147,7 @@ function ProductsAdmin() {
                         <Label htmlFor="prod-brand" className="text-xs">Brand / Supplier</Label>
                         <Input
                           id="prod-brand"
-                          placeholder="e.g. Kasimedu Dock, FreshCo, Amul"
+                          placeholder={formFields.brandPlaceholder}
                           value={newProduct.brand}
                           onChange={(e) => setNewProduct({ ...newProduct, brand: e.target.value })}
                           className="rounded-xl h-9 text-xs"
@@ -1153,7 +1157,7 @@ function ProductsAdmin() {
                         <Label htmlFor="prod-model" className="text-xs">Model Number / SKU</Label>
                         <Input
                           id="prod-model"
-                          placeholder="e.g. VNJ-1KG, SK-01"
+                          placeholder={formFields.skuPlaceholder}
                           value={newProduct.model_number}
                           onChange={(e) => setNewProduct({ ...newProduct, model_number: e.target.value })}
                           className="rounded-xl h-9 text-xs"
@@ -1167,17 +1171,17 @@ function ProductsAdmin() {
                         <Input
                           id="prod-warranty"
                           type="number"
-                          placeholder="0 for fresh food"
+                          placeholder="0 for standard items"
                           value={newProduct.warranty_period_months}
                           onChange={(e) => setNewProduct({ ...newProduct, warranty_period_months: e.target.value })}
                           className="rounded-xl h-9 text-xs"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label htmlFor="prod-aisle" className="text-xs">Storage / Cold Rack / Freezer</Label>
+                        <Label htmlFor="prod-aisle" className="text-xs">Storage / Rack / Aisle</Label>
                         <Input
                           id="prod-aisle"
-                          placeholder="e.g. Chiller A, Freezer 2, Rack 3"
+                          placeholder={formFields.locationPlaceholder}
                           value={newProduct.aisle_location}
                           onChange={(e) => setNewProduct({ ...newProduct, aisle_location: e.target.value })}
                           className="rounded-xl h-9 text-xs"
@@ -1198,10 +1202,10 @@ function ProductsAdmin() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label htmlFor="prod-specs" className="text-xs">Technical Specs / Storage Notes</Label>
+                      <Label htmlFor="prod-specs" className="text-xs">Technical Specs / Item Details</Label>
                       <Textarea
                         id="prod-specs"
-                        placeholder="Cut: Whole Fish / Steaks&#10;Catch: Fresh Sea Catch&#10;Temp: 0-4°C"
+                        placeholder={formFields.specsPlaceholder}
                         rows={2}
                         value={newProduct.specifications_text}
                         onChange={(e) => setNewProduct({ ...newProduct, specifications_text: e.target.value })}
@@ -1739,7 +1743,9 @@ function ProductsAdmin() {
         })}
         {list.length === 0 && (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            {search ? "No products match your search." : "No products yet. Click 'Add Product' above to create one."}
+            {search
+              ? `No ${storeVertical.shortName} products match your search "${search}".`
+              : `No ${storeVertical.name} items yet. Click 'Add Product' or 'Apply Real ${storeVertical.shortName} Catalog' above to get started.`}
           </p>
         )}
       </div>
@@ -1763,6 +1769,7 @@ function ProductsAdmin() {
                     <Label htmlFor="edit-name" className="text-xs font-semibold">Name (English) *</Label>
                     <Input
                       id="edit-name"
+                      placeholder={formFields.namePlaceholder}
                       value={editingProduct.name}
                       onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
                       className="rounded-xl h-9 text-xs"
@@ -1772,6 +1779,7 @@ function ProductsAdmin() {
                     <Label htmlFor="edit-tamil" className="text-xs font-semibold">Name (Tamil / Local)</Label>
                     <Input
                       id="edit-tamil"
+                      placeholder={formFields.tamilNamePlaceholder}
                       value={editingProduct.name_tamil ?? ""}
                       onChange={(e) => setEditingProduct({ ...editingProduct, name_tamil: e.target.value })}
                       className="rounded-xl h-9 text-xs"
@@ -1939,6 +1947,7 @@ function ProductsAdmin() {
                 <Label htmlFor="edit-desc">Description</Label>
                 <Textarea
                   id="edit-desc"
+                  placeholder={formFields.descriptionPlaceholder}
                   value={editingProduct.description ?? ""}
                   onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
                 />
@@ -1968,7 +1977,7 @@ function ProductsAdmin() {
                         <Label htmlFor="edit-brand" className="text-xs">Brand / Supplier</Label>
                         <Input
                           id="edit-brand"
-                          placeholder="e.g. Kasimedu Dock, FreshCo, Amul"
+                          placeholder={formFields.brandPlaceholder}
                           value={editingProduct.brand ?? ""}
                           onChange={(e) => setEditingProduct({ ...editingProduct, brand: e.target.value })}
                           className="rounded-xl h-9 text-xs"
@@ -1978,7 +1987,7 @@ function ProductsAdmin() {
                         <Label htmlFor="edit-model" className="text-xs">Model Number / SKU</Label>
                         <Input
                           id="edit-model"
-                          placeholder="e.g. VNJ-1KG, SK-01"
+                          placeholder={formFields.skuPlaceholder}
                           value={editingProduct.model_number ?? ""}
                           onChange={(e) => setEditingProduct({ ...editingProduct, model_number: e.target.value })}
                           className="rounded-xl h-9 text-xs"
@@ -1992,17 +2001,17 @@ function ProductsAdmin() {
                         <Input
                           id="edit-warranty"
                           type="number"
-                          placeholder="0 for fresh food"
+                          placeholder="0 for standard items"
                           value={editingProduct.warranty_period_months ?? 0}
                           onChange={(e) => setEditingProduct({ ...editingProduct, warranty_period_months: e.target.value })}
                           className="rounded-xl h-9 text-xs"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label htmlFor="edit-aisle" className="text-xs">Storage / Cold Rack / Freezer</Label>
+                        <Label htmlFor="edit-aisle" className="text-xs">Storage / Rack / Aisle</Label>
                         <Input
                           id="edit-aisle"
-                          placeholder="e.g. Chiller A, Freezer 2, Rack 3"
+                          placeholder={formFields.locationPlaceholder}
                           value={editingProduct.aisle_location ?? ""}
                           onChange={(e) => setEditingProduct({ ...editingProduct, aisle_location: e.target.value })}
                           className="rounded-xl h-9 text-xs"
@@ -2023,10 +2032,10 @@ function ProductsAdmin() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label htmlFor="edit-specs" className="text-xs">Technical Specs / Storage Notes</Label>
+                      <Label htmlFor="edit-specs" className="text-xs">Technical Specs / Item Details</Label>
                       <Textarea
                         id="edit-specs"
-                        placeholder="Cut: Whole Fish / Steaks&#10;Catch: Fresh Sea Catch&#10;Temp: 0-4°C"
+                        placeholder={formFields.specsPlaceholder}
                         rows={2}
                         value={editingProduct.specifications_text ?? ""}
                         onChange={(e) => setEditingProduct({ ...editingProduct, specifications_text: e.target.value })}

@@ -20,6 +20,8 @@ import {
   getStoreVertical,
   getVerticalProductTerm,
   getVerticalSearchPlaceholder,
+  getVerticalFormFields,
+  type BusinessVertical,
 } from "@/lib/verticals";
 
 type Search = { category?: string | undefined };
@@ -670,7 +672,7 @@ function Catalog() {
             <Button size="sm" variant="outline" onClick={clearAllFilters}>
               Reset All Filters
             </Button>
-            <RequestProductDialog defaultQuery={q} itemTerm={productTerm.singular} />
+            <RequestProductDialog defaultQuery={q} itemTerm={productTerm.singular} verticalId={vertical.id} storeName={settings?.store_name} />
           </div>
         </div>
       ) : (
@@ -679,7 +681,7 @@ function Catalog() {
             <p className="font-semibold text-sm">Looking for a specific item not listed?</p>
             <p className="text-xs text-muted-foreground">Request any item and our team will get it for you.</p>
           </div>
-          <RequestProductDialog itemTerm={productTerm.singular} />
+          <RequestProductDialog itemTerm={productTerm.singular} verticalId={vertical.id} storeName={settings?.store_name} />
         </div>
       )}
     </AppShell>
@@ -689,9 +691,13 @@ function Catalog() {
 function RequestProductDialog({
   defaultQuery = "",
   itemTerm = "Item",
+  verticalId = "universal",
+  storeName,
 }: {
   defaultQuery?: string;
   itemTerm?: string;
+  verticalId?: BusinessVertical;
+  storeName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [productName, setProductName] = useState(defaultQuery);
@@ -699,6 +705,8 @@ function RequestProductDialog({
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const formFields = getVerticalFormFields(verticalId, storeName);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -744,7 +752,7 @@ function RequestProductDialog({
             <Input
               id="req-prod"
               required
-              placeholder={`e.g. Favorite brand, specific variety or cut...`}
+              placeholder={formFields.customRequestPlaceholder}
               value={productName}
               onChange={(e) => setProductName(e.target.value)}
             />
@@ -775,7 +783,17 @@ function RequestProductDialog({
             <Label htmlFor="req-notes">Quantity or Specific Requirements</Label>
             <Input
               id="req-notes"
-              placeholder="e.g. Need ~2kg or specific brand / cut"
+              placeholder={
+                verticalId === "footwear"
+                  ? "e.g. Size UK 9, Black color, pair"
+                  : verticalId === "snacks_sweets"
+                  ? "e.g. 5 packets of ₹20 pack, or 1kg tin"
+                  : verticalId === "electronics_appliances"
+                  ? "e.g. Model number, specific color or variant"
+                  : verticalId === "clothing_fashion"
+                  ? "e.g. Size L (40), Navy Blue, 100% cotton"
+                  : "e.g. Quantity needed, specific variety or cut preference"
+              }
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />

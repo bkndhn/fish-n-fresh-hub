@@ -28,6 +28,7 @@ import { SeoStructuredData } from "@/components/SeoStructuredData";
 import { createSubscription } from "@/lib/subscriptions.functions";
 import { useCustomerBranch } from "@/lib/customerBranchContext";
 import { useSessionUser } from "@/lib/session";
+import { getStoreVertical, getVerticalFormFields } from "@/lib/verticals";
 import type { SiteSettings } from '@/lib/types';
 
 const PORTION_CHIPS = [
@@ -87,6 +88,8 @@ function ProductPage() {
   const { data: product, isLoading } = useQuery(productQuery(id));
   const { data: all } = useQuery(productsQuery());
   const { data: settings } = useQuery(settingsQuery);
+  const storeVertical = getStoreVertical(settings);
+  const formFields = getVerticalFormFields(storeVertical.id, settings?.store_name);
   const { add, items } = useCart();
   const { activeBranch } = useCustomerBranch();
   const [qty, setQty] = useState(1);
@@ -449,7 +452,7 @@ function ProductPage() {
                 </Button>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Get this fresh cut delivered automatically every week with priority harbour dispatch. Pause or cancel anytime in your account.
+                Get this {storeVertical.shortName} delivered automatically every week with priority hub dispatch. Pause or cancel anytime in your account.
               </p>
             </div>
           </div>
@@ -467,7 +470,7 @@ function ProductPage() {
                       Subscribe to Weekly {product.name}
                     </DialogTitle>
                     <p className="text-xs text-muted-foreground">
-                      Automatic fresh catch dispatch at 5% discount.
+                      Automatic {storeVertical.shortName} order dispatch at 5% discount.
                     </p>
                   </div>
                 </div>
@@ -852,7 +855,7 @@ function ProductReviewsSection({ productId, productName }: { productId: string; 
                 <Label htmlFor="rev-comment">Review Comments *</Label>
                 <Textarea
                   id="rev-comment"
-                  placeholder="How was the freshness, taste, and cutting?"
+                  placeholder={formFields.reviewPlaceholder}
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   className="rounded-xl"
