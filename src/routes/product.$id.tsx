@@ -726,6 +726,7 @@ function ProductPage() {
 
 function ProductReviewsSection({ productId, productName }: { productId: string; productName: string }) {
   const qc = useQueryClient();
+  const { user } = useSessionUser();
   const [openReview, setOpenReview] = useState(false);
   const [rating, setRating] = useState(5);
   const [name, setName] = useState("");
