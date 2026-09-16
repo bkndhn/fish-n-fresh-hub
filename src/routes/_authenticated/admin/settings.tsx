@@ -36,6 +36,7 @@ import {
   CreditCard,
   PackagePlus,
   ExternalLink,
+  Copy,
 } from "lucide-react";
 import { testEmailDispatch } from "@/lib/emails.functions";
 import { applyRealProductsCatalog } from "@/lib/products.functions";
@@ -1053,6 +1054,86 @@ function AdminSettings() {
                     <span>Test WhatsApp Link 💬</span>
                   </Button>
                 )}
+              </div>
+            </div>
+
+            {/* WhatsApp Business Auto-Reply & Quick Replies Setup Card */}
+            <div className="p-4 rounded-2xl border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 space-y-3 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-emerald-950 dark:text-emerald-200">
+                  <Sparkles className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span className="font-bold text-sm">WhatsApp Business Auto-Reply &amp; Quick Replies Setup</span>
+                </div>
+                <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-white/80 dark:bg-black/40">
+                  Official WhatsApp Business
+                </Badge>
+              </div>
+              <p className="text-muted-foreground leading-relaxed">
+                When customers place an order, our system attaches their itemized catch specifications, custom cut styles, live doorstep Google Maps navigation link, and tracking URL. Set up an automated receipt confirmation in your WhatsApp Business app so customers get instant acknowledgement.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                <div className="p-3 rounded-xl bg-background border border-border space-y-1.5">
+                  <div className="flex items-center gap-1.5 font-bold text-foreground">
+                    <span className="size-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px]">1</span>
+                    Quick Reply Shortcut (/confirm)
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    In WhatsApp Business &rarr; <strong>Settings &rarr; Business Tools &rarr; Quick Replies</strong>. Tap <strong>+</strong>, set Shortcut to <code>/confirm</code> and paste the template.
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-background border border-border space-y-1.5">
+                  <div className="flex items-center gap-1.5 font-bold text-foreground">
+                    <span className="size-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px]">2</span>
+                    Automated Away / Greeting Message
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    In WhatsApp Business &rarr; <strong>Away Message</strong> or <strong>Greeting Message</strong>. Enable "Send greeting message" and paste the template for instant 24/7 replies.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-foreground">
+                    Recommended WhatsApp Business Auto-Reply Message Template:
+                  </Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const sampleTemplate = `👋 Hi {Customer Name}, thank you for ordering from ${form.store_name || "Fish N Fresh Hub"}!
+
+🌊 We have received your order *#{Order Number}* with your fresh dock-landed catch.
+🛵 Our team is preparing your custom cut preferences with chilled ice packaging.
+
+📍 Delivery to: {Customer Address}
+🧭 Doorstep Navigation: {Google Maps Link}
+🔍 Track your live order status: ${typeof window !== "undefined" ? window.location.origin : "https://fishnfreshhub.com"}/orders?phone={Customer Phone}
+
+If you need any cut modifications, please reply here. Thank you!`;
+                      navigator.clipboard.writeText(sampleTemplate);
+                      toast.success("WhatsApp Business auto-reply template copied!");
+                    }}
+                    className="h-7 text-xs px-2.5 rounded-lg gap-1 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                  >
+                    <Copy className="size-3" />
+                    <span>Copy Template</span>
+                  </Button>
+                </div>
+                <pre className="p-3 rounded-xl bg-background/90 border border-border font-sans text-[11px] text-foreground leading-relaxed whitespace-pre-wrap select-all">
+{`👋 Hi {Customer Name}, thank you for ordering from ${form.store_name || "Fish N Fresh Hub"}!
+
+🌊 We have received your order *#{Order Number}* with your fresh dock-landed catch.
+🛵 Our team is preparing your custom cut preferences with chilled ice packaging.
+
+📍 Delivery to: {Customer Address}
+🧭 Doorstep Navigation: {Google Maps Link}
+🔍 Track your live order status: ${typeof window !== "undefined" ? window.location.origin : "https://fishnfreshhub.com"}/orders?phone={Customer Phone}
+
+If you need any cut modifications, please reply here. Thank you!`}
+                </pre>
               </div>
             </div>
           </CardContent>

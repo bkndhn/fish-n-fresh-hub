@@ -4,6 +4,7 @@ import {
   buildWhatsAppOrderMessage,
   getWhatsAppOrderDeepLink,
   normalizeWhatsAppNumber,
+  getWhatsAppBusinessAutoReplyTemplate,
   type WhatsAppOrderSummary,
 } from "@/lib/whatsappOrdering";
 import {
@@ -160,6 +161,33 @@ describe("WhatsApp Deep-Link Ordering Utility", () => {
     const link = getWhatsAppOrderDeepLink("9843061919", msg);
     expect(link).toContain("https://wa.me/919843061919?text=");
     expect(link).toContain(encodeURIComponent("NEW ORDER - FISH N FRESH HUB"));
+  });
+
+  it("attaches live doorstep Google Maps navigation link and customer live tracking URL when GPS coordinates are provided", () => {
+    const orderWithGps: WhatsAppOrderSummary = {
+      ...sampleOrder,
+      orderNumber: "WA-992201",
+      customer: {
+        ...sampleOrder.customer,
+        lat: 13.0827,
+        lng: 80.2707,
+      },
+    };
+    const msg = buildWhatsAppOrderMessage(orderWithGps);
+    expect(msg).toContain("🆔 *Order Ref:* #WA-992201");
+    expect(msg).toContain("🧭 *Doorstep Navigation:* https://maps.google.com/?q=13.0827,80.2707");
+    expect(msg).toContain("🔍 *Track Order Live:*");
+    expect(msg).toContain("/orders?phone=9876543210");
+  });
+
+  it("generates ready-to-use WhatsApp Business auto-reply template with live tracking link and order summary", () => {
+    const reply = getWhatsAppBusinessAutoReplyTemplate(sampleOrder, "WA-992201");
+    expect(reply).toContain("Hi Deepak Sundar");
+    expect(reply).toContain("Fish N Fresh Hub");
+    expect(reply).toContain("*#WA-992201*");
+    expect(reply).toContain("2 items · Total: ₹1,930");
+    expect(reply).toContain("Delivery to: 12 Marina Beach Road");
+    expect(reply).toContain("/orders?phone=9876543210");
   });
 
   it("filters only available in-stock items and excludes sold-out products for WhatsApp ordering", () => {

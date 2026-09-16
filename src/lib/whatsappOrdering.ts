@@ -16,6 +16,9 @@ export interface WhatsAppOrderCustomerInfo {
   name: string;
   phone: string;
   address?: string | undefined;
+  lat?: number | null | undefined;
+  lng?: number | null | undefined;
+  googleMapsLink?: string | undefined;
   fulfillment?: "delivery" | "pickup" | undefined;
   preferredDate?: string | undefined;
   notes?: string | undefined;
@@ -32,6 +35,7 @@ export interface WhatsAppOrderItem {
 }
 
 export interface WhatsAppOrderSummary {
+  orderNumber?: string;
   storeName: string;
   storePhone: string;
   customer: WhatsAppOrderCustomerInfo;
@@ -41,6 +45,7 @@ export interface WhatsAppOrderSummary {
   gstAmount: number;
   isGstEnabled: boolean;
   total: number;
+  trackingBaseUrl?: string;
 }
 
 /**
@@ -55,24 +60,33 @@ export function normalizeWhatsAppNumber(phone: string): string {
 }
 
 /**
- * Formats a clean, high-conversion WhatsApp order text message.
+ * Formats a clean, high-conversion WhatsApp order text message with rich in-depth details,
+ * custom cuts, door-step GPS navigation link, and tracking link.
  */
 export function buildWhatsAppOrderMessage(data: WhatsAppOrderSummary): string {
   const store = data.storeName.toUpperCase();
   const fulfillmentLabel = data.customer.fulfillment === "pickup" ? "🏪 Store Self-Pickup" : "🚚 Doorstep Delivery";
+  const orderRef = data.orderNumber || `WA-${Date.now().toString().slice(-6)}`;
   
   const lines: string[] = [
     `🌊 *NEW ORDER - ${store}*`,
     `━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `🆔 *Order Ref:* #${orderRef}`,
     `👤 *Customer:* ${data.customer.name.trim() || "Customer"}`,
     `📱 *Phone:* ${data.customer.phone.trim() || "N/A"}`,
+    `📦 *Fulfillment:* ${fulfillmentLabel}`,
   ];
 
   if (data.customer.fulfillment !== "pickup" && data.customer.address?.trim()) {
     lines.push(`📍 *Delivery Address:* ${data.customer.address.trim()}`);
+    
+    // Attach live Google Maps doorstep navigation link if GPS coordinates or link exist
+    if (data.customer.lat && data.customer.lng) {
+      lines.push(`🧭 *Doorstep Navigation:* https://maps.google.com/?q=${data.customer.lat},${data.customer.lng}`);
+    } else if (data.customer.googleMapsLink) {
+      lines.push(`🧭 *Doorstep Navigation:* ${data.customer.googleMapsLink}`);
+    }
   }
-
-  lines.push(`📦 *Fulfillment:* ${fulfillmentLabel}`);
 
   if (data.customer.preferredDate?.trim()) {
     lines.push(`📅 *Preferred Date:* ${data.customer.preferredDate.trim()}`);
@@ -113,7 +127,13 @@ export function buildWhatsAppOrderMessage(data: WhatsAppOrderSummary): string {
     lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━`);
   }
 
-  lines.push(`💬 _Order placed via Store Web App. Please confirm availability & dispatch time._`);
+  const cleanCustPhone = data.customer.phone.replace(/\D/g, "");
+  if (cleanCustPhone.length >= 10) {
+    const base = data.trackingBaseUrl || (typeof window !== "undefined" ? window.location.origin : "https://fishnfreshhub.com");
+    lines.push(`🔍 *Track Order Live:* ${base}/orders?phone=${cleanCustPhone}`);
+  }
+
+  lines.push(`💬 _Order placed via Store Web App. Please reply to confirm availability & dispatch time._`);
 
   return lines.join("\n");
 }
@@ -128,26 +148,58 @@ export function getWhatsAppOrderDeepLink(storePhone: string, message: string): s
 }
 
 /**
+ * Generates the official WhatsApp Business Auto-Reply message template
+ * that store owners can configure in WhatsApp Business App (Quick Replies or Away Message).
+ */
+export function getWhatsAppBusinessAutoReplyTemplate(
+  data: WhatsAppOrderSummary,
+  orderNumber?: string
+): string {
+  const ord = orderNumber || data.orderNumber || "WA-ORDER";
+  const cleanCustPhone = data.customer.phone.replace(/\D/g, "");
+  const base = data.trackingBaseUrl || (typeof window !== "undefined" ? window.location.origin : "https://fishnfreshhub.com");
+  const trackingUrl = cleanCustPhone ? `${base}/orders?phone=${cleanCustPhone}` : `${base}/orders`;
+
+  return `👋 Hi ${data.customer.name.trim() || "Customer"}, thank you for ordering from ${data.storeName}!
+
+🌊 We have received your order *#${ord}* (${data.items.length} item${data.items.length === 1 ? "" : "s"} · Total: ${inr(data.total)}).
+🛵 Our team is preparing your fresh dock-landed catch with live custom cutting and chilled ice packaging.
+
+📍 Delivery to: ${data.customer.address || "Store Pickup"}
+🔍 Track your live order status: ${trackingUrl}
+
+If you need any cut preference modifications, please reply here. Thank you!`;
+}
+
+/**
  * Records an order dispatched via WhatsApp into Supabase orders table,
  * ensuring inventory tracking and CRM purchase history are kept fully up to date.
  */
 export async function recordWhatsAppOrderInCrm(data: WhatsAppOrderSummary): Promise<{ orderNumber: string; success: boolean }> {
-  const orderNumber = `WA-${Date.now().toString().slice(-6)}`;
+  const orderNumber = data.orderNumber || `WA-${Date.now().toString().slice(-6)}`;
   try {
     const cleanPhone = data.customer.phone.replace(/\D/g, "") || "9999999999";
     const cleanName = data.customer.name.trim() || "WhatsApp Customer";
+    const navLink = data.customer.lat && data.customer.lng
+      ? `https://maps.google.com/?q=${data.customer.lat},${data.customer.lng}`
+      : data.customer.googleMapsLink || null;
 
     const payload = {
       order_number: orderNumber,
       customer_name: cleanName,
       customer_phone: cleanPhone,
       customer_address: data.customer.address?.trim() || null,
+      location_lat: data.customer.lat ?? null,
+      location_lng: data.customer.lng ?? null,
+      map_link: navLink,
       fulfillment_type: data.customer.fulfillment === "pickup" ? "pickup" : "delivery",
       status: "pending",
       payment_method: "whatsapp",
       payment_status: "pending",
       subtotal: data.subtotal,
       delivery_fee: data.customer.fulfillment === "pickup" ? 0 : data.deliveryFee,
+      delivery_date: data.customer.preferredDate || null,
+      delivery_note: data.customer.notes || null,
       gst_amount: data.isGstEnabled ? data.gstAmount : 0,
       discount: 0,
       total: data.total,
@@ -160,7 +212,7 @@ export async function recordWhatsAppOrderInCrm(data: WhatsAppOrderSummary): Prom
         cutting_style: it.cutPreference || null,
         line_total: it.totalPrice,
       })) as unknown as Json,
-      notes: `Order via WhatsApp Deep Link${data.customer.notes ? ` | Notes: ${data.customer.notes}` : ""}`,
+      notes: `Order via WhatsApp Deep Link${navLink ? ` | Nav: ${navLink}` : ""}${data.customer.notes ? ` | Notes: ${data.customer.notes}` : ""}`,
       created_at: new Date().toISOString(),
     };
 
