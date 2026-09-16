@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { generateSampleCsv, parseProductsCsv, exportProductsToCsv } from "@/lib/retailCsv";
 import { applyRealProductsCatalog } from "@/lib/products.functions";
 import { CategoryManagement } from "@/components/admin/CategoryManagement";
+import { SmartCatalogSeedModal } from "@/components/admin/SmartCatalogSeedModal";
 import { ProductAiBenefitsCard } from "@/components/ProductAiBenefitsCard";
 import {
   matchSpeciesVisualProfile,
@@ -607,15 +608,23 @@ function ProductsAdmin() {
   };
 
   const [seedingCatalog, setSeedingCatalog] = useState(false);
-  const handleApplyRealCatalog = async () => {
-    if (!confirm(`This will load authentic ${storeVertical.name} items with verified real market prices, high-res photos, barcodes, and specs into your store. Proceed?`)) return;
+  const [seedModalOpen, setSeedModalOpen] = useState(false);
+
+  const handleSeedConfirm = async (options: { archiveExisting: boolean; keepCustomProducts: boolean }) => {
     try {
       setSeedingCatalog(true);
-      const res = await applyRealProductsCatalog({ data: { archiveExisting: false, vertical: storeVertical.id } });
+      const res = await applyRealProductsCatalog({
+        data: {
+          archiveExisting: options.archiveExisting,
+          keepCustomProducts: options.keepCustomProducts,
+          vertical: storeVertical.id,
+        },
+      });
       if (res.success) {
         toast.success(`Successfully loaded ${res.inserted} authentic ${storeVertical.shortName} products!`);
         qc.invalidateQueries({ queryKey: ["admin", "products"] });
         qc.invalidateQueries({ queryKey: ["products"] });
+        setSeedModalOpen(false);
       } else {
         toast.error(res.error || "Failed to load real catalog");
       }
@@ -627,19 +636,28 @@ function ProductsAdmin() {
   };
 
   return (
-    <AdminShell
-      title="Products & Inventory"
-      allow={["admin", "manager", "inventory_manager", "staff"]}
-      action={
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="secondary"
-            className="rounded-xl h-9 font-bold text-xs gap-1.5 border border-primary/20 bg-primary/10 hover:bg-primary/20 text-primary"
-            onClick={handleApplyRealCatalog}
-            disabled={seedingCatalog}
-          >
-            <Sparkles className="size-3.5 text-primary" /> <span>{seedingCatalog ? `Loading ${storeVertical.shortName}…` : `Apply Real ${storeVertical.shortName} Catalog`}</span>
-          </Button>
+    <>
+      <SmartCatalogSeedModal
+        open={seedModalOpen}
+        onOpenChange={setSeedModalOpen}
+        verticalConfig={storeVertical}
+        storeName={settings?.store_name}
+        loading={seedingCatalog}
+        onConfirm={handleSeedConfirm}
+      />
+      <AdminShell
+        title="Products & Inventory"
+        allow={["admin", "manager", "inventory_manager", "staff"]}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              className="rounded-xl h-9 font-bold text-xs gap-1.5 border border-primary/20 bg-primary/10 hover:bg-primary/20 text-primary"
+              onClick={() => setSeedModalOpen(true)}
+              disabled={seedingCatalog}
+            >
+              <Sparkles className="size-3.5 text-primary" /> <span>{seedingCatalog ? `Loading ${storeVertical.shortName}…` : `Apply Real ${storeVertical.shortName} Catalog`}</span>
+            </Button>
           <Button
             variant="outline"
             className="rounded-xl h-9 font-semibold text-xs gap-1.5 border-border/80 hover:bg-muted"
@@ -2575,6 +2593,7 @@ function ProductsAdmin() {
         </DialogContent>
       </Dialog>
     </AdminShell>
+    </>
   );
 }
 

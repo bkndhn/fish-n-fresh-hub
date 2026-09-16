@@ -696,7 +696,7 @@ export const REAL_FOOTWEAR_PRODUCTS = [
 ];
 
 export const applyRealProductsCatalog = createServerFn({ method: "POST" })
-  .inputValidator((data: { archiveExisting?: boolean; vertical?: string } | undefined) => data || {})
+  .inputValidator((data: { archiveExisting?: boolean; keepCustomProducts?: boolean; vertical?: string } | undefined) => data || {})
   .handler(async ({ data }): Promise<SeedCatalogResult> => {
     await requireAdmin();
     try {
@@ -797,13 +797,34 @@ export const applyRealProductsCatalog = createServerFn({ method: "POST" })
       const { data: catRows } = await supabaseAdmin.from("categories").select("id, slug");
       const catMap = new Map(((catRows as Array<{ id: string; slug: string }>) || []).map((c) => [c.slug, c.id]));
 
-      // 4. Optionally archive old products
+      // 4. Optionally archive old products (with smart preservation of custom non-seeded items)
       if (data.archiveExisting) {
         const productIds = productsToUpsert.map((p) => p.id);
-        await supabaseAdmin
-          .from("products")
-          .update({ is_available: false })
-          .not("id", "in", `(${productIds.join(",")})`);
+        if (data.keepCustomProducts) {
+          // Identify known template product IDs across all verticals
+          const allTemplateIds = [
+            ...REAL_SEAFOOD_PRODUCTS.map((p) => p.id),
+            ...REAL_CHICKEN_MEAT_PRODUCTS.map((p) => p.id),
+            ...REAL_GROCERY_PRODUCTS.map((p) => p.id),
+            ...REAL_ELECTRONICS_PRODUCTS.map((p) => p.id),
+            ...REAL_FASHION_PRODUCTS.map((p) => p.id),
+            ...REAL_SNACKS_PRODUCTS.map((p) => p.id),
+            ...REAL_FOOTWEAR_PRODUCTS.map((p) => p.id),
+          ];
+          const otherTemplateIds = allTemplateIds.filter((id) => !productIds.includes(id));
+          if (otherTemplateIds.length > 0) {
+            await supabaseAdmin
+              .from("products")
+              .update({ is_available: false, is_active: false } as never)
+              .in("id", otherTemplateIds);
+          }
+        } else {
+          // Clean slate: Deactivate all existing products not in new vertical
+          await supabaseAdmin
+            .from("products")
+            .update({ is_available: false, is_active: false } as never)
+            .not("id", "in", `(${productIds.join(",")})`);
+        }
       }
 
       // 5. Upsert Real Products

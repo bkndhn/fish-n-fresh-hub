@@ -37,10 +37,20 @@ import {
   PackagePlus,
   ExternalLink,
   Copy,
+  Plus,
+  Check,
 } from "lucide-react";
 import { testEmailDispatch } from "@/lib/emails.functions";
 import { applyRealProductsCatalog } from "@/lib/products.functions";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { SmartCatalogSeedModal } from "@/components/admin/SmartCatalogSeedModal";
+import {
+  getSavedLiveChatConfig,
+  saveLiveChatConfig,
+  getDefaultLiveChatConfig,
+  type LiveChatConfig,
+} from "@/lib/liveChatConfig";
+import { Textarea } from "@/components/ui/textarea";
 import { settingsQuery } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -93,6 +103,73 @@ function AdminSettings() {
   const [testingEmail, setTestingEmail] = useState(false);
   const [testEmailAddress, setTestEmailAddress] = useState("");
   const [seedingCatalog, setSeedingCatalog] = useState(false);
+  const [seedModalOpen, setSeedModalOpen] = useState(false);
+  const [seedVerticalTarget, setSeedVerticalTarget] = useState<any>(() =>
+    getVerticalConfig("seafood")
+  );
+
+  // Live Chat Customizer & Multi-Vertical State
+  const [liveChatConfig, setLiveChatConfig] = useState<LiveChatConfig>(() =>
+    getSavedLiveChatConfig(
+      (settings as any)?.business_vertical || "seafood",
+      settings?.store_name || "Fish N Fresh",
+      settings?.contact_phone || "+91 98430 61919",
+      tenant.tenantId
+    )
+  );
+  const [newFaqQ, setNewFaqQ] = useState("");
+  const [newFaqA, setNewFaqA] = useState("");
+
+  useEffect(() => {
+    if (settings) {
+      const vert = (((settings as any)?.business_vertical || detectVerticalFromStoreName(settings?.store_name)) as BusinessVertical) || "seafood";
+      setLiveChatConfig(getSavedLiveChatConfig(vert, settings.store_name, settings.contact_phone, tenant.tenantId));
+    }
+  }, [settings, tenant.tenantId]);
+
+  const handleSaveLiveChat = () => {
+    saveLiveChatConfig(liveChatConfig, tenant.tenantId);
+    if (settings?.id && settings.id !== tenant.tenantId) {
+      saveLiveChatConfig(liveChatConfig, settings.id);
+    }
+    toast.success("Storefront Live Support settings saved & applied!");
+  };
+
+  const handleResetLiveChatToVertical = () => {
+    const vert = (form.business_vertical || (settings as any)?.business_vertical || detectVerticalFromStoreName(form.store_name || settings?.store_name) || "seafood") as BusinessVertical;
+    const defaults = getDefaultLiveChatConfig(vert, form.store_name || settings?.store_name, form.contact_phone || settings?.contact_phone);
+    setLiveChatConfig(defaults);
+    saveLiveChatConfig(defaults, tenant.tenantId);
+    if (settings?.id && settings.id !== tenant.tenantId) {
+      saveLiveChatConfig(defaults, settings.id);
+    }
+    toast.info(`Live support reset to ${VERTICAL_CONFIGS[vert]?.name || "vertical"} defaults!`);
+  };
+
+  const handleSeedConfirm = async (options: { archiveExisting: boolean; keepCustomProducts: boolean }) => {
+    try {
+      setSeedingCatalog(true);
+      const res = await applyRealProductsCatalog({
+        data: {
+          archiveExisting: options.archiveExisting,
+          keepCustomProducts: options.keepCustomProducts,
+          vertical: seedVerticalTarget.id,
+        },
+      });
+      if (res.success) {
+        toast.success(`Successfully loaded ${res.inserted} authentic ${seedVerticalTarget.shortName} products!`);
+        qc.invalidateQueries({ queryKey: ["admin", "products"] });
+        qc.invalidateQueries({ queryKey: ["products"] });
+        setSeedModalOpen(false);
+      } else {
+        toast.error(res.error || "Failed to seed catalog");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Failed to seed catalog");
+    } finally {
+      setSeedingCatalog(false);
+    }
+  };
 
   // POS Multi-Tenant Isolated Payment Methods & Default Tender
   const [paymentConfig, setPaymentConfig] = useState<StorePaymentConfig>(() =>
@@ -458,6 +535,10 @@ function AdminSettings() {
       }
     },
     onSuccess: () => {
+      saveLiveChatConfig(liveChatConfig, tenant.tenantId);
+      if (settings?.id && settings.id !== tenant.tenantId) {
+        saveLiveChatConfig(liveChatConfig, settings.id);
+      }
       toast.success("Settings saved");
       qc.invalidateQueries({ queryKey: ["store_settings"] });
       qc.invalidateQueries({ queryKey: ["payment_gateway_credentials"] });
@@ -616,6 +697,69 @@ function AdminSettings() {
               />
             </div>
           </div>
+
+          {/* Real-time vertical alignment helper if store name implies a different vertical */}
+          {(() => {
+            const inferredVertical = detectVerticalFromStoreName(form.store_name);
+            const currentVertical = ((form.business_vertical || settings?.business_vertical || "seafood") as BusinessVertical);
+            if (!form.store_name || inferredVertical === currentVertical) return null;
+            const inferredCfg = VERTICAL_CONFIGS[inferredVertical];
+            if (!inferredCfg) return null;
+            return (
+              <div className="mt-3 p-3.5 rounded-2xl border border-primary/30 bg-primary/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in duration-300">
+                <div className="space-y-0.5 min-w-0">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                    <Sparkles className="size-3.5 text-primary shrink-0" />
+                    <span>Store name suggests <strong>{inferredCfg.name}</strong></span>
+                    <Badge variant="outline" className="text-[10px] border-primary/30 text-primary bg-primary/10">
+                      {inferredCfg.shortName}
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Your current vertical is set to {VERTICAL_CONFIGS[currentVertical]?.name || currentVertical}. Switch verticals and synchronize catalog presets?
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl h-8 text-xs font-semibold text-primary border-primary/30 hover:bg-primary/10"
+                    onClick={() => {
+                      setForm({
+                        ...form,
+                        business_vertical: inferredVertical,
+                        theme_color: inferredCfg.recommendedThemeColor,
+                        vertical_tagline: inferredCfg.tagline,
+                        vertical_badge_text: inferredCfg.badgeText,
+                      });
+                      const newChatDefaults = getDefaultLiveChatConfig(
+                        inferredVertical,
+                        form.store_name,
+                        form.contact_phone || settings?.contact_phone
+                      );
+                      setLiveChatConfig(newChatDefaults);
+                      toast.success(`Switched store vertical to ${inferredCfg.name}!`);
+                    }}
+                  >
+                    <Sparkles className="size-3 mr-1" /> Switch to {inferredCfg.shortName}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="rounded-xl h-8 text-xs font-semibold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20"
+                    onClick={() => {
+                      setSeedVerticalTarget(inferredCfg);
+                      setSeedModalOpen(true);
+                    }}
+                  >
+                    <PackagePlus className="size-3 mr-1" /> Load {inferredCfg.shortName} Catalog
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
       )
@@ -738,26 +882,12 @@ function AdminSettings() {
                     variant="secondary"
                     className="rounded-xl h-8 text-xs font-semibold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20"
                     disabled={seedingCatalog}
-                    onClick={async () => {
-                      if (!confirm(`Load 10 authentic ${currentCfg.name} items with verified real prices, photos, and specs into your store catalog?`)) return;
-                      try {
-                        setSeedingCatalog(true);
-                        const res = await applyRealProductsCatalog({ data: { archiveExisting: false, vertical: currentCfg.id } });
-                        if (res.success) {
-                          toast.success(`Successfully seeded ${res.inserted} authentic ${currentCfg.shortName} products!`);
-                          qc.invalidateQueries({ queryKey: ["admin", "products"] });
-                          qc.invalidateQueries({ queryKey: ["products"] });
-                        } else {
-                          toast.error(res.error || "Failed to seed catalog");
-                        }
-                      } catch (e: any) {
-                        toast.error(e.message || "Failed to seed catalog");
-                      } finally {
-                        setSeedingCatalog(false);
-                      }
+                    onClick={() => {
+                      setSeedVerticalTarget(currentCfg);
+                      setSeedModalOpen(true);
                     }}
                   >
-                    <PackagePlus className="size-3 mr-1" /> {seedingCatalog ? "Seeding…" : `Seed ${currentCfg.shortName} Products`}
+                    <PackagePlus className="size-3 mr-1" /> {seedingCatalog ? "Loading…" : `Seed ${currentCfg.shortName} Products`}
                   </Button>
                 </div>
               </div>
@@ -1134,6 +1264,284 @@ If you need any cut modifications, please reply here. Thank you!`;
 
 If you need any cut modifications, please reply here. Thank you!`}
                 </pre>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ),
+    },
+    {
+      id: "live_support_chat",
+      tab: "general" as const,
+      tabLabel: "General & Brand",
+      title: "Storefront Live Support & AI Auto-Replies Customizer",
+      description: "Deeply customize live support desk title, welcome greeting, support channels, and automated responses for freshness, cuts, GPS tracking, and delivery SLAs isolated per store vertical.",
+      keywords: ["live support", "chat widget", "auto reply", "instant reply", "ai assistant", "faq chips", "desk name", "freshness reply", "cuts reply", "tracking reply", "whatsapp desk", "support phone"],
+      content: (
+        <Card className="mb-6 border-border/80 shadow-xs">
+          <CardHeader className="pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Bot className="size-5 text-primary" />
+                  Storefront Live Support &amp; AI Auto-Replies Customizer
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Multi-vertical isolated live support engine. Ensure your desk name, welcome greeting, 1-tap FAQ chips, and instant auto-replies accurately reflect your store's vertical.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="text-xs border-primary/30 text-primary bg-primary/5">
+                  Multi-Vertical Isolated
+                </Badge>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl h-8 text-xs font-semibold text-primary border-primary/30 hover:bg-primary/10 gap-1.5"
+                  onClick={handleResetLiveChatToVertical}
+                >
+                  <RotateCcw className="size-3" /> Reset to Vertical Defaults
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="rounded-xl h-8 text-xs font-semibold gap-1.5"
+                  onClick={handleSaveLiveChat}
+                >
+                  <Check className="size-3" /> Save Live Support
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Desk Name & Welcome Greeting */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-semibold">Live Assistant / Desk Title</Label>
+                <Input
+                  value={liveChatConfig.botName}
+                  onChange={(e) => setLiveChatConfig({ ...liveChatConfig, botName: e.target.value })}
+                  placeholder="e.g. Fish N Fresh Live Desk, Fresh Farm Meat Desk"
+                  className="mt-1 text-sm rounded-xl"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Appears in the header of the live support widget on customer screens.
+                </p>
+              </div>
+              <div>
+                <Label className="text-xs font-semibold">Store Welcome Greeting</Label>
+                <Input
+                  value={liveChatConfig.welcomeMessage}
+                  onChange={(e) => setLiveChatConfig({ ...liveChatConfig, welcomeMessage: e.target.value })}
+                  placeholder="Vanakkam! 👋 How can we help you today?"
+                  className="mt-1 text-sm rounded-xl"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Opening greeting displayed when a customer opens storefront chat.
+                </p>
+              </div>
+            </div>
+
+            {/* Contact Numbers */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-semibold">Live Desk Phone Line</Label>
+                <Input
+                  value={liveChatConfig.supportPhone}
+                  onChange={(e) => setLiveChatConfig({ ...liveChatConfig, supportPhone: e.target.value })}
+                  placeholder="+91 98430 61919"
+                  className="mt-1 text-sm rounded-xl"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Dialed when customers tap the "Call Desk" phone button.
+                </p>
+              </div>
+              <div>
+                <Label className="text-xs font-semibold">Direct WhatsApp Escalation Number</Label>
+                <Input
+                  value={liveChatConfig.whatsappNumber}
+                  onChange={(e) => setLiveChatConfig({ ...liveChatConfig, whatsappNumber: e.target.value })}
+                  placeholder="+91 98430 61919"
+                  className="mt-1 text-sm rounded-xl"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Opens WhatsApp chat with prefilled context when customers tap "WhatsApp".
+                </p>
+              </div>
+            </div>
+
+            {/* Vertical Auto-Reply Intelligence Matrix */}
+            <div className="space-y-4 pt-2 border-t border-border/60">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Sparkles className="size-3.5 text-primary" />
+                    Vertical Auto-Reply Responses (Instant AI Matching)
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground">
+                    Tailor replies to your specific retail products. Avoid seafood-specific text if you sell poultry, groceries, or goods.
+                  </p>
+                </div>
+                <Badge variant="secondary" className="text-[10px]">
+                  Active: {VERTICAL_CONFIGS[(form.business_vertical || settings?.business_vertical || "seafood") as BusinessVertical]?.name}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs font-semibold">1. Freshness &amp; Sourcing Auto-Reply</Label>
+                  <Textarea
+                    rows={3}
+                    value={liveChatConfig.freshnessReply}
+                    onChange={(e) => setLiveChatConfig({ ...liveChatConfig, freshnessReply: e.target.value })}
+                    placeholder="Details about daily sourcing, chemical-free guarantees, cold chain..."
+                    className="mt-1 text-xs rounded-xl"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold">2. Custom Cuts &amp; Preparation Auto-Reply</Label>
+                  <Textarea
+                    rows={3}
+                    value={liveChatConfig.cutsReply}
+                    onChange={(e) => setLiveChatConfig({ ...liveChatConfig, cutsReply: e.target.value })}
+                    placeholder="Curry cuts, biryani cuts, boneless fillets, zero cutting charges..."
+                    className="mt-1 text-xs rounded-xl"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold">3. Live GPS Radar &amp; PIN Auto-Reply</Label>
+                  <Textarea
+                    rows={3}
+                    value={liveChatConfig.trackingReply}
+                    onChange={(e) => setLiveChatConfig({ ...liveChatConfig, trackingReply: e.target.value })}
+                    placeholder="Live rider tracking, WebSocket GPS updates, 4-digit Delivery PIN..."
+                    className="mt-1 text-xs rounded-xl"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold">4. Delivery Speed &amp; Time Slot Auto-Reply</Label>
+                  <Textarea
+                    rows={3}
+                    value={liveChatConfig.deliveryTimeReply}
+                    onChange={(e) => setLiveChatConfig({ ...liveChatConfig, deliveryTimeReply: e.target.value })}
+                    placeholder="Express delivery SLA (30-45 mins), morning/evening scheduled slots..."
+                    className="mt-1 text-xs rounded-xl"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold">5. 100% Guarantee &amp; Replacement SLA</Label>
+                  <Textarea
+                    rows={3}
+                    value={liveChatConfig.guaranteeReply}
+                    onChange={(e) => setLiveChatConfig({ ...liveChatConfig, guaranteeReply: e.target.value })}
+                    placeholder="Quality guarantee, 2-hour reporting window, doorstep replacement..."
+                    className="mt-1 text-xs rounded-xl"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold">6. Supported Payment Methods Auto-Reply</Label>
+                  <Textarea
+                    rows={3}
+                    value={liveChatConfig.paymentReply}
+                    onChange={(e) => setLiveChatConfig({ ...liveChatConfig, paymentReply: e.target.value })}
+                    placeholder="UPI (GPay/PhonePe/Paytm), Cards, COD, Wallets..."
+                    className="mt-1 text-xs rounded-xl"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 1-Tap FAQ Chips Manager */}
+            <div className="space-y-3 pt-2 border-t border-border/60">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <MessageSquare className="size-3.5 text-primary" />
+                    1-Tap Instant Suggestion FAQ Chips ({liveChatConfig.customFaqs.length})
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground">
+                    These buttons appear directly in the chat widget. Customers tap once to instantly receive the exact verified answer without typing.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl h-8 text-xs font-semibold gap-1"
+                  onClick={() => {
+                    if (!newFaqQ.trim() || !newFaqA.trim()) {
+                      toast.error("Please provide both a Question and an Answer for the FAQ chip.");
+                      return;
+                    }
+                    setLiveChatConfig({
+                      ...liveChatConfig,
+                      customFaqs: [...liveChatConfig.customFaqs, { q: newFaqQ.trim(), a: newFaqA.trim() }],
+                    });
+                    setNewFaqQ("");
+                    setNewFaqA("");
+                    toast.success("1-Tap FAQ chip added!");
+                  }}
+                >
+                  <Plus className="size-3.5" /> Add FAQ Chip
+                </Button>
+              </div>
+
+              {/* New FAQ Entry Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 rounded-2xl border border-dashed border-primary/30 bg-primary/5">
+                <div>
+                  <Label className="text-[11px] font-semibold">Chip Button Text / Question</Label>
+                  <Input
+                    value={newFaqQ}
+                    onChange={(e) => setNewFaqQ(e.target.value)}
+                    placeholder="e.g. Is the chicken antibiotic-free?"
+                    className="mt-1 text-xs rounded-xl h-8 bg-card"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[11px] font-semibold">Instant Response Text</Label>
+                  <Input
+                    value={newFaqA}
+                    onChange={(e) => setNewFaqA(e.target.value)}
+                    placeholder="e.g. Yes! Sourced daily from certified bio-secure farms..."
+                    className="mt-1 text-xs rounded-xl h-8 bg-card"
+                  />
+                </div>
+              </div>
+
+              {/* Current FAQ List */}
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                {liveChatConfig.customFaqs.map((faq, idx) => (
+                  <div key={idx} className="p-3 rounded-2xl border border-border/80 bg-muted/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-[10px] font-semibold shrink-0">
+                          Chip #{idx + 1}
+                        </Badge>
+                        <span className="text-xs font-bold text-foreground truncate">
+                          {faq.q}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground line-clamp-2">
+                        {faq.a}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="rounded-xl h-8 text-xs text-destructive hover:bg-destructive/10 shrink-0"
+                      onClick={() => {
+                        const next = [...liveChatConfig.customFaqs];
+                        next.splice(idx, 1);
+                        setLiveChatConfig({ ...liveChatConfig, customFaqs: next });
+                        toast.info("FAQ chip removed");
+                      }}
+                    >
+                      <Trash2 className="size-3.5 mr-1" /> Remove
+                    </Button>
+                  </div>
+                ))}
               </div>
             </div>
           </CardContent>
@@ -3181,7 +3589,7 @@ If you need any cut modifications, please reply here. Thank you!`}
       </Card>
       )
     },
-  ], [form, settings, schemaVersion, testingEmail, testEmailAddress, exportingBackup]);
+  ], [form, settings, schemaVersion, testingEmail, testEmailAddress, exportingBackup, liveChatConfig, newFaqQ, newFaqA]);
 
   // Filter sections when searching
   const filteredSections: SettingSectionItem[] = useMemo(() => {
@@ -3198,13 +3606,13 @@ If you need any cut modifications, please reply here. Thank you!`}
   }, [searchQuery, SETTINGS_SECTIONS]);
 
   const TAB_DEFINITIONS = [
-    { id: "general", label: "General & Brand", icon: Store, count: 3 },
-    { id: "branches", label: "Branches & Hubs", icon: MapPin, count: 2 },
-    { id: "delivery", label: "Delivery & Logistics", icon: Truck, count: 3 },
-    { id: "payments", label: "Payments & Tax", icon: CreditCard, count: 3 },
-    { id: "growth", label: "Marketing & Growth", icon: Sparkles, count: 4 },
-    { id: "system", label: "System & Modules", icon: SlidersHorizontal, count: 3 },
-  ] as const;
+    { id: "general" as const, label: "General & Brand", icon: Store, count: SETTINGS_SECTIONS.filter((s) => s.tab === "general").length },
+    { id: "branches" as const, label: "Branches & Hubs", icon: MapPin, count: SETTINGS_SECTIONS.filter((s) => s.tab === "branches").length },
+    { id: "delivery" as const, label: "Delivery & Logistics", icon: Truck, count: SETTINGS_SECTIONS.filter((s) => s.tab === "delivery").length },
+    { id: "payments" as const, label: "Payments & Tax", icon: CreditCard, count: SETTINGS_SECTIONS.filter((s) => s.tab === "payments").length },
+    { id: "growth" as const, label: "Marketing & Growth", icon: Sparkles, count: SETTINGS_SECTIONS.filter((s) => s.tab === "growth").length },
+    { id: "system" as const, label: "System & Modules", icon: SlidersHorizontal, count: SETTINGS_SECTIONS.filter((s) => s.tab === "system").length },
+  ];
 
   if (!settings) return null;
 
@@ -3503,6 +3911,16 @@ If you need any cut modifications, please reply here. Thank you!`}
         onConfirm={async () => {
           await update.mutateAsync(form);
         }}
+      />
+
+      {/* Smart Catalog Seeding & Vertical Transition Modal */}
+      <SmartCatalogSeedModal
+        open={seedModalOpen}
+        onOpenChange={setSeedModalOpen}
+        verticalConfig={seedVerticalTarget}
+        storeName={form.store_name || settings?.store_name}
+        loading={seedingCatalog}
+        onConfirm={handleSeedConfirm}
       />
     </AdminShell>
   );

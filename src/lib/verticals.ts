@@ -479,10 +479,10 @@ export function detectVerticalFromStoreName(storeName?: string | null): Business
     if (name.includes("fish") || name.includes("superstore")) return "all_meat";
     return "chicken_meat";
   }
-  if (name.includes("grocery") || name.includes("supermarket") || name.includes("mart") || name.includes("organic") || name.includes("harvest") || name.includes("veggie") || name.includes("vegetable") || name.includes("fruit") || name.includes("kirana") || name.includes("provision")) {
+  if (name.includes("grocery") || name.includes("supermarket") || name.includes("super market") || name.includes("market") || name.includes("mart") || name.includes("organic") || name.includes("harvest") || name.includes("veggie") || name.includes("vegetable") || name.includes("fruit") || name.includes("kirana") || name.includes("provision")) {
     return "grocery_supermarket";
   }
-  if (name.includes("electronic") || name.includes("mobile") || name.includes("gadget") || name.includes("appliance") || name.includes("tech") || name.includes("laptop") || name.includes("computer")) {
+  if (name.includes("electronic") || name.includes("electro") || name.includes("mobile") || name.includes("gadget") || name.includes("appliance") || name.includes("tech") || name.includes("laptop") || name.includes("computer")) {
     return "electronics_appliances";
   }
   if (name.includes("fashion") || name.includes("clothing") || name.includes("apparel") || name.includes("textile") || name.includes("garment") || name.includes("boutique") || name.includes("wear") || name.includes("saree") || name.includes("dress")) {
