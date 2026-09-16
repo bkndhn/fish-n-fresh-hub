@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireStaff } from "@/lib/authz.server";
 
 export interface DripSequenceConfig {
   id: string;
@@ -87,6 +88,7 @@ export interface DripEvaluationSummary {
 
 export const getDripEvaluationSummary = createServerFn({ method: "GET" }).handler(
   async (): Promise<DripEvaluationSummary[]> => {
+    await requireStaff();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const now = Date.now();
@@ -161,6 +163,7 @@ export const getDripEvaluationSummary = createServerFn({ method: "GET" }).handle
 export const dispatchDripCycle = createServerFn({ method: "POST" })
   .inputValidator((input: { sequenceId: string; isDryRun?: boolean }) => input)
   .handler(async ({ data }) => {
+    await requireStaff();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const seq = DRIP_SEQUENCES.find((s) => s.id === data.sequenceId);
     if (!seq) throw new Error("Sequence not found");

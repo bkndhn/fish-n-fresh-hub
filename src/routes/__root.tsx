@@ -162,6 +162,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 import { LanguageProvider } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
+import { confirmSecurityRevocation } from "@/lib/security.functions";
 
 function RealtimeSubscriber({ queryClient }: { queryClient: QueryClient }) {
   useEffect(() => {
@@ -241,11 +242,22 @@ function RealtimeSubscriber({ queryClient }: { queryClient: QueryClient }) {
         const isTargetBranch = payload.scope === "branch" && payload.target_id === adminBranch;
 
         if (isGlobal || isTargetUser || isTargetBranch) {
+          // Broadcasts are unauthenticated, so confirm server-side before signing out.
+          let confirmed: { valid: boolean; reason?: string } = { valid: false };
+          try {
+            confirmed = await confirmSecurityRevocation({
+              data: { scope: payload.scope ?? "", targetId: payload.target_id ?? null },
+            });
+          } catch {
+            confirmed = { valid: false };
+          }
+          if (!confirmed.valid) return;
+
           await supabase.auth.signOut();
           localStorage.removeItem("fnf_phone");
           localStorage.removeItem("fnf_admin_selected_branch");
           window.location.href = "/auth?revocation=1";
-          alert(`Security Notice: Platform Administrator triggered an emergency session reset.\nReason: ${payload.reason || "Security maintenance"}`);
+          alert(`Security Notice: Platform Administrator triggered an emergency session reset.\nReason: ${confirmed.reason || payload.reason || "Security maintenance"}`);
         }
       })
       .subscribe();

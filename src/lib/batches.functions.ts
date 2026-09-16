@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireStaff } from "@/lib/authz.server";
 
 export interface CreateBatchInput {
   batchNumber: string;
@@ -37,6 +38,7 @@ export interface BatchRecallReport {
 export const createInwardBatch = createServerFn({ method: "POST" })
   .inputValidator((input: CreateBatchInput) => input)
   .handler(async ({ data }) => {
+    await requireStaff();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const shelfLife = Number(data.shelfLifeHours) || 72;
@@ -75,6 +77,7 @@ export const createInwardBatch = createServerFn({ method: "POST" })
 export const updateBatchStatus = createServerFn({ method: "POST" })
   .inputValidator((input: { batchId: string; status: "active" | "depleted" | "recalled" | "expired" }) => input)
   .handler(async ({ data }) => {
+    await requireStaff();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { error } = await supabaseAdmin
@@ -89,6 +92,7 @@ export const updateBatchStatus = createServerFn({ method: "POST" })
 export const executeBatchRecall = createServerFn({ method: "POST" })
   .inputValidator((input: { batchNumber: string }) => input)
   .handler(async ({ data }): Promise<BatchRecallReport> => {
+    await requireStaff();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // 1. Fetch batch details

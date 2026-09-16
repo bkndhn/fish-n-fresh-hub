@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAdmin } from "@/lib/authz.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -22,6 +23,7 @@ export type RegisteredCustomer = {
 export const listAllCustomersDetailed = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<RegisteredCustomer[]> => {
+    await requireAdmin();
     const ctx = context as { supabase: SupabaseClient<Database> };
 
     // 1. Fetch all orders to compute order statistics per user/phone

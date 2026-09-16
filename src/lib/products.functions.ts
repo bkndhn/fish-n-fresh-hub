@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireAdmin } from "@/lib/authz.server";
 
 export interface SeedCatalogResult {
   success: boolean;
@@ -202,6 +203,7 @@ export const REAL_SEAFOOD_PRODUCTS = [
 export const applyRealProductsCatalog = createServerFn({ method: "POST" })
   .inputValidator((data: { archiveExisting?: boolean } | undefined) => data || {})
   .handler(async ({ data }): Promise<SeedCatalogResult> => {
+    await requireAdmin();
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 

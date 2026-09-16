@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireStaff } from "@/lib/authz.server";
 
 export type GuestOrder = {
   id: string;
@@ -50,6 +51,7 @@ export const deductOrderStockServerFn = createServerFn({ method: "POST" })
     return { orderId: input.orderId };
   })
   .handler(async ({ data }) => {
+    await requireStaff();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: result, error } = await supabaseAdmin.rpc("deduct_order_stock_atomic", {
       p_order_id: data.orderId,
@@ -69,6 +71,7 @@ export const restoreOrderStockServerFn = createServerFn({ method: "POST" })
     return { orderId: input.orderId };
   })
   .handler(async ({ data }) => {
+    await requireStaff();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: result, error } = await supabaseAdmin.rpc("restore_order_stock_atomic", {
       p_order_id: data.orderId,
@@ -86,6 +89,7 @@ export const updateOrderStatusWithEmail = createServerFn({ method: "POST" })
     return input;
   })
   .handler(async ({ data }) => {
+    await requireStaff();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const patch: Record<string, unknown> = { status: data.status, updated_at: new Date().toISOString() };
     if (data.status === "delivered") {

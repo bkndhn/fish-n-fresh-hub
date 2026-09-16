@@ -520,7 +520,7 @@ function Checkout() {
       localStorage.setItem("fnf_email", cleanEmail);
       try {
         void sendOrderConfirmedEmailServer({
-          data: { orderId: data.id, customerEmail: cleanEmail },
+          data: { orderId: data.id, guestPhone: cleanPhone },
         });
       } catch (emailErr) {
         console.warn("Order confirmation email notice:", emailErr);
@@ -656,6 +656,7 @@ function Checkout() {
         </div>
         <StripeOrderCheckout
           orderId={checkoutOrderId}
+          guestPhone={phone}
           returnUrl={`${window.location.origin}/payment-status?order=${checkoutOrderId}`}
         />
       </AppShell>
