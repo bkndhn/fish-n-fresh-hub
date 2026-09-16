@@ -2294,19 +2294,22 @@ function ProductsAdmin() {
                   <Label className="text-xs">
                     Select Refill Preset (+{formatStockUnitLabel(refillProduct.unit)})
                   </Label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {getRefillPresets(refillProduct.unit).map((preset) => (
                       <Button
                         key={preset}
                         type="button"
                         variant={refillQty === preset ? "default" : "outline"}
-                        className="h-9 rounded-xl text-xs font-semibold"
+                        className="h-9 w-full min-w-0 rounded-xl px-1 text-[11px] font-semibold"
                         onClick={() => setRefillQty(preset)}
                       >
-                        +{preset} {formatStockUnitLabel(refillProduct.unit)}
+                        <span className="truncate">
+                          +{preset} {formatStockUnitLabel(refillProduct.unit)}
+                        </span>
                       </Button>
                     ))}
                   </div>
+
                 </div>
 
                 <div className="space-y-1.5">
