@@ -279,6 +279,10 @@ export function CustomerSupportChatWidget() {
 
   const handleStartChat = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.id) {
+      toast.error("Please sign in to chat with our support team.");
+      return;
+    }
     if (!guestName.trim() || !guestPhone.trim()) {
       toast.error("Please enter your name and phone number to begin.");
       return;
