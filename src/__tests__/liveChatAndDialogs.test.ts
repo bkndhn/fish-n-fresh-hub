@@ -95,8 +95,9 @@ describe('Live Support Chat & Multi-Vertical Intelligence Engine', () => {
 
     it('resolves 1-tap custom FAQ chip matching directly', () => {
       const customChip = chickenCfg.customFaqs[0];
-      const reply = resolveLiveChatAutoReply(customChip.q, chickenCfg, 'chicken_meat', 'Prime Meats');
-      expect(reply).toBe(customChip.a);
+      expect(customChip).toBeDefined();
+      const reply = resolveLiveChatAutoReply(customChip!.q, chickenCfg, 'chicken_meat', 'Prime Meats');
+      expect(reply).toBe(customChip!.a);
     });
 
     it('respects admin deep customizations over default presets', () => {

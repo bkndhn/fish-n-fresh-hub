@@ -88,7 +88,7 @@ export const Route = createFileRoute("/checkout")({
   beforeLoad: async () => {
     const { data } = await supabase.auth.getSession();
     if (!data.session) {
-      throw redirect({ to: "/auth" });
+      throw redirect({ to: "/auth", search: { next: "/checkout" } });
     }
   },
   component: Checkout,
@@ -448,9 +448,21 @@ function Checkout() {
       }
     }
 
-    const { data, error } = await supabase
+    const newOrderId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0;
+            const v = c === "x" ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+          });
+    const newOrderNumber = `FNF-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const { error } = await supabase
       .from("orders")
       .insert({
+        id: newOrderId,
+        order_number: newOrderNumber,
         customer_name: cleanName,
         customer_phone: cleanPhone,
         customer_email: email.trim() || null,
@@ -476,15 +488,16 @@ function Checkout() {
         user_id: userId,
         created_by: userId,
         branch_id: activeBranch?.id || null,
-      })
-      .select("id, order_number")
-      .single();
+      });
 
     setSaving(false);
-    if (error || !data) {
+    if (error) {
+      console.error("Order placement error:", error);
       toast.error("Could not place order. Please try again.");
       return;
     }
+
+    const data = { id: newOrderId, order_number: newOrderNumber };
 
     playOrderSuccessChime();
 
