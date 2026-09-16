@@ -749,8 +749,10 @@ function ProductReviewsSection({ productId, productName }: { productId: string; 
 
   const submitReview = useMutation({
     mutationFn: async () => {
+      if (!user?.id) throw new Error("Please sign in to leave a review");
       if (!name.trim()) throw new Error("Please enter your name");
       if (!comment.trim()) throw new Error("Please enter a short review");
+      if (comment.trim().length > 1000) throw new Error("Please keep your review under 1000 characters");
 
       const { error } = await supabase.from("reviews").insert({
         product_id: productId,
