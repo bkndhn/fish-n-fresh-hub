@@ -296,6 +296,28 @@ function AdminSettings() {
     },
   });
 
+  const { data: storeSecrets } = useQuery({
+    queryKey: ["store_secrets"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("store_secrets")
+        .select("id, resend_api_key, fcm_server_key")
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  useEffect(() => {
+    if (storeSecrets)
+      setSecretsForm({
+        id: storeSecrets.id,
+        resend_api_key: storeSecrets.resend_api_key ?? "",
+        fcm_server_key: storeSecrets.fcm_server_key ?? "",
+      });
+  }, [storeSecrets]);
+
   useEffect(() => {
     if (settings) {
       setForm({
