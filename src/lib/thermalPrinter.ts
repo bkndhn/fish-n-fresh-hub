@@ -10,7 +10,7 @@
  * - Hardware cash drawer kick & paper auto-cutter
  */
 
-export type PrinterType = "bluetooth" | "serial_usb" | "network_ip" | "browser_print";
+export type PrinterType = "none" | "bluetooth" | "serial_usb" | "network_ip" | "browser_print";
 export type PaperWidth = "58mm" | "80mm";
 export type PrintFormat = "58mm" | "80mm" | "a4" | "a5" | "kot";
 
@@ -32,10 +32,28 @@ export interface ThermalPrinterConfig {
   billPrefix?: string;
   billSequenceDailyReset?: boolean;
   autoWhatsAppPrompt?: boolean;
+  // Header Customizations
+  showHeaderStoreName?: boolean;
+  showHeaderAddress?: boolean;
+  showHeaderPhone?: boolean;
+  showHeaderGstin?: boolean;
+  showHeaderFssai?: boolean;
+  // Footer Customizations
+  showFooterGstin?: boolean;
+  showFooterSupport?: boolean;
+  showFooterWhatsapp?: boolean;
+  showFooterSocial?: boolean;
+  showFooterReturnPolicy?: boolean;
+  whatsappNumber?: string;
+  socialHandle?: string;
+  supportPhone?: string;
+  returnPolicyText?: string;
+  fssaiNumber?: string;
+  customFooterNote?: string;
 }
 
 export const DEFAULT_PRINTER_CONFIG: ThermalPrinterConfig = {
-  type: "browser_print",
+  type: "none",
   paperWidth: "58mm",
   defaultFormat: "58mm",
   autoCut: true,
@@ -48,14 +66,29 @@ export const DEFAULT_PRINTER_CONFIG: ThermalPrinterConfig = {
   billPrefix: "POS-",
   billSequenceDailyReset: true,
   autoWhatsAppPrompt: false,
+  showHeaderStoreName: true,
+  showHeaderAddress: true,
+  showHeaderPhone: true,
+  showHeaderGstin: true,
+  showHeaderFssai: true,
+  showFooterGstin: false,
+  showFooterSupport: true,
+  showFooterWhatsapp: true,
+  showFooterSocial: true,
+  showFooterReturnPolicy: true,
+  whatsappNumber: "+91 98430 61919",
+  socialHandle: "@fishnfreshhub",
+  supportPhone: "+91 98430 61919",
+  returnPolicyText: "Fresh Catch Daily · No Returns After Cutting",
 };
 
 const STORAGE_KEY = "fnf_printer_config";
 
-export function getSavedPrinterConfig(): ThermalPrinterConfig {
+export function getSavedPrinterConfig(tenantId?: string): ThermalPrinterConfig {
   if (typeof window === "undefined") return DEFAULT_PRINTER_CONFIG;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const key = tenantId ? `${STORAGE_KEY}_${tenantId}` : STORAGE_KEY;
+    const raw = localStorage.getItem(key) || (tenantId ? localStorage.getItem(STORAGE_KEY) : null);
     if (!raw) return DEFAULT_PRINTER_CONFIG;
     return { ...DEFAULT_PRINTER_CONFIG, ...JSON.parse(raw) };
   } catch {
@@ -63,9 +96,10 @@ export function getSavedPrinterConfig(): ThermalPrinterConfig {
   }
 }
 
-export function savePrinterConfig(cfg: ThermalPrinterConfig): void {
+export function savePrinterConfig(cfg: ThermalPrinterConfig, tenantId?: string): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+  const key = tenantId ? `${STORAGE_KEY}_${tenantId}` : STORAGE_KEY;
+  localStorage.setItem(key, JSON.stringify(cfg));
 }
 
 // ESC/POS Command Constants
@@ -234,13 +268,7 @@ export async function connectBluetoothPrinter(): Promise<string> {
       ],
     });
 
-    type BleCharacteristic = { properties: { write?: boolean; writeWithoutResponse?: boolean } };
-    type BleService = { getCharacteristics: () => Promise<BleCharacteristic[]> };
-    type BleServer = { getPrimaryServices: () => Promise<BleService[]> };
-    type BleDevice = { gatt?: { connect: () => Promise<BleServer> }; name?: string };
-
-    const dev = device as BleDevice;
-    const server = await dev.gatt?.connect();
+    const server = await device.gatt?.connect();
     if (!server) throw new Error("Could not connect to GATT Server on printer.");
 
     // Find writable serial service
@@ -260,9 +288,15 @@ export async function connectBluetoothPrinter(): Promise<string> {
 
     if (!charFound) throw new Error("Connected to printer, but no writable serial characteristic found.");
 
+    if (device?.id) {
+      try {
+        localStorage.setItem("fnf_paired_bt_device_id", device.id);
+      } catch {}
+    }
+
     activeBluetoothDevice = device;
     activeBluetoothCharacteristic = charFound;
-    return dev.name || "Bluetooth Thermal Printer";
+    return device.name || "Bluetooth Thermal Printer";
   } catch (err: any) {
     throw new Error(`Bluetooth Connection Failed: ${err.message}`);
   }
@@ -278,10 +312,12 @@ export async function connectSerialUsbPrinter(): Promise<string> {
 
   try {
     const port = await (navigator as unknown as { serial: { requestPort: () => Promise<unknown> } }).serial.requestPort();
-    const p = port as { open: (opts: { baudRate: number }) => Promise<void>; writable: { getWriter: () => unknown } };
-    await p.open({ baudRate: 9600 });
+    await port.open({ baudRate: 9600 });
     activeSerialPort = port;
-    activeSerialWriter = p.writable.getWriter();
+    activeSerialWriter = port.writable.getWriter();
+    try {
+      localStorage.setItem("fnf_paired_serial_usb", "true");
+    } catch {}
     return "USB Thermal Receipt Printer";
   } catch (err: any) {
     throw new Error(`USB Serial Connection Failed: ${err.message}`);
@@ -289,8 +325,98 @@ export async function connectSerialUsbPrinter(): Promise<string> {
 }
 
 /**
+ * Auto-reconnect previously authorized Bluetooth or USB Serial printers without user prompts.
+ */
+export async function autoReconnectSavedPrinters(): Promise<boolean> {
+  const config = getSavedPrinterConfig();
+  if (config.type === "none" || config.type === "browser_print") {
+    return false;
+  }
+
+  // 1. Auto-reconnect Web Serial USB printer
+  if (config.type === "serial_usb" && typeof navigator !== "undefined" && "serial" in navigator) {
+    try {
+      if (!activeSerialPort || !activeSerialWriter) {
+        const ports = await (navigator as any).serial.getPorts();
+        if (ports && ports.length > 0) {
+          const port = ports[0];
+          await port.open({ baudRate: 9600 });
+          activeSerialPort = port;
+          activeSerialWriter = port.writable.getWriter();
+          console.info("[ThermalPrinter] Auto-reconnected to authorized USB Serial printer");
+          return true;
+        }
+      }
+    } catch (err) {
+      console.debug("[ThermalPrinter] Serial USB auto-reconnect notice:", err);
+    }
+  }
+
+  // 2. Auto-reconnect Web Bluetooth printer
+  if (config.type === "bluetooth" && typeof navigator !== "undefined" && "bluetooth" in navigator) {
+    try {
+      if (!activeBluetoothDevice || !activeBluetoothCharacteristic) {
+        const bt = (navigator as any).bluetooth;
+        if (typeof bt.getDevices === "function") {
+          const devices = await bt.getDevices();
+          if (devices && devices.length > 0) {
+            const savedId = typeof window !== "undefined" ? localStorage.getItem("fnf_paired_bt_device_id") : null;
+            const targetDevice = savedId ? (devices.find((d: any) => d.id === savedId) || devices[0]) : devices[0];
+            const server = await targetDevice.gatt?.connect();
+            if (server) {
+              const services = await server.getPrimaryServices();
+              let charFound = null;
+              for (const service of services) {
+                const chars = await service.getCharacteristics();
+                for (const char of chars) {
+                  if (char.properties.write || char.properties.writeWithoutResponse) {
+                    charFound = char;
+                    break;
+                  }
+                }
+                if (charFound) break;
+              }
+              if (charFound) {
+                activeBluetoothDevice = targetDevice;
+                activeBluetoothCharacteristic = charFound;
+                console.info("[ThermalPrinter] Auto-reconnected to paired Bluetooth printer:", targetDevice.name);
+                return true;
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.debug("[ThermalPrinter] Bluetooth auto-reconnect notice:", err);
+    }
+  }
+
+  return false;
+}
+
+// Global listener for USB printer hotplug
+if (typeof window !== "undefined" && typeof navigator !== "undefined" && "serial" in navigator && (navigator as any).serial?.addEventListener) {
+  try {
+    (navigator as any).serial.addEventListener("connect", () => {
+      autoReconnectSavedPrinters();
+    });
+    (navigator as any).serial.addEventListener("disconnect", () => {
+      activeSerialPort = null;
+      activeSerialWriter = null;
+    });
+  } catch {}
+}
+
+/**
+ * Check if a physical ESC/POS hardware printer (Bluetooth or USB Serial) is actively connected.
+ */
+export function isHardwarePrinterConnected(): boolean {
+  return Boolean(activeBluetoothCharacteristic || activeSerialWriter);
+}
+
+/**
  * Send raw ESC/POS byte array to currently connected thermal printer,
- * or automatically trigger styled browser print if no hardware device is paired.
+ * or trigger styled browser print only if explicitly configured.
  */
 export async function sendEscPosToPrinter(
   bytes: Uint8Array,
@@ -308,7 +434,7 @@ export async function sendEscPosToPrinter(
       }
       return true;
     } catch (err) {
-      console.warn("Bluetooth raw send failed, falling back:", err);
+      console.warn("Bluetooth raw send failed:", err);
     }
   }
 
@@ -318,19 +444,20 @@ export async function sendEscPosToPrinter(
       await activeSerialWriter.write(bytes);
       return true;
     } catch (err) {
-      console.warn("Serial USB raw send failed, falling back:", err);
+      console.warn("Serial USB raw send failed:", err);
     }
   }
 
-  // 3. Fallback: Styled Browser Thermal Print
-  if (fallbackPrintHtml) {
+  // 3. Trigger Styled Browser Thermal Print ONLY if explicitly configured by user
+  if (config.type === "browser_print" && fallbackPrintHtml) {
     printThermalHtmlRoll(fallbackPrintHtml, config.paperWidth);
     return true;
-  } else {
-    window.print();
-    return true;
   }
+
+  // If type is "none" or no printer is connected, return false without popping up print dialog
+  return false;
 }
+
 
 /**
  * Render and print a high-contrast 58mm/80mm receipt inside an isolated iframe
@@ -512,6 +639,7 @@ export interface PosReceiptData {
   storeAddress?: string | undefined;
   storePhone?: string | undefined;
   storeGstin?: string | undefined;
+  storeFssai?: string | undefined;
   copyType?: "original" | "kitchen_token" | "merchant_copy" | "ORIGINAL" | "KITCHEN TOKEN" | "STORE RECORD" | undefined;
   isReprint?: boolean | undefined;
   reprintCount?: number | undefined;
@@ -546,16 +674,19 @@ export function buildPosReceiptEscPos(
       .horizontalRule("*");
   }
 
-  b.align("center")
-    .bold(true)
-    .size("double")
-    .textLine(store)
-    .size("normal")
-    .bold(false);
+  if (config.showHeaderStoreName !== false) {
+    b.align("center")
+      .bold(true)
+      .size("double")
+      .textLine(store)
+      .size("normal")
+      .bold(false);
+  }
 
-  if (data.storeAddress) b.textLine(data.storeAddress);
-  if (data.storePhone) b.textLine(`Ph: ${data.storePhone}`);
-  if (data.storeGstin) b.textLine(`GSTIN: ${data.storeGstin}`);
+  if (config.showHeaderAddress !== false && data.storeAddress) b.textLine(data.storeAddress);
+  if (config.showHeaderPhone !== false && (data.storePhone || config.supportPhone)) b.textLine(`Ph: ${data.storePhone || config.supportPhone}`);
+  if (config.showHeaderGstin !== false && data.storeGstin) b.textLine(`GSTIN: ${data.storeGstin}`);
+  if (config.showHeaderFssai !== false && (data.storeFssai || config.fssaiNumber)) b.textLine(`FSSAI: ${data.storeFssai || config.fssaiNumber}`);
 
   const copyHeader =
     data.copyType === "kitchen_token" || data.copyType === "KITCHEN TOKEN"
@@ -640,9 +771,33 @@ export function buildPosReceiptEscPos(
   }
 
   b.horizontalRule("=")
-    .align("center")
-    .textLine(config.footerText || "Fresh Catch Daily · No Returns After Cutting")
-    .textLine("Have a Healthy & Delicious Meal!")
+    .align("center");
+
+  if (config.showFooterWhatsapp !== false && config.whatsappNumber) {
+    b.textLine(`WhatsApp: ${config.whatsappNumber}`);
+  }
+  if (config.showFooterSupport !== false && (config.supportPhone || data.storePhone)) {
+    b.textLine(`Support: ${config.supportPhone || data.storePhone}`);
+  }
+  if (config.showFooterSocial !== false && config.socialHandle) {
+    b.textLine(`Follow: ${config.socialHandle}`);
+  }
+  if (config.showFooterGstin && data.storeGstin) {
+    b.textLine(`GSTIN: ${data.storeGstin}`);
+  }
+  if (config.showFooterReturnPolicy !== false && (config.returnPolicyText || config.footerText)) {
+    b.textLine(config.returnPolicyText || config.footerText);
+  }
+  if (config.customFooterNote) {
+    b.textLine(config.customFooterNote);
+  }
+  if (config.footerLine1) {
+    b.textLine(config.footerLine1);
+  }
+  if (config.footerLine2) {
+    b.textLine(config.footerLine2);
+  }
+  b.textLine("Have a Healthy & Delicious Meal!")
     .lineFeed(3);
 
   if (config.openCashDrawer && (data.paymentMethod.toLowerCase() === "cash" || (data.splitPayments?.cash ?? 0) > 0)) {
@@ -682,10 +837,11 @@ export function buildPosReceiptHtml(
     `
         : ""
     }
-    <div class="center bold title">${store}</div>
-    ${data.storeAddress ? `<div class="center">${data.storeAddress}</div>` : ""}
-    ${data.storePhone ? `<div class="center">Ph: ${data.storePhone}</div>` : ""}
-    ${data.storeGstin ? `<div class="center">GSTIN: ${data.storeGstin}</div>` : ""}
+    ${config.showHeaderStoreName !== false ? `<div class="center bold title">${store}</div>` : ""}
+    ${config.showHeaderAddress !== false && data.storeAddress ? `<div class="center">${data.storeAddress}</div>` : ""}
+    ${config.showHeaderPhone !== false && (data.storePhone || config.supportPhone) ? `<div class="center">Ph: ${data.storePhone || config.supportPhone}</div>` : ""}
+    ${config.showHeaderGstin !== false && data.storeGstin ? `<div class="center">GSTIN: ${data.storeGstin}</div>` : ""}
+    ${config.showHeaderFssai !== false && (data.storeFssai || config.fssaiNumber) ? `<div class="center">FSSAI: ${data.storeFssai || config.fssaiNumber}</div>` : ""}
     <div class="hr"></div>
     <div class="center bold">${copyHeader}</div>
     <div class="hr"></div>
@@ -699,7 +855,7 @@ export function buildPosReceiptHtml(
         (it) => `
       <div class="row">
         <span>${it.brand ? `[${it.brand}] ` : ""}${it.name}${it.cuttingStyle ? ` [${it.cuttingStyle}]` : ""}</span>
-        <span class="bold">₹${(it.totalPrice ?? ((it as unknown as Record<string, unknown>)["total"] as number | undefined) ?? (it.unitPrice * (it.qty || 1))).toFixed(0)}</span>
+        <span class="bold">₹${(it.totalPrice ?? ((it as Record<string, unknown>).total as number | undefined) ?? (it.unitPrice * (it.qty || 1))).toFixed(0)}</span>
       </div>
       <div class="row muted font-mono" style="padding-left: 6px; font-size: 0.9em;">
         <span>${it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} pcs`} × ₹${(it.unitPrice || 0).toFixed(0)}</span>
@@ -716,7 +872,7 @@ export function buildPosReceiptHtml(
     ${(data.discount || 0) > 0 ? `<div class="row"><span>Discount:</span><span>-₹${data.discount.toFixed(0)}</span></div>` : ""}
     ${(data.gstAmount || 0) > 0 ? `<div class="row"><span>GST:</span><span>₹${data.gstAmount.toFixed(0)}</span></div>` : ""}
     <div class="hr"></div>
-    <div class="row bold total"><span>TOTAL PAYABLE:</span><span>₹${(data.total ?? ((data as unknown as Record<string, unknown>)["finalTotal"] as number | undefined) ?? 0).toFixed(0)}</span></div>
+    <div class="row bold total"><span>TOTAL PAYABLE:</span><span>₹${(data.total ?? ((data as Record<string, unknown>).finalTotal as number | undefined) ?? 0).toFixed(0)}</span></div>
     <div class="hr"></div>
     ${
       data.splitPayments
@@ -734,7 +890,13 @@ export function buildPosReceiptHtml(
     ${typeof data.changeDue === "number" ? `<div class="row"><span>Change Returned:</span><span>₹${data.changeDue.toFixed(0)}</span></div>` : ""}
     ${data.upiRef ? `<div class="row muted font-mono"><span>UPI Ref:</span><span>${data.upiRef}</span></div>` : ""}
     <div class="hr"></div>
-    <div class="center bold footer">${config.footerLine1 || config.footerText || "100% Genuine Guaranteed"}</div>
+    ${config.showFooterWhatsapp !== false && config.whatsappNumber ? `<div class="center font-mono" style="font-size: 0.85em;">💬 WhatsApp: ${config.whatsappNumber}</div>` : ""}
+    ${config.showFooterSupport !== false && (config.supportPhone || data.storePhone) ? `<div class="center font-mono" style="font-size: 0.85em;">📞 Support: ${config.supportPhone || data.storePhone}</div>` : ""}
+    ${config.showFooterSocial !== false && config.socialHandle ? `<div class="center font-mono" style="font-size: 0.85em;">🌐 Follow: ${config.socialHandle}</div>` : ""}
+    ${config.showFooterGstin && data.storeGstin ? `<div class="center font-mono" style="font-size: 0.85em;">GSTIN: ${data.storeGstin}</div>` : ""}
+    ${config.showFooterReturnPolicy !== false && (config.returnPolicyText || config.footerText) ? `<div class="center font-mono muted" style="font-size: 0.8em; margin-top: 4px;">${config.returnPolicyText || config.footerText}</div>` : ""}
+    ${config.customFooterNote ? `<div class="center italic" style="font-size: 0.8em; margin-top: 2px;">${config.customFooterNote}</div>` : ""}
+    <div class="center bold footer" style="margin-top: 4px;">${config.footerLine1 || "Have a Healthy & Delicious Meal!"}</div>
     ${config.footerLine2 ? `<div class="center muted">${config.footerLine2}</div>` : ""}
   `;
 }
@@ -746,7 +908,7 @@ export function generatePosWhatsAppText(data: PosReceiptData, orderId?: string):
   const store = data.storeName || "Universal Store Hub";
   const lines: string[] = [];
   lines.push(`🧾 *${store.toUpperCase()} - TAX INVOICE*`);
-  lines.push(`Bill No: *${data.receiptNo || ((data as unknown as Record<string, unknown>)["receiptNumber"] as string | undefined) || "INV"}*`);
+  lines.push(`Bill No: *${data.receiptNo || ((data as Record<string, unknown>).receiptNumber as string | undefined) || "INV"}*`);
   lines.push(`Date: ${data.date}`);
   lines.push(`Cashier: ${data.cashierName}`);
   if (data.customerName && data.customerName !== "Walk-in Customer") {
@@ -757,7 +919,7 @@ export function generatePosWhatsAppText(data: PosReceiptData, orderId?: string):
     const qtyStr = it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} unit`;
     const cutStr = it.cuttingStyle ? ` [${it.cuttingStyle}]` : "";
     const brandStr = it.brand ? `[${it.brand}] ` : "";
-    const itemTotal = it.totalPrice ?? ((it as unknown as Record<string, unknown>)["total"] as number | undefined) ?? (it.unitPrice * (it.qty || 1));
+    const itemTotal = it.totalPrice ?? ((it as Record<string, unknown>).total as number | undefined) ?? (it.unitPrice * (it.qty || 1));
     lines.push(`• *${brandStr}${it.name}*${cutStr}\n   ${qtyStr} × ₹${it.unitPrice.toFixed(0)} = ₹${itemTotal.toFixed(0)}`);
     if (it.variant) lines.push(`   Variant: ${it.variant}`);
     if (it.serialNumbers && it.serialNumbers.length > 0) lines.push(`   IMEI/SN: ${it.serialNumbers.join(", ")}`);

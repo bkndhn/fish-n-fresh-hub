@@ -25,6 +25,16 @@ import {
   PackageCheck,
   Hourglass,
   Users,
+  Star,
+  Store,
+  Globe,
+  Send,
+  TrendingUp,
+  Receipt,
+  CheckCircle2,
+  AlertCircle,
+  Tag,
+  Share2,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminCustomersQuery, adminSuspensionsQuery, type CustomerRow, type OrderRow } from "@/lib/admin";
@@ -34,6 +44,7 @@ import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
@@ -93,9 +104,77 @@ function CustomersAdmin() {
 
   // Tab 1 (Orders) Filter & Sort State
   const [search, setSearch] = useState("");
-  const [filterType, setFilterType] = useState<"all" | "repeat" | "new" | "suspended">("all");
+  const [crmSegment, setCrmSegment] = useState<
+    "all" | "online" | "pos" | "omnichannel" | "vip" | "at_risk" | "new" | "repeat" | "suspended"
+  >("all");
   const [sortBy, setSortBy] = useState<"spent" | "orders" | "recent" | "name">("spent");
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null);
+
+  // WhatsApp Campaign Generator state
+  const [campaignAngle, setCampaignAngle] = useState<"favorite" | "store" | "winback" | "vip">("favorite");
+  const [customCampaignText, setCustomCampaignText] = useState("");
+
+  const handleOpenCustomer360 = (c: CustomerRow) => {
+    setSelectedCustomer(c);
+    const fav = c.favoriteItemName || "premium fresh catch";
+    const initialMsg = `Hello ${c.name || "valued customer"}! 🐟 Fresh catch of ${fav} just arrived at Kasimedu terminal! Freshly cleaned and cut to your favorite style. Reply to book your portion or order online!`;
+    setCustomCampaignText(initialMsg);
+    setCampaignAngle("favorite");
+  };
+
+  const handleSelectCampaignAngle = (angle: "favorite" | "store" | "winback" | "vip") => {
+    setCampaignAngle(angle);
+    if (!selectedCustomer) return;
+    const name = selectedCustomer.name || "valued customer";
+    const fav = selectedCustomer.favoriteItemName || "premium fresh seafood";
+
+    if (angle === "favorite") {
+      setCustomCampaignText(
+        `Hello ${name}! 🐟 Fresh catch of ${fav} just arrived at Kasimedu terminal! Freshly cleaned and cut to your preferred style. Reply here to book your fresh portion before stock runs out!`
+      );
+    } else if (angle === "store") {
+      setCustomCampaignText(
+        `Hello ${name}! 🏪 Visiting Kasimedu today? Drop by our Fish N Fresh retail counter! We have fresh morning catches with live cleaning and custom slicing ready. Show this message at counter checkout for a complimentary surprise!`
+      );
+    } else if (angle === "winback") {
+      setCustomCampaignText(
+        `Hello ${name}! 🎁 We miss having you at Fish N Fresh! Enjoy ₹100 OFF your next order with coupon code FRESH100. 100% chemical-free & harbour-fresh. Order now at: https://fishnfreshhub.com`
+      );
+    } else if (angle === "vip") {
+      setCustomCampaignText(
+        `Hello ${name}! ⭐ Exclusive VIP privilege: Today's select catch of deep-sea seafood is reserved for our VIP members before public counters open. Reply here to confirm your cut!`
+      );
+    }
+  };
+
+  const handleOpenFromRegistered = (reg: RegisteredCustomer) => {
+    setSelectedRegCustomer(reg);
+    const cleanP = reg.phone.replace(/\D/g, "").slice(-10);
+    const matched = rows.find((r) => r.phone.replace(/\D/g, "").slice(-10) === cleanP);
+    if (matched) {
+      handleOpenCustomer360(matched);
+    } else {
+      const fallback: CustomerRow = {
+        phone: reg.phone,
+        name: reg.fullName,
+        orders: reg.ordersCount,
+        spent: reg.lifetimeSpent,
+        last_order: reg.lastOrderAt || reg.createdAt,
+        first_order: reg.createdAt,
+        channel: "online",
+        posOrders: 0,
+        onlineOrders: reg.ordersCount,
+        posSpent: 0,
+        onlineSpent: reg.lifetimeSpent,
+        topItems: [],
+        daysSinceLastOrder: reg.lastOrderAt
+          ? Math.max(0, Math.floor((Date.now() - new Date(reg.lastOrderAt).getTime()) / 86400000))
+          : 999,
+        preferredPayment: "online",
+      };
+      handleOpenCustomer360(fallback);
+    }
+  };
 
   // Tab 2 (Registered Customers) Filter & Sort State
   const [regSearch, setRegSearch] = useState("");
@@ -139,6 +218,21 @@ function CustomersAdmin() {
     },
   });
 
+  // CRM Segment KPI Counts
+  const crmCounts = useMemo(() => {
+    return {
+      all: rows.length,
+      online: rows.filter((r) => r.onlineOrders > 0).length,
+      pos: rows.filter((r) => r.posOrders > 0).length,
+      omnichannel: rows.filter((r) => r.channel === "omnichannel").length,
+      vip: rows.filter((r) => r.spent >= 3000 || r.orders >= 5).length,
+      at_risk: rows.filter((r) => r.daysSinceLastOrder > 30).length,
+      new: rows.filter((r) => r.orders === 1).length,
+      repeat: rows.filter((r) => r.orders > 1).length,
+      suspended: Object.keys(susMap).length,
+    };
+  }, [rows, susMap]);
+
   // Filter and sort Tab 1 (Orders Customers)
   const filtered = useMemo(() => {
     return rows
@@ -147,13 +241,19 @@ function CustomersAdmin() {
         const matchesSearch =
           !term ||
           c.name.toLowerCase().includes(term) ||
-          c.phone.toLowerCase().includes(term);
+          c.phone.toLowerCase().includes(term) ||
+          (c.favoriteItemName && c.favoriteItemName.toLowerCase().includes(term));
 
         if (!matchesSearch) return false;
 
-        if (filterType === "repeat") return c.orders > 1;
-        if (filterType === "new") return c.orders === 1;
-        if (filterType === "suspended") return Boolean(susMap[c.phone]);
+        if (crmSegment === "online") return c.onlineOrders > 0;
+        if (crmSegment === "pos") return c.posOrders > 0;
+        if (crmSegment === "omnichannel") return c.channel === "omnichannel";
+        if (crmSegment === "vip") return c.spent >= 3000 || c.orders >= 5;
+        if (crmSegment === "at_risk") return c.daysSinceLastOrder > 30;
+        if (crmSegment === "new") return c.orders === 1;
+        if (crmSegment === "repeat") return c.orders > 1;
+        if (crmSegment === "suspended") return Boolean(susMap[c.phone]);
 
         return true;
       })
@@ -164,7 +264,7 @@ function CustomersAdmin() {
         if (sortBy === "name") return a.name.localeCompare(b.name);
         return 0;
       });
-  }, [rows, search, filterType, sortBy, susMap]);
+  }, [rows, search, crmSegment, sortBy, susMap]);
 
   // Tab 2 (Registered Customers) Filtering & Metrics
   const regCounts = useMemo(() => {
@@ -221,18 +321,32 @@ function CustomersAdmin() {
     const columns: ExportColumn[] = [
       { key: "name", label: "Customer Name", type: "string" },
       { key: "phone", label: "Phone Number", type: "string" },
+      {
+        key: "channel",
+        label: "Primary Channel",
+        type: "string",
+        format: (v) =>
+          v === "pos" ? "Retail POS Counter" : v === "online" ? "Online Delivery" : "Omnichannel (Both)",
+      },
       { key: "orders", label: "Total Orders", type: "number" },
+      { key: "posOrders", label: "POS Bills", type: "number" },
+      { key: "onlineOrders", label: "Online Orders", type: "number" },
       { key: "spent", label: "Lifetime Spend (₹)", type: "currency", format: (v) => formatINR(Number(v || 0)) },
+      { key: "posSpent", label: "POS Spend (₹)", type: "currency", format: (v) => formatINR(Number(v || 0)) },
+      { key: "onlineSpent", label: "Online Spend (₹)", type: "currency", format: (v) => formatINR(Number(v || 0)) },
+      { key: "favoriteItemName", label: "Favorite Seafood SKU", type: "string" },
+      { key: "daysSinceLastOrder", label: "Days Inactive", type: "number" },
       { key: "last_order", label: "Last Order Date (IST)", type: "date", format: (v) => formatIST(v) },
     ];
     return {
-      filename: `fishnfresh-order-customers-${new Date().toISOString().slice(0, 10)}`,
-      title: "Active Order Customers Registry",
-      subtitle: `Exported on ${new Date().toLocaleDateString("en-IN")} | ${filtered.length} customers`,
+      filename: `fishnfresh-crm-customers-${new Date().toISOString().slice(0, 10)}`,
+      title: "Fish N Fresh — CRM Customer Intelligence & Campaign List",
+      subtitle: `Exported on ${new Date().toLocaleDateString("en-IN")} | Segment: ${crmSegment.toUpperCase()} | ${filtered.length} Customers`,
       columns,
       data: filtered,
+      orientation: "landscape",
     };
-  }, [filtered]);
+  }, [filtered, crmSegment]);
 
   // Export options for Tab 2 (Registered Customers)
   const registeredExportOptions: ExportOptions = useMemo(() => {
@@ -329,13 +443,102 @@ function CustomersAdmin() {
 
         {/* TAB 1: ACTIVE ORDER-BASED CUSTOMERS (DEFAULT TAB) */}
         <TabsContent value="orders" className="space-y-4 mt-0">
-          {/* Header Description */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div>
-              <h2 className="text-base font-bold text-foreground">Order Customers Directory ({filtered.length})</h2>
-              <p className="text-xs text-muted-foreground">
-                Aggregated lifetime spend and order history from customer checkouts.
-              </p>
+          {/* World-Class CRM Segment Overview Cards */}
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-6">
+            <div
+              onClick={() => setCrmSegment("all")}
+              className={`cursor-pointer rounded-2xl border p-3 transition-all ${
+                crmSegment === "all"
+                  ? "border-primary bg-primary/5 shadow-xs ring-1 ring-primary/30"
+                  : "border-border/70 bg-card hover:bg-muted/40"
+              }`}
+            >
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span className="text-xs font-semibold">All Buyers</span>
+                <Users className="size-3.5 text-primary" />
+              </div>
+              <div className="mt-1 text-xl font-bold text-foreground font-display">{crmCounts.all}</div>
+              <span className="text-[10px] text-muted-foreground">Total customer base</span>
+            </div>
+
+            <div
+              onClick={() => setCrmSegment("online")}
+              className={`cursor-pointer rounded-2xl border p-3 transition-all ${
+                crmSegment === "online"
+                  ? "border-sky-500 bg-sky-50/70 dark:bg-sky-950/20 shadow-xs ring-1 ring-sky-500/40"
+                  : "border-border/70 bg-card hover:bg-muted/40"
+              }`}
+            >
+              <div className="flex items-center justify-between text-sky-700 dark:text-sky-400">
+                <span className="text-xs font-semibold">🌐 Online</span>
+                <Globe className="size-3.5" />
+              </div>
+              <div className="mt-1 text-xl font-bold text-sky-700 dark:text-sky-300 font-display">{crmCounts.online}</div>
+              <span className="text-[10px] text-sky-600/80">Home delivery app</span>
+            </div>
+
+            <div
+              onClick={() => setCrmSegment("pos")}
+              className={`cursor-pointer rounded-2xl border p-3 transition-all ${
+                crmSegment === "pos"
+                  ? "border-amber-500 bg-amber-50/70 dark:bg-amber-950/20 shadow-xs ring-1 ring-amber-500/40"
+                  : "border-border/70 bg-card hover:bg-muted/40"
+              }`}
+            >
+              <div className="flex items-center justify-between text-amber-700 dark:text-amber-400">
+                <span className="text-xs font-semibold">🏪 Walk-in POS</span>
+                <Store className="size-3.5" />
+              </div>
+              <div className="mt-1 text-xl font-bold text-amber-700 dark:text-amber-300 font-display">{crmCounts.pos}</div>
+              <span className="text-[10px] text-amber-600/80">Retail counter bills</span>
+            </div>
+
+            <div
+              onClick={() => setCrmSegment("vip")}
+              className={`cursor-pointer rounded-2xl border p-3 transition-all ${
+                crmSegment === "vip"
+                  ? "border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/20 shadow-xs ring-1 ring-emerald-500/40"
+                  : "border-border/70 bg-card hover:bg-muted/40"
+              }`}
+            >
+              <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-400">
+                <span className="text-xs font-semibold">⭐ VIP (&gt;₹3k)</span>
+                <Flame className="size-3.5" />
+              </div>
+              <div className="mt-1 text-xl font-bold text-emerald-700 dark:text-emerald-300 font-display">{crmCounts.vip}</div>
+              <span className="text-[10px] text-emerald-600/80">High spenders</span>
+            </div>
+
+            <div
+              onClick={() => setCrmSegment("at_risk")}
+              className={`cursor-pointer rounded-2xl border p-3 transition-all ${
+                crmSegment === "at_risk"
+                  ? "border-rose-500 bg-rose-50/70 dark:bg-rose-950/20 shadow-xs ring-1 ring-rose-500/40"
+                  : "border-border/70 bg-card hover:bg-muted/40"
+              }`}
+            >
+              <div className="flex items-center justify-between text-rose-700 dark:text-rose-400">
+                <span className="text-xs font-semibold">⚠️ At-Risk</span>
+                <Hourglass className="size-3.5" />
+              </div>
+              <div className="mt-1 text-xl font-bold text-rose-700 dark:text-rose-300 font-display">{crmCounts.at_risk}</div>
+              <span className="text-[10px] text-rose-600/80">&gt;30d inactive</span>
+            </div>
+
+            <div
+              onClick={() => setCrmSegment("new")}
+              className={`cursor-pointer rounded-2xl border p-3 transition-all ${
+                crmSegment === "new"
+                  ? "border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/20 shadow-xs ring-1 ring-indigo-500/40"
+                  : "border-border/70 bg-card hover:bg-muted/40"
+              }`}
+            >
+              <div className="flex items-center justify-between text-indigo-700 dark:text-indigo-400">
+                <span className="text-xs font-semibold">🆕 First Timer</span>
+                <PackageCheck className="size-3.5" />
+              </div>
+              <div className="mt-1 text-xl font-bold text-indigo-700 dark:text-indigo-300 font-display">{crmCounts.new}</div>
+              <span className="text-[10px] text-indigo-600/80">1st order placed</span>
             </div>
           </div>
 
@@ -346,7 +549,7 @@ function CustomersAdmin() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by customer name or phone..."
+                placeholder="Search by customer name, phone, or favorite seafood..."
                 className="pl-9 pr-8 rounded-xl h-10 text-sm"
               />
               {search && (
@@ -361,20 +564,25 @@ function CustomersAdmin() {
             </div>
 
             <div className="grid grid-cols-2 gap-2 sm:col-span-6">
-              <Select value={filterType} onValueChange={(v) => setFilterType(v as typeof filterType)}>
-                <SelectTrigger className="rounded-xl h-10 text-xs">
-                  <SelectValue placeholder="Filter customers" />
+              <Select value={crmSegment} onValueChange={(v) => setCrmSegment(v as typeof crmSegment)}>
+                <SelectTrigger className="rounded-xl h-10 text-xs font-medium">
+                  <SelectValue placeholder="Filter Segment" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All ({rows.length})</SelectItem>
-                  <SelectItem value="repeat">Repeat ({rows.filter((r) => r.orders > 1).length})</SelectItem>
-                  <SelectItem value="new">New ({rows.filter((r) => r.orders === 1).length})</SelectItem>
-                  <SelectItem value="suspended">Suspended ({Object.keys(susMap).length})</SelectItem>
+                  <SelectItem value="all">All Customers ({rows.length})</SelectItem>
+                  <SelectItem value="online">🌐 Online Delivery ({crmCounts.online})</SelectItem>
+                  <SelectItem value="pos">🏪 Retail Walk-in POS ({crmCounts.pos})</SelectItem>
+                  <SelectItem value="omnichannel">🔄 Omnichannel (Both) ({crmCounts.omnichannel})</SelectItem>
+                  <SelectItem value="vip">⭐ VIP High Spenders ({crmCounts.vip})</SelectItem>
+                  <SelectItem value="at_risk">⚠️ At-Risk / Lapsed (&gt;30d) ({crmCounts.at_risk})</SelectItem>
+                  <SelectItem value="new">🆕 First-Time Buyers ({crmCounts.new})</SelectItem>
+                  <SelectItem value="repeat">🔁 Repeat Buyers ({crmCounts.repeat})</SelectItem>
+                  <SelectItem value="suspended">🚫 Suspended ({crmCounts.suspended})</SelectItem>
                 </SelectContent>
               </Select>
 
               <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-                <SelectTrigger className="rounded-xl h-10 text-xs">
+                <SelectTrigger className="rounded-xl h-10 text-xs font-medium">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
@@ -403,20 +611,59 @@ function CustomersAdmin() {
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => setSelectedCustomer(c)}
-                          className="truncate text-base font-semibold hover:text-primary hover:underline text-left"
+                          onClick={() => handleOpenCustomer360(c)}
+                          className="truncate text-base font-bold text-foreground hover:text-primary hover:underline text-left"
                         >
-                          {c.name || "Unnamed Customer"}
+                          {c.name || "Walk-in Guest"}
                         </button>
-                        {c.orders > 1 ? (
-                          <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700 text-[10px]">
-                            Repeated ({c.orders})
+
+                        {/* Channel Badge */}
+                        {c.channel === "pos" ? (
+                          <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[10px] gap-1 font-semibold">
+                            <Store className="size-3" /> Walk-In POS
+                          </Badge>
+                        ) : c.channel === "online" ? (
+                          <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300 text-[10px] gap-1 font-semibold">
+                            <Globe className="size-3" /> Online Delivery
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700 text-[10px]">
-                            New Customer
+                          <Badge variant="outline" className="border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300 text-[10px] gap-1 font-semibold">
+                            <Repeat className="size-3" /> Omnichannel
                           </Badge>
                         )}
+
+                        {/* VIP / Frequency Badges */}
+                        {(c.spent >= 3000 || c.orders >= 5) && (
+                          <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[10px] gap-1 font-bold">
+                            <Flame className="size-3" /> VIP
+                          </Badge>
+                        )}
+
+                        {c.orders > 1 ? (
+                          <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700 dark:bg-green-950/20 text-[10px]">
+                            {c.orders} Orders
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700 dark:bg-blue-950/20 text-[10px]">
+                            1st Order
+                          </Badge>
+                        )}
+
+                        {/* Recency Badge */}
+                        {c.daysSinceLastOrder === 0 ? (
+                          <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded-full">
+                            Active Today
+                          </span>
+                        ) : c.daysSinceLastOrder <= 7 ? (
+                          <span className="text-[10px] font-medium text-teal-700 dark:text-teal-300 bg-teal-500/15 px-2 py-0.5 rounded-full">
+                            {c.daysSinceLastOrder}d ago
+                          </span>
+                        ) : c.daysSinceLastOrder > 30 ? (
+                          <span className="text-[10px] font-semibold text-rose-700 dark:text-rose-300 bg-rose-500/15 px-2 py-0.5 rounded-full">
+                            Lapsed ({c.daysSinceLastOrder}d)
+                          </span>
+                        ) : null}
+
                         {isSuspended && (
                           <Badge variant="destructive" className="text-[10px]">
                             Suspended
@@ -424,47 +671,77 @@ function CustomersAdmin() {
                         )}
                       </div>
 
+                      {/* Phone and Contact Buttons */}
                       <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                        <span className="font-mono font-medium text-foreground">{c.phone}</span>
+                        <span className="font-mono font-medium text-foreground flex items-center gap-1">
+                          {c.phone}
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(c.phone, "Phone number")}
+                            className="text-muted-foreground hover:text-foreground"
+                            title="Copy phone"
+                          >
+                            <Copy className="size-3" />
+                          </button>
+                        </span>
+
+                        {/* Favorite Product Pill */}
+                        {c.favoriteItemName && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-muted/80 border border-border/60 px-2 py-0.5 text-[11px] font-medium text-foreground truncate max-w-[240px]" title={`Favorite: ${c.favoriteItemName}`}>
+                            <Star className="size-3 text-amber-500 fill-amber-500 shrink-0" />
+                            <span className="truncate">{c.favoriteItemName}</span>
+                          </span>
+                        )}
+
                         <div className="flex items-center gap-2">
                           <a
-                            href={getWhatsAppUrl(c.phone, `Hello ${c.name || "Customer"}, this is Fish N Fresh Hub.`)}
+                            href={getWhatsAppUrl(
+                              c.phone,
+                              `Hello ${c.name || "Customer"}! 🐟 Fresh catch is ready for you at Fish N Fresh Hub.`
+                            )}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center gap-1 rounded-md bg-green-50 px-2 py-0.5 text-[11px] font-medium text-green-700 hover:bg-green-100 transition"
+                            className="inline-flex items-center gap-1 rounded-md bg-green-50 dark:bg-green-950/20 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:text-green-400 hover:bg-green-100 transition"
                           >
                             <WhatsAppIcon className="size-3.5" /> WhatsApp
                           </a>
                           <a
                             href={`tel:${c.phone}`}
-                            className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition"
+                            className="inline-flex items-center gap-1 rounded-md bg-blue-50 dark:bg-blue-950/20 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:text-blue-400 hover:bg-blue-100 transition"
                           >
                             <Phone className="size-3" /> Call
                           </a>
                         </div>
                       </div>
 
-                      <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                        <Clock className="size-3" /> Last active: {formatIST(c.last_order)}
-                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-4 text-[11px] text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Clock className="size-3 text-primary" /> Last Bill: {formatIST(c.last_order)}
+                        </span>
+                        <span>
+                          Channel Mix: {c.posOrders} POS • {c.onlineOrders} Online
+                        </span>
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between sm:flex-col sm:items-end sm:gap-2 border-t sm:border-t-0 pt-2 sm:pt-0">
                       <div className="text-left sm:text-right">
-                        <p className="font-bold text-foreground sm:text-base">{formatINR(c.spent)}</p>
+                        <p className="font-bold text-foreground sm:text-base font-display">
+                          {formatINR(c.spent)}
+                        </p>
                         <p className="text-xs text-muted-foreground">
-                          {c.orders} total {c.orders === 1 ? "order" : "orders"}
+                          {c.orders} total {c.orders === 1 ? "bill" : "bills"}
                         </p>
                       </div>
 
                       <div className="flex items-center gap-2">
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="h-8 rounded-xl text-xs"
-                          onClick={() => setSelectedCustomer(c)}
+                          variant="default"
+                          className="h-8 rounded-xl text-xs font-semibold"
+                          onClick={() => handleOpenCustomer360(c)}
                         >
-                          View Past Orders <ChevronRight className="ml-1 size-3" />
+                          Customer 360 <ChevronRight className="ml-1 size-3" />
                         </Button>
                         <Button
                           size="sm"
@@ -706,16 +983,7 @@ function CustomersAdmin() {
                         <div className="flex flex-wrap items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => {
-                              setSelectedRegCustomer(c);
-                              setSelectedCustomer({
-                                phone: c.phone,
-                                name: c.fullName,
-                                orders: c.ordersCount,
-                                spent: c.lifetimeSpent,
-                                last_order: c.lastOrderAt || c.createdAt,
-                              });
-                            }}
+                            onClick={() => handleOpenFromRegistered(c)}
                             className="truncate text-base font-semibold hover:text-primary hover:underline text-left"
                           >
                             {c.fullName || "Customer"}
@@ -817,15 +1085,7 @@ function CustomersAdmin() {
                               size="sm"
                               variant="outline"
                               className="h-8 rounded-xl text-xs"
-                              onClick={() => {
-                                setSelectedCustomer({
-                                  phone: c.phone,
-                                  name: c.fullName,
-                                  orders: c.ordersCount,
-                                  spent: c.lifetimeSpent,
-                                  last_order: c.lastOrderAt || c.createdAt,
-                                });
-                              }}
+                              onClick={() => handleOpenFromRegistered(c)}
                             >
                               Past Orders <ChevronRight className="ml-1 size-3" />
                             </Button>
@@ -866,20 +1126,45 @@ function CustomersAdmin() {
 
       {/* Customer Full Detail & Past Orders Modal */}
       <Dialog open={Boolean(selectedCustomer)} onOpenChange={(open) => !open && setSelectedCustomer(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl p-5">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl p-5 sm:p-6">
           {selectedCustomer && (
-            <>
+            <div className="space-y-5">
               <DialogHeader>
-                <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 pr-6">
                   <div>
-                    <DialogTitle className="text-xl font-bold flex items-center gap-2">
-                      {selectedCustomer.name || "Customer Profile"}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <DialogTitle className="text-xl font-bold font-display flex items-center gap-2">
+                        {selectedCustomer.name || "Customer Profile"}
+                      </DialogTitle>
+
+                      {/* Channel Badge */}
+                      {selectedCustomer.channel === "pos" ? (
+                        <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs gap-1 font-semibold">
+                          <Store className="size-3" /> Retail POS Customer
+                        </Badge>
+                      ) : selectedCustomer.channel === "online" ? (
+                        <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300 text-xs gap-1 font-semibold">
+                          <Globe className="size-3" /> Online Delivery Customer
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300 text-xs gap-1 font-semibold">
+                          <Repeat className="size-3" /> Omnichannel (POS + Online)
+                        </Badge>
+                      )}
+
+                      {(selectedCustomer.spent >= 3000 || selectedCustomer.orders >= 5) && (
+                        <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs gap-1 font-bold">
+                          <Flame className="size-3" /> VIP Patron
+                        </Badge>
+                      )}
+
                       {susMap[selectedCustomer.phone] && (
                         <Badge variant="destructive" className="text-xs">
                           Suspended
                         </Badge>
                       )}
-                    </DialogTitle>
+                    </div>
+
                     <DialogDescription className="mt-1 flex items-center gap-2 font-mono text-sm text-foreground">
                       {selectedCustomer.phone}
                       <button
@@ -897,18 +1182,18 @@ function CustomersAdmin() {
                     <a
                       href={getWhatsAppUrl(
                         selectedCustomer.phone,
-                        `Hello ${selectedCustomer.name || ""}, this is Fish N Fresh Hub regarding your order.`
+                        `Hello ${selectedCustomer.name || "Customer"}! 🐟 Fresh catch update from Fish N Fresh Hub.`
                       )}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 transition"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 transition shadow-xs"
                       title="Open WhatsApp chat directly"
                     >
                       <WhatsAppIcon className="size-3.5" /> WhatsApp
                     </a>
                     <a
                       href={`tel:${selectedCustomer.phone}`}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90 transition"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90 transition shadow-xs"
                     >
                       <Phone className="size-3.5" /> Call
                     </a>
@@ -916,37 +1201,310 @@ function CustomersAdmin() {
                 </div>
               </DialogHeader>
 
-              {/* Stats Overview */}
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 my-2">
-                <div className="rounded-xl border border-border/70 bg-muted/40 p-3 text-center">
-                  <p className="text-[11px] text-muted-foreground">Lifetime Spent</p>
-                  <p className="text-lg font-bold text-primary">{formatINR(selectedCustomer.spent)}</p>
+              {/* RFM Stats Overview */}
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                <div className="rounded-2xl border border-border/70 bg-muted/40 p-3 text-center">
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Lifetime Spent</p>
+                  <p className="text-lg font-bold text-primary font-display mt-0.5">{formatINR(selectedCustomer.spent)}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {selectedCustomer.posSpent ? `POS ₹${selectedCustomer.posSpent}` : ""}
+                    {selectedCustomer.posSpent && selectedCustomer.onlineSpent ? " • " : ""}
+                    {selectedCustomer.onlineSpent ? `Online ₹${selectedCustomer.onlineSpent}` : ""}
+                  </p>
                 </div>
-                <div className="rounded-xl border border-border/70 bg-muted/40 p-3 text-center">
-                  <p className="text-[11px] text-muted-foreground">Total Orders</p>
-                  <p className="text-lg font-bold text-foreground">{selectedCustomer.orders}</p>
+                <div className="rounded-2xl border border-border/70 bg-muted/40 p-3 text-center">
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Total Bills</p>
+                  <p className="text-lg font-bold text-foreground font-display mt-0.5">{selectedCustomer.orders}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {selectedCustomer.posOrders || 0} POS • {selectedCustomer.onlineOrders || 0} Online
+                  </p>
                 </div>
-                <div className="rounded-xl border border-border/70 bg-muted/40 p-3 text-center">
-                  <p className="text-[11px] text-muted-foreground">Delivered</p>
-                  <p className="text-lg font-bold text-green-600">{completedOrdersCount}</p>
+                <div className="rounded-2xl border border-border/70 bg-muted/40 p-3 text-center">
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Avg Bill Value</p>
+                  <p className="text-lg font-bold text-foreground font-display mt-0.5">{formatINR(avgOrderValue)}</p>
+                  <p className="text-[10px] text-muted-foreground">Per completed checkout</p>
                 </div>
-                <div className="rounded-xl border border-border/70 bg-muted/40 p-3 text-center">
-                  <p className="text-[11px] text-muted-foreground">Avg Order Value</p>
-                  <p className="text-lg font-bold text-foreground">{formatINR(avgOrderValue)}</p>
+                <div className="rounded-2xl border border-border/70 bg-muted/40 p-3 text-center">
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Last Activity</p>
+                  <p className="text-lg font-bold text-foreground font-display mt-0.5">
+                    {selectedCustomer.daysSinceLastOrder === 0
+                      ? "Today"
+                      : `${selectedCustomer.daysSinceLastOrder}d ago`}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {selectedCustomer.daysSinceLastOrder > 30 ? "⚠️ At-Risk / Lapsed" : "Active customer"}
+                  </p>
                 </div>
               </div>
 
-              {/* Delivery Addresses Used */}
-              <div className="mt-4 rounded-xl border border-border bg-card p-3.5">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 mb-2">
-                  <MapPin className="size-3.5 text-primary" /> Delivery Addresses ({uniqueAddresses.length})
-                </h4>
-                {uniqueAddresses.length > 0 ? (
+              {/* 1. SEAFOOD TASTE PROFILE & ITEMS PURCHASED (World-Class SKU Analytics) */}
+              <div className="rounded-2xl border border-border/80 bg-card p-4 space-y-3 shadow-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2.5">
+                  <div>
+                    <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                      <Star className="size-4 text-amber-500 fill-amber-500" />
+                      Customer Taste Profile &amp; Purchased Seafood
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      Aggregated items, quantities, and cut preferences across all bills
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="text-xs font-mono font-bold bg-primary/5 text-primary border-primary/20">
+                    {selectedCustomer.topItems?.length || 0} Unique Items Bought
+                  </Badge>
+                </div>
+
+                {selectedCustomer.topItems && selectedCustomer.topItems.length > 0 ? (
+                  <div className="divide-y divide-border/50 max-h-60 overflow-y-auto pr-1">
+                    {selectedCustomer.topItems.map((item, idx) => {
+                      const isFavorite = idx === 0;
+                      const spendShare = selectedCustomer.spent > 0
+                        ? Math.round((item.totalSpent / selectedCustomer.spent) * 100)
+                        : 0;
+
+                      return (
+                        <div key={idx} className="py-2.5 first:pt-1 last:pb-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              {isFavorite && (
+                                <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-bold bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                                  ★ #1 Favorite
+                                </span>
+                              )}
+                              <p className="font-bold text-xs text-foreground truncate">{item.name}</p>
+                            </div>
+
+                            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                              <span className="font-semibold text-foreground">
+                                Total Bought: {item.qty} {item.unit}
+                              </span>
+                              <span>•</span>
+                              <span>Ordered in {item.timesBought} {item.timesBought === 1 ? "bill" : "bills"}</span>
+                              {item.preferredCut && (
+                                <>
+                                  <span>•</span>
+                                  <span className="text-primary font-medium">Preferred Cut: {item.preferredCut}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="text-left sm:text-right shrink-0">
+                            <p className="font-bold text-xs font-mono text-foreground">{formatINR(item.totalSpent)}</p>
+                            <p className="text-[10px] text-muted-foreground">{spendShare}% of total spend</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic p-2 text-center">
+                    No item purchase history recorded for this customer yet.
+                  </p>
+                )}
+              </div>
+
+              {/* 2. ONE-CLICK TARGETED WHATSAPP CAMPAIGN GENERATOR */}
+              <div className="rounded-2xl border border-green-500/30 bg-green-50/30 dark:bg-green-950/10 p-4 space-y-3 shadow-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-green-500/20 pb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="size-6 rounded-lg bg-green-600 text-white flex items-center justify-center font-bold">
+                      <MessageCircle className="size-3.5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-foreground">1-Click Targeted WhatsApp Campaign</h4>
+                      <p className="text-[10px] text-muted-foreground">
+                        Personalized offer tailored to customer channel, favorite catch, and recency
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Campaign Angle Presets */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectCampaignAngle("favorite")}
+                      className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition ${
+                        campaignAngle === "favorite"
+                          ? "bg-green-600 text-white shadow-xs"
+                          : "bg-background border border-border/80 text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      🐟 Catch Alert
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectCampaignAngle("store")}
+                      className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition ${
+                        campaignAngle === "store"
+                          ? "bg-amber-600 text-white shadow-xs"
+                          : "bg-background border border-border/80 text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      🏪 Store Walk-In
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectCampaignAngle("winback")}
+                      className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition ${
+                        campaignAngle === "winback"
+                          ? "bg-rose-600 text-white shadow-xs"
+                          : "bg-background border border-border/80 text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      🎁 Win-Back (₹100 Off)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectCampaignAngle("vip")}
+                      className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition ${
+                        campaignAngle === "vip"
+                          ? "bg-purple-600 text-white shadow-xs"
+                          : "bg-background border border-border/80 text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      ⭐ VIP Special
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Textarea
+                    value={customCampaignText}
+                    onChange={(e) => setCustomCampaignText(e.target.value)}
+                    rows={3}
+                    className="text-xs rounded-xl bg-background border-border/80 focus-visible:ring-green-500"
+                    placeholder="Type customized campaign message here..."
+                  />
+
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      {customCampaignText.length} characters
+                    </span>
+
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        const url = getWhatsAppUrl(selectedCustomer.phone, customCampaignText);
+                        window.open(url, "_blank");
+                        toast.success(`WhatsApp campaign launched for ${selectedCustomer.name || "customer"}!`);
+                      }}
+                      className="h-8 rounded-xl text-xs font-semibold bg-green-600 hover:bg-green-700 text-white gap-1.5 shadow-xs"
+                    >
+                      <Send className="size-3.5" /> Launch Campaign on WhatsApp
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. ORDER HISTORY & COUNTER BILLS REGISTER */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Receipt className="size-3.5 text-primary" /> Past Orders &amp; Counter Bills ({customerOrders.length})
+                  </h4>
+                  <span className="text-[11px] text-muted-foreground">
+                    Sorted by most recent
+                  </span>
+                </div>
+
+                {customerOrdersQuery.isLoading ? (
+                  <div className="p-4 text-center text-xs text-muted-foreground">Loading orders history...</div>
+                ) : customerOrders.length > 0 ? (
+                  <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                    {customerOrders.map((o) => {
+                      const isPosBill = o.fulfillment_type === "pos";
+                      const itemsArr = Array.isArray(o.items) ? (o.items as any[]) : [];
+
+                      return (
+                        <div
+                          key={o.id}
+                          className="rounded-2xl border border-border/80 bg-card p-3.5 text-xs flex flex-col gap-2.5 shadow-xs"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-bold text-foreground text-xs">
+                                {o.order_number ?? `#${o.id.slice(0, 8)}`}
+                              </span>
+
+                              {isPosBill ? (
+                                <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[10px] gap-1 font-semibold">
+                                  <Store className="size-3" /> Counter Bill
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300 text-[10px] gap-1 font-semibold">
+                                  <Globe className="size-3" /> Online Delivery
+                                </Badge>
+                              )}
+
+                              <Badge
+                                variant="outline"
+                                className={
+                                  o.status === "delivered"
+                                    ? "bg-green-50 text-green-700 border-green-200 text-[10px]"
+                                    : o.status === "cancelled"
+                                    ? "bg-destructive/10 text-destructive border-destructive/20 text-[10px]"
+                                    : "bg-amber-50 text-amber-700 border-amber-200 text-[10px]"
+                                }
+                              >
+                                {o.status}
+                              </Badge>
+                            </div>
+
+                            <span className="font-bold text-foreground font-display text-sm">{formatINR(o.total)}</span>
+                          </div>
+
+                          <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] text-muted-foreground border-t border-border/40 pt-1.5">
+                            <span>{formatIST(o.created_at)}</span>
+                            <span className="capitalize font-medium text-foreground">
+                              Payment: {o.payment_method || (isPosBill ? "cash" : "cod")}
+                            </span>
+                          </div>
+
+                          {/* Line items detail table */}
+                          {itemsArr.length > 0 && (
+                            <div className="rounded-xl bg-muted/40 p-2 space-y-1.5 text-[11px]">
+                              {itemsArr.map((it: any, idx: number) => {
+                                const qty = Number(it.qty || it.weightKg || 1);
+                                const unit = it.unit || "kg";
+                                const price = Number(it.price || it.unitPrice || 0);
+                                const total = Number(it.totalPrice || it.line_total || qty * price);
+                                const cut = it.cutting_style || it.cuttingStyle;
+
+                                return (
+                                  <div key={idx} className="flex items-center justify-between text-muted-foreground">
+                                    <span className="text-foreground font-medium truncate max-w-[240px]">
+                                      {it.name || it.product_name}
+                                      {cut ? ` (${cut})` : ""}
+                                    </span>
+                                    <span className="font-mono">
+                                      {qty} {unit} × {formatINR(price)} = <strong className="text-foreground">{formatINR(total)}</strong>
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">No previous bills found.</p>
+                )}
+              </div>
+
+              {/* 4. DELIVERY ADDRESSES */}
+              {uniqueAddresses.length > 0 && (
+                <div className="rounded-2xl border border-border/80 bg-card p-3.5 space-y-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <MapPin className="size-3.5 text-primary" /> Saved Delivery Addresses ({uniqueAddresses.length})
+                  </h4>
                   <div className="space-y-2">
                     {uniqueAddresses.map((addr, i) => (
                       <div
                         key={i}
-                        className="flex items-start justify-between gap-3 rounded-lg bg-muted/40 p-2.5 text-xs"
+                        className="flex items-start justify-between gap-3 rounded-xl bg-muted/40 p-2.5 text-xs"
                       >
                         <div className="flex-1 min-w-0">
                           <p className="text-foreground leading-relaxed">{addr}</p>
@@ -970,72 +1528,9 @@ function CustomersAdmin() {
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">No delivery addresses logged yet.</p>
-                )}
-              </div>
-
-              {/* Order History Timeline */}
-              <div className="mt-4">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 mb-2.5">
-                  <ShoppingBag className="size-3.5 text-primary" /> Past Orders History ({customerOrders.length})
-                </h4>
-                {customerOrdersQuery.isLoading ? (
-                  <div className="p-4 text-center text-xs text-muted-foreground">Loading orders...</div>
-                ) : customerOrders.length > 0 ? (
-                  <div className="space-y-2.5">
-                    {customerOrders.map((o) => (
-                      <div
-                        key={o.id}
-                        className="rounded-xl border border-border/80 bg-card p-3 text-xs flex flex-col gap-2"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-bold text-foreground">
-                              {o.order_number ?? `#${o.id.slice(0, 8)}`}
-                            </span>
-                            <Badge
-                              variant="outline"
-                              className={
-                                o.status === "delivered"
-                                  ? "bg-green-50 text-green-700 border-green-200"
-                                  : o.status === "cancelled"
-                                  ? "bg-destructive/10 text-destructive border-destructive/20"
-                                  : "bg-amber-50 text-amber-700 border-amber-200"
-                              }
-                            >
-                              {o.status}
-                            </Badge>
-                          </div>
-                          <span className="font-bold text-foreground">{formatINR(o.total)}</span>
-                        </div>
-
-                        <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] text-muted-foreground">
-                          <span>{formatIST(o.created_at)}</span>
-                          <span className="capitalize">
-                            {o.fulfillment_type || "delivery"} • {o.payment_method || "cod"}
-                          </span>
-                        </div>
-
-                        {/* Items list preview */}
-                        {o.items && o.items.length > 0 && (
-                          <div className="pt-1.5 border-t border-border/40 text-[11px] text-muted-foreground">
-                            {o.items.map((it, idx) => (
-                              <span key={idx} className="mr-2">
-                                {it.name} × {it.qty}
-                                {idx < o.items.length - 1 ? "," : ""}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">No previous orders found.</p>
-                )}
-              </div>
-            </>
+                </div>
+              )}
+            </div>
           )}
         </DialogContent>
       </Dialog>

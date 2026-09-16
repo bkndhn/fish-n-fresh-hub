@@ -33,7 +33,13 @@ import { notifyOrderStatusChange } from "@/lib/fcm";
 import { checkCartStockAvailability, deductOrderStock } from "@/lib/inventorySync";
 import { sendOrderConfirmedEmailServer } from "@/lib/emails.functions";
 import { evaluateCartRewardRule, recordCampaignConversion, type MarketingCampaign } from "@/lib/campaigns";
-import type { SiteSettings } from '@/lib/types';
+import { isGstEnabled, getStoreOrderingMode, type SiteSettings } from '@/lib/types';
+import {
+  buildWhatsAppOrderMessage,
+  getWhatsAppOrderDeepLink,
+  recordWhatsAppOrderInCrm,
+  type WhatsAppOrderSummary,
+} from "@/lib/whatsappOrdering";
 
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371; // Radius of the earth in km
@@ -200,15 +206,19 @@ function Checkout() {
     deliveryFee += expressFee;
   }
 
-  // Smart GST Calculation
+  // Smart GST Calculation (Strict ₹0 when disabled)
+  const isGstActive = isGstEnabled(settings as SiteSettings);
+  const orderingMode = getStoreOrderingMode(settings as SiteSettings);
   let gstAmount = 0;
-  items.forEach(cartItem => {
-    const liveProduct = products?.find(p => p.id === cartItem.product_id);
-    if (liveProduct && liveProduct.gst_percent > 0 && !liveProduct.gst_included) {
-      gstAmount += ((cartItem.price * cartItem.qty) * liveProduct.gst_percent) / 100;
-    }
-  });
-  gstAmount = Math.round(gstAmount);
+  if (isGstActive) {
+    items.forEach(cartItem => {
+      const liveProduct = products?.find(p => p.id === cartItem.product_id);
+      if (liveProduct && liveProduct.gst_percent > 0 && !liveProduct.gst_included) {
+        gstAmount += ((cartItem.price * cartItem.qty) * liveProduct.gst_percent) / 100;
+      }
+    });
+    gstAmount = Math.round(gstAmount);
+  }
 
   // Automated Marketing Campaigns & Cart Rules
   const { data: activeCampaigns = [] } = useQuery({
@@ -441,7 +451,7 @@ function Checkout() {
         items: items as unknown as NonNullable<Database["public"]["Tables"]["orders"]["Insert"]["items"]>,
         subtotal,
         delivery_fee: deliveryFee,
-        gst_amount: gstAmount,
+        gst_amount: isGstActive ? gstAmount : 0,
         discount,
         coupon_code: appliedPromo?.code ?? (autoCartReward.eligible ? "AUTO_CART_REWARD" : (appliedReferral?.code || null)),
         total,
@@ -552,6 +562,62 @@ function Checkout() {
     });
     toast.success("Order placed successfully!");
   }
+
+  const handleWhatsAppOrderCheckout = async () => {
+    const cleanPhone = phone.trim();
+    if (!name.trim()) {
+      toast.error("Please enter your name for the order");
+      return;
+    }
+    if (!cleanPhone) {
+      toast.error("Please enter your phone number");
+      return;
+    }
+    if (fulfillment === "delivery" && !address.trim()) {
+      toast.error("Please enter your delivery address");
+      return;
+    }
+
+    const storePhone = (settings as SiteSettings)?.whatsapp_order_phone || settings?.contact_phone || "9843061919";
+    const storeName = settings?.store_name || "Fish N Fresh Hub";
+
+    const orderSummary: WhatsAppOrderSummary = {
+      storeName,
+      storePhone,
+      customer: {
+        name: name.trim(),
+        phone: cleanPhone,
+        address: fulfillment === "delivery" ? address.trim() : undefined,
+        fulfillment,
+        preferredDate: deliveryDate || undefined,
+        notes: orderNotes || undefined,
+      },
+      items: items.map((it) => {
+        const matched = products?.find((p) => p.id === it.product_id);
+        return {
+          productId: it.product_id,
+          name: it.name,
+          cutPreference: it.cutting_style || undefined,
+          qty: it.qty,
+          unit: matched?.unit || "unit",
+          price: it.price,
+          totalPrice: it.price * it.qty,
+        };
+      }),
+      subtotal,
+      deliveryFee,
+      gstAmount: isGstActive ? gstAmount : 0,
+      isGstEnabled: isGstActive,
+      total,
+    };
+
+    const message = buildWhatsAppOrderMessage(orderSummary);
+    const link = getWhatsAppOrderDeepLink(storePhone, message);
+
+    toast.info("Connecting to WhatsApp Order Desk...");
+    await recordWhatsAppOrderInCrm(orderSummary);
+    window.open(link, "_blank");
+  };
 
   if (orderSuccess) {
     const waNumber = (settings?.support_phone || settings?.whatsapp_number || "919843061919").replace(/\D/g, "");
@@ -1472,7 +1538,7 @@ function Checkout() {
           </span>
           <span className="font-medium">{deliveryFee === 0 ? "Free" : inr(deliveryFee)}</span>
         </div>
-        {gstAmount > 0 && <Row label="GST (Smart Calculation)" value={inr(gstAmount)} />}
+        {isGstActive && gstAmount > 0 && <Row label="GST (Smart Calculation)" value={inr(gstAmount)} />}
         <div className="flex justify-between border-t border-border pt-2 font-display text-lg font-bold">
           <span>Total</span>
           <span>{inr(total)}</span>
@@ -1494,6 +1560,18 @@ function Checkout() {
                 ? `Place Pre-Order · ${inr(total)}`
                 : `Place order · ${inr(total)}`}
       </Button>
+
+      {orderingMode === "both" && (
+        <Button
+          type="button"
+          variant="outline"
+          className="mt-2 w-full rounded-xl text-sm font-semibold border-emerald-600/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 gap-2"
+          onClick={handleWhatsAppOrderCheckout}
+        >
+          <WhatsAppIcon className="size-4 text-emerald-600" />
+          Send Order via WhatsApp ({inr(total)})
+        </Button>
+      )}
 
       {/* Interactive Map Pin Picker Modal */}
       <MapPinPickerModal

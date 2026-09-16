@@ -358,7 +358,7 @@ export function generateTaxInvoiceHtml(data: TaxInvoiceData): string {
     <!-- Header -->
     <div class="header-bar">
       <div>
-        <span class="badge-tax-invoice">ORIGINAL FOR RECIPIENT &bull; TAX INVOICE</span>
+        <span class="badge-tax-invoice">${data.sellerGstin ? "ORIGINAL FOR RECIPIENT &bull; TAX INVOICE" : "ORIGINAL FOR RECIPIENT &bull; BILL OF SUPPLY"}</span>
         <h1 style="font-size: 22px; font-weight: 800; color: #0f172a; margin-top: 2px;">${data.sellerTradeName}</h1>
         <div style="font-size: 12px; color: #475569; font-weight: 500;">${data.sellerLegalName}</div>
         <div style="font-size: 11px; color: #64748b; margin-top: 4px;">FSSAI Lic No: <strong>${data.sellerFssai || "12423008000451"}</strong></div>
@@ -388,9 +388,11 @@ export function generateTaxInvoiceHtml(data: TaxInvoiceData): string {
         <div class="party-title">Supplier / Billed From</div>
         <div style="font-weight: 700; color: #0f172a; font-size: 12px;">${data.sellerLegalName}</div>
         <div style="color: #475569; font-size: 11px; margin-top: 2px;">${data.sellerAddress}</div>
+        ${data.sellerGstin ? `
         <div style="margin-top: 4px; font-size: 11px;">
           GSTIN: <strong style="font-family: monospace; color: #0f172a;">${data.sellerGstin}</strong>
         </div>
+        ` : ""}
         <div style="font-size: 11px; color: #475569;">Contact: ${data.sellerPhone}${data.sellerEmail ? ` | ${data.sellerEmail}` : ""}</div>
       </div>
 
@@ -515,3 +517,61 @@ export function printOrDownloadTaxInvoice(data: TaxInvoiceData): void {
     }, 250);
   };
 }
+
+/**
+ * Formats a clean, professional WhatsApp Tax Invoice message with item breakdown and direct PDF link.
+ */
+export function formatWhatsAppInvoiceText(order: any, settings?: any): string {
+  const storeName = settings?.firm_name || settings?.store_name || "Fish N Fresh Seafood Hub";
+  const ref = order.order_number || order.id.slice(0, 8);
+  const total = Number(order.total || 0).toLocaleString("en-IN", { style: "currency", currency: "INR" });
+  const paymentMethod = (order.payment_method || "Online").toUpperCase();
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const invoiceLink = `${origin}/orders?invoice=${order.id}`;
+
+  const itemsList = (order.items || [])
+    .slice(0, 5)
+    .map((item: any) => `• ${item.name || item.product_name} (${item.qty} ${item.unit || "pack"}) - ₹${item.price * item.qty}`)
+    .join("\n");
+
+  const moreItemsText = (order.items || []).length > 5 ? `\n...and ${(order.items || []).length - 5} more item(s)` : "";
+
+  const isGst = settings?.gst_enabled !== false && Boolean(settings?.gstin);
+  return `🧾 *${isGst ? "OFFICIAL GST TAX INVOICE" : "OFFICIAL BILL OF SUPPLY"}* — ${storeName}
+━━━━━━━━━━━━━━━━━━
+Hello *${order.customer_name}*, thank you for shopping with us! Your fresh order has been successfully delivered.
+
+📦 *Order / Invoice:* #${ref}
+📅 *Delivered:* ${new Date(order.delivered_at || order.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+💳 *Payment:* ${paymentMethod} (${order.payment_status === "paid" ? "Paid ✅" : "Collected at Doorstep ✅"})
+💰 *Total Amount:* ${total}
+
+📋 *Order Summary:*
+${itemsList}${moreItemsText}
+
+📄 *Download Digital Tax Invoice (PDF):*
+${invoiceLink}
+${isGst ? `\n🏢 GSTIN: ${settings.gstin}` : ""}${settings?.fssai_license_no || settings?.fssai_number ? `\n📜 FSSAI: ${settings.fssai_license_no || settings.fssai_number}` : ""}
+
+100% Chemical-free, harbour-fresh seafood. Customer Care: ${settings?.contact_phone || settings?.support_phone || "+91 98400 12345"}`;
+}
+
+/**
+ * Triggers WhatsApp Invoice sharing via deep link (manual) or automated API.
+ */
+export function shareInvoiceToWhatsApp(
+  order: any,
+  settings?: any
+): { url: string; opened: boolean } {
+  const text = formatWhatsAppInvoiceText(order, settings);
+  const phone = (order.customer_phone || "").replace(/\D/g, "");
+  const to = phone.length === 10 ? `91${phone}` : phone;
+  const deepLink = `https://wa.me/${to}?text=${encodeURIComponent(text)}`;
+
+  if (typeof window !== "undefined") {
+    window.open(deepLink, "_blank", "noopener,noreferrer");
+  }
+
+  return { url: deepLink, opened: true };
+}
+

@@ -1,0 +1,287 @@
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { isGstEnabled, getStoreOrderingMode, type SiteSettings } from "@/lib/types";
+import {
+  buildWhatsAppOrderMessage,
+  getWhatsAppOrderDeepLink,
+  normalizeWhatsAppNumber,
+  type WhatsAppOrderSummary,
+} from "@/lib/whatsappOrdering";
+import {
+  buildPosReceiptHtml,
+  buildPosReceiptEscPos,
+  getSavedPrinterConfig,
+  savePrinterConfig,
+  type PosReceiptData,
+  type ThermalPrinterConfig,
+} from "@/lib/thermalPrinter";
+
+// Mock localStorage and window for vitest node environment
+const storageMock: Record<string, string> = {};
+vi.stubGlobal("localStorage", {
+  getItem: (key: string) => storageMock[key] ?? null,
+  setItem: (key: string, val: string) => {
+    storageMock[key] = String(val);
+  },
+  removeItem: (key: string) => {
+    delete storageMock[key];
+  },
+  clear: () => {
+    for (const k in storageMock) delete storageMock[k];
+  },
+});
+
+vi.stubGlobal("window", {
+  localStorage: {
+    getItem: (key: string) => storageMock[key] ?? null,
+    setItem: (key: string, val: string) => {
+      storageMock[key] = String(val);
+    },
+    removeItem: (key: string) => {
+      delete storageMock[key];
+    },
+    clear: () => {
+      for (const k in storageMock) delete storageMock[k];
+    },
+  },
+  location: { hostname: "test-store.local" },
+  print: () => {},
+});
+
+describe("Master GST Enable/Disable Controller", () => {
+  it("defaults to GST enabled (true) if settings are null or undefined", () => {
+    expect(isGstEnabled(null)).toBe(true);
+    expect(isGstEnabled(undefined)).toBe(true);
+    expect(isGstEnabled({})).toBe(true);
+  });
+
+  it("returns true when gst_enabled is true", () => {
+    expect(isGstEnabled({ gst_enabled: true } as unknown as SiteSettings)).toBe(true);
+  });
+
+  it("strictly returns false when gst_enabled is explicitly false", () => {
+    expect(isGstEnabled({ gst_enabled: false } as unknown as SiteSettings)).toBe(false);
+  });
+});
+
+describe("Store Ordering Channel Mode Switcher", () => {
+  it("defaults to 'standard' (full online checkout) when unspecified", () => {
+    expect(getStoreOrderingMode(null)).toBe("standard");
+    expect(getStoreOrderingMode(undefined)).toBe("standard");
+    expect(getStoreOrderingMode({})).toBe("standard");
+  });
+
+  it("recognizes all valid ordering channel modes", () => {
+    expect(getStoreOrderingMode({ ordering_mode: "standard" } as unknown as SiteSettings)).toBe("standard");
+    expect(getStoreOrderingMode({ ordering_mode: "both" } as unknown as SiteSettings)).toBe("both");
+    expect(getStoreOrderingMode({ ordering_mode: "whatsapp_only" } as unknown as SiteSettings)).toBe("whatsapp_only");
+    expect(getStoreOrderingMode({ ordering_mode: "catalog_only" } as unknown as SiteSettings)).toBe("catalog_only");
+  });
+
+  it("falls back to 'standard' if an unrecognized mode string is provided", () => {
+    expect(getStoreOrderingMode({ ordering_mode: "unknown_future_mode" } as unknown as SiteSettings)).toBe("standard");
+  });
+});
+
+describe("WhatsApp Deep-Link Ordering Utility", () => {
+  it("normalizes 10-digit Indian numbers to international E.164 without plus sign", () => {
+    expect(normalizeWhatsAppNumber("9843061919")).toBe("919843061919");
+    expect(normalizeWhatsAppNumber("+91 98430 61919")).toBe("919843061919");
+    expect(normalizeWhatsAppNumber("919843061919")).toBe("919843061919");
+  });
+
+  const sampleOrder: WhatsAppOrderSummary = {
+    storeName: "Fish N Fresh Hub",
+    storePhone: "9843061919",
+    customer: {
+      name: "Deepak Sundar",
+      phone: "9876543210",
+      address: "12 Marina Beach Road, Chennai - 600004",
+      fulfillment: "delivery",
+      preferredDate: "2026-09-17",
+      notes: "Please pack with extra ice",
+    },
+    items: [
+      {
+        productId: "p1",
+        name: "Vanjaram / Seer Fish",
+        cutPreference: "Steaks / Slices",
+        qty: 1.5,
+        unit: "kg",
+        price: 900,
+        totalPrice: 1350,
+      },
+      {
+        productId: "p2",
+        name: "Tiger Prawns (Large)",
+        cutPreference: "Cleaned & Deveined",
+        qty: 1,
+        unit: "pack",
+        price: 450,
+        totalPrice: 450,
+      },
+    ],
+    subtotal: 1800,
+    deliveryFee: 40,
+    gstAmount: 90,
+    isGstEnabled: true,
+    total: 1930,
+  };
+
+  it("builds a rich formatted order message with all item details and financial totals", () => {
+    const msg = buildWhatsAppOrderMessage(sampleOrder);
+    expect(msg).toContain("NEW ORDER - FISH N FRESH HUB");
+    expect(msg).toContain("Deepak Sundar");
+    expect(msg).toContain("9876543210");
+    expect(msg).toContain("12 Marina Beach Road");
+    expect(msg).toContain("Doorstep Delivery");
+    expect(msg).toContain("*Vanjaram / Seer Fish* [Steaks / Slices]");
+    expect(msg).toContain("*Tiger Prawns (Large)* [Cleaned & Deveined]");
+    expect(msg).toContain("₹1,800");
+    expect(msg).toContain("₹40");
+    expect(msg).toContain("*GST:* ₹90");
+    expect(msg).toContain("GRAND TOTAL: ₹1,930");
+    expect(msg).toContain("Please pack with extra ice");
+  });
+
+  it("suppresses GST line when isGstEnabled is false", () => {
+    const zeroGstOrder: WhatsAppOrderSummary = {
+      ...sampleOrder,
+      isGstEnabled: false,
+      gstAmount: 0,
+      total: 1840,
+    };
+    const msg = buildWhatsAppOrderMessage(zeroGstOrder);
+    expect(msg).not.toContain("GST:");
+    expect(msg).toContain("GRAND TOTAL: ₹1,840");
+  });
+
+  it("generates valid wa.me deep link with properly encoded URI components", () => {
+    const msg = buildWhatsAppOrderMessage(sampleOrder);
+    const link = getWhatsAppOrderDeepLink("9843061919", msg);
+    expect(link).toContain("https://wa.me/919843061919?text=");
+    expect(link).toContain(encodeURIComponent("NEW ORDER - FISH N FRESH HUB"));
+  });
+});
+
+describe("Thermal Printer Header & Footer Customization Engine", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  const baseReceiptData: PosReceiptData = {
+    receiptNo: "POS-1001",
+    date: "16-Sep-2026, 11:30 AM",
+    cashierName: "Senthil",
+    customerName: "Venkatesh",
+    customerPhone: "9876543210",
+    items: [
+      {
+        id: "1",
+        name: "Fresh Seer Fish",
+        qty: 1,
+        weightKg: 1.0,
+        unitPrice: 800,
+        totalPrice: 800,
+        cuttingStyle: "Steaks",
+      },
+    ],
+    subtotal: 800,
+    discount: 0,
+    gstAmount: 40,
+    total: 840,
+    paymentMethod: "UPI QR",
+    storeName: "Fish N Fresh Hub",
+    storeAddress: "Royapuram Harbour, Chennai",
+    storePhone: "+91 98430 61919",
+    storeGstin: "33AAAAA0000A1Z5",
+    storeFssai: "12423008000123",
+  };
+
+  it("saves and isolates printer configurations per client tenant", () => {
+    const cfgA: ThermalPrinterConfig = {
+      ...getSavedPrinterConfig(),
+      headerLine1: "Client Alpha Mart",
+      showHeaderGstin: true,
+      whatsappNumber: "+91 91111 11111",
+    };
+    const cfgB: ThermalPrinterConfig = {
+      ...getSavedPrinterConfig(),
+      headerLine1: "Client Beta Seafood",
+      showHeaderGstin: false,
+      whatsappNumber: "+91 92222 22222",
+    };
+
+    savePrinterConfig(cfgA, "tenant_alpha");
+    savePrinterConfig(cfgB, "tenant_beta");
+
+    const loadedA = getSavedPrinterConfig("tenant_alpha");
+    const loadedB = getSavedPrinterConfig("tenant_beta");
+
+    expect(loadedA.headerLine1).toBe("Client Alpha Mart");
+    expect(loadedA.showHeaderGstin).toBe(true);
+    expect(loadedA.whatsappNumber).toBe("+91 91111 11111");
+
+    expect(loadedB.headerLine1).toBe("Client Beta Seafood");
+    expect(loadedB.showHeaderGstin).toBe(false);
+    expect(loadedB.whatsappNumber).toBe("+91 92222 22222");
+  });
+
+  it("renders header GSTIN when enabled, and suppresses it when disabled", () => {
+    const enabledHtml = buildPosReceiptHtml(baseReceiptData, {
+      ...getSavedPrinterConfig(),
+      showHeaderGstin: true,
+    });
+    expect(enabledHtml).toContain("GSTIN: 33AAAAA0000A1Z5");
+
+    const disabledHtml = buildPosReceiptHtml(baseReceiptData, {
+      ...getSavedPrinterConfig(),
+      showHeaderGstin: false,
+    });
+    expect(disabledHtml).not.toContain("GSTIN: 33AAAAA0000A1Z5");
+  });
+
+  it("renders WhatsApp support number and social media handle in receipt footer", () => {
+    const html = buildPosReceiptHtml(baseReceiptData, {
+      ...getSavedPrinterConfig(),
+      showFooterWhatsapp: true,
+      whatsappNumber: "+91 98430 61919",
+      showFooterSocial: true,
+      socialHandle: "@fishnfreshhub",
+    });
+
+    expect(html).toContain("💬 WhatsApp: +91 98430 61919");
+    expect(html).toContain("🌐 Follow: @fishnfreshhub");
+  });
+
+  it("suppresses WhatsApp support line when showFooterWhatsapp is false", () => {
+    const html = buildPosReceiptHtml(baseReceiptData, {
+      ...getSavedPrinterConfig(),
+      showFooterWhatsapp: false,
+      whatsappNumber: "+91 98430 61919",
+    });
+
+    expect(html).not.toContain("💬 WhatsApp:");
+  });
+
+  it("renders custom footer message if provided", () => {
+    const html = buildPosReceiptHtml(baseReceiptData, {
+      ...getSavedPrinterConfig(),
+      customFooterNote: "Fresh Catch Daily · Family Owned Since 2012",
+    });
+
+    expect(html).toContain("Fresh Catch Daily · Family Owned Since 2012");
+  });
+
+  it("generates ESC/POS byte sequence without errors", () => {
+    const bytes = buildPosReceiptEscPos(baseReceiptData, {
+      ...getSavedPrinterConfig(),
+      paperWidth: "58mm",
+      showHeaderGstin: true,
+      showFooterWhatsapp: true,
+      whatsappNumber: "+91 98430 61919",
+    });
+
+    expect(bytes).toBeInstanceOf(Uint8Array);
+    expect(bytes.length).toBeGreaterThan(50);
+  });
+});

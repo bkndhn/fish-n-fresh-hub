@@ -8,8 +8,59 @@
  */
 
 import type { Database } from '@/integrations/supabase/types';
-export type SiteSettings = Database['public']['Tables']['store_settings']['Row'];
+export type SiteSettings = Database['public']['Tables']['store_settings']['Row'] & {
+  ordering_mode?: "standard" | "both" | "whatsapp_only" | "catalog_only" | string | null;
+  whatsapp_order_phone?: string | null;
+  printer_show_gstin?: boolean | null;
+  printer_show_fssai?: boolean | null;
+  printer_show_address?: boolean | null;
+  printer_show_phone?: boolean | null;
+  printer_show_whatsapp?: boolean | null;
+  printer_show_social?: boolean | null;
+  printer_show_support?: boolean | null;
+  printer_show_return_policy?: boolean | null;
+  printer_custom_footer_message?: string | null;
+  printer_whatsapp_number?: string | null;
+  printer_social_handle?: string | null;
+};
 
+export type StoreOrderingMode = "standard" | "both" | "whatsapp_only" | "catalog_only";
+
+/**
+ * Checks whether GST tax calculation is active for this store.
+ * Defaults to true if not explicitly disabled.
+ */
+export function isGstEnabled(settings?: Partial<SiteSettings> | null): boolean {
+  if (!settings) return true;
+  return (settings as any).gst_enabled !== false;
+}
+
+/**
+ * Returns the effective ordering mode for this store:
+ * - 'standard': Standard online checkout (default for all existing and upcoming stores)
+ * - 'both': Hybrid (both standard checkout and WhatsApp order available)
+ * - 'whatsapp_only': Catalog + WhatsApp deep-link order (no payment gateways)
+ * - 'catalog_only': Showcase only (browse products, enquire only)
+ */
+export function getStoreOrderingMode(settings?: Partial<SiteSettings> | null): StoreOrderingMode {
+  if (!settings) return "standard";
+  const mode = (settings as any).ordering_mode;
+  if (mode === "both" || mode === "whatsapp_only" || mode === "catalog_only") {
+    return mode;
+  }
+  return "standard";
+}
+
+/**
+ * Checks whether the Refer & Earn customer program is currently active.
+ * Controlled by the client admin in Settings.
+ */
+export function isReferralProgramActive(settings?: Partial<SiteSettings> | null): boolean {
+  if (!settings) return true;
+  if ((settings as any).referral_program_enabled === false) return false;
+  if (settings.wallet_enabled === false) return false;
+  return true;
+}
 
 /**
  * 2D Matrix Product Variant for size, color, SKU, and barcode.

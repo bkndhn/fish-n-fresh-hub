@@ -32,6 +32,8 @@ import {
   Bookmark,
   Share2,
   Sliders,
+  SlidersHorizontal,
+  Pencil,
   Layers,
   Keyboard,
   FileText,
@@ -65,6 +67,7 @@ import {
 } from "@/components/ui/dialog";
 import { PrinterSettingsModal } from "@/components/admin/PrinterSettingsModal";
 import { PosPastBillsModal } from "@/components/admin/PosPastBillsModal";
+import { PortionChipsModal, getStoredPortionChips, DEFAULT_PORTION_CHIPS, type PortionChip } from "@/components/admin/PortionChipsModal";
 import {
   getSavedPrinterConfig,
   sendEscPosToPrinter,
@@ -72,9 +75,18 @@ import {
   buildPosReceiptHtml,
   generatePosWhatsAppText,
   getPosWhatsAppShareUrl,
+  isHardwarePrinterConnected,
+  autoReconnectSavedPrinters,
   type PosReceiptData,
   type PosReceiptItem,
 } from "@/lib/thermalPrinter";
+import { useAdminBranch } from "@/lib/branchContext";
+import {
+  getStorePaymentConfig,
+  playCashRegisterChime,
+  type CustomPaymentMethod,
+  type StorePaymentConfig,
+} from "@/lib/storePayments";
 import {
   weighingScaleDriver,
   playScaleCaptureChime,
@@ -187,7 +199,7 @@ function getNextPosReceiptNo(prefix = "POS-", dailyReset = true): string {
       }
     }
     localStorage.setItem("fnf_pos_seq", JSON.stringify({ date: todayStr, lastSeq: seq }));
-    const padded = String(seq).padStart(3, "0");
+    const padded = String(seq).padStart(4, "0");
     return dailyReset ? `${prefix}${todayStr}-${padded}` : `${prefix}${seq}`;
   } catch {
     return `${prefix}${Date.now().toString().slice(-6)}`;
@@ -196,8 +208,10 @@ function getNextPosReceiptNo(prefix = "POS-", dailyReset = true): string {
 
 export function RetailPosCounterPage() {
   const qc = useQueryClient();
+  const { selectedBranchId, selectedBranch } = useAdminBranch();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const quickCodeInputRef = useRef<HTMLInputElement>(null);
+  const modalWeightInputRef = useRef<HTMLInputElement>(null);
   const [quickCodeInput, setQuickCodeInput] = useState("");
   const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
   const { data: rawProducts = [], isLoading: productsLoading } = useQuery(adminProductsQuery());
@@ -217,12 +231,92 @@ export function RetailPosCounterPage() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [discountAmount, setDiscountAmount] = useState<number>(0);
 
+  // Returning Customer CRM Auto-Lookup
+  const [returningCustomerInfo, setReturningCustomerInfo] = useState<{
+    name: string;
+    ordersCount: number;
+    totalSpent: number;
+    favoriteItem?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const cleanPhone = customerPhone.trim().replace(/\D/g, "").slice(-10);
+    if (cleanPhone.length !== 10) {
+      setReturningCustomerInfo(null);
+      return;
+    }
+
+    let isMounted = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("orders")
+          .select("customer_name, total, items, status")
+          .eq("customer_phone", cleanPhone)
+          .order("created_at", { ascending: false })
+          .limit(25);
+
+        if (error || !data || data.length === 0 || !isMounted) return;
+
+        let bestName = "";
+        let totalSpent = 0;
+        const itemCounts: Record<string, number> = {};
+
+        for (const o of data) {
+          if (
+            !bestName &&
+            o.customer_name &&
+            !o.customer_name.toLowerCase().includes("walk-in") &&
+            !o.customer_name.toLowerCase().includes("guest")
+          ) {
+            bestName = o.customer_name.trim();
+          }
+          if (o.status !== "cancelled") {
+            totalSpent += Number(o.total || 0);
+          }
+          if (Array.isArray(o.items)) {
+            for (const it of o.items as any[]) {
+              const n = it.name || it.product_name;
+              if (n) itemCounts[n] = (itemCounts[n] || 0) + 1;
+            }
+          }
+        }
+
+        const favItem = Object.entries(itemCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+
+        if (isMounted) {
+          setReturningCustomerInfo({
+            name: bestName || "Returning Customer",
+            ordersCount: data.length,
+            totalSpent: Math.round(totalSpent),
+            favoriteItem: favItem,
+          });
+
+          if (bestName && !customerName.trim()) {
+            setCustomerName(bestName);
+          }
+        }
+      } catch (err) {
+        console.warn("Error looking up customer in POS:", err);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [customerPhone]);
+
   // Item customizer modal (Decimal scale input fix)
   const [activeItemModal, setActiveItemModal] = useState<Product | null>(null);
   const [modalWeightInput, setModalWeightInput] = useState<string>("1.0");
   const [modalCutting, setModalCutting] = useState<string>("Curry Cut");
   const [modalSerialInput, setModalSerialInput] = useState<string>("");
   const [modalSelectedVariant, setModalSelectedVariant] = useState<any | null>(null);
+
+  // Edit existing cart item modal state
+  const [editingCartItem, setEditingCartItem] = useState<PosCartItem | null>(null);
+  const [editWeightInput, setEditWeightInput] = useState<string>("1.0");
+  const [editCuttingStyle, setEditCuttingStyle] = useState<string>("Curry Cut");
 
   // Custom Quick Chips state
   const [activeChips, setActiveChips] = useState<QuickChipItem[]>(DEFAULT_QUICK_CHIPS);
@@ -350,8 +444,22 @@ export function RetailPosCounterPage() {
     toast.success("Quick chips reset to standard presets");
   };
 
-  // Payment states (Single or Multi-payment / Split)
-  const [paymentMode, setPaymentMode] = useState<"cash" | "upi" | "card" | "split">("cash");
+  // Multi-Tenant Isolated Store Payment Configuration (Default & Custom Methods)
+  const [storePaymentConfig, setStorePaymentConfig] = useState<StorePaymentConfig>(() =>
+    getStorePaymentConfig(selectedBranchId && selectedBranchId !== "all" ? selectedBranchId : undefined)
+  );
+
+  useEffect(() => {
+    const cfg = getStorePaymentConfig(selectedBranchId && selectedBranchId !== "all" ? selectedBranchId : undefined);
+    setStorePaymentConfig(cfg);
+    if (cfg.defaultMethod) {
+      setPaymentMode(cfg.defaultMethod);
+    }
+  }, [selectedBranchId]);
+
+  // Payment states (Single, Multi-payment / Split, or Custom method)
+  const [paymentMode, setPaymentMode] = useState<string>(() => storePaymentConfig.defaultMethod || "cash");
+  const [customPaymentRef, setCustomPaymentRef] = useState<string>("");
   const [tenderedAmount, setTenderedAmount] = useState<string>("");
   const [upiUtr, setUpiUtr] = useState<string>("");
 
@@ -471,23 +579,9 @@ export function RetailPosCounterPage() {
     });
   }, []);
 
-  // Quick Mode Keydown Handler (F1: Search, F2 or /: Quick PLU entry)
+  // Auto-reconnect paired hardware printers on mount
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "F1") {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      } else if (e.key === "F2") {
-        e.preventDefault();
-        quickCodeInputRef.current?.focus();
-      } else if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
-        e.preventDefault();
-        quickCodeInputRef.current?.focus();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    autoReconnectSavedPrinters();
   }, []);
 
   // Fast PLU Code Selector
@@ -550,6 +644,8 @@ export function RetailPosCounterPage() {
         };
 
         setCart((prev) => [...prev, newItem]);
+        setSearchQuery("");
+        setQuickCodeInput("");
         toast.success(`Scale item added: ${matched.name} (${weight} kg - ₹${totalPrice})`, { icon: "⚖️" });
         return;
       }
@@ -621,14 +717,17 @@ export function RetailPosCounterPage() {
     return cart.reduce((acc, item) => acc + item.totalPrice, 0);
   }, [cart]);
 
+  const isGstActive = (settings as SiteSettings)?.gst_enabled !== false;
+
   const gstTotal = useMemo(() => {
+    if (!isGstActive) return 0;
     return cart.reduce((acc, item) => {
       if (item.gstPercent > 0) {
         return acc + Math.round((item.totalPrice * item.gstPercent) / 100);
       }
       return acc;
     }, 0);
-  }, [cart]);
+  }, [cart, isGstActive]);
 
   const totalPayable = Math.max(0, subtotal - discountAmount + gstTotal);
 
@@ -855,6 +954,11 @@ export function RetailPosCounterPage() {
 
     setCart((prev) => [...prev, newItem]);
     setActiveItemModal(null);
+    setSearchQuery("");
+    setQuickCodeInput("");
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 50);
     toast.success(`Added ${newItem.name} (${newItem.weightKg ? `${newItem.weightKg} kg` : `${newItem.qty} pcs`}) to bill`);
   };
 
@@ -894,6 +998,51 @@ export function RetailPosCounterPage() {
     );
   };
 
+  const handleOpenEditCartItem = (item: PosCartItem) => {
+    setEditingCartItem(item);
+    const isWeight = item.unit.toLowerCase() === "kg";
+    setEditWeightInput(isWeight ? item.weightKg.toString() : item.qty.toString());
+    setEditCuttingStyle(item.cuttingStyle || "Curry Cut");
+  };
+
+  const handleSaveEditCartItem = () => {
+    if (!editingCartItem) return;
+    const parsedVal = parseFloat(editWeightInput);
+    if (isNaN(parsedVal) || parsedVal <= 0) {
+      toast.error("Please enter a valid weight or quantity greater than 0");
+      return;
+    }
+
+    const matchedProd = products.find((p) => p.id === editingCartItem.productId);
+    const maxStock = matchedProd?.stock ?? 9999;
+    const isWeight = editingCartItem.unit.toLowerCase() === "kg";
+
+    if (parsedVal > maxStock) {
+      toast.warning(`Requested ${parsedVal} exceeds available store stock (${maxStock} ${editingCartItem.unit})!`);
+      return;
+    }
+
+    const newWeightKg = isWeight ? parsedVal : 0;
+    const newQty = isWeight ? 1 : Math.round(parsedVal);
+    const newTotalPrice = Math.round(editingCartItem.pricePerKg * (isWeight ? newWeightKg : newQty));
+
+    setCart((prev) =>
+      prev.map((it) => {
+        if (it.id !== editingCartItem.id) return it;
+        return {
+          ...it,
+          cuttingStyle: editCuttingStyle,
+          weightKg: newWeightKg,
+          qty: newQty,
+          totalPrice: newTotalPrice,
+        };
+      })
+    );
+
+    toast.success(`Updated ${editingCartItem.name}: ${isWeight ? `${newWeightKg} kg` : `${newQty} pcs`} • ${editCuttingStyle}`);
+    setEditingCartItem(null);
+  };
+
   const handleRemoveFromCart = (id: string) => {
     setCart((prev) => prev.filter((item) => item.id !== id));
   };
@@ -909,6 +1058,7 @@ export function RetailPosCounterPage() {
     setSplitUtr("");
     setCustomerName("");
     setCustomerPhone("");
+    setReturningCustomerInfo(null);
   };
 
   // Park / Hold bill
@@ -971,64 +1121,6 @@ export function RetailPosCounterPage() {
   const splitUpiDeepLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${splitUpiNum}&cu=INR&tn=${encodeURIComponent(`Counter Bill Split UPI`)}`;
   const splitUpiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(splitUpiDeepLink)}`;
 
-  // Desktop keyboard shortcuts (F1-F12, Esc)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "F1") {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      } else if (e.key === "F2") {
-        e.preventDefault();
-        handleClearBill();
-      } else if (e.key === "F4") {
-        e.preventDefault();
-        handleParkCart();
-      } else if (e.key === "F5") {
-        e.preventDefault();
-        setPastBillsModalOpen((prev) => !prev);
-      } else if (e.key === "F8") {
-        e.preventDefault();
-        setPaymentMode("split");
-      } else if (e.key === "F9") {
-        e.preventDefault();
-        setPaymentMode("cash");
-      } else if (e.key === "F10") {
-        e.preventDefault();
-        setPaymentMode("upi");
-      } else if (e.key === "F12") {
-        e.preventDefault();
-        if (!processingOrder && cart.length > 0) {
-          completeSale();
-        }
-      } else if (e.key === "Escape") {
-        if (activeItemModal) setActiveItemModal(null);
-        if (pastBillsModalOpen) setPastBillsModalOpen(false);
-        if (parkedModalOpen) setParkedModalOpen(false);
-        if (printerModalOpen) setPrinterModalOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
-    cart,
-    processingOrder,
-    activeItemModal,
-    pastBillsModalOpen,
-    parkedModalOpen,
-    printerModalOpen,
-    totalPayable,
-    tenderedNum,
-    splitCashNum,
-    splitUpiNum,
-    splitCardNum,
-    splitTotalAllocated,
-    splitRemaining,
-    customerName,
-    customerPhone,
-    discountAmount,
-    parkedCarts,
-  ]);
 
   // Complete Retail Sale Mutation
   const completeSale = async () => {
@@ -1036,6 +1128,16 @@ export function RetailPosCounterPage() {
       toast.error("Billing cart is empty! Add products first.");
       return;
     }
+
+    const activeCustom = storePaymentConfig.customMethods.find((m) => m.id === paymentMode);
+    const isCustom = Boolean(activeCustom);
+    const paymentLabel = isCustom ? activeCustom!.name : (paymentMode === "upi" ? "upi_qr" : paymentMode);
+
+    if (isCustom && activeCustom?.requiresRef && !customPaymentRef.trim()) {
+      toast.error(`Please enter ${activeCustom.refPlaceholder || "reference / slip #"} for ${activeCustom.name}`);
+      return;
+    }
+
     if (paymentMode === "cash" && tenderedNum > 0 && tenderedNum < totalPayable) {
       toast.error(`Cash tendered (₹${tenderedNum}) is less than total payable (₹${totalPayable})`);
       return;
@@ -1083,10 +1185,10 @@ export function RetailPosCounterPage() {
       discount: discountAmount,
       gstAmount: gstTotal,
       total: totalPayable,
-      paymentMethod: paymentMode,
+      paymentMethod: paymentLabel,
       amountTendered: paymentMode === "cash" ? (tenderedNum || totalPayable) : undefined,
       changeDue: paymentMode === "cash" ? changeDue : undefined,
-      upiRef: paymentMode === "upi" ? (upiUtr.trim() || undefined) : (paymentMode === "split" && splitUtr.trim() ? splitUtr.trim() : undefined),
+      upiRef: paymentMode === "upi" ? (upiUtr.trim() || undefined) : (paymentMode === "split" && splitUtr.trim() ? splitUtr.trim() : (customPaymentRef.trim() || undefined)),
       splitPayments: paymentMode === "split" ? {
         cash: splitCashNum,
         upi: splitUpiNum,
@@ -1095,25 +1197,24 @@ export function RetailPosCounterPage() {
       storeName: settings?.store_name || "Universal Retail Hub",
       storeAddress: settings?.store_address || undefined,
       storePhone: (settings as SiteSettings)?.contact_phone || undefined,
-      storeGstin: (settings as SiteSettings)?.gst_number || undefined,
+      storeGstin: isGstActive ? ((settings as SiteSettings)?.gstin || undefined) : undefined,
       copyType: "ORIGINAL",
       isReprint: false,
     };
 
     try {
-      // 1. Create order in orders table
+      // 1. Create order in orders table (valid schema only - no pos_split_payments column)
       const orderPayload = {
         order_number: orderNumber,
         customer_name: customerName.trim() || "Walk-in Customer",
         customer_phone: customerPhone.trim() || "9999999999",
         fulfillment_type: "pos",
         status: "delivered",
-        payment_method: paymentMode,
+        payment_method: paymentLabel,
         payment_status: "paid",
-        actual_payment_method: paymentMode === "upi" ? "upi_qr" : paymentMode,
-        actual_payment_ref: paymentMode === "upi" ? (upiUtr.trim() || null) : (paymentMode === "split" ? (splitUtr.trim() || null) : null),
+        actual_payment_method: paymentMode === "upi" ? "upi_qr" : paymentLabel,
+        actual_payment_ref: paymentMode === "upi" ? (upiUtr.trim() || null) : (paymentMode === "split" ? (splitUtr.trim() || null) : (customPaymentRef.trim() || null)),
         paid_to_bank_directly: paymentMode === "upi" || (paymentMode === "split" && splitUpiNum > 0),
-        pos_split_payments: paymentMode === "split" ? { cash: splitCashNum, upi: splitUpiNum, card: splitCardNum } : null,
         subtotal,
         discount: discountAmount,
         gst_amount: gstTotal,
@@ -1136,6 +1237,9 @@ export function RetailPosCounterPage() {
         pos_cashier_name: cashierName,
         pos_amount_tendered: paymentMode === "cash" ? (tenderedNum || totalPayable) : null,
         pos_change_due: paymentMode === "cash" ? changeDue : null,
+        branch_id: selectedBranchId && selectedBranchId !== "all" ? selectedBranchId : null,
+        branch_name: selectedBranch?.name || null,
+        notes: `In-Store POS Counter Bill${paymentMode === "split" ? ` | Split: Cash ₹${splitCashNum}, UPI ₹${splitUpiNum}, Card ₹${splitCardNum}` : ""}${customPaymentRef ? ` | Ref: ${customPaymentRef}` : ""}`,
         delivered_at: nowIso,
       };
 
@@ -1148,17 +1252,22 @@ export function RetailPosCounterPage() {
         try {
           const { data: orderRes, error: orderErr } = await supabase
             .from("orders")
-            .insert(orderPayload as never)
+            .insert(orderPayload)
             .select("id, order_number")
             .single();
 
           if (orderErr) {
-            console.warn("Could not insert order:", orderErr.message);
+            throw new Error(`Database error saving POS bill: ${orderErr.message}`);
           }
 
           // Real-time Atomic Inventory Deduction
           await deductOrderStock(orderRes?.id || orderNumber, stockItems);
-        } catch (netErr) {
+
+          // Real-time CRM & Order Queries Invalidation
+          qc.invalidateQueries({ queryKey: ["admin", "customers"] });
+          qc.invalidateQueries({ queryKey: ["admin", "registered-customers"] });
+          qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+        } catch (netErr: any) {
           console.warn("Falling back to offline queue:", netErr);
           const queue = loadOfflineQueue();
           queue.push({ orderPayload, stockItems });
@@ -1177,30 +1286,43 @@ export function RetailPosCounterPage() {
         toast.info("Offline: Bill queued in local register. Will auto-sync when online.");
       }
 
-      // 3. Print ESC/POS thermal receipt (multi-copies support)
-      const copies = Math.min(3, Math.max(1, printerConfig.printCopies || 1));
-      const copyLabels: ("ORIGINAL" | "KITCHEN TOKEN" | "STORE RECORD")[] = [
-        "ORIGINAL",
-        "KITCHEN TOKEN",
-        "STORE RECORD",
-      ];
+      // 3. Print ESC/POS thermal receipt or play crisp cash register chime
+      const hasHardwarePrinter = isHardwarePrinterConnected();
+      const isBrowserPrintConfigured = printerConfig.type === "browser_print";
 
-      for (let i = 0; i < copies; i++) {
-        const copyData: PosReceiptData = {
-          ...receiptData,
-          copyType: copyLabels[i] || "ORIGINAL",
-        };
-        const escPosBytes = buildPosReceiptEscPos(copyData, printerConfig);
-        const fallbackHtml = buildPosReceiptHtml(copyData, printerConfig);
-        try {
-          await sendEscPosToPrinter(escPosBytes, printerConfig, fallbackHtml);
-        } catch (printErr) {
-          console.warn("Direct thermal print notice:", printErr);
+      if (hasHardwarePrinter || isBrowserPrintConfigured) {
+        const copies = Math.min(3, Math.max(1, printerConfig.printCopies || 1));
+        const copyLabels: ("ORIGINAL" | "KITCHEN TOKEN" | "STORE RECORD")[] = [
+          "ORIGINAL",
+          "KITCHEN TOKEN",
+          "STORE RECORD",
+        ];
+
+        for (let i = 0; i < copies; i++) {
+          const copyData: PosReceiptData = {
+            ...receiptData,
+            copyType: copyLabels[i] || "ORIGINAL",
+          };
+          const escPosBytes = buildPosReceiptEscPos(copyData, printerConfig);
+          const fallbackHtml = buildPosReceiptHtml(copyData, printerConfig);
+          try {
+            await sendEscPosToPrinter(escPosBytes, printerConfig, fallbackHtml);
+          } catch (printErr) {
+            console.warn("Direct thermal print notice:", printErr);
+          }
         }
+        playCashRegisterChime();
+        toast.success(`Bill #${orderNumber} completed & printed! Net: ${formatINR(totalPayable)}`);
+      } else {
+        // Silent headless register save with "Ka-Ching!" sound
+        playCashRegisterChime();
+        toast.success(`Bill #${orderNumber} saved! (No printer connected)`, {
+          description: `Total: ${formatINR(totalPayable)} • Synced to Reports & Dashboard`,
+        });
       }
 
       setLastReceipt(receiptData);
-      toast.success(`Bill #${orderNumber} completed! Net: ${formatINR(totalPayable)}`);
+      setCustomPaymentRef("");
 
       // Auto WhatsApp prompt if enabled
       if (printerConfig.autoWhatsAppPrompt && customerPhone.trim().length >= 10) {
@@ -1213,6 +1335,7 @@ export function RetailPosCounterPage() {
       qc.invalidateQueries({ queryKey: ["admin", "products"] });
       qc.invalidateQueries({ queryKey: ["admin", "pos-orders-today"] });
       qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+      qc.invalidateQueries({ queryKey: ["admin", "reports"] });
     } catch (err: any) {
       toast.error(err.message || "Failed to complete POS sale");
     } finally {
@@ -1239,9 +1362,176 @@ export function RetailPosCounterPage() {
     toast.success(`Reprinted Bill #${lastReceipt.receiptNo} with Audit Mark`);
   };
 
+  // Complete Keyboard-Only POS Billing Shortcut Engine (F1-F12, Ctrl+Enter, Esc, Shift+Del)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 1. Complete Sale via Ctrl+Enter or Cmd+Enter
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        if (!processingOrder && cart.length > 0 && !activeItemModal) {
+          completeSale();
+        } else if (cart.length === 0) {
+          toast.warning("Cart is empty! Add products first [F1 / F2]");
+        }
+        return;
+      }
+
+      // 2. Clear Bill via Alt+C or Shift+Delete
+      if ((e.altKey && e.key.toLowerCase() === "c") || (e.shiftKey && e.key === "Delete")) {
+        e.preventDefault();
+        handleClearBill();
+        toast.info("Bill cleared");
+        return;
+      }
+
+      // 3. F1: Focus search input
+      if (e.key === "F1") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+      // 4. F2 or / (when not typing in an input): Focus PLU / Barcode input
+      else if (
+        e.key === "F2" ||
+        (e.key === "/" &&
+          document.activeElement?.tagName !== "INPUT" &&
+          document.activeElement?.tagName !== "TEXTAREA")
+      ) {
+        e.preventDefault();
+        quickCodeInputRef.current?.focus();
+        quickCodeInputRef.current?.select();
+      }
+      // 5. F3: Toggle Weighing Scale Hardware Hub
+      else if (e.key === "F3") {
+        e.preventDefault();
+        setScaleModalOpen((prev) => !prev);
+      }
+      // 6. F4: Park current bill
+      else if (e.key === "F4") {
+        e.preventDefault();
+        handleParkCart();
+      }
+      // 7. F5: View Past Bills
+      else if (e.key === "F5") {
+        e.preventDefault();
+        setPastBillsModalOpen((prev) => !prev);
+      }
+      // 8. F6: View Parked Bills
+      else if (e.key === "F6") {
+        e.preventDefault();
+        setParkedModalOpen((prev) => !prev);
+      }
+      // 9. F7: Payment Tender -> Card Swipe
+      else if (e.key === "F7") {
+        e.preventDefault();
+        setPaymentMode("card");
+        toast.info("Tender: Card Swipe [F7]");
+      }
+      // 10. F8: Payment Tender -> Split
+      else if (e.key === "F8") {
+        e.preventDefault();
+        setPaymentMode("split");
+        toast.info("Tender: Split Payment [F8]");
+      }
+      // 11. F9: Payment Tender -> Cash
+      else if (e.key === "F9") {
+        e.preventDefault();
+        setPaymentMode("cash");
+        toast.info("Tender: Cash [F9]");
+      }
+      // 12. F10: Payment Tender -> UPI QR
+      else if (e.key === "F10") {
+        e.preventDefault();
+        setPaymentMode("upi");
+        toast.info("Tender: UPI QR [F10]");
+      }
+      // 13. F11: Payment Tender -> Cycle Custom Tenders (Sodexo, Store Credit, etc.)
+      else if (e.key === "F11") {
+        e.preventDefault();
+        const customTenders = storePaymentConfig.customMethods.filter((m) => m.isEnabled);
+        if (customTenders.length > 0) {
+          const curIdx = customTenders.findIndex((m) => m.id === paymentMode);
+          const nextIdx = (curIdx + 1) % customTenders.length;
+          const nextMethod = customTenders[nextIdx]!;
+          setPaymentMode(nextMethod.id);
+          toast.info(`Tender: ${nextMethod.name} [F11]`);
+        } else {
+          toast.info("No custom payment tenders configured in Settings.");
+        }
+      }
+      // 14. F12: Complete Sale (Save Bill & Print)
+      else if (e.key === "F12") {
+        e.preventDefault();
+        if (!processingOrder && cart.length > 0 && !activeItemModal) {
+          completeSale();
+        } else if (cart.length === 0) {
+          toast.warning("Cart is empty! Add products first [F1 / F2]");
+        }
+      }
+      // 15. Escape: Close open modals / clear search
+      else if (e.key === "Escape") {
+        if (activeItemModal) {
+          setActiveItemModal(null);
+          setTimeout(() => searchInputRef.current?.focus(), 50);
+        } else if (pastBillsModalOpen) {
+          setPastBillsModalOpen(false);
+        } else if (parkedModalOpen) {
+          setParkedModalOpen(false);
+        } else if (printerModalOpen) {
+          setPrinterModalOpen(false);
+        } else if (scaleModalOpen) {
+          setScaleModalOpen(false);
+        } else if (editingCartItem) {
+          setEditingCartItem(null);
+        } else if (searchQuery) {
+          setSearchQuery("");
+        } else if (quickCodeInput) {
+          setQuickCodeInput("");
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    cart,
+    processingOrder,
+    activeItemModal,
+    pastBillsModalOpen,
+    parkedModalOpen,
+    printerModalOpen,
+    scaleModalOpen,
+    editingCartItem,
+    totalPayable,
+    tenderedNum,
+    splitCashNum,
+    splitUpiNum,
+    splitCardNum,
+    splitTotalAllocated,
+    splitRemaining,
+    customerName,
+    customerPhone,
+    discountAmount,
+    parkedCarts,
+    searchQuery,
+    quickCodeInput,
+    storePaymentConfig,
+    paymentMode,
+    customPaymentRef,
+    changeDue,
+    cashierId,
+    cashierName,
+    selectedBranchId,
+    selectedBranch,
+    settings,
+    subtotal,
+    gstTotal,
+    isGstActive,
+  ]);
+
   return (
-    <AdminShell title="In-Store Retail POS Counter" allow={["admin", "cashier", "manager", "staff"]}>
-      <div className="space-y-4 max-w-7xl mx-auto pb-12">
+    <AdminShell title="In-Store Retail POS Counter" allow={["admin", "cashier", "manager", "staff"]} fullWidth>
+      <div className="space-y-4 w-full mx-auto pb-12">
         {/* Top Control Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 bg-card p-4 rounded-2xl border border-border/80 shadow-xs">
           <div className="flex items-center gap-3">
@@ -1517,7 +1807,7 @@ export function RetailPosCounterPage() {
         </div>
 
         {/* 2-Column POS Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_430px] gap-4 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px] 2xl:grid-cols-[1fr_440px] gap-3.5 sm:gap-4 items-start w-full">
           {/* LEFT: Fast Touch Product Catalog */}
           <div className="space-y-3">
             {/* Omnichannel Low Stock Radar Alert Banner */}
@@ -1626,8 +1916,38 @@ export function RetailPosCounterPage() {
                   placeholder="Fast search seafood / meat by name (English or Tamil) [F1]..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 text-xs rounded-xl bg-background"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const trimmed = searchQuery.trim();
+                      if (displayedProducts.length === 1) {
+                        handleOpenItem(displayedProducts[0]);
+                      } else if (/^\d+$/.test(trimmed)) {
+                        const num = parseInt(trimmed, 10);
+                        const exactPlu = products.find(
+                          (p, idx) => p.pos_code === num || (!p.pos_code && idx + 1 === num)
+                        );
+                        if (exactPlu) {
+                          handleOpenItem(exactPlu);
+                        }
+                      }
+                    }
+                  }}
+                  className="pl-9 pr-8 h-9 text-xs rounded-xl bg-background"
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      searchInputRef.current?.focus();
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground size-5 flex items-center justify-center rounded-full hover:bg-muted transition"
+                    title="Clear search [Esc]"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
               </div>
 
               {/* Category Pills */}
@@ -1821,7 +2141,7 @@ export function RetailPosCounterPage() {
           </div>
 
           {/* RIGHT: Live Active Bill & Checkout Panel */}
-          <div id="pos-cart-panel" className="space-y-3 sticky top-4">
+          <div id="pos-cart-panel" className="space-y-3 sticky top-4 w-full min-w-0">
             <Card className="border-border/80 shadow-md rounded-3xl overflow-hidden">
               {/* Bill Header */}
               <CardHeader className="bg-gradient-to-r from-primary/15 via-primary/5 to-transparent p-4 pb-3 border-b border-border/60">
@@ -1869,6 +2189,20 @@ export function RetailPosCounterPage() {
                     className="h-7 text-xs rounded-lg bg-background font-mono"
                   />
                 </div>
+
+                {returningCustomerInfo && (
+                  <div className="mt-1.5 flex items-center justify-between gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 text-[11px] text-emerald-700 dark:text-emerald-400">
+                    <span className="font-semibold flex items-center gap-1.5 truncate">
+                      <Sparkles className="size-3 text-emerald-600 shrink-0" />
+                      Returning: {returningCustomerInfo.name} ({returningCustomerInfo.ordersCount} visits • ₹{returningCustomerInfo.totalSpent.toLocaleString("en-IN")})
+                    </span>
+                    {returningCustomerInfo.favoriteItem && (
+                      <span className="text-[10px] bg-emerald-500/15 px-1.5 py-0.5 rounded text-emerald-800 dark:text-emerald-300 shrink-0 font-medium" title={`Favorite: ${returningCustomerInfo.favoriteItem}`}>
+                        ★ {returningCustomerInfo.favoriteItem}
+                      </span>
+                    )}
+                  </div>
+                )}
               </CardHeader>
 
               {/* Bill Line Items */}
@@ -1892,7 +2226,15 @@ export function RetailPosCounterPage() {
                             </span>
                           )}
                           {item.cuttingStyle && (
-                            <span className="text-primary font-medium">[{item.cuttingStyle}] · </span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditCartItem(item)}
+                              className="text-primary font-bold hover:underline cursor-pointer bg-primary/10 hover:bg-primary/20 px-1.5 py-0.5 rounded text-[10px] inline-flex items-center gap-1 transition"
+                              title="Click to edit cutting style or weight"
+                            >
+                              <span>[{item.cuttingStyle}]</span>
+                              <SlidersHorizontal className="size-2.5 opacity-70" />
+                            </button>
                           )}
                           <span>₹{item.pricePerKg}/{item.unit}</span>
                           {item.aisleLocation && (
@@ -1914,7 +2256,13 @@ export function RetailPosCounterPage() {
                           >
                             <Minus className="size-3" />
                           </button>
-                          <span className="font-mono text-[11px] font-bold px-1 bg-background rounded border border-border/60">
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => handleOpenEditCartItem(item)}
+                            className="font-mono text-[11px] font-bold px-1.5 py-0.5 bg-background rounded border border-border/60 hover:border-primary/60 hover:text-primary cursor-pointer transition shadow-2xs"
+                            title="Click to edit weight directly"
+                          >
                             {item.weightKg > 0 ? `${item.weightKg.toFixed(2)} kg` : `${item.qty} ${item.unit}`}
                           </span>
                           <button
@@ -1925,14 +2273,33 @@ export function RetailPosCounterPage() {
                           >
                             <Plus className="size-3" />
                           </button>
+                          {/* Dedicated Smart Edit Icon */}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditCartItem(item)}
+                            className="size-5 rounded flex items-center justify-center bg-primary/10 hover:bg-primary/25 text-primary transition ml-0.5"
+                            title="Quick Edit: Change Weight, Cutting Style, or Portion"
+                            aria-label="Quick edit bill item"
+                          >
+                            <SlidersHorizontal className="size-3" />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <span className="font-bold text-xs font-mono">{formatINR(item.totalPrice)}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditCartItem(item)}
+                          className="text-muted-foreground hover:text-primary p-1 rounded-md transition-colors"
+                          title="Edit item cutting style and weight"
+                        >
+                          <Pencil className="size-3" />
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleRemoveFromCart(item.id)}
                           className="text-muted-foreground hover:text-destructive p-1 rounded-md transition-colors"
+                          title="Remove item from bill"
                         >
                           <X className="size-3.5" />
                         </button>
@@ -1990,55 +2357,72 @@ export function RetailPosCounterPage() {
                 {/* Payment Selection Tabs */}
                 {cart.length > 0 && (
                   <div className="space-y-3 pt-2">
-                    <div className="grid grid-cols-4 gap-1 bg-muted/40 p-1 rounded-xl border border-border/60">
+                    <div className="flex flex-wrap gap-1 bg-muted/40 p-1 rounded-xl border border-border/60">
                       <button
                         type="button"
                         onClick={() => setPaymentMode("cash")}
-                        className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        className={`flex-1 min-w-[65px] flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
                           paymentMode === "cash"
                             ? "bg-amber-600 text-white shadow-xs"
                             : "text-muted-foreground hover:text-foreground"
                         }`}
                         title="Cash tender [F9]"
                       >
-                        <Banknote className="size-3.5" /> Cash
+                        <Banknote className="size-3.5" /> Cash <kbd className="text-[9px] opacity-75 font-mono ml-0.5">F9</kbd>
                       </button>
                       <button
                         type="button"
                         onClick={() => setPaymentMode("upi")}
-                        className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        className={`flex-1 min-w-[65px] flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
                           paymentMode === "upi"
                             ? "bg-emerald-600 text-white shadow-xs"
                             : "text-muted-foreground hover:text-foreground"
                         }`}
                         title="UPI QR payment [F10]"
                       >
-                        <QrCode className="size-3.5" /> UPI QR
+                        <QrCode className="size-3.5" /> UPI <kbd className="text-[9px] opacity-75 font-mono ml-0.5">F10</kbd>
                       </button>
                       <button
                         type="button"
                         onClick={() => setPaymentMode("card")}
-                        className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        className={`flex-1 min-w-[65px] flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
                           paymentMode === "card"
                             ? "bg-primary text-primary-foreground shadow-xs"
                             : "text-muted-foreground hover:text-foreground"
                         }`}
-                        title="Card Swipe"
+                        title="Card Swipe [F7]"
                       >
-                        <CreditCard className="size-3.5" /> Card
+                        <CreditCard className="size-3.5" /> Card <kbd className="text-[9px] opacity-75 font-mono ml-0.5">F7</kbd>
                       </button>
                       <button
                         type="button"
                         onClick={() => setPaymentMode("split")}
-                        className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        className={`flex-1 min-w-[65px] flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
                           paymentMode === "split"
                             ? "bg-indigo-600 text-white shadow-xs"
                             : "text-muted-foreground hover:text-foreground"
                         }`}
                         title="Split payment [F8]"
                       >
-                        <Layers className="size-3.5" /> Split
+                        <Layers className="size-3.5" /> Split <kbd className="text-[9px] opacity-75 font-mono ml-0.5">F8</kbd>
                       </button>
+                      {storePaymentConfig.customMethods
+                        .filter((m) => m.isEnabled)
+                        .map((cm) => (
+                          <button
+                            key={cm.id}
+                            type="button"
+                            onClick={() => setPaymentMode(cm.id)}
+                            className={`flex-1 min-w-[85px] flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
+                              paymentMode === cm.id
+                                ? "bg-purple-600 text-white shadow-xs"
+                                : "text-muted-foreground hover:text-foreground"
+                            }`}
+                            title={`${cm.description || cm.name} [F11]`}
+                          >
+                            <CreditCard className="size-3.5" /> {cm.name} <kbd className="text-[9px] opacity-75 font-mono ml-0.5">F11</kbd>
+                          </button>
+                        ))}
                     </div>
 
                     {/* Cash Tender Calculation */}
@@ -2245,23 +2629,63 @@ export function RetailPosCounterPage() {
                       </div>
                     )}
 
+                    {/* Custom Payment Tender Panel */}
+                    {(() => {
+                      const activeCustom = storePaymentConfig.customMethods.find((m) => m.id === paymentMode);
+                      if (!activeCustom) return null;
+                      return (
+                        <div className="space-y-2.5 rounded-2xl bg-purple-500/10 border border-purple-500/25 p-3.5 text-xs">
+                          <div className="flex items-center justify-between font-bold text-purple-950 dark:text-purple-200">
+                            <span className="flex items-center gap-1.5">
+                              <CreditCard className="size-4 text-purple-600 dark:text-purple-400" />
+                              {activeCustom.name}
+                            </span>
+                            <span className="font-mono text-foreground font-extrabold">{formatINR(totalPayable)}</span>
+                          </div>
+                          {activeCustom.description && (
+                            <p className="text-[11px] text-muted-foreground">{activeCustom.description}</p>
+                          )}
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-foreground">
+                                {activeCustom.refPlaceholder || "Slip / Voucher / Reference #"}
+                              </span>
+                              {activeCustom.requiresRef ? (
+                                <Badge variant="outline" className="text-[9px] px-1 py-0 border-destructive/50 text-destructive">
+                                  Required
+                                </Badge>
+                              ) : (
+                                <span className="text-[9px] text-muted-foreground">Optional</span>
+                              )}
+                            </div>
+                            <Input
+                              placeholder={activeCustom.refPlaceholder || "Enter reference #..."}
+                              value={customPaymentRef}
+                              onChange={(e) => setCustomPaymentRef(e.target.value)}
+                              className="h-8 text-xs font-mono rounded-xl bg-background border-purple-500/30"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     {/* One-Click Complete & Print Bill */}
                     <Button
                       type="button"
                       disabled={processingOrder}
                       onClick={completeSale}
                       className="w-full rounded-2xl h-12 text-sm font-bold shadow-md bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
-                      title="Complete and print bill [F12]"
+                      title="Complete and save / print bill [F12 or Ctrl+Enter]"
                     >
                       {processingOrder ? (
                         <span className="flex items-center gap-2">
                           <RefreshCw className="size-4 animate-spin" />
-                          Printing Receipt & Deducting Stock...
+                          Saving Bill & Updating Stock...
                         </span>
                       ) : (
                         <>
-                          <Printer className="size-4.5" />
-                          <span>Complete &amp; Print Bill ({formatINR(totalPayable)}) [F12]</span>
+                          <CheckCircle2 className="size-4.5" />
+                          <span>Complete &amp; Save Bill ({formatINR(totalPayable)}) <kbd className="text-[10px] bg-white/20 px-1 py-0.5 rounded font-mono ml-1">F12</kbd></span>
                         </>
                       )}
                     </Button>
@@ -2315,7 +2739,23 @@ export function RetailPosCounterPage() {
       {/* Item Weighing Scale & Cutting Style Customizer Modal (Fixed Decimal Weight Input < 1kg) */}
       {activeItemModal && (
         <Dialog open={!!activeItemModal} onOpenChange={(open) => !open && setActiveItemModal(null)}>
-          <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md p-0 overflow-hidden rounded-3xl border-border/80 shadow-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent
+            onOpenAutoFocus={(e) => {
+              e.preventDefault();
+              setTimeout(() => {
+                modalWeightInputRef.current?.focus();
+                modalWeightInputRef.current?.select();
+              }, 30);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                handleAddToCart();
+              }
+            }}
+            className="w-[calc(100vw-2rem)] sm:max-w-md p-0 overflow-hidden rounded-3xl border-border/80 shadow-2xl max-h-[90vh] overflow-y-auto"
+          >
             <div className="bg-gradient-to-r from-primary/15 via-primary/5 to-transparent p-4 pb-3 border-b border-border/60">
               <div className="flex items-center gap-3">
                 <div className="size-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-bold shadow-xs">
@@ -2400,6 +2840,7 @@ export function RetailPosCounterPage() {
                   <div className="flex items-center gap-1 shrink-0">
                     <Button
                       type="button"
+                      tabIndex={-1}
                       size="sm"
                       className="h-8 rounded-xl text-xs font-bold bg-cyan-700 hover:bg-cyan-600 text-white gap-1"
                       onClick={() => {
@@ -2417,6 +2858,7 @@ export function RetailPosCounterPage() {
                 ) : (
                   <Button
                     type="button"
+                    tabIndex={-1}
                     variant="outline"
                     size="sm"
                     className="h-8 rounded-xl text-xs font-semibold gap-1 shrink-0"
@@ -2440,6 +2882,7 @@ export function RetailPosCounterPage() {
 
                 <div className="flex items-center gap-2">
                   <Input
+                    ref={modalWeightInputRef}
                     type="text"
                     inputMode="decimal"
                     value={modalWeightInput}
@@ -2449,6 +2892,14 @@ export function RetailPosCounterPage() {
                         setModalWeightInput(val);
                       }
                     }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleAddToCart();
+                      }
+                    }}
+                    autoFocus
                     placeholder="1.0"
                     className="h-12 text-center font-mono text-2xl font-black rounded-xl"
                   />
@@ -2459,6 +2910,7 @@ export function RetailPosCounterPage() {
                 <div className="grid grid-cols-4 gap-1.5">
                   <Button
                     type="button"
+                    tabIndex={-1}
                     variant="outline"
                     size="sm"
                     className="rounded-lg h-7 text-xs font-mono font-bold"
@@ -2468,6 +2920,7 @@ export function RetailPosCounterPage() {
                   </Button>
                   <Button
                     type="button"
+                    tabIndex={-1}
                     variant="outline"
                     size="sm"
                     className="rounded-lg h-7 text-xs font-mono font-bold"
@@ -2477,6 +2930,7 @@ export function RetailPosCounterPage() {
                   </Button>
                   <Button
                     type="button"
+                    tabIndex={-1}
                     variant="outline"
                     size="sm"
                     className="rounded-lg h-7 text-xs font-mono font-bold"
@@ -2486,6 +2940,7 @@ export function RetailPosCounterPage() {
                   </Button>
                   <Button
                     type="button"
+                    tabIndex={-1}
                     variant="outline"
                     size="sm"
                     className="rounded-lg h-7 text-xs font-mono font-bold"
@@ -2531,11 +2986,14 @@ export function RetailPosCounterPage() {
                           )}
                           <button
                             type="button"
-                            onClick={() => setShowChipEditor(!showChipEditor)}
-                            className="text-[11px] text-primary font-semibold hover:underline flex items-center gap-1"
+                            onClick={() => {
+                              refreshGlobalChips();
+                              setGlobalChipModalOpen(true);
+                            }}
+                            className="text-[11px] text-primary font-semibold hover:underline flex items-center gap-1 cursor-pointer"
                           >
                             <Sliders className="size-3" />
-                            {showChipEditor ? "Done" : "Configure"}
+                            Configure
                           </button>
                         </div>
                       </div>
@@ -2607,6 +3065,7 @@ export function RetailPosCounterPage() {
                       <div key={`${chip.val}-${chip.label}`} className="inline-flex items-center">
                         <button
                           type="button"
+                          tabIndex={-1}
                           onClick={() => setModalWeightInput(chip.val.toString())}
                           className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold transition-all ${
                             modalWeight === chip.val
@@ -2731,6 +3190,162 @@ export function RetailPosCounterPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Quick Item Customizer Modal (Edit already-added cart item) */}
+      <Dialog open={Boolean(editingCartItem)} onOpenChange={(open) => !open && setEditingCartItem(null)}>
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md rounded-3xl p-5 border-primary/30 shadow-2xl">
+          {editingCartItem && (
+            <div className="space-y-4">
+              <DialogHeader className="text-left">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-9 items-center justify-center rounded-2xl bg-primary/10 text-primary font-bold shadow-2xs">
+                      <Scissors className="size-4.5" />
+                    </span>
+                    <div>
+                      <DialogTitle className="text-base font-bold text-foreground">
+                        Edit: {editingCartItem.name}
+                      </DialogTitle>
+                      <DialogDescription className="text-xs text-muted-foreground">
+                        Change cutting style or weight without removing from bill.
+                      </DialogDescription>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="font-mono text-xs font-bold border-primary/40 bg-primary/5 text-primary">
+                    ₹{editingCartItem.pricePerKg}/{editingCartItem.unit}
+                  </Badge>
+                </div>
+              </DialogHeader>
+
+              {/* Cutting Style Selection */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-foreground flex items-center justify-between">
+                  <span>Cutting &amp; Cleaning Style</span>
+                  <span className="text-[11px] text-primary font-bold font-mono bg-primary/10 px-2 py-0.5 rounded-md">
+                    {editCuttingStyle}
+                  </span>
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                  {CUTTING_STYLES.map((style) => (
+                    <button
+                      key={style}
+                      type="button"
+                      onClick={() => setEditCuttingStyle(style)}
+                      className={`px-2 py-2 rounded-xl text-xs font-medium text-center border transition-all truncate ${
+                        editCuttingStyle === style
+                          ? "bg-primary text-primary-foreground border-primary shadow-xs font-bold ring-1 ring-primary"
+                          : "bg-muted/40 hover:bg-muted text-muted-foreground border-border/80 hover:text-foreground"
+                      }`}
+                    >
+                      {style}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Weight / Qty Modifier */}
+              <div className="space-y-2 pt-2 border-t border-border/60">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-foreground">
+                    Weight / Quantity ({editingCartItem.unit})
+                  </label>
+                  <span className="font-mono text-xs font-bold text-primary">
+                    Item Total: {formatINR(
+                      Math.round(
+                        editingCartItem.pricePerKg *
+                          (editingCartItem.unit.toLowerCase() === "kg"
+                            ? (parseFloat(editWeightInput) || 0)
+                            : Math.round(parseFloat(editWeightInput) || 1))
+                      )
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    step={editingCartItem.unit.toLowerCase() === "kg" ? "0.01" : "1"}
+                    min="0.05"
+                    value={editWeightInput}
+                    onChange={(e) => setEditWeightInput(e.target.value)}
+                    className="h-10 text-base font-mono font-bold rounded-xl text-center bg-background"
+                    autoFocus
+                  />
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const cur = parseFloat(editWeightInput) || 0;
+                        const next = Math.max(0.05, Math.round((cur - 0.25) * 100) / 100);
+                        setEditWeightInput(next.toString());
+                      }}
+                      className="h-10 px-2.5 rounded-xl text-xs font-bold"
+                    >
+                      -250g
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const cur = parseFloat(editWeightInput) || 0;
+                        const next = Math.round((cur + 0.25) * 100) / 100;
+                        setEditWeightInput(next.toString());
+                      }}
+                      className="h-10 px-2.5 rounded-xl text-xs font-bold"
+                    >
+                      +250g
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Fast Portion Chips for kg items */}
+                {editingCartItem.unit.toLowerCase() === "kg" && (
+                  <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                    {[0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0].map((w) => (
+                      <button
+                        key={w}
+                        type="button"
+                        onClick={() => setEditWeightInput(w.toString())}
+                        className={`px-2 py-1 rounded-lg text-xs font-mono font-bold border transition ${
+                          parseFloat(editWeightInput) === w
+                            ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+                            : "bg-muted/50 hover:bg-muted text-muted-foreground border-border/60 hover:text-foreground"
+                        }`}
+                      >
+                        {w < 1 ? `${Math.round(w * 1000)}g` : `${w} kg`}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between gap-2 pt-3 border-t border-border/60">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditingCartItem(null)}
+                  className="rounded-xl text-xs flex-1 h-9"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleSaveEditCartItem}
+                  className="rounded-xl text-xs font-bold flex-1 h-9 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md gap-1.5"
+                >
+                  <CheckCircle2 className="size-3.5" />
+                  <span>Update Bill Item</span>
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
 
       {/* Universal Quick Chips Manager Modal */}
       <Dialog open={globalChipModalOpen} onOpenChange={setGlobalChipModalOpen}>
@@ -3311,6 +3926,18 @@ export function RetailPosCounterPage() {
         isOpen={cameraScannerOpen}
         onClose={() => setCameraScannerOpen(false)}
         onScan={handleBarcodeDetected}
+      />
+
+      {/* Dedicated Universal Portion Chips Manager Modal */}
+      <PortionChipsModal
+        open={globalChipModalOpen}
+        onClose={() => setGlobalChipModalOpen(false)}
+        chips={globalChips}
+        onUpdateChips={(updated) => {
+          setGlobalChips(updated);
+          localStorage.setItem("fnf_pos_global_chips", JSON.stringify(updated));
+          setActiveChips(updated);
+        }}
       />
     </AdminShell>
   );

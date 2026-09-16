@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Minus, Plus, Trash2, AlertTriangle, Zap } from "lucide-react";
+import { useState } from "react";
+import { Minus, Plus, Trash2, AlertTriangle, Zap, MessageSquare, Store, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -20,8 +21,8 @@ import { useCart } from "@/lib/cart";
 import { inr } from "@/lib/format";
 import { settingsQuery, productsQuery } from "@/lib/queries";
 import { getStoreStatus } from "@/lib/storeSchedule";
-import type { Product } from "@/lib/types";
-import type { SiteSettings } from '@/lib/types';
+import { WhatsAppOrderDialog } from "@/components/WhatsAppOrderDialog";
+import { getStoreOrderingMode, type Product, type SiteSettings } from "@/lib/types";
 
 export const Route = createFileRoute("/cart")({
   head: () => ({
@@ -51,6 +52,22 @@ function CartPage() {
   const storeStatus = settings ? getStoreStatus(settings) : null;
   const freeOver = Number(settings?.free_delivery_over ?? 500);
   const progress = Math.min(100, (subtotal / freeOver) * 100);
+  const [whatsAppModalOpen, setWhatsAppModalOpen] = useState(false);
+  const orderingMode = getStoreOrderingMode(settings as SiteSettings);
+  const estimatedDeliveryFee = subtotal < freeOver ? Number(settings?.base_delivery_fee ?? settings?.delivery_fee ?? 40) : 0;
+
+  const dialogItems = items.map((i) => {
+    const matched = (products as Product[]).find((p) => p.id === i.product_id);
+    return {
+      productId: i.product_id,
+      name: i.name,
+      cutPreference: i.cutting_style,
+      qty: i.qty,
+      unit: matched?.unit || "unit",
+      price: i.price,
+      totalPrice: i.price * i.qty,
+    };
+  });
 
   // Live omnichannel stock audit for cart items
   const cartStockAnalysis = items.map((item) => {
@@ -274,6 +291,19 @@ function CartPage() {
         </div>
       )}
 
+      {/* Catalog Showcase Mode Notice */}
+      {orderingMode === "catalog_only" && (
+        <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-primary/40 bg-primary/10 p-3.5 text-xs text-primary">
+          <Store className="size-4 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">Catalog Showcase Mode Active</p>
+            <p className="mt-0.5 opacity-90">
+              This store is in product showcase mode. Online checkout is disabled. You can review your selected items and inquire directly via WhatsApp.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="mt-4 flex gap-3">
         <AlertDialog>
           <AlertDialogTrigger asChild>
@@ -320,6 +350,40 @@ function CartPage() {
           <Button disabled className="flex-1 rounded-xl opacity-60">
             Orders Paused · {storeStatus.statusTitle}
           </Button>
+        ) : orderingMode === "whatsapp_only" ? (
+          <Button
+            type="button"
+            onClick={() => setWhatsAppModalOpen(true)}
+            className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-semibold"
+          >
+            <MessageSquare className="size-4" />
+            Order via WhatsApp 💬 ({inr(subtotal)})
+          </Button>
+        ) : orderingMode === "catalog_only" ? (
+          <Button
+            type="button"
+            onClick={() => setWhatsAppModalOpen(true)}
+            className="flex-1 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground gap-2 font-semibold"
+          >
+            <MessageSquare className="size-4" />
+            Inquire on WhatsApp 💬
+          </Button>
+        ) : orderingMode === "both" ? (
+          <div className="flex flex-1 flex-col sm:flex-row gap-2">
+            <Button asChild className="flex-1 rounded-xl">
+              <Link to="/checkout">
+                {storeStatus && !storeStatus.isOpen ? "Proceed to Pre-Order" : "Checkout"}
+              </Link>
+            </Button>
+            <Button
+              type="button"
+              onClick={() => setWhatsAppModalOpen(true)}
+              className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-semibold"
+            >
+              <MessageSquare className="size-4" />
+              Order on WhatsApp
+            </Button>
+          </div>
         ) : (
           <Button asChild className="flex-1 rounded-xl">
             <Link to="/checkout">
@@ -328,6 +392,18 @@ function CartPage() {
           </Button>
         )}
       </div>
+
+      <WhatsAppOrderDialog
+        open={whatsAppModalOpen}
+        onOpenChange={setWhatsAppModalOpen}
+        items={dialogItems}
+        subtotal={subtotal}
+        deliveryFee={estimatedDeliveryFee}
+        settings={settings as SiteSettings}
+        onOrderDispatched={() => {
+          clear();
+        }}
+      />
     </AppShell>
   );
 }

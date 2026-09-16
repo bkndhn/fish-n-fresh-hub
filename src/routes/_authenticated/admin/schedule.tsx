@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SiteSettings } from "@/lib/types";
-import type { TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import {
   Clock,
@@ -97,13 +96,13 @@ function SchedulePage() {
   // Sync settings when loaded
   useEffect(() => {
     if (settings) {
-      if ((settings as SiteSettings).open_time) setOpenTime((settings as SiteSettings).open_time as string);
-      if ((settings as SiteSettings).close_time) setCloseTime((settings as SiteSettings).close_time as string);
+      if ((settings as SiteSettings).open_time) setOpenTime((settings as SiteSettings).open_time);
+      if ((settings as SiteSettings).close_time) setCloseTime((settings as SiteSettings).close_time);
       if ((settings as SiteSettings).lunch_start) {
-        setLunchStart((settings as SiteSettings).lunch_start as string);
+        setLunchStart((settings as SiteSettings).lunch_start);
         setLunchEnabled(true);
       }
-      if ((settings as SiteSettings).lunch_end) setLunchEnd((settings as SiteSettings).lunch_end as string);
+      if ((settings as SiteSettings).lunch_end) setLunchEnd((settings as SiteSettings).lunch_end);
       if ((settings as SiteSettings).block_during_lunch !== undefined) {
         setBlockDuringLunch(Boolean((settings as SiteSettings).block_during_lunch));
       }
@@ -114,7 +113,7 @@ function SchedulePage() {
       if ((settings as SiteSettings).allow_preorders_when_closed !== undefined) {
         setAllowPreorders(Boolean((settings as SiteSettings).allow_preorders_when_closed));
       }
-      if ((settings as SiteSettings).closed_message) setClosedMessage((settings as SiteSettings).closed_message as string);
+      if ((settings as SiteSettings).closed_message) setClosedMessage((settings as SiteSettings).closed_message);
       if ((settings as SiteSettings).custom_holidays) {
         const ch = (settings as SiteSettings).custom_holidays;
         setCustomHolidays(Array.isArray(ch) ? ch : typeof ch === "string" ? JSON.parse(ch) : []);
@@ -153,7 +152,7 @@ function SchedulePage() {
 
   const update = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: Partial<DeliveryWindow> }) => {
-      const { error } = await supabase.from("delivery_windows").update(patch as TablesUpdate<"delivery_windows">).eq("id", id);
+      const { error } = await supabase.from("delivery_windows").update(patch as Record<string, unknown>).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -182,7 +181,7 @@ function SchedulePage() {
       if (!settings?.id) return;
       const { error } = await supabase.from("store_settings").update({
         is_open: newIsOpen,
-      } as TablesUpdate<"store_settings">).eq("id", settings.id);
+      } as Record<string, unknown>).eq("id", settings.id);
       if (error) throw error;
     },
     onSuccess: (_, newIsOpen) => {
@@ -206,7 +205,7 @@ function SchedulePage() {
         custom_holidays: customHolidays,
         allow_preorders_when_closed: allowPreorders,
         closed_message: closedMessage.trim() || null,
-      } as TablesUpdate<"store_settings">).eq("id", settings.id);
+      } as Record<string, unknown>).eq("id", settings.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -316,6 +315,15 @@ function SchedulePage() {
                 {settings?.is_open !== false ? "Toggle to pause checkout" : "Toggle to resume orders"}
               </span>
             </div>
+            {settings?.is_open !== false ? (
+              <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                ● Open
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                ○ Paused
+              </Badge>
+            )}
             <Switch
               checked={settings?.is_open !== false}
               disabled={toggleStoreOpen.isPending}
@@ -387,11 +395,22 @@ function SchedulePage() {
                         Pause orders during afternoon counter restock or staff lunch break
                       </p>
                     </div>
-                    <Switch
-                      checked={lunchEnabled}
-                      onCheckedChange={setLunchEnabled}
-                      aria-label="Enable daily lunch break"
-                    />
+                    <div className="flex items-center gap-2">
+                      {lunchEnabled ? (
+                        <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                          ● Enabled
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                          ○ Disabled
+                        </Badge>
+                      )}
+                      <Switch
+                        checked={lunchEnabled}
+                        onCheckedChange={setLunchEnabled}
+                        aria-label="Enable daily lunch break"
+                      />
+                    </div>
                   </div>
 
                   {lunchEnabled && (
@@ -426,11 +445,22 @@ function SchedulePage() {
                             {blockDuringLunch ? "Strictly pauses checkout until lunch ends" : "Allows pre-orders for evening delivery"}
                           </p>
                         </div>
-                        <Switch
-                          checked={blockDuringLunch}
-                          onCheckedChange={setBlockDuringLunch}
-                          aria-label="Block checkout during lunch"
-                        />
+                        <div className="flex items-center gap-2">
+                          {blockDuringLunch ? (
+                            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                              ● Blocked
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                              ○ Allowed
+                            </Badge>
+                          )}
+                          <Switch
+                            checked={blockDuringLunch}
+                            onCheckedChange={setBlockDuringLunch}
+                            aria-label="Block checkout during lunch"
+                          />
+                        </div>
                       </div>
                     </div>
                   )}
@@ -764,6 +794,15 @@ function SchedulePage() {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
+                          {w.active ? (
+                            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                              ● Active
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                              ○ Paused
+                            </Badge>
+                          )}
                           <Switch
                             checked={w.active}
                             onCheckedChange={(checked) =>
@@ -925,10 +964,21 @@ function SchedulePage() {
                   <p className="text-xs font-semibold">Active at checkout</p>
                   <p className="text-[11px] text-muted-foreground">Turn off to temporarily disable this slot</p>
                 </div>
-                <Switch
-                  checked={editingWindow.active}
-                  onCheckedChange={(active) => setEditingWindow({ ...editingWindow, active })}
-                />
+                <div className="flex items-center gap-2">
+                  {editingWindow.active ? (
+                    <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                      ● Active
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                      ○ Disabled
+                    </Badge>
+                  )}
+                  <Switch
+                    checked={editingWindow.active}
+                    onCheckedChange={(active) => setEditingWindow({ ...editingWindow, active })}
+                  />
+                </div>
               </div>
 
               <DialogFooter className="mt-4 flex gap-2">

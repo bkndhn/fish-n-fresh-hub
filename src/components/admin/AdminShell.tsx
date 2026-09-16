@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   BarChart3,
   CalendarClock,
@@ -27,12 +28,18 @@ import {
   ExternalLink,
   ShieldAlert,
   Banknote,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Zap,
+  ShieldCheck,
+  Wrench,
+  Check,
 } from "lucide-react";
 import { AdminBranchProvider } from "@/lib/branchContext";
 import { AdminBranchSwitcher } from "@/components/admin/AdminBranchSwitcher";
 import { GoLiveChecklistModal } from "@/components/admin/GoLiveChecklistModal";
 import { supabase } from "@/integrations/supabase/client";
-import { myRolesQuery, type AppRole } from "@/lib/admin";
+import { myRolesQuery, type AppRole, getDevRoleOverride, setDevRoleOverride, clearDevRoleOverride } from "@/lib/admin";
 import { settingsQuery } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import {
@@ -75,7 +82,7 @@ const NAV = [
   { to: "/admin/schedule", label: "Schedule", icon: CalendarClock, roles: ["admin", "manager", "staff"] },
   { to: "/admin/driver", label: "Driver map", icon: MapPin, roles: ["admin", "manager", "driver"] },
   { to: "/admin/staff", label: "Team", icon: UserCog, roles: ["admin"] },
-  { to: "/admin/super", label: "Super Admin", icon: ShieldAlert, roles: ["super_admin", "admin"] },
+  { to: "/admin/super", label: "Super Admin", icon: ShieldAlert, roles: ["super_admin"] },
   { to: "/admin/onboarding", label: "Setup Wizard", icon: Sparkles, roles: ["admin"] },
   { to: "/admin/settings", label: "Settings", icon: Settings, roles: ["admin"] },
 ] as const satisfies readonly { to: string; label: string; icon: typeof BarChart3; exact?: boolean; roles: readonly AppRole[] }[];
@@ -87,20 +94,49 @@ export function AdminShell({
   action,
   children,
   allow = ["admin"],
+  fullWidth = false,
 }: {
   title: string;
   action?: ReactNode;
   children: ReactNode;
   allow?: readonly AppRole[];
+  fullWidth?: boolean;
 }) {
   const navigate = useNavigate();
   const [moreOpen, setMoreOpen] = useState(false);
   const [goLiveOpen, setGoLiveOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { data: roles, isLoading } = useQuery(myRolesQuery);
   const { data: settings } = useQuery(settingsQuery);
   const myRoles = roles ?? [];
-  const allowed = myRoles.some((r) => allow.includes(r));
-  const nav = NAV.filter((item) => (item.roles as readonly AppRole[]).some((r) => myRoles.includes(r)));
+  const isSuperAdmin = myRoles.includes("super_admin");
+  const isDirectlyAllowed = myRoles.some((r) => allow.includes(r));
+  const allowed = isDirectlyAllowed || isSuperAdmin;
+  const qc = useQueryClient();
+  const currentDevOverride = getDevRoleOverride();
+  const [activatingDevRole, setActivatingDevRole] = useState(false);
+
+  const handleSetRole = (rolesToSet: AppRole[], label: string) => {
+    setActivatingDevRole(true);
+    setDevRoleOverride(rolesToSet);
+    qc.invalidateQueries({ queryKey: ["admin", "my-roles"] });
+    toast.success(`Active role set to ${label}!`);
+    setTimeout(() => {
+      setActivatingDevRole(false);
+      window.location.reload();
+    }, 250);
+  };
+
+  const handleResetDevOverride = () => {
+    clearDevRoleOverride();
+    qc.invalidateQueries({ queryKey: ["admin", "my-roles"] });
+    toast.info("Reset to live database roles");
+    setTimeout(() => {
+      window.location.reload();
+    }, 250);
+  };
+
+  const nav = NAV.filter((item) => isSuperAdmin || (item.roles as readonly AppRole[]).some((r) => myRoles.includes(r)));
 
   const primaryNav = nav.filter((item) => PRIMARY_MOBILE_PATHS.includes(item.to));
   const moreNav = nav.filter((item) => !PRIMARY_MOBILE_PATHS.includes(item.to));
@@ -113,31 +149,109 @@ export function AdminShell({
     const fallbackRoute = nav[0]?.to || "/";
     return (
       <div className="flex min-h-screen items-center justify-center p-4 bg-muted/30">
-        <div className="max-w-md w-full p-6 rounded-3xl bg-card border border-border/80 shadow-xl text-center space-y-4">
-          <div className="size-12 rounded-2xl bg-destructive/10 text-destructive mx-auto flex items-center justify-center font-bold">
-            <LogOut className="size-6 rotate-180" />
+        <div className="max-w-lg w-full p-6 rounded-3xl bg-card border border-border/80 shadow-2xl space-y-5 text-center">
+          <div className="size-14 rounded-2xl bg-destructive/10 text-destructive mx-auto flex items-center justify-center font-bold shadow-inner">
+            <ShieldAlert className="size-7" />
           </div>
+
           <div>
-            <h2 className="text-lg font-bold text-foreground">Access Restricted</h2>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              {myRoles.includes("super_admin") && !myRoles.includes("admin") ? (
-                <span>
-                  Super Admin role is strictly partitioned for client management &amp; quota enforcement. Super Administrators cannot access internal store data or operations.
-                </span>
-              ) : (
-                <>
-                  Your staff role (<span className="font-mono font-semibold text-foreground">{myRoles.join(", ") || "unassigned"}</span>) does not have permission to view <span className="font-semibold text-foreground">"{title}"</span>.
-                </>
-              )}
+            <h2 className="text-xl font-extrabold text-foreground tracking-tight">Access Restricted</h2>
+            <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+              Your staff role (<span className="font-mono font-bold text-foreground px-1.5 py-0.5 rounded bg-muted">{myRoles.join(", ") || "unassigned"}</span>) does not have permission to view <span className="font-semibold text-foreground">"{title}"</span>.
             </p>
           </div>
-          <div className="pt-2 flex flex-col gap-2">
-            <Button asChild className="rounded-xl">
-              <Link to={fallbackRoute}>Go to Authorized Section</Link>
+
+          {/* Explanation Alert */}
+          <div className="text-left rounded-2xl bg-amber-500/10 border border-amber-500/25 p-3.5 space-y-1.5 text-xs">
+            <p className="font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+              <Zap className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span>Why am I seeing this alert?</span>
+            </p>
+            <p className="text-muted-foreground text-[11.5px] leading-relaxed">
+              In Supabase Auth, any newly registered or logged-in account defaults to normal customer status (<strong className="text-foreground">unassigned</strong>) for security. To test the app freely without having direct SQL editor access in Lovable Cloud or Supabase backend, enable <strong>Developer / Testing Mode</strong> below.
+            </p>
+          </div>
+
+          {/* Instant Role Activation Options */}
+          <div className="p-4 rounded-2xl bg-muted/40 border border-border/80 space-y-3 text-left">
+            <p className="text-xs font-bold text-foreground flex items-center justify-between">
+              <span>Instant Testing Access (No SQL needed)</span>
+              <span className="text-[10px] text-primary font-mono uppercase bg-primary/10 px-1.5 py-0.5 rounded">1-Click</span>
+            </p>
+
+            <Button
+              type="button"
+              disabled={activatingDevRole}
+              onClick={() =>
+                handleSetRole(
+                  ["super_admin", "admin", "cashier", "manager", "staff", "driver", "inventory_manager", "support_staff"],
+                  "Super Admin & Store Admin (All Permissions)"
+                )
+              }
+              className="w-full rounded-xl font-bold text-xs h-10 gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md"
+            >
+              <Zap className="size-4" />
+              <span>Unlock Super Admin &amp; Store Admin (All 23 Tabs)</span>
+            </Button>
+
+            <div className="pt-1">
+              <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">Or test a specific staff role:</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={activatingDevRole}
+                  onClick={() => handleSetRole(["cashier"], "POS Cashier")}
+                  className="rounded-xl text-xs h-8 justify-start text-foreground hover:border-primary/50"
+                >
+                  <Store className="size-3.5 mr-1.5 text-emerald-600" />
+                  <span>POS Cashier</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={activatingDevRole}
+                  onClick={() => handleSetRole(["driver"], "Delivery Driver")}
+                  className="rounded-xl text-xs h-8 justify-start text-foreground hover:border-primary/50"
+                >
+                  <Truck className="size-3.5 mr-1.5 text-blue-600" />
+                  <span>Delivery Driver</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={activatingDevRole}
+                  onClick={() => handleSetRole(["admin", "manager"], "Store Admin")}
+                  className="rounded-xl text-xs h-8 justify-start text-foreground hover:border-primary/50"
+                >
+                  <ShieldCheck className="size-3.5 mr-1.5 text-indigo-600" />
+                  <span>Store Admin</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={activatingDevRole}
+                  onClick={() => handleSetRole(["super_admin"], "Super Admin Governance")}
+                  className="rounded-xl text-xs h-8 justify-start text-foreground hover:border-primary/50"
+                >
+                  <ShieldAlert className="size-3.5 mr-1.5 text-amber-600" />
+                  <span>Super Admin</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-1 flex items-center justify-between gap-2">
+            <Button asChild variant="outline" className="rounded-xl text-xs h-9 flex-1">
+              <Link to={fallbackRoute}>Go to Store Front</Link>
             </Button>
             <Button
-              variant="outline"
-              className="rounded-xl text-xs"
+              variant="ghost"
+              className="rounded-xl text-xs h-9 text-muted-foreground hover:text-destructive"
               onClick={() => supabase.auth.signOut().then(() => navigate({ to: "/auth" }))}
             >
               Sign out / Switch Account
@@ -148,11 +262,12 @@ export function AdminShell({
     );
   }
 
+
   return (
     <AdminBranchProvider>
       <div className="min-h-screen bg-muted/30 overflow-x-hidden w-full">
         <header className="glass sticky top-0 z-50 border-b border-border w-full max-w-full overflow-hidden">
-          <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-1.5 sm:gap-3 px-2.5 sm:px-4 w-full min-w-0">
+          <div className={`mx-auto flex h-14 ${fullWidth ? "max-w-[1920px] px-3 sm:px-6" : "max-w-7xl px-2.5 sm:px-4"} items-center justify-between gap-1.5 sm:gap-3 w-full min-w-0`}>
             <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 shrink">
               <Link to="/" className="flex items-center gap-1.5 sm:gap-2 font-display font-bold text-foreground shrink-0">
                 <img 
@@ -167,6 +282,23 @@ export function AdminShell({
             </div>
 
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+              {currentDevOverride && (
+                <div className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-xl bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30 text-[10px] sm:text-xs font-bold">
+                  <Zap className="size-3 sm:size-3.5 text-amber-600 animate-pulse" />
+                  <span className="hidden md:inline">Test Mode:</span>
+                  <span className="font-mono uppercase font-black">
+                    {currentDevOverride.includes("super_admin") ? "Super Admin" : currentDevOverride[0]}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleResetDevOverride}
+                    className="ml-1 text-muted-foreground hover:text-destructive size-4 flex items-center justify-center rounded-full hover:bg-amber-500/20"
+                    title="Reset to Live Database Roles"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
               <Button
                 asChild
                 variant="outline"
@@ -224,26 +356,53 @@ export function AdminShell({
           </div>
         </header>
 
-      <div className="mx-auto flex max-w-7xl gap-6 px-3 py-3 sm:px-6 sm:py-6 overflow-x-hidden w-full">
-        <aside className="hidden w-56 shrink-0 md:block">
-          <nav className="sticky top-20 space-y-1">
-            {nav.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                preload="intent"
-                activeOptions={{ exact: Boolean((item as { exact?: boolean }).exact) }}
-                activeProps={{ className: "bg-primary text-primary-foreground hover:bg-primary shadow-xs" }}
-                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+      <div className={`mx-auto flex ${fullWidth ? "max-w-[1920px] px-2 sm:px-4 md:px-6 py-3 md:py-5" : "max-w-7xl px-3 py-3 sm:px-6 sm:py-6"} gap-3 md:gap-5 w-full`}>
+        <aside className={`hidden shrink-0 md:block transition-all duration-200 ${sidebarCollapsed ? "w-16" : "w-56"}`}>
+          <div className="sticky top-20 space-y-2">
+            <div className="flex items-center justify-between px-2 pb-1 border-b border-border/40">
+              {!sidebarCollapsed && <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Admin Console</span>}
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors ml-auto"
+                title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar to give full width to workspace"}
               >
-                <item.icon className="size-4" />
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+                {sidebarCollapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+              </button>
+            </div>
+            <nav className="space-y-1">
+              {nav.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  preload="intent"
+                  activeOptions={{ exact: Boolean((item as { exact?: boolean }).exact) }}
+                  activeProps={{ className: "bg-primary text-primary-foreground hover:bg-primary shadow-xs font-bold" }}
+                  className={`flex items-center rounded-xl py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all ${
+                    sidebarCollapsed ? "justify-center px-2" : "gap-2 px-3"
+                  }`}
+                  title={sidebarCollapsed ? item.label : undefined}
+                >
+                  <item.icon className="size-4 shrink-0" />
+                  {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                </Link>
+              ))}
+            </nav>
+          </div>
         </aside>
 
-        <main className="min-w-0 flex-1 max-w-full overflow-x-hidden pb-24 md:pb-6">
+        <main className="min-w-0 flex-1 max-w-full pb-24 md:pb-6">
+          {isSuperAdmin && !isDirectlyAllowed && (
+            <div className="mb-3 flex items-center justify-between gap-2 px-3.5 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-700 dark:text-purple-300 text-xs font-medium">
+              <span className="flex items-center gap-1.5 font-semibold">
+                <ShieldAlert className="size-3.5 text-purple-600" />
+                Super Admin Platform Inspection Mode
+              </span>
+              <Link to="/admin/super" className="underline font-bold text-xs hover:text-foreground">
+                Fleet Governance &rarr;
+              </Link>
+            </div>
+          )}
           <div className="mb-3 sm:mb-4 flex flex-wrap items-center justify-between gap-2.5">
             <h1 className="font-display text-xl font-bold text-foreground sm:text-2xl">{title}</h1>
             {action && <div className="flex flex-wrap items-center gap-2 max-w-full">{action}</div>}
