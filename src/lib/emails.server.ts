@@ -242,7 +242,8 @@ export async function sendTestStoreEmail(targetEmail: string): Promise<{ success
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: settings } = await supabaseAdmin.from("store_settings").select("*").maybeSingle();
 
-    const resendApiKey = settings?.resend_api_key || process.env['RESEND_API_KEY'];
+    const { data: secrets } = await supabaseAdmin.from("store_secrets").select("resend_api_key").maybeSingle();
+    const resendApiKey = secrets?.resend_api_key || process.env['RESEND_API_KEY'];
     const fromEmail = settings?.sender_email || process.env['MAIL_FROM'] || "orders@resend.dev";
     const fromName = settings?.sender_name || settings?.store_name || "Fish N Fresh Hub";
 
