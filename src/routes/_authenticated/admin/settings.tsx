@@ -1415,8 +1415,8 @@ function AdminSettings() {
               <Input
                 id="resend_api_key"
                 type="password"
-                value={form.resend_api_key ?? ""}
-                onChange={(e) => setForm({ ...form, resend_api_key: e.target.value })}
+                value={secretsForm.resend_api_key}
+                onChange={(e) => setSecretsForm({ ...secretsForm, resend_api_key: e.target.value })}
                 placeholder="re_123456789_..."
                 className="mt-1"
               />
@@ -1673,8 +1673,8 @@ function AdminSettings() {
               <Input
                 id="fcm_server_key"
                 type="password"
-                value={form.fcm_server_key ?? ""}
-                onChange={(e) => setForm({ ...form, fcm_server_key: e.target.value })}
+                value={secretsForm.fcm_server_key}
+                onChange={(e) => setSecretsForm({ ...secretsForm, fcm_server_key: e.target.value })}
                 placeholder="AAAA... or BOrz..."
                 className="mt-1 font-mono text-xs"
               />
