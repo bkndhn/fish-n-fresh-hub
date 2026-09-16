@@ -789,6 +789,13 @@ function ProductReviewsSection({ productId, productName }: { productId: string; 
           <p className="text-xs text-muted-foreground">Real feedback from verified seafood lovers.</p>
         </div>
 
+        {!user?.id ? (
+          <Button asChild size="sm" variant="outline" className="rounded-xl shrink-0">
+            <Link to="/auth">
+              <MessageSquare className="mr-1.5 size-3.5" /> Sign in to review
+            </Link>
+          </Button>
+        ) : (
         <Dialog open={openReview} onOpenChange={setOpenReview}>
           <DialogTrigger asChild>
             <Button size="sm" variant="outline" className="rounded-xl shrink-0">
