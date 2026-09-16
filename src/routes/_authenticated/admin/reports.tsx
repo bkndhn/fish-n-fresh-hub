@@ -1058,11 +1058,21 @@ export function Reports() {
           <Button
             size="sm"
             variant={activeReportTab === "pnl" ? "default" : "ghost"}
-            className="rounded-xl h-8 text-xs font-bold gap-1.5 text-emerald-700 dark:text-emerald-400 shrink-0"
+            className={`rounded-xl h-8 text-xs font-bold gap-1.5 shrink-0 ${
+              activeReportTab === "pnl"
+                ? "text-primary-foreground"
+                : "text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300"
+            }`}
             onClick={() => setActiveReportTab("pnl")}
           >
             <Percent className="size-3.5 shrink-0" /> Profit &amp; Loss (P&amp;L)
-            <Badge className="ml-1 text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30">
+            <Badge
+              className={`ml-1 text-[10px] transition-colors ${
+                activeReportTab === "pnl"
+                  ? "bg-white/20 text-primary-foreground border-white/30"
+                  : "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+              }`}
+            >
               New
             </Badge>
           </Button>
@@ -1072,8 +1082,14 @@ export function Reports() {
             className="rounded-xl h-8 text-xs font-bold gap-1.5 shrink-0"
             onClick={() => setActiveReportTab("pos_bills")}
           >
-            <Store className="size-3.5 text-primary shrink-0" /> POS Counter Bills &amp; Receipts
-            <Badge className="ml-1 text-[10px] bg-primary/20 text-primary border-primary/30">
+            <Store className={`size-3.5 shrink-0 ${activeReportTab === "pos_bills" ? "text-primary-foreground" : "text-primary"}`} /> POS Counter Bills &amp; Receipts
+            <Badge
+              className={`ml-1 text-[10px] transition-colors ${
+                activeReportTab === "pos_bills"
+                  ? "bg-white/20 text-primary-foreground border-white/30"
+                  : "bg-primary/20 text-primary border-primary/30"
+              }`}
+            >
               {allPosOrders.length}
             </Badge>
           </Button>
