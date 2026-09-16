@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getCallerUserId, requireStaff, requireUser, AuthorizationError } from "@/lib/authz.server";
 
 export interface CreateSubscriptionInput {
   userId?: string | undefined;
@@ -55,6 +56,9 @@ export function calculateNextDeliveryDate(
 export const createSubscription = createServerFn({ method: "POST" })
   .inputValidator((input: CreateSubscriptionInput) => input)
   .handler(async ({ data }) => {
+    // Subscriptions are personal, recurring commitments: only the signed-in
+    // customer (or staff acting for them) may create one.
+    const callerId = await requireUser();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const price = Number(data.pricePerUnit) || 0;
@@ -66,7 +70,7 @@ export const createSubscription = createServerFn({ method: "POST" })
     const nextDate = calculateNextDeliveryDate(data.frequency, data.dayOfWeek);
 
     const payload = {
-      user_id: data.userId || null,
+      user_id: callerId,
       customer_name: data.customerName,
       customer_phone: data.customerPhone.replace(/\D/g, ""),
       customer_email: data.customerEmail || null,
@@ -100,7 +104,18 @@ export const createSubscription = createServerFn({ method: "POST" })
 export const updateSubscriptionStatus = createServerFn({ method: "POST" })
   .inputValidator((input: { subscriptionId: string; status: "active" | "paused" | "cancelled" }) => input)
   .handler(async ({ data }) => {
+    const callerId = await requireUser();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: sub } = await supabaseAdmin
+      .from("customer_subscriptions")
+      .select("id, user_id")
+      .eq("id", data.subscriptionId)
+      .maybeSingle();
+    if (!sub) throw new AuthorizationError("Subscription not found");
+    if (sub.user_id !== callerId) {
+      await requireStaff();
+    }
 
     const { error } = await supabaseAdmin
       .from("customer_subscriptions")
@@ -113,6 +128,8 @@ export const updateSubscriptionStatus = createServerFn({ method: "POST" })
 
 export const generateDueSubscriptionOrders = createServerFn({ method: "POST" }).handler(
   async () => {
+    // Batch job: staff-triggered from admin only.
+    await requireStaff();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const todayStr = new Date().toISOString().slice(0, 10);

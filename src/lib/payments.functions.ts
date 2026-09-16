@@ -1,12 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { type StripeEnv, createStripeClient, getStripeErrorMessage } from "@/lib/stripe.server";
+import { requireOrderAccess } from "@/lib/authz.server";
 
 type CheckoutSessionResult = { clientSecret: string } | { error: string };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const createOrderCheckout = createServerFn({ method: "POST" })
-  .inputValidator((data: { orderId: string; returnUrl: string; environment: StripeEnv }) => {
+  .inputValidator((data: { orderId: string; returnUrl: string; environment: StripeEnv; guestPhone?: string }) => {
     if (!UUID.test(data?.orderId ?? "")) throw new Error("Invalid order");
     if (!data.returnUrl?.startsWith("http")) throw new Error("Invalid return URL");
     if (data.environment !== "sandbox" && data.environment !== "live") {
@@ -16,6 +17,7 @@ export const createOrderCheckout = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }): Promise<CheckoutSessionResult> => {
     try {
+      await requireOrderAccess(data.orderId, data.guestPhone ?? null);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: order, error } = await supabaseAdmin
         .from("orders")
@@ -64,12 +66,13 @@ export const createOrderCheckout = createServerFn({ method: "POST" })
   });
 
 export const verifyOrderPaymentSession = createServerFn({ method: "POST" })
-  .inputValidator((data: { orderId: string; environment?: StripeEnv }) => {
+  .inputValidator((data: { orderId: string; environment?: StripeEnv; guestPhone?: string }) => {
     if (!UUID.test(data?.orderId ?? "")) throw new Error("Invalid order");
     return data;
   })
   .handler(async ({ data }): Promise<{ success: boolean; paid: boolean; error?: string; orderNumber?: string }> => {
     try {
+      await requireOrderAccess(data.orderId, data.guestPhone ?? null);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: order, error } = await supabaseAdmin
         .from("orders")
