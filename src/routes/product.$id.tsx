@@ -27,6 +27,7 @@ import { ProductAiBenefitsCard } from "@/components/ProductAiBenefitsCard";
 import { SeoStructuredData } from "@/components/SeoStructuredData";
 import { createSubscription } from "@/lib/subscriptions.functions";
 import { useCustomerBranch } from "@/lib/customerBranchContext";
+import { useSessionUser } from "@/lib/session";
 import type { SiteSettings } from '@/lib/types';
 
 const PORTION_CHIPS = [
@@ -725,6 +726,7 @@ function ProductPage() {
 
 function ProductReviewsSection({ productId, productName }: { productId: string; productName: string }) {
   const qc = useQueryClient();
+  const { user } = useSessionUser();
   const [openReview, setOpenReview] = useState(false);
   const [rating, setRating] = useState(5);
   const [name, setName] = useState("");
@@ -747,8 +749,10 @@ function ProductReviewsSection({ productId, productName }: { productId: string; 
 
   const submitReview = useMutation({
     mutationFn: async () => {
+      if (!user?.id) throw new Error("Please sign in to leave a review");
       if (!name.trim()) throw new Error("Please enter your name");
       if (!comment.trim()) throw new Error("Please enter a short review");
+      if (comment.trim().length > 1000) throw new Error("Please keep your review under 1000 characters");
 
       const { error } = await supabase.from("reviews").insert({
         product_id: productId,
@@ -785,6 +789,13 @@ function ProductReviewsSection({ productId, productName }: { productId: string; 
           <p className="text-xs text-muted-foreground">Real feedback from verified seafood lovers.</p>
         </div>
 
+        {!user?.id ? (
+          <Button asChild size="sm" variant="outline" className="rounded-xl shrink-0">
+            <Link to="/auth">
+              <MessageSquare className="mr-1.5 size-3.5" /> Sign in to review
+            </Link>
+          </Button>
+        ) : (
         <Dialog open={openReview} onOpenChange={setOpenReview}>
           <DialogTrigger asChild>
             <Button size="sm" variant="outline" className="rounded-xl shrink-0">
@@ -858,6 +869,7 @@ function ProductReviewsSection({ productId, productName }: { productId: string; 
             </div>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       <div className="mt-4 space-y-3">

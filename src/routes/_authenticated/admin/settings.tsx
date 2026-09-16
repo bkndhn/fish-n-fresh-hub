@@ -57,6 +57,7 @@ export const Route = createFileRoute("/_authenticated/admin/settings")({
 });
 
 type GatewayCreds = { id?: string; provider: string; api_key: string; secret_key: string };
+type StoreSecretsForm = { id?: string; resend_api_key: string; fcm_server_key: string };
 
 function AdminSettings() {
   const qc = useQueryClient();
@@ -64,6 +65,7 @@ function AdminSettings() {
   const tenant = getCurrentTenant();
   const [form, setForm] = useState<any>({});
   const [gatewayForm, setGatewayForm] = useState<GatewayCreds>({ provider: "none", api_key: "", secret_key: "" });
+  const [secretsForm, setSecretsForm] = useState<StoreSecretsForm>({ resend_api_key: "", fcm_server_key: "" });
   const [shopPinModalOpen, setShopPinModalOpen] = useState(false);
   const [exportingBackup, setExportingBackup] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
@@ -296,6 +298,28 @@ function AdminSettings() {
     },
   });
 
+  const { data: storeSecrets } = useQuery({
+    queryKey: ["store_secrets"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("store_secrets")
+        .select("id, resend_api_key, fcm_server_key")
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  useEffect(() => {
+    if (storeSecrets)
+      setSecretsForm({
+        id: storeSecrets.id,
+        resend_api_key: storeSecrets.resend_api_key ?? "",
+        fcm_server_key: storeSecrets.fcm_server_key ?? "",
+      });
+  }, [storeSecrets]);
+
   useEffect(() => {
     if (settings) {
       setForm({
@@ -344,11 +368,27 @@ function AdminSettings() {
       if (gatewayForm.provider === "stripe" && gatewayForm.api_key) {
         localStorage.setItem("fnf_stripe_publishable_key", gatewayForm.api_key);
       }
+
+      const secretPayload = {
+        resend_api_key: secretsForm.resend_api_key || null,
+        fcm_server_key: secretsForm.fcm_server_key || null,
+      };
+      if (secretsForm.id) {
+        const { error: sErr } = await supabase
+          .from("store_secrets")
+          .update(secretPayload)
+          .eq("id", secretsForm.id);
+        if (sErr) throw sErr;
+      } else if (secretPayload.resend_api_key || secretPayload.fcm_server_key) {
+        const { error: sErr } = await supabase.from("store_secrets").insert(secretPayload);
+        if (sErr) throw sErr;
+      }
     },
     onSuccess: () => {
       toast.success("Settings saved");
       qc.invalidateQueries({ queryKey: ["store_settings"] });
       qc.invalidateQueries({ queryKey: ["payment_gateway_credentials"] });
+      qc.invalidateQueries({ queryKey: ["store_secrets"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -1375,8 +1415,8 @@ function AdminSettings() {
               <Input
                 id="resend_api_key"
                 type="password"
-                value={form.resend_api_key ?? ""}
-                onChange={(e) => setForm({ ...form, resend_api_key: e.target.value })}
+                value={secretsForm.resend_api_key}
+                onChange={(e) => setSecretsForm({ ...secretsForm, resend_api_key: e.target.value })}
                 placeholder="re_123456789_..."
                 className="mt-1"
               />
@@ -1633,8 +1673,8 @@ function AdminSettings() {
               <Input
                 id="fcm_server_key"
                 type="password"
-                value={form.fcm_server_key ?? ""}
-                onChange={(e) => setForm({ ...form, fcm_server_key: e.target.value })}
+                value={secretsForm.fcm_server_key}
+                onChange={(e) => setSecretsForm({ ...secretsForm, fcm_server_key: e.target.value })}
                 placeholder="AAAA... or BOrz..."
                 className="mt-1 font-mono text-xs"
               />

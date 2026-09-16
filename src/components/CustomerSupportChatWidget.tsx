@@ -83,8 +83,11 @@ export function CustomerSupportChatWidget() {
     const savedPhone = localStorage.getItem("fnf_phone") || "";
     if (savedName) setGuestName(savedName);
     if (savedPhone) setGuestPhone(savedPhone);
-    if (user?.id || savedName) {
+    // Chat is available to signed-in customers only, so their conversation stays private.
+    if (user?.id) {
       setIsStarted(true);
+    } else {
+      setIsStarted(false);
     }
   }, [user]);
 
@@ -98,20 +101,21 @@ export function CustomerSupportChatWidget() {
 
   // Initialize or fetch conversation
   useEffect(() => {
-    if (!isStarted) return;
+    if (!isStarted || !user?.id) return;
 
     let active = true;
+    const currentUserId = user.id;
 
     async function initConversation() {
       try {
         const phone = guestPhone.trim() || user?.email || "9843061919";
-        const name = guestName.trim() || (user?.user_metadata?.["name"] as string) || "Guest Shopper";
+        const name = guestName.trim() || (user?.user_metadata?.["name"] as string) || "Customer";
 
-        // Find existing open conversation
+        // Find existing open conversation for this signed-in customer
         const { data: convs } = await customSupabase
           .from("support_conversations")
           .select("id")
-          .eq("customer_phone", phone)
+          .eq("customer_id", currentUserId)
           .eq("status", "open")
           .order("last_message_at", { ascending: false })
           .limit(1);
@@ -122,7 +126,7 @@ export function CustomerSupportChatWidget() {
           const { data: newConv, error: createErr } = await customSupabase
             .from("support_conversations")
             .insert({
-              customer_id: user?.id || null,
+              customer_id: currentUserId,
               customer_name: name,
               customer_phone: phone,
               subject: "Storefront Live In-App Chat",
@@ -275,6 +279,10 @@ export function CustomerSupportChatWidget() {
 
   const handleStartChat = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.id) {
+      toast.error("Please sign in to chat with our support team.");
+      return;
+    }
     if (!guestName.trim() || !guestPhone.trim()) {
       toast.error("Please enter your name and phone number to begin.");
       return;
@@ -342,7 +350,22 @@ export function CustomerSupportChatWidget() {
           </div>
 
           {/* Body */}
-          {!isStarted ? (
+          {!user?.id ? (
+            <div className="p-6 space-y-4 flex-1 flex flex-col justify-center text-center">
+              <div className="mx-auto size-12 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                <ShieldCheck className="size-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-bold text-base text-foreground">Sign in to chat with us</h3>
+                <p className="text-xs text-muted-foreground">
+                  Your conversation stays private to your account, so please sign in first.
+                </p>
+              </div>
+              <Button asChild className="w-full rounded-xl h-9 text-xs font-bold shadow-xs">
+                <a href="/auth">Sign in / Create account</a>
+              </Button>
+            </div>
+          ) : !isStarted ? (
             <form onSubmit={handleStartChat} className="p-5 space-y-4 flex-1 flex flex-col justify-center">
               <div className="text-center space-y-1">
                 <div className="mx-auto size-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-2">
