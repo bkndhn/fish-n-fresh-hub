@@ -368,11 +368,27 @@ function AdminSettings() {
       if (gatewayForm.provider === "stripe" && gatewayForm.api_key) {
         localStorage.setItem("fnf_stripe_publishable_key", gatewayForm.api_key);
       }
+
+      const secretPayload = {
+        resend_api_key: secretsForm.resend_api_key || null,
+        fcm_server_key: secretsForm.fcm_server_key || null,
+      };
+      if (secretsForm.id) {
+        const { error: sErr } = await supabase
+          .from("store_secrets")
+          .update(secretPayload)
+          .eq("id", secretsForm.id);
+        if (sErr) throw sErr;
+      } else if (secretPayload.resend_api_key || secretPayload.fcm_server_key) {
+        const { error: sErr } = await supabase.from("store_secrets").insert(secretPayload);
+        if (sErr) throw sErr;
+      }
     },
     onSuccess: () => {
       toast.success("Settings saved");
       qc.invalidateQueries({ queryKey: ["store_settings"] });
       qc.invalidateQueries({ queryKey: ["payment_gateway_credentials"] });
+      qc.invalidateQueries({ queryKey: ["store_secrets"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
