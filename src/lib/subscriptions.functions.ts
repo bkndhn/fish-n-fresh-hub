@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getCallerUserId, requireStaff, requireUser, AuthorizationError } from "@/lib/authz.server";
+import { requireStaff, requireUser, AuthorizationError } from "@/lib/authz.server";
 
 export interface CreateSubscriptionInput {
   userId?: string | undefined;
