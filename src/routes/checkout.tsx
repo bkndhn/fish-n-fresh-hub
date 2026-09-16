@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import type { Database } from "@/integrations/supabase/types";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { MapPin, Copy, QrCode, Smartphone, Tag, MessageCircle, AlertTriangle, CheckCircle2, Zap, Clock, Gift, Wallet, Sparkles, Upload, X, Check, Store } from "lucide-react";
+import { MapPin, Copy, QrCode, Smartphone, Tag, MessageCircle, MessageSquare, AlertTriangle, CheckCircle2, Zap, Clock, Gift, Wallet, Sparkles, Upload, X, Check, Store } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -1252,8 +1252,32 @@ function Checkout() {
         </div>
       </div>
 
-      <div className="mt-5">
-        <p className="mb-2 text-sm font-medium">Payment method</p>
+      {orderingMode === "whatsapp_only" ? (
+        <div className="mt-5 rounded-2xl border-2 border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
+              <MessageSquare className="size-5 text-emerald-600" />
+              <h3 className="font-bold text-sm">WhatsApp Direct Order Active</h3>
+            </div>
+            <Badge className="bg-emerald-600 text-white text-[10px]">
+              Direct WhatsApp Only
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            This store accepts orders exclusively via WhatsApp. Payment gateways and Cash on Delivery forms are disabled. Tap below to send your itemized order directly to our WhatsApp desk.
+          </p>
+          <Button
+            type="button"
+            className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-11 gap-2 shadow-xs"
+            onClick={handleWhatsAppOrderCheckout}
+          >
+            <WhatsAppIcon className="size-4 text-white" />
+            Send Order via WhatsApp Now ({inr(total)})
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-5">
+          <p className="mb-2 text-sm font-medium">Payment method</p>
         <div className="flex gap-2">
           <Button
             variant={payment === "cod" ? "default" : "outline"}
@@ -1496,6 +1520,7 @@ function Checkout() {
           </div>
         )}
       </div>
+      )}
 
       <div className="mt-5 space-y-2 rounded-2xl border border-border bg-card p-4 text-sm">
         <Row label="Subtotal" value={inr(subtotal)} />
@@ -1545,32 +1570,43 @@ function Checkout() {
         </div>
       </div>
 
-      <Button
-        className="mt-4 w-full rounded-xl text-sm font-semibold"
-        disabled={saving || !storeStatus.canAcceptOrder || selectedHoliday.isHoliday}
-        onClick={placeOrder}
-      >
-        {saving
-          ? "Placing order…"
-          : !storeStatus.canAcceptOrder
-            ? `Orders Paused · ${storeStatus.statusTitle}`
-            : selectedHoliday.isHoliday
-              ? "Store Closed on Selected Date"
-              : !storeStatus.isOpen
-                ? `Place Pre-Order · ${inr(total)}`
-                : `Place order · ${inr(total)}`}
-      </Button>
-
-      {orderingMode === "both" && (
+      {orderingMode === "whatsapp_only" ? (
         <Button
           type="button"
-          variant="outline"
-          className="mt-2 w-full rounded-xl text-sm font-semibold border-emerald-600/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 gap-2"
+          className="mt-4 w-full rounded-xl text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white h-11 gap-2 shadow-xs"
           onClick={handleWhatsAppOrderCheckout}
         >
-          <WhatsAppIcon className="size-4 text-emerald-600" />
+          <WhatsAppIcon className="size-4 text-white" />
           Send Order via WhatsApp ({inr(total)})
         </Button>
+      ) : (
+        <>
+          <Button
+            className="mt-4 w-full rounded-xl text-sm font-semibold"
+            disabled={saving || !storeStatus.canAcceptOrder || selectedHoliday.isHoliday}
+            onClick={placeOrder}
+          >
+            {saving
+              ? "Placing order…"
+              : !storeStatus.canAcceptOrder
+                ? `Orders Paused · ${storeStatus.statusTitle}`
+                : selectedHoliday.isHoliday
+                  ? "Store Closed on Selected Date"
+                  : !storeStatus.isOpen
+                    ? `Place Pre-Order · ${inr(total)}`
+                    : `Place order · ${inr(total)}`}
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-2 w-full rounded-xl text-sm font-semibold border-emerald-600/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 gap-2"
+            onClick={handleWhatsAppOrderCheckout}
+          >
+            <WhatsAppIcon className="size-4 text-emerald-600" />
+            Or Send Order via WhatsApp ({inr(total)})
+          </Button>
+        </>
       )}
 
       {/* Interactive Map Pin Picker Modal */}

@@ -746,6 +746,54 @@ function AdminSettings() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Master Toggle: Accept Only via WhatsApp Order */}
+            <div className={`p-4 rounded-2xl border-2 transition-all ${
+              form.ordering_mode === "whatsapp_only"
+                ? "border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/30 ring-2 ring-emerald-500/20"
+                : "border-border bg-muted/20"
+            }`}>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="whatsapp-exclusive-toggle" className="text-sm font-bold text-foreground cursor-pointer flex items-center gap-2">
+                      <MessageSquare className="size-4 text-emerald-600 dark:text-emerald-400" />
+                      Accept Orders Only via WhatsApp
+                    </Label>
+                    {form.ordering_mode === "whatsapp_only" ? (
+                      <Badge className="bg-emerald-600 text-white hover:bg-emerald-700 text-[10px] font-bold">
+                        Active · Exclusive WhatsApp
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                        Disabled (Standard Checkout Active)
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground max-w-xl leading-relaxed">
+                    Enable this to hide standard online checkout and payment gateways. Customers will browse your catalog, build carts, and place orders exclusively via WhatsApp with itemized catch and pricing details.
+                  </p>
+                </div>
+                <Switch
+                  id="whatsapp-exclusive-toggle"
+                  checked={form.ordering_mode === "whatsapp_only"}
+                  onCheckedChange={(checked) => {
+                    setForm({ ...form, ordering_mode: checked ? "whatsapp_only" : "standard" });
+                    if (checked) {
+                      toast.info("WhatsApp Only Ordering activated: Online checkout options are hidden.");
+                    } else {
+                      toast.info("Standard checkout restored.");
+                    }
+                  }}
+                />
+              </div>
+              {form.ordering_mode === "whatsapp_only" && (
+                <div className="mt-3 pt-3 border-t border-emerald-500/20 flex items-center gap-2 text-xs text-emerald-800 dark:text-emerald-300">
+                  <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
+                  <span>Other checkout methods are hidden across the store. Cart will display direct WhatsApp order only.</span>
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {[
                 {

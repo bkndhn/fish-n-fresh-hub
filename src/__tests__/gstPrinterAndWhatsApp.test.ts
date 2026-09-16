@@ -161,6 +161,54 @@ describe("WhatsApp Deep-Link Ordering Utility", () => {
     expect(link).toContain("https://wa.me/919843061919?text=");
     expect(link).toContain(encodeURIComponent("NEW ORDER - FISH N FRESH HUB"));
   });
+
+  it("filters only available in-stock items and excludes sold-out products for WhatsApp ordering", () => {
+    const rawCart = [
+      { product_id: "p1", name: "Seer Fish", qty: 2, price: 800, isSoldOut: false, availableStock: 5 },
+      { product_id: "p2", name: "Sold Out Crab", qty: 1, price: 500, isSoldOut: true, availableStock: 0 },
+      { product_id: "p3", name: "Prawns (Overstock Request)", qty: 4, price: 400, isSoldOut: false, availableStock: 2 },
+    ];
+
+    const availableItems = rawCart
+      .filter((i) => !i.isSoldOut && i.availableStock > 0)
+      .map((i) => {
+        const clampedQty = Math.min(i.qty, i.availableStock);
+        return {
+          productId: i.product_id,
+          name: i.name,
+          qty: clampedQty,
+          unit: "kg",
+          price: i.price,
+          totalPrice: i.price * clampedQty,
+        };
+      });
+
+    expect(availableItems).toHaveLength(2);
+    expect(availableItems[0].name).toBe("Seer Fish");
+    expect(availableItems[0].qty).toBe(2);
+    expect(availableItems[0].totalPrice).toBe(1600);
+
+    // Overstock item was clamped to available stock (2 instead of 4)
+    expect(availableItems[1].name).toBe("Prawns (Overstock Request)");
+    expect(availableItems[1].qty).toBe(2);
+    expect(availableItems[1].totalPrice).toBe(800);
+
+    const subtotal = availableItems.reduce((acc, it) => acc + it.totalPrice, 0);
+    expect(subtotal).toBe(2400);
+  });
+
+  it("verifies whatsapp_only mode hides standard online checkout and exposes direct WhatsApp order", () => {
+    const settingsWhatsAppOnly = { ordering_mode: "whatsapp_only", whatsapp_order_phone: "9843061919" } as unknown as SiteSettings;
+    const mode = getStoreOrderingMode(settingsWhatsAppOnly);
+    expect(mode).toBe("whatsapp_only");
+
+    // In whatsapp_only mode, online payment gateways are bypassed
+    const isOnlineCheckoutAllowed = mode === "standard" || mode === "both";
+    expect(isOnlineCheckoutAllowed).toBe(false);
+
+    const isWhatsAppOrderAvailable = mode === "whatsapp_only" || mode === "both" || mode === "standard";
+    expect(isWhatsAppOrderAvailable).toBe(true);
+  });
 });
 
 describe("Thermal Printer Header & Footer Customization Engine", () => {

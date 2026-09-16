@@ -20,6 +20,7 @@ import {
   Calendar,
   CheckCircle2,
   ExternalLink,
+  AlertTriangle,
 } from "lucide-react";
 import { inr } from "@/lib/format";
 import { useSessionUser } from "@/lib/session";
@@ -50,6 +51,7 @@ interface WhatsAppOrderDialogProps {
   deliveryFee?: number;
   settings?: SiteSettings | null;
   onOrderDispatched?: () => void;
+  excludedCount?: number;
 }
 
 export function WhatsAppOrderDialog({
@@ -60,6 +62,7 @@ export function WhatsAppOrderDialog({
   deliveryFee = 0,
   settings,
   onOrderDispatched,
+  excludedCount = 0,
 }: WhatsAppOrderDialogProps) {
   const { user } = useSessionUser();
   const [name, setName] = useState("");
@@ -87,6 +90,11 @@ export function WhatsAppOrderDialog({
   const isGstActive = isGstEnabled(settings);
   const effectiveDeliveryFee = fulfillment === "pickup" ? 0 : deliveryFee;
   const netTotal = subtotal + effectiveDeliveryFee;
+  const targetStorePhone =
+    settings?.whatsapp_order_phone ||
+    settings?.contact_phone ||
+    settings?.whatsapp_number ||
+    "9843061919";
 
   const handleSendOrder = async () => {
     if (!name.trim()) {
@@ -109,11 +117,7 @@ export function WhatsAppOrderDialog({
       localStorage.setItem("fnf_name", name);
       if (address) localStorage.setItem("fnf_address", address);
 
-      const storePhone =
-        settings?.whatsapp_order_phone ||
-        settings?.contact_phone ||
-        settings?.whatsapp_number ||
-        "9843061919";
+      const storePhone = targetStorePhone;
       const storeName = settings?.store_name || "Fish N Fresh Hub";
 
       const orderSummary: WhatsAppOrderSummary = {
@@ -193,6 +197,63 @@ export function WhatsAppOrderDialog({
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
+          {/* Target Store WhatsApp Receiving Desk Banner */}
+          <div className="flex items-center justify-between p-3 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-500/25 text-xs text-emerald-900 dark:text-emerald-200">
+            <div className="flex items-center gap-2.5">
+              <div className="size-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                WA
+              </div>
+              <div>
+                <p className="font-bold text-xs">Store WhatsApp Desk</p>
+                <p className="text-[10px] opacity-80">Order will be dispatched to this chat</p>
+              </div>
+            </div>
+            <Badge variant="outline" className="font-mono text-xs font-bold border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-white/80 dark:bg-black/40">
+              +{targetStorePhone.replace(/\D/g, "")}
+            </Badge>
+          </div>
+
+          {/* Out-of-Stock Exclusions Notice */}
+          {excludedCount > 0 && (
+            <div className="flex items-center gap-2.5 p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs text-amber-900 dark:text-amber-200">
+              <AlertTriangle className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <p>
+                Ordering <strong>{items.length} available items</strong>. {excludedCount} out-of-stock item{excludedCount > 1 ? "s were" : " was"} excluded.
+              </p>
+            </div>
+          )}
+
+          {/* Itemized Available Items Review */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold text-foreground">
+                Itemized Catch Details ({items.length} item{items.length === 1 ? "" : "s"})
+              </Label>
+              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                {inr(subtotal)}
+              </span>
+            </div>
+            <div className="max-h-40 overflow-y-auto space-y-1.5 rounded-2xl border border-border/80 bg-muted/20 p-2.5 divide-y divide-border/40">
+              {items.map((it) => (
+                <div key={it.productId + (it.cutPreference || "")} className="pt-1.5 first:pt-0 flex items-start justify-between gap-2 text-xs">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-semibold text-foreground truncate">{it.name}</span>
+                      {it.cutPreference && (
+                        <Badge variant="outline" className="text-[9px] py-0 px-1 font-normal bg-background/80">
+                          {it.cutPreference}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {it.qty} {it.unit} × {inr(it.price)} / {it.unit}
+                    </p>
+                  </div>
+                  <span className="font-mono font-bold text-foreground shrink-0">{inr(it.totalPrice)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
           {/* Fulfillment Switcher */}
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold">Delivery or Store Pickup</Label>

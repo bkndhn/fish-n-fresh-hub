@@ -56,19 +56,6 @@ function CartPage() {
   const orderingMode = getStoreOrderingMode(settings as SiteSettings);
   const estimatedDeliveryFee = subtotal < freeOver ? Number(settings?.base_delivery_fee ?? settings?.delivery_fee ?? 40) : 0;
 
-  const dialogItems = items.map((i) => {
-    const matched = (products as Product[]).find((p) => p.id === i.product_id);
-    return {
-      productId: i.product_id,
-      name: i.name,
-      cutPreference: i.cutting_style,
-      qty: i.qty,
-      unit: matched?.unit || "unit",
-      price: i.price,
-      totalPrice: i.price * i.qty,
-    };
-  });
-
   // Live omnichannel stock audit for cart items
   const cartStockAnalysis = items.map((item) => {
     const matched = (products as Product[]).find((p) => p.id === item.product_id);
@@ -78,6 +65,7 @@ function CartPage() {
     const isExceedingStock = item.qty > availableStock;
     return {
       ...item,
+      matched,
       availableStock,
       isSoldOut,
       isExceedingStock,
@@ -85,6 +73,25 @@ function CartPage() {
   });
 
   const hasOutOfStockItems = cartStockAnalysis.some((i) => i.isSoldOut || i.isExceedingStock);
+
+  // Available items for WhatsApp direct order with all item details
+  const availableWhatsAppItems = cartStockAnalysis
+    .filter((i) => !i.isSoldOut && i.availableStock > 0)
+    .map((i) => {
+      const clampedQty = Math.min(i.qty, i.availableStock);
+      return {
+        productId: i.product_id,
+        name: i.name,
+        cutPreference: i.cut_preference || i.cutting_style,
+        qty: clampedQty,
+        unit: i.matched?.unit || i.unit || "unit",
+        price: i.price,
+        totalPrice: i.price * clampedQty,
+      };
+    });
+
+  const availableSubtotal = availableWhatsAppItems.reduce((acc, it) => acc + it.totalPrice, 0);
+  const outOfStockCount = items.length - availableWhatsAppItems.length;
 
   if (items.length === 0) {
     return (
@@ -342,22 +349,19 @@ function CartPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-        {hasOutOfStockItems ? (
-          <Button disabled className="flex-1 rounded-xl opacity-75 bg-destructive hover:bg-destructive text-destructive-foreground">
-            Remove Sold Out Items to Checkout
-          </Button>
-        ) : storeStatus && !storeStatus.canAcceptOrder ? (
-          <Button disabled className="flex-1 rounded-xl opacity-60">
-            Orders Paused · {storeStatus.statusTitle}
-          </Button>
-        ) : orderingMode === "whatsapp_only" ? (
+        {orderingMode === "whatsapp_only" ? (
           <Button
             type="button"
+            disabled={availableWhatsAppItems.length === 0}
             onClick={() => setWhatsAppModalOpen(true)}
-            className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-semibold"
+            className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-semibold shadow-xs"
           >
             <MessageSquare className="size-4" />
-            Order via WhatsApp 💬 ({inr(subtotal)})
+            {availableWhatsAppItems.length === 0
+              ? "All items sold out"
+              : outOfStockCount > 0
+              ? `Order ${availableWhatsAppItems.length} Available Items on WhatsApp 💬 (${inr(availableSubtotal)})`
+              : `Order on WhatsApp 💬 (${inr(availableSubtotal)})`}
           </Button>
         ) : orderingMode === "catalog_only" ? (
           <Button
@@ -368,38 +372,44 @@ function CartPage() {
             <MessageSquare className="size-4" />
             Inquire on WhatsApp 💬
           </Button>
-        ) : orderingMode === "both" ? (
+        ) : (
           <div className="flex flex-1 flex-col sm:flex-row gap-2">
-            <Button asChild className="flex-1 rounded-xl">
-              <Link to="/checkout">
-                {storeStatus && !storeStatus.isOpen ? "Proceed to Pre-Order" : "Checkout"}
-              </Link>
-            </Button>
+            {hasOutOfStockItems ? (
+              <Button disabled className="flex-1 rounded-xl opacity-75 bg-destructive hover:bg-destructive text-destructive-foreground">
+                Remove Sold Out Items to Checkout
+              </Button>
+            ) : storeStatus && !storeStatus.canAcceptOrder ? (
+              <Button disabled className="flex-1 rounded-xl opacity-60">
+                Orders Paused · {storeStatus.statusTitle}
+              </Button>
+            ) : (
+              <Button asChild className="flex-1 rounded-xl">
+                <Link to="/checkout">
+                  {storeStatus && !storeStatus.isOpen ? "Proceed to Pre-Order" : "Checkout"}
+                </Link>
+              </Button>
+            )}
             <Button
               type="button"
+              disabled={availableWhatsAppItems.length === 0}
               onClick={() => setWhatsAppModalOpen(true)}
-              className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-semibold"
+              className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-semibold shadow-xs"
             >
               <MessageSquare className="size-4" />
-              Order on WhatsApp
+              <span>Order on WhatsApp 💬</span>
             </Button>
           </div>
-        ) : (
-          <Button asChild className="flex-1 rounded-xl">
-            <Link to="/checkout">
-              {storeStatus && !storeStatus.isOpen ? "Proceed to Pre-Order" : "Checkout"}
-            </Link>
-          </Button>
         )}
       </div>
 
       <WhatsAppOrderDialog
         open={whatsAppModalOpen}
         onOpenChange={setWhatsAppModalOpen}
-        items={dialogItems}
-        subtotal={subtotal}
+        items={availableWhatsAppItems}
+        subtotal={availableSubtotal}
         deliveryFee={estimatedDeliveryFee}
         settings={settings as SiteSettings}
+        excludedCount={outOfStockCount}
         onOrderDispatched={() => {
           clear();
         }}
