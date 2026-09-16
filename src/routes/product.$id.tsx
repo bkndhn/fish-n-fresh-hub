@@ -738,7 +738,7 @@ function ProductReviewsSection({ productId, productName }: { productId: string; 
     queryFn: async () => {
       const { data, error } = await supabase
         .from("reviews")
-        .select("*")
+        .select("id, product_id, product_name, customer_name, rating, comment, photo_url, verified, admin_reply, active, created_at")
         .eq("product_id", productId)
         .eq("active", true)
         .order("created_at", { ascending: false });
