@@ -152,6 +152,24 @@ function OrdersAdmin() {
     }
   };
 
+  const markOrderPaid = async (orderId: string, method?: string) => {
+    try {
+      const isUpi = method === "upi";
+      const { error } = await supabase
+        .from("orders")
+        .update({
+          payment_status: "paid",
+          ...(isUpi ? { upi_paid: true } : {}),
+        })
+        .eq("id", orderId);
+      if (error) throw error;
+      toast.success(`Payment marked as PAID!`);
+      qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to mark payment as paid");
+    }
+  };
+
   const yesterdayDate = new Date();
   yesterdayDate.setDate(yesterdayDate.getDate() - 1);
   const yesterdayStr = getLocalDateString(yesterdayDate.toISOString());
@@ -710,30 +728,70 @@ function OrdersAdmin() {
                   </ul>
                 </div>
 
-                {/* Payment & COD / UPI Alert Banner */}
+                {/* Payment & COD / WhatsApp / UPI Alert Banner */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                   <div className="flex flex-wrap items-center gap-2">
                     {isCOD ? (
                       <span className="rounded-xl bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-300">
                         ⚠️ Collect Cash: {formatINR(Number(o.total))}
                       </span>
-                    ) : o.payment_method === "upi" ? (
+                    ) : o.payment_method === "whatsapp" ? (
                       <div className="flex flex-wrap items-center gap-1.5">
-                        {(o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).upi_paid || o.payment_status === "paid" ? (
+                        {o.payment_status === "paid" ? (
                           <span className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                            ✅ UPI Verified Paid {(o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref ? `(UTR: ${(o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref})` : ""}
+                            ✅ Paid (WhatsApp Verified)
                           </span>
                         ) : (
                           <>
                             <span className="rounded-xl bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-300">
-                              ⏳ UPI Verification Pending {(o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref ? `(UTR: ${(o as unknown as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref})` : ""}
+                              ⏳ WhatsApp Order: Collect {formatINR(Number(o.total))} (Unpaid)
                             </span>
                             <Button
                               type="button"
                               size="sm"
                               variant="outline"
                               className="h-7 text-xs font-bold rounded-lg text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10 gap-1"
-                              onClick={() => verifyUpiPayment(o.id)}
+                              onClick={() => markOrderPaid(o.id, "whatsapp")}
+                            >
+                              <CheckCircle2 className="size-3" /> Mark Paid
+                            </Button>
+                            <Button
+                              asChild
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs font-semibold rounded-lg text-green-700 dark:text-green-400 border-green-500/30 hover:bg-green-500/10 gap-1"
+                            >
+                              <a
+                                href={getWhatsAppUrl(
+                                  o.customer_phone,
+                                  `Hi ${o.customer_name}, regarding your order #${o.order_number ?? o.id.slice(0, 8)} of ${formatINR(Number(o.total))}: Please confirm your payment mode (Cash on Delivery or UPI). UPI ID: ${settings?.upi_id || "our UPI"}. Thank you!`
+                                )}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <WhatsAppIcon className="size-3" /> WhatsApp Customer
+                              </a>
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    ) : o.payment_method === "upi" ? (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {(o as unknown as Database["public"]["Tables"]["orders"]["Row"]).upi_paid || o.payment_status === "paid" ? (
+                          <span className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                            ✅ UPI Verified Paid {(o as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref ? `(UTR: ${(o as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref})` : ""}
+                          </span>
+                        ) : (
+                          <>
+                            <span className="rounded-xl bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-300">
+                              ⏳ UPI Verification Pending {(o as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref ? `(UTR: ${(o as unknown as Database["public"]["Tables"]["orders"]["Row"]).actual_payment_ref})` : ""}
+                            </span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs font-bold rounded-lg text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10 gap-1"
+                              onClick={() => markOrderPaid(o.id, "upi")}
                             >
                               <CheckCircle2 className="size-3" /> Mark Verified
                             </Button>
@@ -757,10 +815,25 @@ function OrdersAdmin() {
                           </>
                         )}
                       </div>
-                    ) : (
+                    ) : o.payment_status === "paid" ? (
                       <span className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
                         ✅ Paid Online ({o.payment_method.toUpperCase()})
                       </span>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="rounded-xl bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-300">
+                          ⏳ Payment Pending ({o.payment_method.toUpperCase()}): Collect {formatINR(Number(o.total))}
+                        </span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs font-bold rounded-lg text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10 gap-1"
+                          onClick={() => markOrderPaid(o.id, o.payment_method)}
+                        >
+                          <CheckCircle2 className="size-3" /> Mark Paid
+                        </Button>
+                      </div>
                     )}
                   </div>
 
@@ -769,61 +842,69 @@ function OrdersAdmin() {
                   </div>
                 </div>
 
-                {/* Bottom Action Row: Print Bill + Tax Invoice + Status Selector */}
-                <div className="flex items-center gap-2 pt-1 border-t border-border/50">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-xl h-8.5 text-xs font-semibold shrink-0"
-                    onClick={() => setPrintOrder(o)}
-                  >
-                    <Printer className="mr-1.5 size-3.5" /> Bill
-                  </Button>
+                {/* Bottom Action Row: Print Bill + Tax Invoice + Status Selector (Mobile-responsive layout) */}
+                <div className="pt-1.5 border-t border-border/50">
+                  <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+                    {/* Bill & Invoice actions */}
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 sm:flex-initial rounded-xl h-8.5 text-xs font-semibold"
+                        onClick={() => setPrintOrder(o)}
+                      >
+                        <Printer className="mr-1.5 size-3.5" /> Bill
+                      </Button>
 
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-xl h-8.5 text-xs font-semibold shrink-0 border-sky-500/30 text-sky-700 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40"
-                    onClick={() => setInvoiceOrder(o)}
-                  >
-                    <FileText className="mr-1.5 size-3.5 text-sky-600" /> Invoice
-                  </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 sm:flex-initial rounded-xl h-8.5 text-xs font-semibold border-sky-500/30 text-sky-700 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40"
+                        onClick={() => setInvoiceOrder(o)}
+                      >
+                        <FileText className="mr-1.5 size-3.5 text-sky-600" /> Invoice
+                      </Button>
+                    </div>
 
-                  <div className="flex-1">
-                    <Select
-                      value={o.status}
-                      onValueChange={(status) => {
-                        if (status === "delivered") {
-                          setPinModalOrder(o);
-                        } else {
-                          update.mutate({ id: o.id, status });
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-full h-8.5 text-xs rounded-xl font-semibold">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ORDER_STATUSES.map((s) => (
-                          <SelectItem key={s} value={s} className="text-xs capitalize">
-                            {s.replace(/_/g, " ")}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {/* Status dropdown and Deliver button */}
+                    <div className="flex items-center gap-2 flex-1 w-full sm:w-auto">
+                      <div className="flex-1 min-w-[130px]">
+                        <Select
+                          value={o.status}
+                          onValueChange={(status) => {
+                            if (status === "delivered") {
+                              setPinModalOrder(o);
+                            } else {
+                              update.mutate({ id: o.id, status });
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="w-full h-8.5 text-xs rounded-xl font-semibold">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ORDER_STATUSES.map((s) => (
+                              <SelectItem key={s} value={s} className="text-xs capitalize">
+                                {s.replace(/_/g, " ")}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Fast Delivery PIN Verification Action */}
+                      {o.status !== "delivered" && o.status !== "cancelled" && (
+                        <Button
+                          size="sm"
+                          className="rounded-xl h-8.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shrink-0 gap-1 shadow-xs px-3"
+                          onClick={() => setPinModalOrder(o)}
+                          title="Verify customer 4-digit Delivery PIN to mark delivered"
+                        >
+                          <KeyRound className="size-3" /> Deliver
+                        </Button>
+                      )}
+                    </div>
                   </div>
-
-                  {/* Fast Delivery PIN Verification Action */}
-                  {o.status !== "delivered" && o.status !== "cancelled" && (
-                    <Button
-                      size="sm"
-                      className="rounded-xl h-8.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shrink-0 gap-1 shadow-xs"
-                      onClick={() => setPinModalOrder(o)}
-                      title="Verify customer 4-digit Delivery PIN to mark delivered"
-                    >
-                      <KeyRound className="size-3" /> Deliver
-                    </Button>
-                  )}
                 </div>
 
                 {o.notes && (
@@ -1027,7 +1108,7 @@ function OrdersAdmin() {
           customerName={pinModalOrder.customer_name}
           customerPhone={pinModalOrder.customer_phone}
           fulfillmentType={pinModalOrder.fulfillment_type}
-          isCod={pinModalOrder.payment_method === "cod" && pinModalOrder.payment_status !== "paid"}
+          isCod={pinModalOrder.payment_method === "cod" || pinModalOrder.payment_status !== "paid"}
           totalAmount={Number(pinModalOrder.total)}
           isAdmin={true}
           onSuccess={() => {

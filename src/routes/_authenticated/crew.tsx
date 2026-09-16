@@ -371,7 +371,7 @@ function CrewBoard() {
           customerName={pinModalOrder.customer_name}
           customerPhone={pinModalOrder.customer_phone}
           fulfillmentType={pinModalOrder.fulfillment_type}
-          isCod={pinModalOrder.payment_method === "cod" && pinModalOrder.payment_status !== "paid"}
+          isCod={pinModalOrder.payment_method === "cod" || pinModalOrder.payment_status !== "paid"}
           totalAmount={Number(pinModalOrder.total)}
           isAdmin={(roles.data ?? []).includes("admin")}
           onSuccess={() => {

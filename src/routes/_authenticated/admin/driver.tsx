@@ -384,7 +384,12 @@ export function DriverDispatchPage() {
       ? `https://www.google.com/maps/dir/?api=1&destination=${order.location_lat},${order.location_lng}`
       : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.customer_address ?? "")}`;
 
-    const text = `Hi ${order.driver_name || "Partner"}, new delivery assigned!\n\nOrder #${ref}\nCustomer: ${order.customer_name} (${order.customer_phone})\nAddress: ${order.customer_address ?? "See Map"}\nItems: ${itemsSummary}\n\nPayment: ${order.payment_method?.toUpperCase()} · Total: ${formatINR(Number(order.total))}\n${order.payment_method === "cod" ? "⚠️ COLLECT CASH FROM CUSTOMER" : "🟢 PAID ONLINE - DO NOT COLLECT CASH"}\n\nStart Navigation: ${navLink}`;
+    const isPaid = order.payment_status === "paid" || (order as any).upi_paid;
+    const paymentInstructions = isPaid
+      ? "🟢 PAID ONLINE - DO NOT COLLECT CASH"
+      : `⚠️ COLLECT PAYMENT FROM CUSTOMER: ${formatINR(Number(order.total))} (${(order.payment_method || "COD").toUpperCase()} - UNPAID)`;
+
+    const text = `Hi ${order.driver_name || "Partner"}, new delivery assigned!\n\nOrder #${ref}\nCustomer: ${order.customer_name} (${order.customer_phone})\nAddress: ${order.customer_address ?? "See Map"}\nItems: ${itemsSummary}\n\nPayment: ${(order.payment_method || "COD").toUpperCase()} · Total: ${formatINR(Number(order.total))}\n${paymentInstructions}\n\nStart Navigation: ${navLink}`;
 
     const waUrl = getWhatsAppUrl(driverPhone || "919999999999", text);
     window.open(waUrl, "_blank", "noopener");
@@ -544,7 +549,10 @@ export function DriverDispatchPage() {
                   settings?.shop_lng
                 );
 
-                const isCod = o.payment_method === "cod" && o.payment_status !== "paid";
+                const isPaid = o.payment_status === "paid" || (o as any).upi_paid;
+                const isCod = o.payment_method === "cod";
+                const isWhatsApp = o.payment_method === "whatsapp";
+                const needsCollection = !isPaid;
 
                 return (
                   <Card key={o.id} className="border-border/70 shadow-xs hover:border-primary/40 transition">
@@ -559,13 +567,21 @@ export function DriverDispatchPage() {
                             <Badge variant="secondary" className="capitalize text-[11px]">
                               {o.status.replace(/_/g, " ")}
                             </Badge>
-                            {isCod ? (
+                            {isPaid ? (
+                              <Badge className="bg-emerald-600 text-white text-[10px] uppercase font-bold">
+                                Paid Online ({o.payment_method?.toUpperCase()})
+                              </Badge>
+                            ) : isCod ? (
                               <Badge variant="destructive" className="text-[10px] uppercase font-bold">
-                                Cash on Delivery
+                                Cash on Delivery: {formatINR(Number(o.total))}
+                              </Badge>
+                            ) : isWhatsApp ? (
+                              <Badge className="bg-amber-600 hover:bg-amber-700 text-white text-[10px] uppercase font-bold">
+                                WhatsApp: Collect {formatINR(Number(o.total))}
                               </Badge>
                             ) : (
-                              <Badge className="bg-emerald-600 text-white text-[10px] uppercase font-bold">
-                                Paid Online
+                              <Badge variant="destructive" className="text-[10px] uppercase font-bold">
+                                Payment Due: {formatINR(Number(o.total))}
                               </Badge>
                             )}
                           </div>
@@ -721,13 +737,13 @@ export function DriverDispatchPage() {
                             <Button
                               size="sm"
                               className={`rounded-xl h-8.5 text-xs font-bold px-2.5 ${
-                                isCod ? "bg-amber-600 hover:bg-amber-500 text-white shadow-xs" : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs"
+                                needsCollection ? "bg-amber-600 hover:bg-amber-500 text-white shadow-xs" : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs"
                               }`}
                               onClick={() => setPinModalOrder(o)}
                               title="Verify customer one-time delivery PIN to mark delivered"
                             >
                               <CheckCircle2 className="size-3 mr-1" />
-                              {isCod ? "Collect & Verify PIN" : "🔑 Verify PIN"}
+                              {needsCollection ? "Collect & Verify PIN" : "🔑 Verify PIN"}
                             </Button>
                           )}
                         </div>
@@ -1249,7 +1265,7 @@ export function DriverDispatchPage() {
           customerName={pinModalOrder.customer_name}
           customerPhone={pinModalOrder.customer_phone}
           fulfillmentType={pinModalOrder.fulfillment_type}
-          isCod={pinModalOrder.payment_method === "cod" && pinModalOrder.payment_status !== "paid"}
+          isCod={pinModalOrder.payment_method === "cod" || pinModalOrder.payment_status !== "paid"}
           totalAmount={Number(pinModalOrder.total)}
           isAdmin={true}
           onSuccess={() => {

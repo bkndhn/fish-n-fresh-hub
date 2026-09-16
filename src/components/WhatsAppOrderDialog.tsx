@@ -177,8 +177,20 @@ export function WhatsAppOrderDialog({
         try {
           const geocoded = await reverseGeocodeNominatim(lat, lng);
           if (geocoded?.displayName) {
-            setAddress(geocoded.displayName);
-            localStorage.setItem("fnf_address", geocoded.displayName);
+            // Retain user's custom door/flat number and valid 6-digit PIN if already entered
+            const currentPin = address.match(/\b\d{6}\b/)?.[0];
+            const currentDoor = address.match(/(?:door|flat|no\.?|#)\s*([0-9A-Za-z\-\/]+)/i)?.[0];
+
+            let finalAddress = geocoded.displayName;
+            if (currentDoor && !finalAddress.toLowerCase().includes(currentDoor.toLowerCase())) {
+              finalAddress = `${currentDoor}, ${finalAddress}`;
+            }
+            if (currentPin && !finalAddress.includes(currentPin)) {
+              finalAddress = `${finalAddress} - ${currentPin}`;
+            }
+
+            setAddress(finalAddress);
+            localStorage.setItem("fnf_address", finalAddress);
             toast.success("Doorstep address auto-filled from live GPS!");
           } else {
             toast.success(`Doorstep GPS attached (${lat.toFixed(4)}, ${lng.toFixed(4)})`);

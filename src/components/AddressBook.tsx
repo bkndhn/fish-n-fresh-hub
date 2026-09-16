@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { MapPinPickerModal } from "@/components/MapPinPickerModal";
 import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
-import type { GeocodedAddress } from "@/lib/maps";
+import { reverseGeocodeNominatim, type GeocodedAddress } from "@/lib/maps";
 
 export type SavedAddress = {
   id: string;
@@ -199,26 +199,15 @@ export function AddressBook({ selectedAddress, onSelect }: AddressBookProps) {
         setLng(longitude);
 
         try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`
-          );
-          if (res.ok) {
-            const data = await res.json();
-            const addr = data.address || {};
-            
-            const detectedStreet = [
-              addr.road,
-              addr.suburb || addr.neighbourhood,
-            ].filter(Boolean).join(", ");
+          const geocoded = await reverseGeocodeNominatim(latitude, longitude);
+          if (geocoded) {
+            if (geocoded.street) setStreet(geocoded.street);
+            if (geocoded.city) setCity(geocoded.city);
+            if (geocoded.pincode) setPincode(geocoded.pincode);
+            if (geocoded.doorNo && !doorNo) setDoorNo(geocoded.doorNo);
+            if (geocoded.landmark && !landmark) setLandmark(geocoded.landmark);
 
-            const detectedCity = addr.city || addr.town || addr.county || "Chennai";
-            const detectedPincode = addr.postcode ? addr.postcode.replace(/\D/g, "").slice(0, 6) : "";
-
-            if (detectedStreet) setStreet(detectedStreet);
-            if (detectedCity) setCity(detectedCity);
-            if (detectedPincode) setPincode(detectedPincode);
-
-            toast.success(`GPS Location detected! ${detectedPincode ? `Pincode: ${detectedPincode}` : ""}`);
+            toast.success(`GPS Location detected! ${geocoded.pincode ? `PIN: ${geocoded.pincode}` : ""}`);
           } else {
             toast.success("GPS coordinates detected!");
           }

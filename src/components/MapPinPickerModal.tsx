@@ -14,6 +14,10 @@ import {
   Globe,
   ExternalLink,
   Link as LinkIcon,
+  ChevronUp,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   Dialog,
@@ -23,6 +27,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   reverseGeocodeNominatim,
   searchNominatim,
@@ -61,6 +67,7 @@ export function MapPinPickerModal({
   const leafletMapRef = useRef<any>(null);
   const leafletModuleRef = useRef<any>(null);
   const currentTileLayerRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
 
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number }>({
     lat: initialLat || DEFAULT_LAT,
@@ -68,6 +75,8 @@ export function MapPinPickerModal({
   });
 
   const [geocoded, setGeocoded] = useState<GeocodedAddress | null>(null);
+  const [customDoorNo, setCustomDoorNo] = useState("");
+  const [customPincode, setCustomPincode] = useState("");
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
@@ -82,6 +91,43 @@ export function MapPinPickerModal({
   const [searchResults, setSearchResults] = useState<NominatimSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
+
+  // Nudge / Micro-adjust pin by ~10 meters for pinpoint doorstep accuracy
+  const handleNudgePin = (deltaLat: number, deltaLng: number) => {
+    const nextLat = Math.round((currentCoords.lat + deltaLat) * 100000) / 100000;
+    const nextLng = Math.round((currentCoords.lng + deltaLng) * 100000) / 100000;
+    setCurrentCoords({ lat: nextLat, lng: nextLng });
+    if (markerRef.current) {
+      markerRef.current.setLatLng([nextLat, nextLng]);
+    }
+    if (leafletMapRef.current) {
+      leafletMapRef.current.panTo([nextLat, nextLng]);
+    }
+    fetchAddressForCoords(nextLat, nextLng);
+  };
+
+  useEffect(() => {
+    if (open) {
+      if (initialLat && initialLng) {
+        setCurrentCoords({ lat: initialLat, lng: initialLng });
+        if (markerRef.current) {
+          markerRef.current.setLatLng([initialLat, initialLng]);
+        }
+      }
+      if (initialAddress) {
+        const pinMatch = initialAddress.match(/\b\d{6}\b/);
+        if (pinMatch && pinMatch[0]) {
+          const pinVal = pinMatch[0];
+          setCustomPincode((prev) => prev || pinVal);
+        }
+        const doorMatch = initialAddress.match(/(?:door|flat|no\.?|#)\s*([0-9A-Za-z\-\/]+)/i);
+        if (doorMatch && doorMatch[1]) {
+          const doorVal = doorMatch[1];
+          setCustomDoorNo((prev) => prev || doorVal);
+        }
+      }
+    }
+  }, [open, initialAddress, initialLat, initialLng]);
 
   // Toggle Satellite and Street View
   const toggleSatelliteView = () => {
@@ -104,6 +150,9 @@ export function MapPinPickerModal({
     const parsed = parseGoogleMapsUrl(googleMapsInput);
     if (parsed) {
       setCurrentCoords(parsed);
+      if (markerRef.current) {
+        markerRef.current.setLatLng([parsed.lat, parsed.lng]);
+      }
       if (leafletMapRef.current) {
         leafletMapRef.current.flyTo([parsed.lat, parsed.lng], 17, { duration: 1.2 });
       }
@@ -140,7 +189,7 @@ export function MapPinPickerModal({
 
         const map = L.map(mapContainerRef.current, {
           center: [startLat, startLng],
-          zoom: 16,
+          zoom: 17,
           zoomControl: false,
         });
 
@@ -151,12 +200,56 @@ export function MapPinPickerModal({
         // Add zoom control at bottom right
         L.control.zoom({ position: "bottomright" }).addTo(map);
 
-        // Listen for map movement (center-pin style like Uber/Swiggy)
+        // Create interactive draggable marker with vibrant doorstep badge
+        const pinIcon = L.divIcon({
+          className: "custom-map-doorstep-marker",
+          html: `
+            <div style="display:flex; flex-direction:column; align-items:center; cursor:grab;">
+              <div style="width:42px; height:42px; border-radius:50%; background:#16a34a; color:#ffffff; display:flex; align-items:center; justify-content:center; box-shadow:0 12px 28px rgba(0,0,0,0.38); border:3px solid #ffffff;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+              </div>
+              <div style="width:3px; height:8px; background:#16a34a; margin-top:-2px;"></div>
+              <div style="width:18px; height:6px; background:rgba(0,0,0,0.4); border-radius:50%; filter:blur(1px);"></div>
+            </div>
+          `,
+          iconSize: [42, 56],
+          iconAnchor: [21, 56],
+        });
+
+        const marker = L.marker([startLat, startLng], {
+          draggable: true,
+          icon: pinIcon,
+          autoPan: true,
+        }).addTo(map);
+        markerRef.current = marker;
+
+        // Drag marker to exact doorstep
+        marker.on("dragend", () => {
+          const pos = marker.getLatLng();
+          const lat = Math.round(pos.lat * 100000) / 100000;
+          const lng = Math.round(pos.lng * 100000) / 100000;
+          setCurrentCoords({ lat, lng });
+          map.panTo([lat, lng]);
+          fetchAddressForCoords(lat, lng);
+        });
+
+        // 1-Tap anywhere on map to instantly place pin
+        map.on("click", (e: any) => {
+          const lat = Math.round(e.latlng.lat * 100000) / 100000;
+          const lng = Math.round(e.latlng.lng * 100000) / 100000;
+          setCurrentCoords({ lat, lng });
+          marker.setLatLng([lat, lng]);
+          map.panTo([lat, lng]);
+          fetchAddressForCoords(lat, lng);
+        });
+
+        // Keep coordinates synced on pan
         map.on("moveend", async () => {
           const center = map.getCenter();
           const lat = Math.round(center.lat * 100000) / 100000;
           const lng = Math.round(center.lng * 100000) / 100000;
           setCurrentCoords({ lat, lng });
+          marker.setLatLng([lat, lng]);
           fetchAddressForCoords(lat, lng);
         });
 
@@ -195,6 +288,8 @@ export function MapPinPickerModal({
     const res = await reverseGeocodeNominatim(lat, lng);
     if (res) {
       setGeocoded(res);
+      if (res.doorNo) setCustomDoorNo((prev) => prev || res.doorNo || "");
+      if (res.pincode) setCustomPincode((prev) => prev || res.pincode || "");
     }
     setIsGeocoding(false);
   };
@@ -212,6 +307,9 @@ export function MapPinPickerModal({
         const { latitude, longitude } = pos.coords;
         setCurrentCoords({ lat: latitude, lng: longitude });
 
+        if (markerRef.current) {
+          markerRef.current.setLatLng([latitude, longitude]);
+        }
         if (leafletMapRef.current) {
           leafletMapRef.current.flyTo([latitude, longitude], 17, {
             duration: 1.2,
@@ -244,6 +342,9 @@ export function MapPinPickerModal({
     setSearchQuery(res.displayName.slice(0, 45) + "…");
     setCurrentCoords({ lat: res.lat, lng: res.lng });
 
+    if (markerRef.current) {
+      markerRef.current.setLatLng([res.lat, res.lng]);
+    }
     if (leafletMapRef.current) {
       leafletMapRef.current.flyTo([res.lat, res.lng], 17, {
         duration: 1.2,
@@ -253,22 +354,31 @@ export function MapPinPickerModal({
   };
 
   const handleConfirm = () => {
-    if (!geocoded) {
-      // Fallback
-      onConfirm({
-        address: initialAddress || "Pinned Delivery Location",
-        street: initialAddress || "Pinned Location",
-        city: "Chennai",
-        pincode: "",
-        displayName: initialAddress || "Pinned Location",
-        lat: currentCoords.lat,
-        lng: currentCoords.lng,
-      });
-    } else {
-      onConfirm(geocoded);
-    }
+    const door = customDoorNo.trim();
+    const pin = customPincode.trim();
+    const baseStreet = geocoded?.street || initialAddress || "Pinned Delivery Location";
+    const baseCity = geocoded?.city || "Tiruppur";
+
+    const fullFormatted = [
+      door ? `Door ${door}` : "",
+      baseStreet,
+      baseCity,
+      pin ? `PIN: ${pin}` : "",
+    ].filter(Boolean).join(", ");
+
+    onConfirm({
+      address: fullFormatted,
+      street: baseStreet,
+      doorNo: door,
+      landmark: geocoded?.landmark || "",
+      city: baseCity,
+      pincode: pin,
+      displayName: fullFormatted,
+      lat: currentCoords.lat,
+      lng: currentCoords.lng,
+    });
     onOpenChange(false);
-    toast.success("Exact doorstep location pinned!");
+    toast.success("Exact doorstep location confirmed!");
   };
 
   return (
@@ -433,28 +543,64 @@ export function MapPinPickerModal({
             </Button>
           </div>
 
-          {/* Floating Center Pin Indicator (Uber/Swiggy Style) */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full pointer-events-none z-30 flex flex-col items-center">
-            <div className="relative">
-              {/* Pulsing Pin Head */}
-              <div className="flex size-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl ring-4 ring-primary/20 border-2 border-white dark:border-slate-900 transition-transform duration-200">
-                <MapPin className="size-6 drop-shadow-sm" />
-              </div>
-            </div>
-            {/* Ground Shadow & Point */}
-            <div className="w-1.5 h-3 bg-primary -mt-0.5" />
-            <div className="w-4 h-1.5 bg-black/40 rounded-full blur-[1px]" />
-          </div>
-
           {/* Floating Live Guidance Badge */}
-          <div className="absolute top-3 left-3 z-30 pointer-events-none">
-            <div className="flex items-center gap-1.5 rounded-full bg-background/90 backdrop-blur-md px-3 py-1 shadow-md border border-border/60 text-[11px] font-semibold text-foreground">
+          <div className="absolute top-3 left-3 z-30 pointer-events-none max-w-[60%] sm:max-w-none">
+            <div className="flex items-center gap-1.5 rounded-full bg-background/95 backdrop-blur-md px-3 py-1 shadow-md border border-border/60 text-[11px] font-semibold text-foreground">
               <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Doorstep Delivery Target</span>
+              <span>Tap map or drag pin to gate</span>
             </div>
           </div>
 
-          {/* Recenter Button */}
+          {/* Floating 4-way Nudge D-pad Controller for micro-adjustment (~10m) */}
+          <div className="absolute bottom-4 left-4 z-30 bg-background/95 backdrop-blur-md p-1.5 rounded-2xl shadow-xl border border-border/70 flex flex-col items-center gap-1">
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="size-7 rounded-xl hover:bg-muted"
+              onClick={() => handleNudgePin(0.0001, 0)}
+              title="Nudge North (~10m)"
+            >
+              <ChevronUp className="size-4" />
+            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="size-7 rounded-xl hover:bg-muted"
+                onClick={() => handleNudgePin(0, -0.0001)}
+                title="Nudge West (~10m)"
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <div className="size-5 rounded-md bg-muted flex items-center justify-center text-[9px] font-bold text-muted-foreground select-none">
+                10m
+              </div>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="size-7 rounded-xl hover:bg-muted"
+                onClick={() => handleNudgePin(0, 0.0001)}
+                title="Nudge East (~10m)"
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="size-7 rounded-xl hover:bg-muted"
+              onClick={() => handleNudgePin(-0.0001, 0)}
+              title="Nudge South (~10m)"
+            >
+              <ChevronDown className="size-4" />
+            </Button>
+          </div>
+
+          {/* Recenter / Locate Button */}
           <div className="absolute bottom-4 right-4 z-30">
             <Button
               type="button"
@@ -474,9 +620,9 @@ export function MapPinPickerModal({
         </div>
 
         {/* Bottom Address Confirmation Panel */}
-        <div className="p-4 border-t border-border/60 bg-card z-20 space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1 min-w-0">
+        <div className="p-3 sm:p-4 border-t border-border/60 bg-card z-20 space-y-2.5">
+          <div className="flex items-start justify-between gap-2">
+            <div className="space-y-1 min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <Building className="size-3.5 text-primary shrink-0" />
                 <span className="text-xs font-bold text-foreground">Selected Pin Location:</span>
@@ -486,11 +632,6 @@ export function MapPinPickerModal({
                 {geocoded?.street || geocoded?.address || "Locating address…"}
               </p>
               <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                {geocoded?.pincode && (
-                  <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                    PIN: {geocoded.pincode}
-                  </span>
-                )}
                 {geocoded?.city && (
                   <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
                     {geocoded.city}
@@ -504,13 +645,40 @@ export function MapPinPickerModal({
 
             <Button
               type="button"
-              className="rounded-2xl h-11 px-5 text-xs font-bold shadow-md shrink-0 gap-1.5"
+              className="rounded-2xl h-11 px-5 text-xs font-bold shadow-md shrink-0 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
               onClick={handleConfirm}
               disabled={isGeocoding}
             >
               <Check className="size-4" />
               <span>{confirmLabel}</span>
             </Button>
+          </div>
+
+          {/* Editable Door No & Pincode for exact delivery accuracy */}
+          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/40">
+            <div>
+              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Door / Flat / House No.
+              </Label>
+              <Input
+                placeholder="e.g. 12/4B, Block A"
+                value={customDoorNo}
+                onChange={(e) => setCustomDoorNo(e.target.value)}
+                className="h-7.5 text-xs rounded-lg mt-0.5 bg-muted/30"
+              />
+            </div>
+            <div>
+              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Delivery PIN Code
+              </Label>
+              <Input
+                placeholder="e.g. 641601"
+                maxLength={6}
+                value={customPincode}
+                onChange={(e) => setCustomPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                className="h-7.5 text-xs rounded-lg mt-0.5 bg-muted/30 font-mono"
+              />
+            </div>
           </div>
         </div>
       </DialogContent>

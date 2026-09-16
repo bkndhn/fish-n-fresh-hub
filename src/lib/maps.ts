@@ -124,13 +124,27 @@ export async function reverseGeocodeNominatim(
     const addr = data.address || {};
 
     const road = addr.road || addr.street || addr.footway || "";
-    const area = addr.suburb || addr.neighbourhood || addr.residential || addr.quarter || "";
-    const city = addr.city || addr.town || addr.municipality || addr.county || "Chennai";
-    const pincode = (addr.postcode || "").replace(/\D/g, "").slice(0, 6);
-    const landmark = addr.commercial || addr.amenity || addr.building || "";
+    const area = addr.suburb || addr.neighbourhood || addr.residential || addr.quarter || addr.subdistrict || "";
+    const city = addr.city || addr.town || addr.municipality || addr.county || addr.state_district || "Tiruppur";
+    
+    // In India Post, delivery post offices never end in '00' or '000' (e.g. 638600 is a regional sorting polygon in OSM,
+    // whereas actual doorstep delivery PINs are 641601, 641602, etc.).
+    const rawPostcode = (addr.postcode || "").replace(/\D/g, "").slice(0, 6);
+    const isGenericDistrictCode = rawPostcode.length === 6 && (rawPostcode.endsWith("00") || rawPostcode.endsWith("000"));
+    const pincode = isGenericDistrictCode ? "" : rawPostcode;
 
-    const street = [road, area].filter(Boolean).join(", ");
-    const fullAddress = data.display_name || [street, city, pincode].filter(Boolean).join(", ");
+    const landmark = addr.commercial || addr.amenity || addr.building || "";
+    const street = [addr.house_number, road, area].filter(Boolean).join(", ");
+    
+    // Build clean human-friendly doorstep address
+    const cleanAddressParts = [
+      street || area || road,
+      city,
+      addr.state || "Tamil Nadu",
+      pincode || (rawPostcode && !isGenericDistrictCode ? rawPostcode : undefined),
+    ].filter(Boolean);
+
+    const fullAddress = cleanAddressParts.join(", ");
 
     return {
       address: fullAddress,
@@ -138,7 +152,7 @@ export async function reverseGeocodeNominatim(
       doorNo: addr.house_number || "",
       landmark,
       city,
-      pincode,
+      pincode: pincode || rawPostcode,
       displayName: fullAddress,
       lat,
       lng,
