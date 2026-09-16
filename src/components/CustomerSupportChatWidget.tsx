@@ -101,20 +101,21 @@ export function CustomerSupportChatWidget() {
 
   // Initialize or fetch conversation
   useEffect(() => {
-    if (!isStarted) return;
+    if (!isStarted || !user?.id) return;
 
     let active = true;
+    const currentUserId = user.id;
 
     async function initConversation() {
       try {
         const phone = guestPhone.trim() || user?.email || "9843061919";
-        const name = guestName.trim() || (user?.user_metadata?.["name"] as string) || "Guest Shopper";
+        const name = guestName.trim() || (user?.user_metadata?.["name"] as string) || "Customer";
 
-        // Find existing open conversation
+        // Find existing open conversation for this signed-in customer
         const { data: convs } = await customSupabase
           .from("support_conversations")
           .select("id")
-          .eq("customer_phone", phone)
+          .eq("customer_id", currentUserId)
           .eq("status", "open")
           .order("last_message_at", { ascending: false })
           .limit(1);
@@ -125,7 +126,7 @@ export function CustomerSupportChatWidget() {
           const { data: newConv, error: createErr } = await customSupabase
             .from("support_conversations")
             .insert({
-              customer_id: user?.id || null,
+              customer_id: currentUserId,
               customer_name: name,
               customer_phone: phone,
               subject: "Storefront Live In-App Chat",
