@@ -162,6 +162,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 import { LanguageProvider } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
+import { confirmSecurityRevocation } from "@/lib/security.functions";
 
 function RealtimeSubscriber({ queryClient }: { queryClient: QueryClient }) {
   useEffect(() => {
