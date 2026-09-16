@@ -27,6 +27,7 @@ import { ProductAiBenefitsCard } from "@/components/ProductAiBenefitsCard";
 import { SeoStructuredData } from "@/components/SeoStructuredData";
 import { createSubscription } from "@/lib/subscriptions.functions";
 import { useCustomerBranch } from "@/lib/customerBranchContext";
+import { useSessionUser } from "@/lib/session";
 import type { SiteSettings } from '@/lib/types';
 
 const PORTION_CHIPS = [
