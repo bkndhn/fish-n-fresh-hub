@@ -57,6 +57,7 @@ export const Route = createFileRoute("/_authenticated/admin/settings")({
 });
 
 type GatewayCreds = { id?: string; provider: string; api_key: string; secret_key: string };
+type StoreSecretsForm = { id?: string; resend_api_key: string; fcm_server_key: string };
 
 function AdminSettings() {
   const qc = useQueryClient();
