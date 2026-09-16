@@ -2328,9 +2328,10 @@ function ProductsAdmin() {
                 </div>
 
                 {/* Calculation Preview */}
-                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs flex items-center justify-between">
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs flex flex-wrap items-center justify-between gap-1">
                   <span className="text-muted-foreground">Updated Stock Total:</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm break-words">
+
                     {formatStockDisplay(refillProduct.stock, refillProduct.unit)} + {refillQty || 0} ={" "}
                     {formatStockDisplay(
                       Number(refillProduct.stock || 0) + (Number(refillQty) || 0),
