@@ -789,17 +789,21 @@ export const applyRealProductsCatalog = createServerFn({ method: "POST" })
           break;
       }
 
+      const seedErrors: string[] = [];
+
       for (const cat of categoriesToUpsert) {
-        await supabaseAdmin.from("categories").upsert(cat as never, { onConflict: "slug" });
+        const { error: catErr } = await supabaseAdmin
+          .from("categories")
+          .upsert(
+            { id: cat.id, name: cat.name, slug: cat.slug, sort_order: cat.sort_order } as never,
+            { onConflict: "slug" }
+          );
+        if (catErr) seedErrors.push(`category ${cat.slug}: ${catErr.message}`);
       }
 
-      // 3. Map Categories to IDs
-      const { data: catRows } = await supabaseAdmin.from("categories").select("id, slug");
-      const catMap = new Map(((catRows as Array<{ id: string; slug: string }>) || []).map((c) => [c.slug, c.id]));
-
-      // 4. Optionally archive old products (with smart preservation of custom non-seeded items)
+      // 3. Optionally archive old products (with smart preservation of custom non-seeded items)
+      const productIds = productsToUpsert.map((p) => p.id);
       if (data.archiveExisting) {
-        const productIds = productsToUpsert.map((p) => p.id);
         if (data.keepCustomProducts) {
           // Identify known template product IDs across all verticals
           const allTemplateIds = [
@@ -815,43 +819,68 @@ export const applyRealProductsCatalog = createServerFn({ method: "POST" })
           if (otherTemplateIds.length > 0) {
             await supabaseAdmin
               .from("products")
-              .update({ is_available: false, is_active: false } as never)
+              .update({ is_available: false } as never)
               .in("id", otherTemplateIds);
+          }
+          // Legacy SQL-seeded catalogue rows (inserted before templates existed) are
+          // matched by their old category text so a switched store does not keep them.
+          const legacyCategories = [
+            "Sea Fish",
+            "Freshwater Fish",
+            "Prawns & Shellfish",
+            "Prawns & Shrimps",
+            "Crabs & Lobsters",
+            "Squid & Cuttlefish",
+            "Poultry & Meat",
+          ].filter((c) => !categoriesToUpsert.some((n) => n.name === c));
+          if (legacyCategories.length > 0) {
+            await supabaseAdmin
+              .from("products")
+              .update({ is_available: false } as never)
+              .in("category", legacyCategories)
+              .not("id", "in", `(${productIds.join(",")})`);
           }
         } else {
           // Clean slate: Deactivate all existing products not in new vertical
           await supabaseAdmin
             .from("products")
-            .update({ is_available: false, is_active: false } as never)
+            .update({ is_available: false } as never)
             .not("id", "in", `(${productIds.join(",")})`);
         }
       }
 
-      // 5. Upsert Real Products
+      // 4. Upsert template products using the real products table columns
       let count = 0;
       for (const p of productsToUpsert) {
-        const catId = catMap.get(p.category_slug) || null;
         const payload = {
           id: p.id,
           pos_code: p.pos_code,
           name: p.name,
-          name_ta: p.name_ta,
-          category_id: catId,
+          name_tamil: p.name_ta ?? null,
+          category: p.category_name,
           price: p.price,
-          original_mrp: p.original_mrp,
+          old_price: p.original_mrp ?? null,
           unit: p.unit,
           stock: p.stock,
           image_url: p.image_url,
           description: p.description,
-          ai_benefits_summary: p.ai_benefits_summary,
-          is_active: p.is_active,
-          is_featured: p.is_featured,
-          is_bestseller: p.is_bestseller,
-          hsn_code: p.hsn_code,
+          best_for: p.ai_benefits_summary ?? null,
+          is_available: p.is_active !== false,
+          is_featured: Boolean(p.is_featured),
+          is_bestseller: Boolean(p.is_bestseller),
+          hsn_code: p.hsn_code ?? null,
         };
 
         const { error } = await supabaseAdmin.from("products").upsert(payload as never, { onConflict: "id" });
-        if (!error) count++;
+        if (error) {
+          seedErrors.push(`${p.name}: ${error.message}`);
+        } else {
+          count++;
+        }
+      }
+
+      if (count === 0 && seedErrors.length > 0) {
+        return { success: false, inserted: 0, vertical: activeVertical, error: seedErrors[0] as string };
       }
 
       return { success: true, inserted: count, vertical: activeVertical };
@@ -860,3 +889,4 @@ export const applyRealProductsCatalog = createServerFn({ method: "POST" })
       return { success: false, inserted: 0, error: err?.message || String(err) };
     }
   });
+
