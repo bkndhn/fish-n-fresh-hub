@@ -1754,16 +1754,28 @@ export type Database = {
           notification_sound_enabled: boolean | null
           online_enabled: boolean
           open_time: string | null
+          ordering_mode: string
           payment_gateway: string | null
           per_km_charge: number
           pickup_enabled: boolean
           primary_color: string
           printer_auto_cut: boolean
+          printer_custom_footer_message: string | null
           printer_footer_text: string
           printer_header_line1: string
           printer_header_line2: string
           printer_open_drawer: boolean
           printer_paper_width: string
+          printer_show_address: boolean
+          printer_show_fssai: boolean
+          printer_show_gstin: boolean
+          printer_show_phone: boolean
+          printer_show_return_policy: boolean
+          printer_show_social: boolean
+          printer_show_support: boolean
+          printer_show_whatsapp: boolean
+          printer_social_handle: string | null
+          printer_whatsapp_number: string | null
           privacy_content: string | null
           referral_program_enabled: boolean
           referral_reward_referee: number
@@ -1808,6 +1820,7 @@ export type Database = {
           wallet_enabled: boolean
           weekly_holidays: string[]
           whatsapp_number: string | null
+          whatsapp_order_phone: string | null
           working_days: Json | null
         }
         Insert: {
@@ -1890,16 +1903,28 @@ export type Database = {
           notification_sound_enabled?: boolean | null
           online_enabled?: boolean
           open_time?: string | null
+          ordering_mode?: string
           payment_gateway?: string | null
           per_km_charge?: number
           pickup_enabled?: boolean
           primary_color?: string
           printer_auto_cut?: boolean
+          printer_custom_footer_message?: string | null
           printer_footer_text?: string
           printer_header_line1?: string
           printer_header_line2?: string
           printer_open_drawer?: boolean
           printer_paper_width?: string
+          printer_show_address?: boolean
+          printer_show_fssai?: boolean
+          printer_show_gstin?: boolean
+          printer_show_phone?: boolean
+          printer_show_return_policy?: boolean
+          printer_show_social?: boolean
+          printer_show_support?: boolean
+          printer_show_whatsapp?: boolean
+          printer_social_handle?: string | null
+          printer_whatsapp_number?: string | null
           privacy_content?: string | null
           referral_program_enabled?: boolean
           referral_reward_referee?: number
@@ -1944,6 +1969,7 @@ export type Database = {
           wallet_enabled?: boolean
           weekly_holidays?: string[]
           whatsapp_number?: string | null
+          whatsapp_order_phone?: string | null
           working_days?: Json | null
         }
         Update: {
@@ -2026,16 +2052,28 @@ export type Database = {
           notification_sound_enabled?: boolean | null
           online_enabled?: boolean
           open_time?: string | null
+          ordering_mode?: string
           payment_gateway?: string | null
           per_km_charge?: number
           pickup_enabled?: boolean
           primary_color?: string
           printer_auto_cut?: boolean
+          printer_custom_footer_message?: string | null
           printer_footer_text?: string
           printer_header_line1?: string
           printer_header_line2?: string
           printer_open_drawer?: boolean
           printer_paper_width?: string
+          printer_show_address?: boolean
+          printer_show_fssai?: boolean
+          printer_show_gstin?: boolean
+          printer_show_phone?: boolean
+          printer_show_return_policy?: boolean
+          printer_show_social?: boolean
+          printer_show_support?: boolean
+          printer_show_whatsapp?: boolean
+          printer_social_handle?: string | null
+          printer_whatsapp_number?: string | null
           privacy_content?: string | null
           referral_program_enabled?: boolean
           referral_reward_referee?: number
@@ -2080,6 +2118,7 @@ export type Database = {
           wallet_enabled?: boolean
           weekly_holidays?: string[]
           whatsapp_number?: string | null
+          whatsapp_order_phone?: string | null
           working_days?: Json | null
         }
         Relationships: []
