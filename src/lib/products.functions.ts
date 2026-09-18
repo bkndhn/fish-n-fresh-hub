@@ -719,7 +719,7 @@ export const applyRealProductsCatalog = createServerFn({ method: "POST" })
       activeVertical = activeVertical || "seafood";
 
       // 2. Select Category & Product Payload by Vertical
-      let categoriesToUpsert: Array<{ id: string; name: string; name_ta: string; slug: string; sort_order: number; is_active: boolean }> = [];
+      let categoriesToUpsert: Array<{ id: string; name: string; name_ta?: string; slug: string; sort_order: number; is_active?: boolean }> = [];
       let productsToUpsert: any[] = [];
 
       switch (activeVertical) {
