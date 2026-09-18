@@ -695,6 +695,31 @@ export const REAL_FOOTWEAR_PRODUCTS = [
   },
 ];
 
+/** Category slugs owned by the built-in vertical templates (used for cleanup on switch). */
+const ALL_TEMPLATE_CATEGORY_SLUGS = [
+  "sea-fish",
+  "prawns-shellfish",
+  "freshwater-fish",
+  "poultry-meat",
+  "farm-chicken",
+  "tender-mutton",
+  "farm-eggs",
+  "fresh-produce",
+  "grains-atta",
+  "oils-ghee",
+  "tv-audio",
+  "computers-tech",
+  "mens-wear",
+  "womens-wear",
+  "rs20-packs",
+  "rs30-packs",
+  "sweets-mithai",
+  "sports-sneakers",
+  "formal-shoes",
+  "daily-sandals",
+  "slides-chappals",
+];
+
 export const applyRealProductsCatalog = createServerFn({ method: "POST" })
   .inputValidator((data: { archiveExisting?: boolean; keepCustomProducts?: boolean; vertical?: string } | undefined) => data || {})
   .handler(async ({ data }): Promise<SeedCatalogResult> => {
