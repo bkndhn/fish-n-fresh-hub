@@ -166,7 +166,7 @@ export const REAL_SEAFOOD_PRODUCTS = [
 
 export const REAL_CHICKEN_MEAT_PRODUCTS = [
   {
-    id: "m0000000-0000-0000-0000-000000000001",
+    id: "b0000000-0000-0000-0000-000000000001",
     pos_code: 101,
     name: "Farm Fresh Chicken (Curry Cut)",
     name_ta: "பண்ணை கோழி கறி வெட்டு",
@@ -185,7 +185,7 @@ export const REAL_CHICKEN_MEAT_PRODUCTS = [
     hsn_code: "0207",
   },
   {
-    id: "m0000000-0000-0000-0000-000000000002",
+    id: "b0000000-0000-0000-0000-000000000002",
     pos_code: 102,
     name: "Country Chicken / Nattu Kozhi",
     name_ta: "நாட்டுக்கோழி முழுதும்",
@@ -204,7 +204,7 @@ export const REAL_CHICKEN_MEAT_PRODUCTS = [
     hsn_code: "0207",
   },
   {
-    id: "m0000000-0000-0000-0000-000000000003",
+    id: "b0000000-0000-0000-0000-000000000003",
     pos_code: 103,
     name: "Tender Mountain Goat / Mutton (Curry Cut)",
     name_ta: "ஆட்டிறைச்சி கறி வெட்டு",
@@ -223,7 +223,7 @@ export const REAL_CHICKEN_MEAT_PRODUCTS = [
     hsn_code: "0204",
   },
   {
-    id: "m0000000-0000-0000-0000-000000000004",
+    id: "b0000000-0000-0000-0000-000000000004",
     pos_code: 104,
     name: "Chicken Breast Boneless Fillet",
     name_ta: "எலும்பில்லா கோழி நெஞ்சுக்கறி",
@@ -242,7 +242,7 @@ export const REAL_CHICKEN_MEAT_PRODUCTS = [
     hsn_code: "0207",
   },
   {
-    id: "m0000000-0000-0000-0000-000000000005",
+    id: "b0000000-0000-0000-0000-000000000005",
     pos_code: 105,
     name: "Farm Fresh Country Eggs (Pack of 12)",
     name_ta: "பண்ணை நாட்டுக்கோழி முட்டைகள்",
@@ -261,7 +261,7 @@ export const REAL_CHICKEN_MEAT_PRODUCTS = [
     hsn_code: "0407",
   },
   {
-    id: "m0000000-0000-0000-0000-000000000006",
+    id: "b0000000-0000-0000-0000-000000000006",
     pos_code: 106,
     name: "Tender Mutton Keema / Minced Meat",
     name_ta: "ஆட்டிறைச்சி கீமா",
@@ -283,7 +283,7 @@ export const REAL_CHICKEN_MEAT_PRODUCTS = [
 
 export const REAL_GROCERY_PRODUCTS = [
   {
-    id: "g0000000-0000-0000-0000-000000000001",
+    id: "c0000000-0000-0000-0000-000000000001",
     pos_code: 201,
     name: "Organic Farm Country Tomatoes (Naatu Thakkali)",
     name_ta: "நாட்டு தக்காளி",
@@ -302,7 +302,7 @@ export const REAL_GROCERY_PRODUCTS = [
     hsn_code: "0702",
   },
   {
-    id: "g0000000-0000-0000-0000-000000000002",
+    id: "c0000000-0000-0000-0000-000000000002",
     pos_code: 202,
     name: "Premium Red Onions (Bellary)",
     name_ta: "பெல்லாரி பெரிய வெங்காயம்",
@@ -321,7 +321,7 @@ export const REAL_GROCERY_PRODUCTS = [
     hsn_code: "0703",
   },
   {
-    id: "g0000000-0000-0000-0000-000000000003",
+    id: "c0000000-0000-0000-0000-000000000003",
     pos_code: 203,
     name: "100% MP Sharbati Whole Wheat Atta (5kg)",
     name_ta: "முழு கோதுமை மாவு 5kg",
@@ -340,7 +340,7 @@ export const REAL_GROCERY_PRODUCTS = [
     hsn_code: "1101",
   },
   {
-    id: "g0000000-0000-0000-0000-000000000004",
+    id: "c0000000-0000-0000-0000-000000000004",
     pos_code: 204,
     name: "Royal Aged Basmati Biryani Rice (5kg)",
     name_ta: "பாசுமதி பிரியாணி அரிசி 5kg",
@@ -359,7 +359,7 @@ export const REAL_GROCERY_PRODUCTS = [
     hsn_code: "1006",
   },
   {
-    id: "g0000000-0000-0000-0000-000000000005",
+    id: "c0000000-0000-0000-0000-000000000005",
     pos_code: 205,
     name: "Cold-Pressed Wood Chekku Virgin Coconut Oil (1L)",
     name_ta: "மரச்செக்கு தேங்காய் எண்ணெய் 1L",
@@ -378,7 +378,7 @@ export const REAL_GROCERY_PRODUCTS = [
     hsn_code: "1513",
   },
   {
-    id: "g0000000-0000-0000-0000-000000000006",
+    id: "c0000000-0000-0000-0000-000000000006",
     pos_code: 206,
     name: "Farm Pure Vedic Cow Ghee (500ml Glass Jar)",
     name_ta: "சுத்தமான பசு நெய் 500ml",
@@ -501,7 +501,7 @@ export const REAL_FASHION_PRODUCTS = [
 
 export const REAL_SNACKS_PRODUCTS = [
   {
-    id: "s0000000-0000-0000-0000-000000000001",
+    id: "d0000000-0000-0000-0000-000000000001",
     pos_code: 501,
     name: "Spicy Masala Potato Wafers (₹20 Value Pack)",
     name_ta: "மசாலா உருளைக்கிழங்கு சிப்ஸ் (₹20)",
@@ -520,7 +520,7 @@ export const REAL_SNACKS_PRODUCTS = [
     hsn_code: "1905",
   },
   {
-    id: "s0000000-0000-0000-0000-000000000002",
+    id: "d0000000-0000-0000-0000-000000000002",
     pos_code: 502,
     name: "Crunchy Ribbon Murukku (₹30 Party Pack)",
     name_ta: "நாடா முறுக்கு (₹30)",
@@ -539,7 +539,7 @@ export const REAL_SNACKS_PRODUCTS = [
     hsn_code: "2106",
   },
   {
-    id: "s0000000-0000-0000-0000-000000000003",
+    id: "d0000000-0000-0000-0000-000000000003",
     pos_code: 503,
     name: "Special Madras Royal Mixture (₹30 Pkt)",
     name_ta: "மெட்ராஸ் ராயல் மிக்சர் (₹30)",
@@ -558,7 +558,7 @@ export const REAL_SNACKS_PRODUCTS = [
     hsn_code: "2106",
   },
   {
-    id: "s0000000-0000-0000-0000-000000000004",
+    id: "d0000000-0000-0000-0000-000000000004",
     pos_code: 504,
     name: "Crispy Kerala Banana Chips (₹30 Pkt)",
     name_ta: "நேந்திரம் சிப்ஸ் (₹30)",
@@ -577,7 +577,7 @@ export const REAL_SNACKS_PRODUCTS = [
     hsn_code: "1905",
   },
   {
-    id: "s0000000-0000-0000-0000-000000000005",
+    id: "d0000000-0000-0000-0000-000000000005",
     pos_code: 505,
     name: "Roasted Salted Peanuts & Masala Kadalai (₹20 Pkt)",
     name_ta: "மசாலா வேர்க்கடலை (₹20)",
@@ -596,7 +596,7 @@ export const REAL_SNACKS_PRODUCTS = [
     hsn_code: "2008",
   },
   {
-    id: "s0000000-0000-0000-0000-000000000006",
+    id: "d0000000-0000-0000-0000-000000000006",
     pos_code: 506,
     name: "Pure Ghee Traditional Mysore Pak (250g Box)",
     name_ta: "சுத்தமான நெய் மைசூர் பாக் 250g",
@@ -618,7 +618,7 @@ export const REAL_SNACKS_PRODUCTS = [
 
 export const REAL_FOOTWEAR_PRODUCTS = [
   {
-    id: "w0000000-0000-0000-0000-000000000001",
+    id: "90000000-0000-0000-0000-000000000001",
     pos_code: 601,
     name: "Apex Ultra-Light Breathable Mesh Running Shoes",
     name_ta: "ஸ்போர்ட்ஸ் ரன்னிங் ஷூ",
@@ -637,7 +637,7 @@ export const REAL_FOOTWEAR_PRODUCTS = [
     hsn_code: "6404",
   },
   {
-    id: "w0000000-0000-0000-0000-000000000002",
+    id: "90000000-0000-0000-0000-000000000002",
     pos_code: 602,
     name: "Regal Heritage Tan Brown Formal Oxford Derby Shoes",
     name_ta: "லெதர் பார்மல் ஷூ",
@@ -656,7 +656,7 @@ export const REAL_FOOTWEAR_PRODUCTS = [
     hsn_code: "6403",
   },
   {
-    id: "w0000000-0000-0000-0000-000000000003",
+    id: "90000000-0000-0000-0000-000000000003",
     pos_code: 603,
     name: "SoftStep Comfort Orthopedic Daily Walking Sandals",
     name_ta: "ஆர்த்தோ தினசரி செருப்பு",
@@ -675,7 +675,7 @@ export const REAL_FOOTWEAR_PRODUCTS = [
     hsn_code: "6402",
   },
   {
-    id: "w0000000-0000-0000-0000-000000000004",
+    id: "90000000-0000-0000-0000-000000000004",
     pos_code: 604,
     name: "Aquafit Waterproof Monsoon Anti-Slip Slide Chappals",
     name_ta: "வாட்டர்ப்ரூப் சிலிப்பர்ஸ்",
