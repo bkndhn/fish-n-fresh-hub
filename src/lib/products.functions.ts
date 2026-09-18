@@ -801,6 +801,16 @@ export const applyRealProductsCatalog = createServerFn({ method: "POST" })
         if (catErr) seedErrors.push(`category ${cat.slug}: ${catErr.message}`);
       }
 
+      // Remove category chips belonging to other verticals so the storefront
+      // never shows e.g. "Sea Fish" after the store switched to another trade.
+      if (data.archiveExisting) {
+        const keepSlugs = categoriesToUpsert.map((c) => c.slug);
+        const otherTemplateSlugs = ALL_TEMPLATE_CATEGORY_SLUGS.filter((s) => !keepSlugs.includes(s));
+        if (otherTemplateSlugs.length > 0) {
+          await supabaseAdmin.from("categories").delete().in("slug", otherTemplateSlugs);
+        }
+      }
+
       // 3. Optionally archive old products (with smart preservation of custom non-seeded items)
       const productIds = productsToUpsert.map((p) => p.id);
       if (data.archiveExisting) {
