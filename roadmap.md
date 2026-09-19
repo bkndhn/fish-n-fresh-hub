@@ -18,3 +18,8 @@
 - [ ] Customer email notification on paid order (blocked: needs a sending domain)
 - [ ] End-to-end live card payment test
 
+
+## Wholesale
+- [x] Bulk price list with quantity slabs + per-account extra discount (admin)
+- [x] Trade buyer applications with approve/suspend (admin)
+- [x] Public bulk-order page for shops to apply and see their status

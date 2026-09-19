@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { CartItem, Product } from "./types";
+import { supabase } from "@/integrations/supabase/client";
+import { applyAccountDiscount, resolveWholesaleUnitPrice } from "./wholesale";
 
 const KEY = "fnf_cart_v1";
 
@@ -24,6 +26,9 @@ type CartContextValue = {
   pendingMismatch: PendingCartMismatch | null;
   clearPendingMismatch: () => void;
   confirmSwitchAndAdd: () => void;
+  isWholesale: boolean;
+  wholesaleDiscountPercent: number;
+  wholesaleBusinessName: string | null;
   add: (product: Product, qty?: number, cut_preference?: string, branch?: CartBranchInfo) => { added: boolean; mismatch: boolean };
   clearAndAdd: (product: Product, qty?: number, cut_preference?: string, branch?: CartBranchInfo) => void;
   setQty: (productId: string, qty: number) => void;
@@ -37,6 +42,47 @@ const CartContext = createContext<CartContextValue | null>(null);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [pendingMismatch, setPendingMismatch] = useState<PendingCartMismatch | null>(null);
+  const [wholesale, setWholesale] = useState<{ active: boolean; discount: number; name: string | null }>({
+    active: false,
+    discount: 0,
+    name: null,
+  });
+
+  // Load the signed-in buyer's trade account, if they have an approved one.
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const { data: auth } = await supabase.auth.getUser();
+        const uid = auth?.user?.id;
+        if (!uid) {
+          if (!cancelled) setWholesale({ active: false, discount: 0, name: null });
+          return;
+        }
+        const { data } = await supabase
+          .from("wholesale_accounts")
+          .select("status, extra_discount_percent, business_name")
+          .eq("user_id", uid)
+          .maybeSingle();
+        if (cancelled) return;
+        setWholesale({
+          active: data?.status === "approved",
+          discount: Number(data?.extra_discount_percent ?? 0) || 0,
+          name: (data?.business_name as string | null) ?? null,
+        });
+      } catch {
+        /* ignore */
+      }
+    };
+    void load();
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      void load();
+    });
+    return () => {
+      cancelled = true;
+      sub?.subscription?.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -100,6 +146,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
             cut_preference: cut_preference || "Curry Cut",
             branch_id: targetBranchId,
             branch_name: targetBranchName,
+            retail_price: Number(product.price),
+            wholesale_price: product.wholesale_price ?? null,
+            wholesale_min_qty: product.wholesale_min_qty ?? 0,
+            wholesale_tiers: product.wholesale_tiers ?? [],
           },
         ];
       });
@@ -126,6 +176,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
           cut_preference: cut_preference || "Curry Cut",
           branch_id: targetBranchId,
           branch_name: targetBranchName,
+          retail_price: Number(product.price),
+          wholesale_price: product.wholesale_price ?? null,
+          wholesale_min_qty: product.wholesale_min_qty ?? 0,
+          wholesale_tiers: product.wholesale_tiers ?? [],
         },
       ]);
     },
@@ -169,11 +223,31 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setPendingMismatch(null);
   }, []);
 
+  const pricedItems = useMemo<CartItem[]>(() => {
+    if (!wholesale.active) return items;
+    return items.map((i) => {
+      const retail = Number(i.retail_price ?? i.price) || 0;
+      const tierPrice = resolveWholesaleUnitPrice(
+        {
+          price: retail,
+          wholesale_price: i.wholesale_price ?? null,
+          wholesale_min_qty: i.wholesale_min_qty ?? 0,
+          wholesale_tiers: i.wholesale_tiers ?? [],
+        },
+        i.qty,
+      );
+      return { ...i, retail_price: retail, price: applyAccountDiscount(tierPrice, wholesale.discount) };
+    });
+  }, [items, wholesale.active, wholesale.discount]);
+
   const value = useMemo<CartContextValue>(() => {
-    const subtotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
-    const count = items.reduce((sum, i) => sum + i.qty, 0);
+    const subtotal = pricedItems.reduce((sum, i) => sum + i.price * i.qty, 0);
+    const count = pricedItems.reduce((sum, i) => sum + i.qty, 0);
     return {
-      items,
+      items: pricedItems,
+      isWholesale: wholesale.active,
+      wholesaleDiscountPercent: wholesale.discount,
+      wholesaleBusinessName: wholesale.name,
       subtotal,
       count,
       cartBranchId,
@@ -189,8 +263,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       clear,
     };
   }, [
-    items,
-    subtotalSummary(items),
+    pricedItems,
+    wholesale,
     cartBranchId,
     cartBranchName,
     pendingMismatch,
@@ -207,14 +281,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 
-function subtotalSummary(items: CartItem[]) {
-  return items.reduce((sum, i) => sum + i.price * i.qty, 0);
-}
 
 const FALLBACK: CartContextValue = {
   items: [],
   subtotal: 0,
   count: 0,
+  isWholesale: false,
+  wholesaleDiscountPercent: 0,
+  wholesaleBusinessName: null,
   cartBranchId: null,
   cartBranchName: null,
   pendingMismatch: null,

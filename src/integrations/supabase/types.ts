@@ -1300,6 +1300,9 @@ export type Database = {
           updated_at: string
           variants: Json | null
           warranty_period_months: number | null
+          wholesale_min_qty: number
+          wholesale_price: number | null
+          wholesale_tiers: Json
         }
         Insert: {
           aisle_location?: string | null
@@ -1346,6 +1349,9 @@ export type Database = {
           updated_at?: string
           variants?: Json | null
           warranty_period_months?: number | null
+          wholesale_min_qty?: number
+          wholesale_price?: number | null
+          wholesale_tiers?: Json
         }
         Update: {
           aisle_location?: string | null
@@ -1392,6 +1398,9 @@ export type Database = {
           updated_at?: string
           variants?: Json | null
           warranty_period_months?: number | null
+          wholesale_min_qty?: number
+          wholesale_price?: number | null
+          wholesale_tiers?: Json
         }
         Relationships: [
           {
@@ -1754,16 +1763,28 @@ export type Database = {
           notification_sound_enabled: boolean | null
           online_enabled: boolean
           open_time: string | null
+          ordering_mode: string
           payment_gateway: string | null
           per_km_charge: number
           pickup_enabled: boolean
           primary_color: string
           printer_auto_cut: boolean
+          printer_custom_footer_message: string | null
           printer_footer_text: string
           printer_header_line1: string
           printer_header_line2: string
           printer_open_drawer: boolean
           printer_paper_width: string
+          printer_show_address: boolean
+          printer_show_fssai: boolean
+          printer_show_gstin: boolean
+          printer_show_phone: boolean
+          printer_show_return_policy: boolean
+          printer_show_social: boolean
+          printer_show_support: boolean
+          printer_show_whatsapp: boolean
+          printer_social_handle: string | null
+          printer_whatsapp_number: string | null
           privacy_content: string | null
           referral_program_enabled: boolean
           referral_reward_referee: number
@@ -1808,6 +1829,7 @@ export type Database = {
           wallet_enabled: boolean
           weekly_holidays: string[]
           whatsapp_number: string | null
+          whatsapp_order_phone: string | null
           working_days: Json | null
         }
         Insert: {
@@ -1890,16 +1912,28 @@ export type Database = {
           notification_sound_enabled?: boolean | null
           online_enabled?: boolean
           open_time?: string | null
+          ordering_mode?: string
           payment_gateway?: string | null
           per_km_charge?: number
           pickup_enabled?: boolean
           primary_color?: string
           printer_auto_cut?: boolean
+          printer_custom_footer_message?: string | null
           printer_footer_text?: string
           printer_header_line1?: string
           printer_header_line2?: string
           printer_open_drawer?: boolean
           printer_paper_width?: string
+          printer_show_address?: boolean
+          printer_show_fssai?: boolean
+          printer_show_gstin?: boolean
+          printer_show_phone?: boolean
+          printer_show_return_policy?: boolean
+          printer_show_social?: boolean
+          printer_show_support?: boolean
+          printer_show_whatsapp?: boolean
+          printer_social_handle?: string | null
+          printer_whatsapp_number?: string | null
           privacy_content?: string | null
           referral_program_enabled?: boolean
           referral_reward_referee?: number
@@ -1944,6 +1978,7 @@ export type Database = {
           wallet_enabled?: boolean
           weekly_holidays?: string[]
           whatsapp_number?: string | null
+          whatsapp_order_phone?: string | null
           working_days?: Json | null
         }
         Update: {
@@ -2026,16 +2061,28 @@ export type Database = {
           notification_sound_enabled?: boolean | null
           online_enabled?: boolean
           open_time?: string | null
+          ordering_mode?: string
           payment_gateway?: string | null
           per_km_charge?: number
           pickup_enabled?: boolean
           primary_color?: string
           printer_auto_cut?: boolean
+          printer_custom_footer_message?: string | null
           printer_footer_text?: string
           printer_header_line1?: string
           printer_header_line2?: string
           printer_open_drawer?: boolean
           printer_paper_width?: string
+          printer_show_address?: boolean
+          printer_show_fssai?: boolean
+          printer_show_gstin?: boolean
+          printer_show_phone?: boolean
+          printer_show_return_policy?: boolean
+          printer_show_social?: boolean
+          printer_show_support?: boolean
+          printer_show_whatsapp?: boolean
+          printer_social_handle?: string | null
+          printer_whatsapp_number?: string | null
           privacy_content?: string | null
           referral_program_enabled?: boolean
           referral_reward_referee?: number
@@ -2080,6 +2127,7 @@ export type Database = {
           wallet_enabled?: boolean
           weekly_holidays?: string[]
           whatsapp_number?: string | null
+          whatsapp_order_phone?: string | null
           working_days?: Json | null
         }
         Relationships: []
@@ -2472,6 +2520,74 @@ export type Database = {
           },
         ]
       }
+      wholesale_accounts: {
+        Row: {
+          address: string | null
+          approved_at: string | null
+          approved_by: string | null
+          branch_id: string | null
+          business_name: string
+          contact_name: string | null
+          created_at: string
+          credit_limit: number
+          email: string | null
+          extra_discount_percent: number
+          gstin: string | null
+          id: string
+          notes: string | null
+          phone: string
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          branch_id?: string | null
+          business_name: string
+          contact_name?: string | null
+          created_at?: string
+          credit_limit?: number
+          email?: string | null
+          extra_discount_percent?: number
+          gstin?: string | null
+          id?: string
+          notes?: string | null
+          phone: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          branch_id?: string | null
+          business_name?: string
+          contact_name?: string | null
+          created_at?: string
+          credit_limit?: number
+          email?: string | null
+          extra_discount_percent?: number
+          gstin?: string | null
+          id?: string
+          notes?: string | null
+          phone?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wholesale_accounts_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -2492,6 +2608,7 @@ export type Database = {
       is_staff: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       is_team_member: { Args: never; Returns: boolean }
+      is_wholesale_buyer: { Args: { _user_id: string }; Returns: boolean }
       restore_order_stock_atomic: {
         Args: { p_order_id: string }
         Returns: Json
@@ -2529,6 +2646,10 @@ export type Database = {
           p_override_reason?: string
         }
         Returns: Json
+      }
+      wholesale_unit_price: {
+        Args: { p_product_id: string; p_qty: number }
+        Returns: number
       }
     }
     Enums: {
