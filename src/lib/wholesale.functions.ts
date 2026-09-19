@@ -131,7 +131,7 @@ export type WholesalePriceRow = {
   price: number;
   wholesale_price: number | null;
   wholesale_min_qty: number;
-  wholesale_tiers: unknown;
+  wholesale_tiers: { min_qty: number; price: number }[];
 };
 
 /** The wholesale price list for the current catalogue (admin view). */

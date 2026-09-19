@@ -73,6 +73,7 @@ const NAV = [
   { to: "/admin/orders", label: "Orders", icon: ReceiptText, roles: ["admin", "manager", "cashier", "support_staff", "staff"] },
   { to: "/admin/customers", label: "Customers", icon: Users, roles: ["admin", "manager", "support_staff"] },
   { to: "/admin/promotions", label: "Promotions", icon: Tag, roles: ["admin", "manager"] },
+  { to: "/admin/wholesale", label: "Wholesale", icon: Tag, roles: ["admin", "manager"] },
   { to: "/admin/badges", label: "Home cards", icon: Sparkles, roles: ["admin", "manager"] },
   { to: "/admin/reports", label: "Reports", icon: BarChart3, roles: ["admin", "manager"] },
   { to: "/admin/payments", label: "Payments", icon: ReceiptText, roles: ["admin", "manager"] },
