@@ -60,6 +60,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { SeoStructuredData } from "@/components/SeoStructuredData";
 import { useCustomerBranch } from "@/lib/customerBranchContext";
+import { StickyCategoryBar } from "@/components/StickyCategoryBar";
 
 type PriceRange = "all" | "under300" | "300-600" | "600-1000" | "above1000";
 type SortOption = "featured" | "price-asc" | "price-desc" | "rating" | "discount" | "name";
@@ -252,37 +253,26 @@ function Catalog() {
         </div>
       </div>
 
-      {/* Category Pills (No Scrollbar Line, Smooth Wheel/Swipe) */}
-      <div 
-        className="mt-3 flex gap-2 overflow-x-auto pb-1.5 pt-0.5 no-scrollbar scrollbar-none scroll-smooth -mx-1 px-1"
-        onWheel={(e) => {
-          if (e.deltaY !== 0 && Math.abs(e.deltaX) < 10) {
-            e.currentTarget.scrollLeft += e.deltaY;
-          }
+      {/* Sticky Frozen Category Bar (Always accessible at top like Blinkit / Zepto / Amazon) */}
+      <StickyCategoryBar
+        categories={categories ?? []}
+        selectedCategory={category}
+        onSelectCategory={(catName) => {
+          navigate({
+            search: (prev: any) => {
+              const next = { ...prev };
+              if (catName) {
+                next.category = catName;
+              } else {
+                delete next.category;
+              }
+              return next;
+            },
+          });
         }}
-      >
-        <Button
-          size="sm"
-          variant={category ? "outline" : "default"}
-          className="rounded-full text-xs font-semibold h-8 shrink-0 shadow-xs"
-          onClick={() => navigate({ search: {} })}
-        >
-          All
-        </Button>
-        {[...(categories ?? [])]
-          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-          .map((c) => (
-            <Button
-              key={c.id}
-              size="sm"
-              variant={category === c.name ? "default" : "outline"}
-              className="rounded-full text-xs font-semibold h-8 whitespace-nowrap shrink-0 shadow-xs"
-              onClick={() => navigate({ search: { category: c.name } })}
-            >
-              {c.name}
-            </Button>
-          ))}
-      </div>
+        allLabel="All Items"
+        className="-mx-3 sm:-mx-4 px-1 mt-2"
+      />
 
       {/* Brand Filter Pills (When Brands Exist) */}
       {allBrands.length > 0 && (

@@ -76,17 +76,17 @@ export function SiteHeader() {
   const vertical = getVerticalConfig(settings?.business_vertical);
 
   return (
-    <header className="glass sticky top-0 z-50 border-b border-border w-full max-w-full overflow-hidden">
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-1.5 sm:gap-3 px-3 sm:px-4">
+    <header className="glass sticky top-0 z-50 border-b border-border w-full max-w-full overflow-x-clip">
+      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-1 sm:gap-3 px-2 sm:px-4">
         {/* Left: Brand Logo & Status */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 min-w-0">
-          <Link to="/" className="flex items-center gap-1.5 font-display text-base sm:text-lg font-bold tracking-tight whitespace-nowrap">
+        <div className="flex items-center gap-1 sm:gap-2 shrink min-w-0">
+          <Link to="/" className="flex items-center gap-1.5 font-display text-sm sm:text-lg font-bold tracking-tight whitespace-nowrap min-w-0">
             <img 
               src={settings?.logo_url || "/logo.png"} 
               alt={settings?.store_name || "Fish N Fresh"} 
-              className="h-8 sm:h-9 w-auto rounded-xl object-contain shrink-0 shadow-2xs" 
+              className="h-7 sm:h-9 w-auto rounded-xl object-contain shrink-0 shadow-2xs" 
             />
-            <span className="truncate max-w-[130px] sm:max-w-none text-foreground">
+            <span className="truncate max-w-[85px] xs:max-w-[115px] sm:max-w-none text-foreground font-bold text-sm sm:text-base">
               {settings?.store_name || "Fish N Fresh"}
             </span>
           </Link>
@@ -154,17 +154,17 @@ export function SiteHeader() {
         <button
           type="button"
           onClick={() => setIsLocationModalOpen(true)}
-          className="flex items-center gap-1 sm:gap-1.5 rounded-xl sm:rounded-full border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 px-2 sm:px-3 py-1 text-[11px] sm:text-xs font-semibold text-foreground transition-all shadow-2xs group shrink-0 min-w-0 max-w-[120px] xs:max-w-[150px] sm:max-w-[210px]"
+          className="flex items-center gap-1 sm:gap-1.5 rounded-lg sm:rounded-full border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 px-1.5 sm:px-3 py-1 text-[10px] sm:text-xs font-semibold text-foreground transition-all shadow-2xs group shrink min-w-0 max-w-[95px] xs:max-w-[125px] sm:max-w-[210px]"
           title="Change delivery hub or auto-detect location"
         >
-          <MapPin className="size-3.5 text-primary shrink-0 group-hover:scale-110 transition-transform" />
+          <MapPin className="size-3 sm:size-3.5 text-primary shrink-0 group-hover:scale-110 transition-transform" />
           <div className="flex flex-col items-start min-w-0 leading-tight text-left">
             <span className="text-[9px] text-muted-foreground hidden sm:inline font-normal">Delivering from</span>
             <span className="truncate font-bold text-foreground text-[10px] sm:text-xs">
               {activeBranch ? activeBranch.name.replace(/ Hub| Branch/gi, "") : "Select Hub"}
             </span>
           </div>
-          <ChevronDown className="size-3 text-muted-foreground shrink-0 ml-auto" />
+          <ChevronDown className="size-2.5 sm:size-3 text-muted-foreground shrink-0 ml-auto" />
         </button>
 
         {/* Right: Controls & Navigation */}
@@ -172,7 +172,7 @@ export function SiteHeader() {
           <select 
             value={lang} 
             onChange={(e) => setLang(e.target.value as "en" | "ta" | "hi")}
-            className="h-8 rounded-lg sm:rounded-xl border border-input bg-card/70 px-1.5 sm:px-2 text-[11px] sm:text-xs text-foreground focus:outline-none shadow-2xs"
+            className="h-7 sm:h-8 rounded-lg sm:rounded-xl border border-input bg-card/70 px-1 sm:px-2 text-[10px] sm:text-xs text-foreground focus:outline-none shadow-2xs shrink-0"
             aria-label="Select Language"
           >
             <option value="en">EN</option>
@@ -180,7 +180,7 @@ export function SiteHeader() {
             <option value="hi">हिंदी</option>
           </select>
 
-          <nav className="flex items-center gap-0.5 sm:gap-1">
+          <nav className="flex items-center gap-0.5 sm:gap-1 shrink-0">
             {/* WhatsApp on desktop (mobile uses bottom floating speed dial) */}
             {waUrl && (
               <a
@@ -208,7 +208,7 @@ export function SiteHeader() {
             {myRoles?.some((r) => ["admin", "staff", "driver"].includes(r)) && (
               <Link
                 to="/admin"
-                className="rounded-lg sm:rounded-xl p-1.5 sm:p-2 text-primary hover:bg-primary/10 transition-colors"
+                className="rounded-lg sm:rounded-xl p-1.5 sm:p-2 text-primary hover:bg-primary/10 transition-colors shrink-0"
                 aria-label="Admin Dashboard"
                 title="Admin Console"
               >
@@ -218,22 +218,24 @@ export function SiteHeader() {
 
             <Link
               to="/account"
-              className="rounded-lg sm:rounded-xl p-1.5 sm:p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              className="rounded-lg sm:rounded-xl p-1.5 sm:p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
               aria-label="My account"
               title="My account"
             >
               <User className="size-4 sm:size-5" />
             </Link>
 
+            {/* Referral Modal on tablet/desktop */}
+            <div className="hidden sm:flex items-center">
+              <ReferralModal />
+            </div>
 
-            <ReferralModal />
-
-            {/* Install PWA button (hidden when already in standalone mode) */}
+            {/* Install PWA button on tablet/desktop */}
             {!isStandalone && (
               <button
                 type="button"
                 onClick={promptPwaInstall}
-                className="inline-flex items-center gap-1 rounded-lg sm:rounded-xl px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-all shadow-2xs"
+                className="hidden sm:inline-flex items-center gap-1 rounded-lg sm:rounded-xl px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-all shadow-2xs shrink-0"
                 title="Install Fish N Fresh App"
               >
                 <Download className="size-3.5" />
@@ -241,7 +243,9 @@ export function SiteHeader() {
               </button>
             )}
 
-            <ThemeToggle />
+            <div className="shrink-0">
+              <ThemeToggle />
+            </div>
 
             {/* Cart on desktop (mobile has bottom bar and floating cart) */}
             <Link
