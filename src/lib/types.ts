@@ -263,6 +263,11 @@ export type CartItem = {
   brand?: string | null;
   warranty_months?: number | null;
   aisle_location?: string | null;
+  // Wholesale (trade buyer) pricing snapshot, used to resolve bulk rates
+  retail_price?: number | null;
+  wholesale_price?: number | null;
+  wholesale_min_qty?: number | null;
+  wholesale_tiers?: unknown;
 };
 
 /**
