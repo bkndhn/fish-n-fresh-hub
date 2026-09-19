@@ -271,7 +271,7 @@ function Catalog() {
           });
         }}
         allLabel="All Items"
-        className="-mx-3 sm:-mx-4 px-1 mt-2"
+        className="-mx-3 sm:-mx-4 px-1 mt-2 w-[calc(100%+1.5rem)] sm:w-[calc(100%+2rem)]"
       />
 
       {/* Brand Filter Pills (When Brands Exist) */}

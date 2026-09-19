@@ -80,7 +80,7 @@ function Home() {
         selectedCategory={selectedCategory}
         onSelectCategory={(catName) => setSelectedCategory(catName)}
         allLabel="All Items"
-        className="-mx-3 sm:-mx-4 -mt-3 sm:-mt-4 mb-3"
+        className="-mx-3 sm:-mx-4 -mt-3 sm:-mt-4 mb-3 w-[calc(100%+1.5rem)] sm:w-[calc(100%+2rem)]"
       />
 
       {/* When a specific category is selected, display instant category showcase */}

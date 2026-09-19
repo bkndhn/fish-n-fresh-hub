@@ -340,8 +340,8 @@ function ProductPage() {
               </div>
             )}
 
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 bg-card shadow-2xs">
+            <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2.5 sm:gap-3">
+              <div className="flex items-center justify-between xs:justify-start gap-2 rounded-xl border border-border px-3 py-2 bg-card shadow-2xs shrink-0">
                 <button
                   onClick={() => {
                     const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
@@ -410,7 +410,7 @@ function ProductPage() {
               </div>
 
               <Button
-                className="flex-1 rounded-xl h-11 text-sm font-bold shadow-sm"
+                className="flex-1 rounded-xl h-11 text-xs sm:text-sm font-bold shadow-sm"
                 disabled={isOutOfStock}
                 onClick={() => {
                   const productWithVariant = {
@@ -436,11 +436,11 @@ function ProductPage() {
             </div>
 
             {cartItem && (
-              <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-between text-xs animate-in fade-in duration-200">
+              <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-between text-xs animate-in fade-in duration-200 gap-2 flex-wrap">
                 <span className="font-semibold text-foreground">
                   ✓ In your cart: <strong>{cartItem.qty} {product.unit}</strong> ({inr(cartItem.price * cartItem.qty)})
                 </span>
-                <Button asChild size="sm" variant="ghost" className="h-6 text-xs text-primary font-bold">
+                <Button asChild size="sm" variant="ghost" className="h-6 text-xs text-primary font-bold shrink-0 ml-auto">
                   <Link to="/cart">View Cart →</Link>
                 </Button>
               </div>

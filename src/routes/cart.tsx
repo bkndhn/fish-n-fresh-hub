@@ -221,7 +221,7 @@ function CartPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-0 border-border">
+            <div className="flex items-center justify-between sm:justify-end gap-2 xs:gap-3 pt-2 sm:pt-0 border-t sm:border-0 border-border flex-wrap">
               <div className="flex items-center gap-1.5 rounded-xl border border-border px-2 py-1 bg-background/80">
                 <button
                   onClick={() => {

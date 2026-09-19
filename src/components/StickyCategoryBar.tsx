@@ -44,7 +44,7 @@ export function StickyCategoryBar({
   return (
     <nav
       aria-label="Category Navigation"
-      className={`sticky top-14 z-30 w-full bg-background/95 backdrop-blur-md border-b border-border/60 py-2 transition-all duration-200 shadow-2xs ${className}`}
+      className={`sticky top-14 z-30 w-full max-w-full overflow-x-clip bg-background/95 backdrop-blur-md border-b border-border/60 py-2 transition-all duration-200 shadow-2xs ${className}`}
     >
       <div
         ref={containerRef}

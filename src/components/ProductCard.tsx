@@ -130,7 +130,7 @@ export function ProductCard({ product }: { product: Product }) {
           </div>
         ) : null}
       </div>
-      <div className="space-y-1 p-3">
+      <div className="space-y-1 p-2.5 sm:p-3">
         <Link
           to="/product/$id"
           params={{ id: product.id }}
@@ -147,10 +147,10 @@ export function ProductCard({ product }: { product: Product }) {
           {Number(product.rating).toFixed(1)}
           <span>· {product.unit}</span>
         </div>
-        <div className="mt-1.5 flex items-center justify-between gap-1.5">
+        <div className="mt-1.5 flex items-center justify-between gap-1 flex-wrap min-w-0">
           <div className="min-w-0 flex-1">
-            <div className="flex items-baseline gap-1.5 flex-wrap">
-              <span className="font-display text-sm sm:text-base font-bold text-foreground">
+            <div className="flex items-baseline gap-1 flex-wrap">
+              <span className="font-display text-sm sm:text-base font-bold text-foreground whitespace-nowrap">
                 {inr(Number(product.price))}
               </span>
               {!cartItem && hasDiscount && (
@@ -166,7 +166,7 @@ export function ProductCard({ product }: { product: Product }) {
             )}
           </div>
           
-          <div className="shrink-0">
+          <div className="shrink-0 ml-auto">
             {isOutOfStock ? (
               <Button
                 size="sm"
@@ -264,7 +264,7 @@ export function ProductCard({ product }: { product: Product }) {
             ) : (
               <Button
                 size="sm"
-                className="h-7 sm:h-7.5 rounded-full px-3 text-xs font-bold shadow-2xs hover:shadow-xs active:scale-95 transition-all"
+                className="h-7 sm:h-7.5 rounded-full px-2.5 xs:px-3 text-[11px] xs:text-xs font-bold shadow-2xs hover:shadow-xs active:scale-95 transition-all"
                 onClick={() => {
                   if (product.stock !== null && Number(product.stock) <= 0) {
                     toast.error("This product is currently out of stock");
@@ -281,7 +281,7 @@ export function ProductCard({ product }: { product: Product }) {
                   }
                 }}
               >
-                <Plus className="mr-1 size-3 stroke-[2.5]" /> Add
+                <Plus className="mr-0.5 xs:mr-1 size-3 stroke-[2.5]" /> Add
               </Button>
             )}
           </div>

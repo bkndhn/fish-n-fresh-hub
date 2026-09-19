@@ -143,20 +143,38 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    overflow-x: hidden;
-    max-width: 100vw;
+    overflow-x: clip;
+    max-width: 100%;
     width: 100%;
     margin: 0;
     padding: 0;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Prevent horizontal scroll bounce on mobile Safari */
+  body {
+    overscroll-behavior-x: none;
   }
 
   #root {
-    overflow-x: hidden;
-    max-width: 100vw;
+    overflow-x: clip;
+    max-width: 100%;
     width: 100%;
   }
 
-  img, svg, video, canvas {
+  /* Universal responsive media safeguards */
+  img, svg, video, canvas, iframe {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Prevent long words or unbroken text strings from breaking mobile viewport */
+  p, h1, h2, h3, h4, h5, h6, span, a, label {
+    overflow-wrap: break-word;
+  }
+
+  /* All tables default to non-overflowing behavior */
+  table {
     max-width: 100%;
   }
 }

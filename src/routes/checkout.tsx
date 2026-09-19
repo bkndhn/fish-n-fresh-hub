@@ -897,7 +897,7 @@ function Checkout() {
           />
         </div>
         <div>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <Label htmlFor="email">Email Address</Label>
             <span className="text-[11px] text-muted-foreground">For GST Tax Invoice &amp; Live Tracking</span>
           </div>
@@ -912,18 +912,18 @@ function Checkout() {
         </div>
         {fulfillment === "delivery" && (
           <div className="space-y-2 pt-2">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <Label htmlFor="address" className="font-semibold text-xs sm:text-sm">
-                Delivery Address & Pincode *
+                Delivery Address &amp; Pincode *
               </Label>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 {customerLat && customerLng && (
                   <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                     📍 Pinned
                   </span>
                 )}
                 {distanceKm && (
-                  <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                  <span className="text-[10px] sm:text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 whitespace-nowrap">
                     📍 {distanceKm.toFixed(1)} km from store
                   </span>
                 )}
@@ -1307,25 +1307,25 @@ function Checkout() {
       ) : (
         <div className="mt-5">
           <p className="mb-2 text-sm font-medium">Payment method</p>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
           <Button
             variant={payment === "cod" ? "default" : "outline"}
-            className="flex-1 rounded-xl text-xs sm:text-sm"
+            className="rounded-xl px-1.5 sm:px-3 text-[11px] sm:text-xs text-center h-auto min-h-[2.5rem] py-1.5 whitespace-normal leading-tight"
             onClick={() => setPayment("cod")}
             disabled={settings?.require_online_payment ?? false}
           >
-            Cash on delivery {settings?.require_online_payment && "(Disabled)"}
+            {settings?.require_online_payment ? "COD (Disabled)" : "Cash on Delivery"}
           </Button>
           <Button
             variant={payment === "upi" ? "default" : "outline"}
-            className="flex-1 rounded-xl text-xs sm:text-sm"
+            className="rounded-xl px-1.5 sm:px-3 text-[11px] sm:text-xs text-center h-auto min-h-[2.5rem] py-1.5 whitespace-normal leading-tight"
             onClick={() => setPayment("upi")}
           >
             UPI / QR Code
           </Button>
           <Button
             variant={payment === "card" ? "default" : "outline"}
-            className="flex-1 rounded-xl text-xs sm:text-sm"
+            className="rounded-xl px-1.5 sm:px-3 text-[11px] sm:text-xs text-center h-auto min-h-[2.5rem] py-1.5 whitespace-normal leading-tight"
             onClick={() => setPayment("card")}
           >
             Card
@@ -1458,7 +1458,7 @@ function Checkout() {
 
             {/* 12-Digit UTR Input with real-time validation */}
             <div className="space-y-1.5 pt-1">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-1.5 flex-wrap">
                 <Label htmlFor="upi-utr" className="text-xs font-semibold">
                   12-Digit UPI Transaction / UTR No.
                 </Label>

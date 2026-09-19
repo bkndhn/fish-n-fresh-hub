@@ -86,7 +86,7 @@ export function SiteHeader() {
               alt={settings?.store_name || "Fish N Fresh"} 
               className="h-7 sm:h-9 w-auto rounded-xl object-contain shrink-0 shadow-2xs" 
             />
-            <span className="truncate max-w-[85px] xs:max-w-[115px] sm:max-w-none text-foreground font-bold text-sm sm:text-base">
+            <span className="truncate max-w-[78px] xs:max-w-[115px] sm:max-w-none text-foreground font-bold text-sm sm:text-base">
               {settings?.store_name || "Fish N Fresh"}
             </span>
           </Link>
@@ -154,7 +154,7 @@ export function SiteHeader() {
         <button
           type="button"
           onClick={() => setIsLocationModalOpen(true)}
-          className="flex items-center gap-1 sm:gap-1.5 rounded-lg sm:rounded-full border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 px-1.5 sm:px-3 py-1 text-[10px] sm:text-xs font-semibold text-foreground transition-all shadow-2xs group shrink min-w-0 max-w-[95px] xs:max-w-[125px] sm:max-w-[210px]"
+          className="flex items-center gap-1 sm:gap-1.5 rounded-lg sm:rounded-full border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 px-1.5 sm:px-3 py-1 text-[10px] sm:text-xs font-semibold text-foreground transition-all shadow-2xs group shrink min-w-0 max-w-[88px] xs:max-w-[125px] sm:max-w-[210px]"
           title="Change delivery hub or auto-detect location"
         >
           <MapPin className="size-3 sm:size-3.5 text-primary shrink-0 group-hover:scale-110 transition-transform" />
