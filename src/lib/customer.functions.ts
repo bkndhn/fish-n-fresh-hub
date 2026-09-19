@@ -23,8 +23,31 @@ export type RegisteredCustomer = {
 export const listAllCustomersDetailed = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<RegisteredCustomer[]> => {
-    await requireAdmin();
-    const ctx = context as { supabase: SupabaseClient<Database> };
+    const ctx = context as { supabase: SupabaseClient<Database>; userId: string };
+
+    // Allow admin-level staff. Check via the database role helpers first (these
+    // see roles granted through user_roles as the signed-in user), then fall
+    // back to the bearer-token role lookup.
+    let allowed = false;
+    try {
+      const { data: isAdmin } = await ctx.supabase.rpc("is_admin");
+      allowed = Boolean(isAdmin);
+      if (!allowed) {
+        for (const role of ["super_admin", "manager"] as const) {
+          const { data } = await ctx.supabase.rpc("has_role", {
+            _user_id: ctx.userId,
+            _role: role,
+          } as never);
+          if (data) {
+            allowed = true;
+            break;
+          }
+        }
+      }
+    } catch {
+      allowed = false;
+    }
+    if (!allowed) await requireAdmin();
 
     // 1. Fetch all orders to compute order statistics per user/phone
     const { data: orders, error: ordersError } = await ctx.supabase

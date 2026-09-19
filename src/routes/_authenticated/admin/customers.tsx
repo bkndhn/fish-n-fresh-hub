@@ -94,7 +94,15 @@ function CustomersAdmin() {
   const fetchRegisteredFn = useServerFn(listAllCustomersDetailed);
   const registeredQuery = useQuery({
     queryKey: ["admin", "registered-customers"],
-    queryFn: () => fetchRegisteredFn(),
+    queryFn: async () => {
+      try {
+        return await fetchRegisteredFn();
+      } catch (err) {
+        console.warn("Registered customers unavailable:", err);
+        return [];
+      }
+    },
+    retry: false,
     staleTime: 60 * 1000,
   });
   const registeredRows = registeredQuery.data ?? [];

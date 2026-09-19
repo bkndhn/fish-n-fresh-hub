@@ -293,7 +293,7 @@ export interface ShippingRateEvaluation {
 
 export interface DestinationContext {
   subtotal: number;
-  distanceKm: number | null;
+  distanceKm?: number | null;
   state?: string | null;
   district?: string | null;
   country?: string | null;
@@ -309,7 +309,8 @@ export function evaluateOrderShippingRate(
   config: ShippingScopeConfig,
   ctx: DestinationContext
 ): ShippingRateEvaluation {
-  const { subtotal, distanceKm, state, country, isExpress, selectedTierOverride } = ctx;
+  const { subtotal, state, country, isExpress, selectedTierOverride } = ctx;
+  const distanceKm: number | null = ctx.distanceKm ?? null;
   const mode = config.scope_mode;
 
   // Determine effective shipping tier
