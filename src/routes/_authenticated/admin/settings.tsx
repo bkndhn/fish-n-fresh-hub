@@ -167,26 +167,7 @@ function AdminSettings() {
     }
   }, [settings]);
 
-  const handleSaveShippingScope = () => {
-    saveShippingScopeConfig(shippingScope);
-    setForm((prev: any) => ({
-      ...prev,
-      delivery_radius_km: shippingScope.local_radius_km,
-      base_delivery_fee: shippingScope.local_base_fee,
-      free_delivery_over: shippingScope.local_free_over,
-      per_km_charge: shippingScope.local_per_km_charge,
-      express_delivery_enabled: shippingScope.local_express_enabled,
-      express_delivery_fee: shippingScope.local_express_fee,
-      express_sla_mins: shippingScope.local_express_sla_mins,
-    }));
-    toast.success("Delivery Coverage & Shipping Scope saved!");
-  };
 
-  const handleResetShippingScope = () => {
-    setShippingScope(DEFAULT_SHIPPING_SCOPE_CONFIG);
-    saveShippingScopeConfig(DEFAULT_SHIPPING_SCOPE_CONFIG);
-    toast.info("Delivery scope reset to Local Hyperlocal defaults.");
-  };
 
   const handleSeedConfirm = async (options: { archiveExisting: boolean; keepCustomProducts: boolean }) => {
     try {
@@ -553,6 +534,12 @@ function AdminSettings() {
       if (daily_atmosphere_enabled !== undefined) {
         setDailyAtmosphereEnabled(Boolean(daily_atmosphere_enabled));
       }
+      // Serialize shipping scope into store_settings.terms_content for durable multi-device database persistence
+      if (shipping_scope_config) {
+        dbPatch.terms_content = typeof shipping_scope_config === "string"
+          ? shipping_scope_config
+          : JSON.stringify(shipping_scope_config);
+      }
       const { error } = await supabase.from("store_settings").update(dbPatch).eq("id", settings.id);
       if (error) throw error;
 
@@ -582,12 +569,79 @@ function AdminSettings() {
         saveLiveChatConfig(liveChatConfig, settings.id);
       }
       saveShippingScopeConfig(shippingScope);
-      toast.success("Settings saved");
+      toast.success("Settings saved successfully");
       qc.invalidateQueries({ queryKey: ["store_settings"] });
       qc.invalidateQueries({ queryKey: ["payment_gateway_credentials"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const handleSaveShippingScope = async () => {
+    saveShippingScopeConfig(shippingScope);
+    const updated = {
+      ...form,
+      shipping_scope_config: shippingScope,
+      delivery_radius_km: shippingScope.local_radius_km,
+      base_delivery_fee: shippingScope.local_base_fee,
+      free_delivery_over: shippingScope.local_free_over,
+      per_km_charge: shippingScope.local_per_km_charge,
+      express_delivery_enabled: shippingScope.local_express_enabled,
+      express_delivery_fee: shippingScope.local_express_fee,
+      express_sla_mins: shippingScope.local_express_sla_mins,
+    };
+    setForm(updated);
+    try {
+      await update.mutateAsync(updated);
+      toast.success(`Coverage Saved: ${shippingScope.scope_mode.toUpperCase()} mode active across all devices!`);
+    } catch (e: any) {
+      toast.error("Failed to save delivery scope: " + e.message);
+    }
+  };
+
+  const handleResetShippingScope = async () => {
+    setShippingScope(DEFAULT_SHIPPING_SCOPE_CONFIG);
+    saveShippingScopeConfig(DEFAULT_SHIPPING_SCOPE_CONFIG);
+    const updated = {
+      ...form,
+      shipping_scope_config: DEFAULT_SHIPPING_SCOPE_CONFIG,
+      delivery_radius_km: DEFAULT_SHIPPING_SCOPE_CONFIG.local_radius_km,
+      base_delivery_fee: DEFAULT_SHIPPING_SCOPE_CONFIG.local_base_fee,
+      free_delivery_over: DEFAULT_SHIPPING_SCOPE_CONFIG.local_free_over,
+      per_km_charge: DEFAULT_SHIPPING_SCOPE_CONFIG.local_per_km_charge,
+      express_delivery_enabled: DEFAULT_SHIPPING_SCOPE_CONFIG.local_express_enabled,
+      express_delivery_fee: DEFAULT_SHIPPING_SCOPE_CONFIG.local_express_fee,
+      express_sla_mins: DEFAULT_SHIPPING_SCOPE_CONFIG.local_express_sla_mins,
+    };
+    setForm(updated);
+    await update.mutateAsync(updated);
+    toast.info("Delivery scope reset to Local Hyperlocal defaults.");
+  };
+
+  const handleToggleLiveAlerts = async (checked: boolean) => {
+    setForm((prev: any) => ({ ...prev, live_alerts_enabled: checked }));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("fnf_live_alerts_enabled", String(checked));
+    }
+    try {
+      await update.mutateAsync({ live_alerts_enabled: checked });
+      toast.success(checked ? "Live Catch Alert Banner enabled!" : "Live Catch Alert Banner disabled on storefront!");
+    } catch (e: any) {
+      toast.error("Failed to update alert banner: " + e.message);
+    }
+  };
+
+  const handleSelectScopeMode = (mode: ShippingScopeMode) => {
+    const updated: ShippingScopeConfig = {
+      ...shippingScope,
+      scope_mode: mode,
+      local_enabled: mode === "local" || mode === "hybrid",
+      state_enabled: mode === "state" || mode === "hybrid",
+      national_enabled: mode === "national" || mode === "hybrid",
+      international_enabled: mode === "international" || mode === "hybrid",
+    };
+    setShippingScope(updated);
+    saveShippingScopeConfig(updated);
+  };
 
   const handleAttemptSaveSettings = () => {
     const currentName = (settings?.store_name || "").trim();
@@ -2344,8 +2398,8 @@ If you need any cut modifications, please reply here. Thank you!`}
                 {/* 1. Local Hyperlocal */}
                 <button
                   type="button"
-                  onClick={() => setShippingScope((prev) => ({ ...prev, scope_mode: "local", local_enabled: true }))}
-                  className={`p-3.5 rounded-2xl border text-left transition-all ${
+                  onClick={() => handleSelectScopeMode("local")}
+                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                     shippingScope.scope_mode === "local"
                       ? "border-primary bg-primary/10 ring-2 ring-primary/30 shadow-xs"
                       : "border-border/80 hover:border-primary/40 bg-card hover:bg-muted/30"
@@ -2365,8 +2419,8 @@ If you need any cut modifications, please reply here. Thank you!`}
                 {/* 2. State-Wide Regional */}
                 <button
                   type="button"
-                  onClick={() => setShippingScope((prev) => ({ ...prev, scope_mode: "state", state_enabled: true }))}
-                  className={`p-3.5 rounded-2xl border text-left transition-all ${
+                  onClick={() => handleSelectScopeMode("state")}
+                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                     shippingScope.scope_mode === "state"
                       ? "border-indigo-500 bg-indigo-500/10 ring-2 ring-indigo-500/30 shadow-xs"
                       : "border-border/80 hover:border-indigo-500/40 bg-card hover:bg-muted/30"
@@ -2386,8 +2440,8 @@ If you need any cut modifications, please reply here. Thank you!`}
                 {/* 3. Pan-India */}
                 <button
                   type="button"
-                  onClick={() => setShippingScope((prev) => ({ ...prev, scope_mode: "national", national_enabled: true }))}
-                  className={`p-3.5 rounded-2xl border text-left transition-all ${
+                  onClick={() => handleSelectScopeMode("national")}
+                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                     shippingScope.scope_mode === "national"
                       ? "border-purple-500 bg-purple-500/10 ring-2 ring-purple-500/30 shadow-xs"
                       : "border-border/80 hover:border-purple-500/40 bg-card hover:bg-muted/30"
@@ -2407,8 +2461,8 @@ If you need any cut modifications, please reply here. Thank you!`}
                 {/* 4. Worldwide Export */}
                 <button
                   type="button"
-                  onClick={() => setShippingScope((prev) => ({ ...prev, scope_mode: "international", international_enabled: true }))}
-                  className={`p-3.5 rounded-2xl border text-left transition-all ${
+                  onClick={() => handleSelectScopeMode("international")}
+                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                     shippingScope.scope_mode === "international"
                       ? "border-cyan-500 bg-cyan-500/10 ring-2 ring-cyan-500/30 shadow-xs"
                       : "border-border/80 hover:border-cyan-500/40 bg-card hover:bg-muted/30"
@@ -2428,14 +2482,8 @@ If you need any cut modifications, please reply here. Thank you!`}
                 {/* 5. Multi-Tier Hybrid */}
                 <button
                   type="button"
-                  onClick={() => setShippingScope((prev) => ({ 
-                    ...prev, 
-                    scope_mode: "hybrid",
-                    local_enabled: true,
-                    state_enabled: true,
-                    national_enabled: true,
-                  }))}
-                  className={`p-3.5 rounded-2xl border text-left transition-all sm:col-span-2 lg:col-span-2 ${
+                  onClick={() => handleSelectScopeMode("hybrid")}
+                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer sm:col-span-2 lg:col-span-2 ${
                     shippingScope.scope_mode === "hybrid"
                       ? "border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/30 shadow-xs"
                       : "border-border/80 hover:border-amber-500/40 bg-card hover:bg-muted/30"
@@ -2860,7 +2908,7 @@ If you need any cut modifications, please reply here. Thank you!`}
               )}
               <Switch
                 checked={form.live_alerts_enabled ?? true}
-                onCheckedChange={(checked) => setForm({ ...form, live_alerts_enabled: checked })}
+                onCheckedChange={handleToggleLiveAlerts}
               />
             </div>
           </div>
@@ -2868,7 +2916,7 @@ If you need any cut modifications, please reply here. Thank you!`}
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <Label className="text-xs">Harbour / Sourcing Hub Name</Label>
+              <Label className="text-xs font-semibold">Harbour / Sourcing Hub Name</Label>
               <Input
                 value={form.harbour_source_name ?? ""}
                 onChange={(e) => setForm({ ...form, harbour_source_name: e.target.value })}
@@ -2880,7 +2928,7 @@ If you need any cut modifications, please reply here. Thank you!`}
               </p>
             </div>
             <div>
-              <Label className="text-xs">Default Alert Headline</Label>
+              <Label className="text-xs font-semibold">Default Alert Headline</Label>
               <Input
                 value={form.harbour_alert_title ?? ""}
                 onChange={(e) => setForm({ ...form, harbour_alert_title: e.target.value })}
@@ -2893,13 +2941,35 @@ If you need any cut modifications, please reply here. Thank you!`}
             </div>
           </div>
           <div>
-            <Label className="text-xs">Default Alert Message</Label>
+            <Label className="text-xs font-semibold">Default Alert Message</Label>
             <textarea
               className="mt-1 flex min-h-[60px] w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               value={form.harbour_alert_message ?? ""}
               onChange={(e) => setForm({ ...form, harbour_alert_message: e.target.value })}
               placeholder="Morning 06:30 AM & 02:00 PM boats arriving with fresh daily harvest..."
             />
+          </div>
+          <div className="flex items-center justify-between pt-2 border-t border-border/60">
+            <p className="text-[11px] text-muted-foreground">
+              Toggle at top right takes effect immediately. Click below to save custom title & message.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              onClick={async () => {
+                await update.mutateAsync({
+                  live_alerts_enabled: form.live_alerts_enabled ?? true,
+                  harbour_source_name: form.harbour_source_name,
+                  harbour_alert_title: form.harbour_alert_title,
+                  harbour_alert_message: form.harbour_alert_message,
+                });
+                toast.success("Catch Alert banner content saved!");
+              }}
+              className="rounded-xl text-xs font-bold h-8 px-3.5 gap-1.5 shadow-xs"
+            >
+              <CheckCircle2 className="size-3.5" />
+              Save Alert Text
+            </Button>
           </div>
         </CardContent>
       </Card>

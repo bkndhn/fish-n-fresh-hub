@@ -143,7 +143,18 @@ export async function verifyWebhook(
   );
   const expected = Buffer.from(new Uint8Array(signed)).toString('hex');
 
-  if (!v1Signatures.includes(expected)) {
+  // Constant-time comparison to prevent timing attacks on webhook verification
+  const constantTimeCompare = (a: string, b: string): boolean => {
+    if (a.length !== b.length) return false;
+    let result = 0;
+    for (let i = 0; i < a.length; i++) {
+      result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+    return result === 0;
+  };
+
+  const hasValidSignature = v1Signatures.some((sig) => constantTimeCompare(sig, expected));
+  if (!hasValidSignature) {
     throw new Error('Invalid webhook signature');
   }
 

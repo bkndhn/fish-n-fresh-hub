@@ -14,6 +14,7 @@ import {
   Trash2,
   Radio,
   Sliders,
+  Compass,
 } from "lucide-react";
 import {
   branchesQuery,
@@ -23,6 +24,7 @@ import {
   deleteBranch,
   type Branch,
 } from "@/lib/multiBranch";
+import { forwardGeocodeAddress } from "@/lib/maps";
 import {
   tenantQuotasQuery,
   checkBranchQuotaAvailable,
@@ -76,6 +78,9 @@ export function BranchManagement() {
   const [addOpenTime, setAddOpenTime] = useState("06:00");
   const [addCloseTime, setAddCloseTime] = useState("22:00");
   const [addIsDefault, setAddIsDefault] = useState(false);
+  const [addLat, setAddLat] = useState<number>(13.0827);
+  const [addLng, setAddLng] = useState<number>(80.2707);
+  const [geocodingAdd, setGeocodingAdd] = useState(false);
   const [savingAdd, setSavingAdd] = useState(false);
 
   // Edit Branch modal state
@@ -90,6 +95,9 @@ export function BranchManagement() {
   const [editCloseTime, setEditCloseTime] = useState("22:00");
   const [editIsActive, setEditIsActive] = useState(true);
   const [editIsDefault, setEditIsDefault] = useState(false);
+  const [editLat, setEditLat] = useState<number>(13.0827);
+  const [editLng, setEditLng] = useState<number>(80.2707);
+  const [geocodingEdit, setGeocodingEdit] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Delete Branch state
@@ -118,6 +126,54 @@ export function BranchManagement() {
     setEditCloseTime(branch.close_time || "22:00");
     setEditIsActive(branch.is_active);
     setEditIsDefault(branch.is_default);
+    setEditLat(branch.lat ?? 13.0827);
+    setEditLng(branch.lng ?? 80.2707);
+  };
+
+  const handleAutoGeocodeAdd = async () => {
+    const query = addAddress.trim() || addName.trim();
+    if (!query) {
+      toast.error("Please enter an address or hub city name first");
+      return;
+    }
+    setGeocodingAdd(true);
+    try {
+      const res = await forwardGeocodeAddress(query);
+      if (res && res.lat && res.lng) {
+        setAddLat(Number(res.lat.toFixed(6)));
+        setAddLng(Number(res.lng.toFixed(6)));
+        toast.success(`Coordinates found: ${res.lat.toFixed(4)}, ${res.lng.toFixed(4)}`);
+      } else {
+        toast.info("Could not auto-locate this exact address. You can enter coordinates manually.");
+      }
+    } catch {
+      toast.error("Geocoding lookup failed. Please enter coordinates manually.");
+    } finally {
+      setGeocodingAdd(false);
+    }
+  };
+
+  const handleAutoGeocodeEdit = async () => {
+    const query = editAddress.trim() || editName.trim();
+    if (!query) {
+      toast.error("Please enter an address or hub city name first");
+      return;
+    }
+    setGeocodingEdit(true);
+    try {
+      const res = await forwardGeocodeAddress(query);
+      if (res && res.lat && res.lng) {
+        setEditLat(Number(res.lat.toFixed(6)));
+        setEditLng(Number(res.lng.toFixed(6)));
+        toast.success(`Coordinates found: ${res.lat.toFixed(4)}, ${res.lng.toFixed(4)}`);
+      } else {
+        toast.info("Could not auto-locate this exact address. You can enter coordinates manually.");
+      }
+    } catch {
+      toast.error("Geocoding lookup failed. Please enter coordinates manually.");
+    } finally {
+      setGeocodingEdit(false);
+    }
   };
 
   const handleSaveAdd = async (e: React.FormEvent) => {
@@ -153,8 +209,8 @@ export function BranchManagement() {
         close_time: addCloseTime,
         is_active: true,
         is_default: addIsDefault,
-        lat: 13.0827,
-        lng: 80.2707,
+        lat: Number(addLat) || 13.0827,
+        lng: Number(addLng) || 80.2707,
         sort_order: branches.length + 1,
         manager: null,
         manager_user_id: null,
@@ -173,6 +229,8 @@ export function BranchManagement() {
         setAddAddress("");
         setAddPhone("");
         setAddIsDefault(false);
+        setAddLat(13.0827);
+        setAddLng(80.2707);
         await qc.invalidateQueries({ queryKey: ["branches"] });
         await qc.invalidateQueries({ queryKey: ["super-admin"] });
       } else {
@@ -199,10 +257,12 @@ export function BranchManagement() {
         close_time: editCloseTime,
         is_active: editIsActive,
         is_default: editIsDefault,
+        lat: Number(editLat),
+        lng: Number(editLng),
       });
 
       if (res.success) {
-        toast.success(`Branch "${editName}" updated successfully`);
+        toast.success(`Branch "${editName}" updated successfully with GPS coordinates`);
         setEditingBranch(null);
         await qc.invalidateQueries({ queryKey: ["branches"] });
         await qc.invalidateQueries({ queryKey: ["super-admin"] });
@@ -380,11 +440,18 @@ export function BranchManagement() {
                       <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">
                         {branch.address || "Tamil Nadu, India"}
                       </p>
-                      {branch.phone && (
-                        <p className="text-[10px] text-muted-foreground font-mono flex items-center gap-1 mt-0.5">
-                          <Phone className="size-2.5" /> {branch.phone}
-                        </p>
-                      )}
+                      <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                        {branch.lat && branch.lng ? (
+                          <span className="text-[9px] font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                            <MapPin className="size-2.5" /> {branch.lat.toFixed(4)}, {branch.lng.toFixed(4)}
+                          </span>
+                        ) : null}
+                        {branch.phone && (
+                          <span className="text-[10px] text-muted-foreground font-mono flex items-center gap-1">
+                            <Phone className="size-2.5" /> {branch.phone}
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     <td className="p-3 font-mono text-[11px]">
@@ -539,6 +606,53 @@ export function BranchManagement() {
                 </div>
               </div>
 
+              <div className="rounded-xl border border-border/80 bg-muted/20 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold flex items-center gap-1.5">
+                    <MapPin className="size-3.5 text-primary" />
+                    Hub GPS Coordinates (Latitude &amp; Longitude)
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAutoGeocodeAdd}
+                    disabled={geocodingAdd}
+                    className="h-6.5 text-[10px] px-2 rounded-lg gap-1 border-primary/40 text-primary hover:bg-primary/10"
+                  >
+                    <Compass className="size-3" />
+                    {geocodingAdd ? "Locating..." : "Auto-Detect from Address"}
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block mb-0.5">Latitude (DD)</span>
+                    <Input
+                      type="number"
+                      step="0.000001"
+                      value={addLat}
+                      onChange={(e) => setAddLat(parseFloat(e.target.value) || 0)}
+                      className="h-8 rounded-lg text-xs font-mono"
+                      placeholder="13.0827"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block mb-0.5">Longitude (DD)</span>
+                    <Input
+                      type="number"
+                      step="0.000001"
+                      value={addLng}
+                      onChange={(e) => setAddLng(parseFloat(e.target.value) || 0)}
+                      className="h-8 rounded-lg text-xs font-mono"
+                      placeholder="80.2707"
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Exact doorstep coordinates used for delivery radius, rider navigation, and geofence.
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <Label className="text-xs font-bold">Opening Time</Label>
@@ -673,6 +787,53 @@ export function BranchManagement() {
                     className="mt-1 rounded-xl text-xs"
                   />
                 </div>
+              </div>
+
+              <div className="rounded-xl border border-border/80 bg-muted/20 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold flex items-center gap-1.5">
+                    <MapPin className="size-3.5 text-primary" />
+                    Hub GPS Coordinates (Latitude &amp; Longitude)
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAutoGeocodeEdit}
+                    disabled={geocodingEdit}
+                    className="h-6.5 text-[10px] px-2 rounded-lg gap-1 border-primary/40 text-primary hover:bg-primary/10"
+                  >
+                    <Compass className="size-3" />
+                    {geocodingEdit ? "Locating..." : "Auto-Detect from Address"}
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block mb-0.5">Latitude (DD)</span>
+                    <Input
+                      type="number"
+                      step="0.000001"
+                      value={editLat}
+                      onChange={(e) => setEditLat(parseFloat(e.target.value) || 0)}
+                      className="h-8 rounded-lg text-xs font-mono"
+                      placeholder="11.107890"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block mb-0.5">Longitude (DD)</span>
+                    <Input
+                      type="number"
+                      step="0.000001"
+                      value={editLng}
+                      onChange={(e) => setEditLng(parseFloat(e.target.value) || 0)}
+                      className="h-8 rounded-lg text-xs font-mono"
+                      placeholder="77.366920"
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Exact doorstep coordinates used for delivery radius, rider navigation, and geofence.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-2.5">

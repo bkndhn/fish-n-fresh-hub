@@ -815,6 +815,15 @@ export function buildPosReceiptEscPos(
 /**
  * Generate clean styled HTML for high-contrast thermal browser printing fallback.
  */
+function escapeHtml(val: unknown): string {
+  if (val === null || val === undefined) return "";
+  return String(val)
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function buildPosReceiptHtml(
   data: PosReceiptData,
   config: ThermalPrinterConfig = getSavedPrinterConfig()
@@ -833,45 +842,45 @@ export function buildPosReceiptHtml(
         ? `
       <div style="border: 1px dashed #000; padding: 4px; text-align: center; margin-bottom: 6px; font-weight: bold;">
         <div>*** REPRINT COPY (AUDIT) ***</div>
-        <div style="font-size: 0.85em;">Reprint #${data.reprintCount || 1} · ${data.reprintTimestamp || new Date().toLocaleTimeString("en-IN")}</div>
-        <div style="font-size: 0.8em;">Cashier: ${data.cashierName} · NOT AN ORIGINAL</div>
+        <div style="font-size: 0.85em;">Reprint #${escapeHtml(data.reprintCount || 1)} · ${escapeHtml(data.reprintTimestamp || new Date().toLocaleTimeString("en-IN"))}</div>
+        <div style="font-size: 0.8em;">Cashier: ${escapeHtml(data.cashierName)} · NOT AN ORIGINAL</div>
       </div>
     `
         : ""
     }
-    ${config.showHeaderStoreName !== false ? `<div class="center bold title">${store}</div>` : ""}
-    ${config.showHeaderAddress !== false && data.storeAddress ? `<div class="center">${data.storeAddress}</div>` : ""}
-    ${config.showHeaderPhone !== false && (data.storePhone || config.supportPhone) ? `<div class="center">Ph: ${data.storePhone || config.supportPhone}</div>` : ""}
-    ${config.showHeaderGstin !== false && data.storeGstin ? `<div class="center">GSTIN: ${data.storeGstin}</div>` : ""}
-    ${config.showHeaderFssai !== false && (data.storeFssai || config.fssaiNumber) ? `<div class="center">FSSAI: ${data.storeFssai || config.fssaiNumber}</div>` : ""}
+    ${config.showHeaderStoreName !== false ? `<div class="center bold title">${escapeHtml(store)}</div>` : ""}
+    ${config.showHeaderAddress !== false && data.storeAddress ? `<div class="center">${escapeHtml(data.storeAddress)}</div>` : ""}
+    ${config.showHeaderPhone !== false && (data.storePhone || config.supportPhone) ? `<div class="center">Ph: ${escapeHtml(data.storePhone || config.supportPhone)}</div>` : ""}
+    ${config.showHeaderGstin !== false && data.storeGstin ? `<div class="center">GSTIN: ${escapeHtml(data.storeGstin)}</div>` : ""}
+    ${config.showHeaderFssai !== false && (data.storeFssai || config.fssaiNumber) ? `<div class="center">FSSAI: ${escapeHtml(data.storeFssai || config.fssaiNumber)}</div>` : ""}
     <div class="hr"></div>
     <div class="center bold">${copyHeader}</div>
     <div class="hr"></div>
-    <div class="row"><span>Bill No:</span><span class="bold">${data.receiptNo}</span></div>
-    <div class="row"><span>Date:</span><span>${data.date}</span></div>
-    <div class="row"><span>Cashier:</span><span>${data.cashierName}</span></div>
-    ${data.customerPhone ? `<div class="row"><span>Customer:</span><span>${data.customerName || "Walk-in"} (${data.customerPhone})</span></div>` : ""}
+    <div class="row"><span>Bill No:</span><span class="bold">${escapeHtml(data.receiptNo)}</span></div>
+    <div class="row"><span>Date:</span><span>${escapeHtml(data.date)}</span></div>
+    <div class="row"><span>Cashier:</span><span>${escapeHtml(data.cashierName)}</span></div>
+    ${data.customerPhone ? `<div class="row"><span>Customer:</span><span>${escapeHtml(data.customerName || "Walk-in")} (${escapeHtml(data.customerPhone)})</span></div>` : ""}
     <div class="hr"></div>
     ${data.items
       .map(
         (it) => `
       <div class="row">
-        <span>${it.brand ? `[${it.brand}] ` : ""}${it.name}${it.cuttingStyle ? ` [${it.cuttingStyle}]` : ""}</span>
+        <span>${it.brand ? `[${escapeHtml(it.brand)}] ` : ""}${escapeHtml(it.name)}${it.cuttingStyle ? ` [${escapeHtml(it.cuttingStyle)}]` : ""}</span>
         <span class="bold">₹${(it.totalPrice ?? (it.unitPrice * (it.qty || 1))).toFixed(0)}</span>
       </div>
       <div class="row muted font-mono" style="padding-left: 6px; font-size: 0.9em;">
         <span>${it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} pcs`} × ₹${(it.unitPrice || 0).toFixed(0)}</span>
       </div>
-      ${it.variant ? `<div class="row muted font-mono" style="padding-left: 6px; font-size: 0.8em;"><span>Variant: ${it.variant}</span></div>` : ""}
-      ${it.serialNumbers && it.serialNumbers.length > 0 ? `<div class="row muted font-mono" style="padding-left: 6px; font-size: 0.8em;"><span>IMEI/SN: ${it.serialNumbers.join(", ")}</span></div>` : ""}
-      ${it.warrantyMonths && it.warrantyMonths > 0 ? `<div class="row muted font-mono" style="padding-left: 6px; font-size: 0.8em;"><span>Warranty: ${it.warrantyMonths}M Official</span></div>` : ""}
-      ${it.aisleLocation ? `<div class="row muted font-mono" style="padding-left: 6px; font-size: 0.8em;"><span>Loc: ${it.aisleLocation}</span></div>` : ""}
+      ${it.variant ? `<div class="row muted font-mono" style="padding-left: 6px; font-size: 0.8em;"><span>Variant: ${escapeHtml(it.variant)}</span></div>` : ""}
+      ${it.serialNumbers && it.serialNumbers.length > 0 ? `<div class="row muted font-mono" style="padding-left: 6px; font-size: 0.8em;"><span>IMEI/SN: ${escapeHtml(it.serialNumbers.join(", "))}</span></div>` : ""}
+      ${it.warrantyMonths && it.warrantyMonths > 0 ? `<div class="row muted font-mono" style="padding-left: 6px; font-size: 0.8em;"><span>Warranty: ${escapeHtml(it.warrantyMonths)}M Official</span></div>` : ""}
+      ${it.aisleLocation ? `<div class="row muted font-mono" style="padding-left: 6px; font-size: 0.8em;"><span>Loc: ${escapeHtml(it.aisleLocation)}</span></div>` : ""}
     `
       )
       .join("")}
     <div class="hr"></div>
     <div class="row"><span>Subtotal:</span><span>₹${(data.subtotal || 0).toFixed(0)}</span></div>
-    ${(data.discount || 0) > 0 ? `<div class="row"><span>${data.discountPercent && data.discountPercent > 0 ? `Discount (${data.discountPercent}%):` : "Discount:"}</span><span>-₹${data.discount.toFixed(0)}</span></div>` : ""}
+    ${(data.discount || 0) > 0 ? `<div class="row"><span>${data.discountPercent && data.discountPercent > 0 ? `Discount (${escapeHtml(data.discountPercent)}%):` : "Discount:"}</span><span>-₹${data.discount.toFixed(0)}</span></div>` : ""}
     ${(data.gstAmount || 0) > 0 ? `<div class="row"><span>GST:</span><span>₹${data.gstAmount.toFixed(0)}</span></div>` : ""}
     <div class="hr"></div>
     <div class="row bold total"><span>TOTAL PAYABLE:</span><span>₹${(data.total || 0).toFixed(0)}</span></div>
@@ -880,26 +889,26 @@ export function buildPosReceiptHtml(
       data.splitPayments
         ? `
       <div class="row"><span>Split Tender:</span></div>
-      ${data.splitPayments.cash ? `<div class="row muted" style="padding-left: 8px;"><span>Cash:</span><span>₹${data.splitPayments.cash}</span></div>` : ""}
-      ${data.splitPayments.upi ? `<div class="row muted" style="padding-left: 8px;"><span>UPI:</span><span>₹${data.splitPayments.upi}</span></div>` : ""}
-      ${data.splitPayments.card ? `<div class="row muted" style="padding-left: 8px;"><span>Card:</span><span>₹${data.splitPayments.card}</span></div>` : ""}
+      ${data.splitPayments.cash ? `<div class="row muted" style="padding-left: 8px;"><span>Cash:</span><span>₹${escapeHtml(data.splitPayments.cash)}</span></div>` : ""}
+      ${data.splitPayments.upi ? `<div class="row muted" style="padding-left: 8px;"><span>UPI:</span><span>₹${escapeHtml(data.splitPayments.upi)}</span></div>` : ""}
+      ${data.splitPayments.card ? `<div class="row muted" style="padding-left: 8px;"><span>Card:</span><span>₹${escapeHtml(data.splitPayments.card)}</span></div>` : ""}
     `
         : `
-      <div class="row"><span>Payment Mode:</span><span class="bold">${(data.paymentMethod || "CASH").toUpperCase()}</span></div>
+      <div class="row"><span>Payment Mode:</span><span class="bold">${escapeHtml((data.paymentMethod || "CASH").toUpperCase())}</span></div>
     `
     }
     ${data.amountTendered ? `<div class="row"><span>Cash Tendered:</span><span>₹${data.amountTendered.toFixed(0)}</span></div>` : ""}
     ${typeof data.changeDue === "number" ? `<div class="row"><span>Change Returned:</span><span>₹${data.changeDue.toFixed(0)}</span></div>` : ""}
-    ${data.upiRef ? `<div class="row muted font-mono"><span>UPI Ref:</span><span>${data.upiRef}</span></div>` : ""}
+    ${data.upiRef ? `<div class="row muted font-mono"><span>UPI Ref:</span><span>${escapeHtml(data.upiRef)}</span></div>` : ""}
     <div class="hr"></div>
-    ${config.showFooterWhatsapp !== false && config.whatsappNumber ? `<div class="center font-mono" style="font-size: 0.85em;">💬 WhatsApp: ${config.whatsappNumber}</div>` : ""}
-    ${config.showFooterSupport !== false && (config.supportPhone || data.storePhone) ? `<div class="center font-mono" style="font-size: 0.85em;">📞 Support: ${config.supportPhone || data.storePhone}</div>` : ""}
-    ${config.showFooterSocial !== false && config.socialHandle ? `<div class="center font-mono" style="font-size: 0.85em;">🌐 Follow: ${config.socialHandle}</div>` : ""}
-    ${config.showFooterGstin && data.storeGstin ? `<div class="center font-mono" style="font-size: 0.85em;">GSTIN: ${data.storeGstin}</div>` : ""}
-    ${config.showFooterReturnPolicy !== false && (config.returnPolicyText || config.footerText) ? `<div class="center font-mono muted" style="font-size: 0.8em; margin-top: 4px;">${config.returnPolicyText || config.footerText}</div>` : ""}
-    ${config.customFooterNote ? `<div class="center italic" style="font-size: 0.8em; margin-top: 2px;">${config.customFooterNote}</div>` : ""}
-    <div class="center bold footer" style="margin-top: 4px;">${config.footerLine1 || "Have a Healthy & Delicious Meal!"}</div>
-    ${config.footerLine2 ? `<div class="center muted">${config.footerLine2}</div>` : ""}
+    ${config.showFooterWhatsapp !== false && config.whatsappNumber ? `<div class="center font-mono" style="font-size: 0.85em;">💬 WhatsApp: ${escapeHtml(config.whatsappNumber)}</div>` : ""}
+    ${config.showFooterSupport !== false && (config.supportPhone || data.storePhone) ? `<div class="center font-mono" style="font-size: 0.85em;">📞 Support: ${escapeHtml(config.supportPhone || data.storePhone)}</div>` : ""}
+    ${config.showFooterSocial !== false && config.socialHandle ? `<div class="center font-mono" style="font-size: 0.85em;">🌐 Follow: ${escapeHtml(config.socialHandle)}</div>` : ""}
+    ${config.showFooterGstin && data.storeGstin ? `<div class="center font-mono" style="font-size: 0.85em;">GSTIN: ${escapeHtml(data.storeGstin)}</div>` : ""}
+    ${config.showFooterReturnPolicy !== false && (config.returnPolicyText || config.footerText) ? `<div class="center font-mono muted" style="font-size: 0.8em; margin-top: 4px;">${escapeHtml(config.returnPolicyText || config.footerText)}</div>` : ""}
+    ${config.customFooterNote ? `<div class="center italic" style="font-size: 0.8em; margin-top: 2px;">${escapeHtml(config.customFooterNote)}</div>` : ""}
+    <div class="center bold footer" style="margin-top: 4px;">${escapeHtml(config.footerLine1 || "Have a Healthy & Delicious Meal!")}</div>
+    ${config.footerLine2 ? `<div class="center muted">${escapeHtml(config.footerLine2)}</div>` : ""}
   `;
 }
 

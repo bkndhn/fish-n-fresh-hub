@@ -202,16 +202,19 @@ const STORAGE_KEY = "fnf_shipping_scope_config";
 export function getShippingScopeConfig(settings?: Partial<SiteSettings> | null): ShippingScopeConfig {
   let loaded: Partial<ShippingScopeConfig> | null = null;
 
-  // 1. Try from Supabase store_settings
-  if (settings && (settings as any).shipping_scope_config) {
-    const raw = (settings as any).shipping_scope_config;
-    if (typeof raw === "object" && raw !== null) {
-      loaded = raw;
-    } else if (typeof raw === "string") {
+  // 1. Try from Supabase store_settings (direct property or serialized in terms_content)
+  if (settings) {
+    const raw = (settings as any).shipping_scope_config ?? (settings as any).terms_content;
+    if (typeof raw === "object" && raw !== null && "scope_mode" in raw) {
+      loaded = raw as Partial<ShippingScopeConfig>;
+    } else if (typeof raw === "string" && (raw.includes("scope_mode") || raw.startsWith("{"))) {
       try {
-        loaded = JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && "scope_mode" in parsed) {
+          loaded = parsed;
+        }
       } catch {
-        // invalid JSON
+        // invalid JSON, ignore
       }
     }
   }
@@ -221,7 +224,10 @@ export function getShippingScopeConfig(settings?: Partial<SiteSettings> | null):
     try {
       const cached = localStorage.getItem(STORAGE_KEY);
       if (cached) {
-        loaded = JSON.parse(cached);
+        const parsed = JSON.parse(cached);
+        if (parsed && typeof parsed === "object") {
+          loaded = parsed;
+        }
       }
     } catch {
       // ignore

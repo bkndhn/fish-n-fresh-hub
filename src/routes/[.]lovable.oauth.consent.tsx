@@ -67,6 +67,11 @@ function Consent() {
       setError("No redirect returned by the authorization server.");
       return;
     }
+    if (!/^https?:\/\//i.test(target) && !target.startsWith("/")) {
+      setBusy(false);
+      setError("Invalid redirect URI protocol returned.");
+      return;
+    }
     window.location.href = target;
   }
 

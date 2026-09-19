@@ -64,9 +64,25 @@ function AuthPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
 
+  function getSafeRedirectUrl(target: string | undefined): string | null {
+    if (!target) return null;
+    // Prevent protocol-relative URLs (//evil.com) or backslash tricks (/\evil.com)
+    if (!target.startsWith("/") || target.startsWith("//") || target.startsWith("/\\")) {
+      return null;
+    }
+    try {
+      const parsed = new URL(target, window.location.origin);
+      if (parsed.origin !== window.location.origin) return null;
+      return parsed.pathname + parsed.search + parsed.hash;
+    } catch {
+      return null;
+    }
+  }
+
   async function routeAfterLogin() {
-    if (next) {
-      window.location.href = next;
+    const safeNext = getSafeRedirectUrl(next);
+    if (safeNext) {
+      window.location.href = safeNext;
       return;
     }
     try {
@@ -125,19 +141,49 @@ function AuthPage() {
     };
   }, [navigate, searchParams.mode]);
 
-  // Cooldown countdown timer
+  // Rate Limit Lockout States
+  const [signinLockout, setSigninLockout] = useState(0);
+  const [signupLockout, setSignupLockout] = useState(0);
+  const [resetLockout, setResetLockout] = useState(0);
+
+  // Cooldown & Lockout countdown timer
   useEffect(() => {
-    if (cooldown <= 0) return;
     const timer = setInterval(() => {
       setCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      setSigninLockout((prev) => (prev > 0 ? prev - 1 : 0));
+      setSignupLockout((prev) => (prev > 0 ? prev - 1 : 0));
+      setResetLockout((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
-  }, [cooldown]);
+  }, []);
+
+  // Sync lockout state on email change
+  useEffect(() => {
+    const check = checkRateLimit("auth_signin", email || "guest");
+    if (!check.allowed && check.retryAfterSeconds > 0) {
+      setSigninLockout(check.retryAfterSeconds);
+    }
+  }, [email]);
+
+  useEffect(() => {
+    const check = checkRateLimit("auth_signup", email || "guest");
+    if (!check.allowed && check.retryAfterSeconds > 0) {
+      setSignupLockout(check.retryAfterSeconds);
+    }
+  }, [email]);
+
+  useEffect(() => {
+    const check = checkRateLimit("auth_reset", forgotEmail || "guest");
+    if (!check.allowed && check.retryAfterSeconds > 0) {
+      setResetLockout(check.retryAfterSeconds);
+    }
+  }, [forgotEmail]);
 
   async function signIn(e: React.FormEvent) {
     e.preventDefault();
     const rlCheck = checkRateLimit("auth_signin", email || "guest");
     if (!rlCheck.allowed) {
+      setSigninLockout(rlCheck.retryAfterSeconds);
       toast.error(rlCheck.errorMessage || "Too many sign in attempts. Please wait.");
       return;
     }
@@ -146,11 +192,15 @@ function AuthPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
-      recordRateLimitAttempt("auth_signin", email || "guest");
+      const res = recordRateLimitAttempt("auth_signin", email || "guest");
+      if (!res.allowed && res.retryAfterSeconds > 0) {
+        setSigninLockout(res.retryAfterSeconds);
+      }
       toast.error(error.message);
       return;
     }
     resetRateLimit("auth_signin", email || "guest");
+    setSigninLockout(0);
     toast.success("Welcome back");
     await routeAfterLogin();
   }
@@ -159,6 +209,7 @@ function AuthPage() {
     e.preventDefault();
     const rlCheck = checkRateLimit("auth_signup", email || "guest");
     if (!rlCheck.allowed) {
+      setSignupLockout(rlCheck.retryAfterSeconds);
       toast.error(rlCheck.errorMessage || "Too many registration attempts. Please wait.");
       return;
     }
@@ -179,12 +230,16 @@ function AuthPage() {
     });
     setLoading(false);
     if (error) {
-      recordRateLimitAttempt("auth_signup", email || "guest");
+      const res = recordRateLimitAttempt("auth_signup", email || "guest");
+      if (!res.allowed && res.retryAfterSeconds > 0) {
+        setSignupLockout(res.retryAfterSeconds);
+      }
       toast.error(error.message);
       return;
     }
     
     resetRateLimit("auth_signup", email || "guest");
+    setSignupLockout(0);
     if (data.session) {
       toast.success("Account created successfully!");
       await routeAfterLogin();
@@ -202,6 +257,7 @@ function AuthPage() {
 
     const rlCheck = checkRateLimit("auth_reset", forgotEmail.trim());
     if (!rlCheck.allowed) {
+      setResetLockout(rlCheck.retryAfterSeconds);
       toast.error(rlCheck.errorMessage || "Too many reset attempts. Please wait.");
       return;
     }
@@ -218,7 +274,10 @@ function AuthPage() {
     });
     setLoading(false);
 
-    recordRateLimitAttempt("auth_reset", forgotEmail.trim());
+    const res = recordRateLimitAttempt("auth_reset", forgotEmail.trim());
+    if (!res.allowed && res.retryAfterSeconds > 0) {
+      setResetLockout(res.retryAfterSeconds);
+    }
 
     if (error) {
       toast.error(error.message);
@@ -391,8 +450,18 @@ function AuthPage() {
                   </p>
                 </div>
 
-                <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading}>
-                  {loading ? "Sending link..." : "Send Reset Link"}
+                {resetLockout > 0 && (
+                  <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2.5">
+                    <ShieldCheck className="size-4 shrink-0 text-amber-500" />
+                    <div className="flex-1 leading-tight">
+                      <span className="font-bold block">Security Rate Limit Active</span>
+                      <span>Too many reset attempts. Please wait <strong className="font-mono text-foreground font-bold">{resetLockout}s</strong> before trying again.</span>
+                    </div>
+                  </div>
+                )}
+
+                <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading || resetLockout > 0}>
+                  {loading ? "Sending link..." : resetLockout > 0 ? `Locked (${resetLockout}s cooldown)` : "Send Reset Link"}
                 </Button>
               </form>
             )}
@@ -434,6 +503,16 @@ function AuthPage() {
 
             <TabsContent value="signin">
               <form onSubmit={signIn} className="space-y-4 pt-4">
+                {signinLockout > 0 && (
+                  <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2.5">
+                    <ShieldCheck className="size-4 shrink-0 text-amber-500" />
+                    <div className="flex-1 leading-tight">
+                      <span className="font-bold block">Security Lockout Active</span>
+                      <span>Too many failed sign-in attempts. Try again in <strong className="font-mono text-foreground font-bold">{signinLockout}s</strong>.</span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-1.5">
                   <Label htmlFor="email">Email</Label>
                   <Input 
@@ -485,14 +564,24 @@ function AuthPage() {
                     </Button>
                   </div>
                 </div>
-                <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading}>
-                  {loading ? "Signing in..." : "Sign in"}
+                <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading || signinLockout > 0}>
+                  {loading ? "Signing in..." : signinLockout > 0 ? `Locked (${signinLockout}s cooldown)` : "Sign in"}
                 </Button>
               </form>
             </TabsContent>
 
             <TabsContent value="signup">
               <form onSubmit={signUp} className="space-y-4 pt-4">
+                {signupLockout > 0 && (
+                  <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2.5">
+                    <ShieldCheck className="size-4 shrink-0 text-amber-500" />
+                    <div className="flex-1 leading-tight">
+                      <span className="font-bold block">Security Lockout Active</span>
+                      <span>Too many registration attempts. Try again in <strong className="font-mono text-foreground font-bold">{signupLockout}s</strong>.</span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-1.5">
                   <Label htmlFor="name">Full name</Label>
                   <Input 
@@ -557,8 +646,8 @@ function AuthPage() {
                     </Button>
                   </div>
                 </div>
-                <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading}>
-                  {loading ? "Creating..." : "Create account"}
+                <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading || signupLockout > 0}>
+                  {loading ? "Creating..." : signupLockout > 0 ? `Locked (${signupLockout}s cooldown)` : "Create account"}
                 </Button>
                 <p className="text-center text-xs text-muted-foreground">
                   The first account created becomes the store admin.

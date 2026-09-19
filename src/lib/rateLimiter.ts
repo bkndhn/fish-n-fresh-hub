@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Application & Client-Side Rate Limiter
  * Provides sliding-window rate limiting with in-memory tracking and
  * optional sessionStorage persistence to prevent brute force, rapid form spam,
@@ -87,10 +87,25 @@ function loadBucket(action: RateLimitAction, identifier: string, windowMs: numbe
   const now = Date.now();
   const key = getStorageKey(action, identifier);
 
-  // First check memory
+  // 1. Check in-memory store
   let timestamps: number[] = memoryStore.get(key)?.timestamps || [];
 
-  // If empty, attempt fallback to sessionStorage (persists across reloads within browser session)
+  // 2. Check localStorage (persists across tabs, windows, and page reloads)
+  if (timestamps.length === 0 && typeof window !== "undefined" && window.localStorage) {
+    try {
+      const stored = window.localStorage.getItem(key);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          timestamps = parsed.filter((t): t is number => typeof t === "number");
+        }
+      }
+    } catch {
+      // Storage unavailable
+    }
+  }
+
+  // 3. Fallback to sessionStorage
   if (timestamps.length === 0 && typeof window !== "undefined" && window.sessionStorage) {
     try {
       const stored = window.sessionStorage.getItem(key);
@@ -101,7 +116,7 @@ function loadBucket(action: RateLimitAction, identifier: string, windowMs: numbe
         }
       }
     } catch {
-      // Storage unavailable or disabled
+      // Storage unavailable
     }
   }
 
@@ -116,9 +131,14 @@ function saveBucket(action: RateLimitAction, identifier: string, timestamps: num
   const key = getStorageKey(action, identifier);
   memoryStore.set(key, { timestamps });
 
-  if (typeof window !== "undefined" && window.sessionStorage) {
+  if (typeof window !== "undefined") {
     try {
-      window.sessionStorage.setItem(key, JSON.stringify(timestamps));
+      if (window.localStorage) {
+        window.localStorage.setItem(key, JSON.stringify(timestamps));
+      }
+      if (window.sessionStorage) {
+        window.sessionStorage.setItem(key, JSON.stringify(timestamps));
+      }
     } catch {
       // Storage full or disabled
     }
@@ -218,9 +238,10 @@ export function resetRateLimit(action: RateLimitAction, identifier: string = "de
   const key = getStorageKey(action, identifier);
   memoryStore.delete(key);
 
-  if (typeof window !== "undefined" && window.sessionStorage) {
+  if (typeof window !== "undefined") {
     try {
-      window.sessionStorage.removeItem(key);
+      if (window.localStorage) window.localStorage.removeItem(key);
+      if (window.sessionStorage) window.sessionStorage.removeItem(key);
     } catch {
       // Storage unavailable
     }
