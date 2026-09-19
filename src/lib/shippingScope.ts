@@ -293,7 +293,7 @@ export interface ShippingRateEvaluation {
 
 export interface DestinationContext {
   subtotal: number;
-  distanceKm: number | null;
+  distanceKm?: number | null;
   state?: string | null;
   district?: string | null;
   country?: string | null;
