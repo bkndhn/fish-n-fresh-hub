@@ -53,6 +53,7 @@ import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminSuperRouteImport } from './routes/_authenticated/admin/super'
 import { Route as AuthenticatedAdminSupportRouteImport } from './routes/_authenticated/admin/support'
 import { Route as AuthenticatedAdminWasteRouteImport } from './routes/_authenticated/admin/waste'
+import { Route as AuthenticatedAdminWholesaleRouteImport } from './routes/_authenticated/admin/wholesale'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 
 const IndexRoute = IndexRouteImport.update({
@@ -293,6 +294,12 @@ const AuthenticatedAdminWasteRoute = AuthenticatedAdminWasteRouteImport.update({
   path: '/admin/waste',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminWholesaleRoute =
+  AuthenticatedAdminWholesaleRouteImport.update({
+    id: '/admin/wholesale',
+    path: '/admin/wholesale',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicPaymentsWebhookRoute =
   ApiPublicPaymentsWebhookRouteImport.update({
     id: '/api/public/payments/webhook',
@@ -343,6 +350,7 @@ export interface FileRoutesByFullPath {
   '/admin/super': typeof AuthenticatedAdminSuperRoute
   '/admin/support': typeof AuthenticatedAdminSupportRoute
   '/admin/waste': typeof AuthenticatedAdminWasteRoute
+  '/admin/wholesale': typeof AuthenticatedAdminWholesaleRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
@@ -389,6 +397,7 @@ export interface FileRoutesByTo {
   '/admin/super': typeof AuthenticatedAdminSuperRoute
   '/admin/support': typeof AuthenticatedAdminSupportRoute
   '/admin/waste': typeof AuthenticatedAdminWasteRoute
+  '/admin/wholesale': typeof AuthenticatedAdminWholesaleRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
@@ -437,6 +446,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/super': typeof AuthenticatedAdminSuperRoute
   '/_authenticated/admin/support': typeof AuthenticatedAdminSupportRoute
   '/_authenticated/admin/waste': typeof AuthenticatedAdminWasteRoute
+  '/_authenticated/admin/wholesale': typeof AuthenticatedAdminWholesaleRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
@@ -485,6 +495,7 @@ export interface FileRouteTypes {
     | '/admin/super'
     | '/admin/support'
     | '/admin/waste'
+    | '/admin/wholesale'
     | '/admin/'
     | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
@@ -531,6 +542,7 @@ export interface FileRouteTypes {
     | '/admin/super'
     | '/admin/support'
     | '/admin/waste'
+    | '/admin/wholesale'
     | '/admin'
     | '/api/public/payments/webhook'
   id:
@@ -578,6 +590,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/super'
     | '/_authenticated/admin/support'
     | '/_authenticated/admin/waste'
+    | '/_authenticated/admin/wholesale'
     | '/_authenticated/admin/'
     | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
@@ -915,6 +928,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminWasteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/wholesale': {
+      id: '/_authenticated/admin/wholesale'
+      path: '/admin/wholesale'
+      fullPath: '/admin/wholesale'
+      preLoaderRoute: typeof AuthenticatedAdminWholesaleRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/payments/webhook': {
       id: '/api/public/payments/webhook'
       path: '/api/public/payments/webhook'
@@ -950,6 +970,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminSuperRoute: typeof AuthenticatedAdminSuperRoute
   AuthenticatedAdminSupportRoute: typeof AuthenticatedAdminSupportRoute
   AuthenticatedAdminWasteRoute: typeof AuthenticatedAdminWasteRoute
+  AuthenticatedAdminWholesaleRoute: typeof AuthenticatedAdminWholesaleRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
@@ -978,6 +999,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminSuperRoute: AuthenticatedAdminSuperRoute,
   AuthenticatedAdminSupportRoute: AuthenticatedAdminSupportRoute,
   AuthenticatedAdminWasteRoute: AuthenticatedAdminWasteRoute,
+  AuthenticatedAdminWholesaleRoute: AuthenticatedAdminWholesaleRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
 }
 
