@@ -265,7 +265,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [
     pricedItems,
     wholesale,
-    subtotalSummary(pricedItems),
     cartBranchId,
     cartBranchName,
     pendingMismatch,
