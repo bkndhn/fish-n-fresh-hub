@@ -281,9 +281,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 
-function subtotalSummary(items: CartItem[]) {
-  return items.reduce((sum, i) => sum + i.price * i.qty, 0);
-}
 
 const FALLBACK: CartContextValue = {
   items: [],
