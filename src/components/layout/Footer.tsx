@@ -23,8 +23,11 @@ import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { getVerticalConfig } from "@/lib/verticals";
 
+import { branchesQuery } from "@/lib/multiBranch";
+
 export function Footer() {
   const { data: settings } = useQuery(settingsQuery);
+  const { data: branches = [] } = useQuery(branchesQuery);
 
   if (!settings) return null;
 
@@ -34,7 +37,7 @@ export function Footer() {
   const mapLink =
     settings.store_map_link ||
     (settings.shop_lat && settings.shop_lng
-      ? `https://www.google.com/maps/search/?api=1&query=${settings.shop_lat},${settings.shop_lng}`
+      ? `https://www.google.com/maps/dir/?api=1&destination=${settings.shop_lat},${settings.shop_lng}`
       : null);
 
   const waTarget = settings.whatsapp_number || settings.support_phone;
@@ -238,6 +241,7 @@ export function Footer() {
 
             {settings.store_address && (
               <div className="pt-1">
+                <div className="font-semibold text-[11px] uppercase tracking-wider mb-1.5 text-muted-foreground">Headquarters</div>
                 {mapLink ? (
                   <a
                     href={mapLink}
@@ -254,6 +258,32 @@ export function Footer() {
                     <span>{settings.store_address}</span>
                   </div>
                 )}
+              </div>
+            )}
+            
+            {branches.filter(b => b.is_active).length > 0 && (
+              <div className="pt-3 space-y-2.5">
+                <div className="font-semibold text-[11px] uppercase tracking-wider text-muted-foreground border-t border-border/50 pt-2.5">Our Branches</div>
+                {branches.filter(b => b.is_active).map(branch => {
+                  const branchMapLink = branch.latitude && branch.longitude 
+                    ? `https://www.google.com/maps/dir/?api=1&destination=${branch.latitude},${branch.longitude}`
+                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(branch.address)}`;
+                  return (
+                    <a
+                      key={branch.id}
+                      href={branchMapLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-start gap-1.5 text-xs hover:text-primary transition-colors leading-tight"
+                    >
+                      <MapPin className="size-3.5 text-primary shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-medium block">{branch.name}</span>
+                        <span className="text-muted-foreground block text-[11px]">{branch.address}</span>
+                      </div>
+                    </a>
+                  );
+                })}
               </div>
             )}
           </div>

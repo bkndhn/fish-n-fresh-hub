@@ -619,9 +619,6 @@ function AdminSettings() {
 
   const handleToggleLiveAlerts = async (checked: boolean) => {
     setForm((prev: any) => ({ ...prev, live_alerts_enabled: checked }));
-    if (typeof window !== "undefined") {
-      localStorage.setItem("fnf_live_alerts_enabled", String(checked));
-    }
     try {
       await update.mutateAsync({ live_alerts_enabled: checked });
       toast.success(checked ? "Live Catch Alert Banner enabled!" : "Live Catch Alert Banner disabled on storefront!");
@@ -630,7 +627,7 @@ function AdminSettings() {
     }
   };
 
-  const handleSelectScopeMode = (mode: ShippingScopeMode) => {
+  const handleSelectScopeMode = async (mode: ShippingScopeMode) => {
     const updated: ShippingScopeConfig = {
       ...shippingScope,
       scope_mode: mode,
@@ -641,6 +638,17 @@ function AdminSettings() {
     };
     setShippingScope(updated);
     saveShippingScopeConfig(updated);
+    const formUpdate = {
+      ...form,
+      shipping_scope_config: updated,
+    };
+    setForm(formUpdate);
+    try {
+      await update.mutateAsync(formUpdate);
+      toast.success(`Active mode switched to ${mode.toUpperCase()} globally!`);
+    } catch (e: any) {
+      toast.error("Failed to update active delivery mode: " + e.message);
+    }
   };
 
   const handleAttemptSaveSettings = () => {
@@ -805,6 +813,27 @@ function AdminSettings() {
                 className="mt-1 text-sm rounded-xl"
               />
             </div>
+          </div>
+
+          <div className="pt-1">
+            <Label className="text-xs font-semibold">Default App Language</Label>
+            <p className="text-[10px] text-muted-foreground mb-2">
+              Select the initial language for new visitors. Users can still change their preferred language via the header.
+            </p>
+            <select
+              value={shippingScope.default_language || "en"}
+              onChange={(e) => {
+                const newLang = e.target.value as "en" | "ta" | "hi";
+                const updated = { ...shippingScope, default_language: newLang };
+                setShippingScope(updated);
+                setForm({ ...form, shipping_scope_config: updated });
+              }}
+              className="h-10 w-full sm:w-1/2 rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-xs transition-shadow"
+            >
+              <option value="en">English (EN)</option>
+              <option value="ta">Tamil (தமிழ்)</option>
+              <option value="hi">Hindi (हिंदी)</option>
+            </select>
           </div>
 
           {/* Real-time vertical alignment helper if store name implies a different vertical */}

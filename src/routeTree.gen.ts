@@ -24,6 +24,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WholesaleRouteImport } from './routes/wholesale'
+import { Route as WishlistRouteImport } from './routes/wishlist'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedCrewRouteImport } from './routes/_authenticated/crew'
@@ -129,6 +130,11 @@ const TermsRoute = TermsRouteImport.update({
 const WholesaleRoute = WholesaleRouteImport.update({
   id: '/wholesale',
   path: '/wholesale',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WishlistRoute = WishlistRouteImport.update({
+  id: '/wishlist',
+  path: '/wishlist',
   getParentRoute: () => rootRouteImport,
 } as any)
 const Char91DotwellKnownChar93OauthProtectedResourceRoute =
@@ -328,6 +334,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/wholesale': typeof WholesaleRoute
+  '/wishlist': typeof WishlistRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/account': typeof AuthenticatedAccountRoute
   '/crew': typeof AuthenticatedCrewRoute
@@ -376,6 +383,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/wholesale': typeof WholesaleRoute
+  '/wishlist': typeof WishlistRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/account': typeof AuthenticatedAccountRoute
   '/crew': typeof AuthenticatedCrewRoute
@@ -426,6 +434,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/wholesale': typeof WholesaleRoute
+  '/wishlist': typeof WishlistRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/crew': typeof AuthenticatedCrewRoute
@@ -476,6 +485,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/wholesale'
+    | '/wishlist'
     | '/.well-known/oauth-protected-resource'
     | '/account'
     | '/crew'
@@ -524,6 +534,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/wholesale'
+    | '/wishlist'
     | '/.well-known/oauth-protected-resource'
     | '/account'
     | '/crew'
@@ -573,6 +584,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/wholesale'
+    | '/wishlist'
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/account'
     | '/_authenticated/crew'
@@ -623,6 +635,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   WholesaleRoute: typeof WholesaleRoute
+  WishlistRoute: typeof WishlistRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   BranchSlugRoute: typeof BranchSlugRoute
   ProductIdRoute: typeof ProductIdRoute
@@ -736,6 +749,13 @@ declare module '@tanstack/react-router' {
       path: '/wholesale'
       fullPath: '/wholesale'
       preLoaderRoute: typeof WholesaleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/wishlist': {
+      id: '/wishlist'
+      path: '/wishlist'
+      fullPath: '/wishlist'
+      preLoaderRoute: typeof WishlistRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.well-known/oauth-protected-resource': {
@@ -1042,6 +1062,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   WholesaleRoute: WholesaleRoute,
+  WishlistRoute: WishlistRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   BranchSlugRoute: BranchSlugRoute,

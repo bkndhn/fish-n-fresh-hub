@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
-import { Fish, Search, ShoppingCart, User, Shield, Download, MapPin, ChevronDown } from "lucide-react";
+import { Fish, Search, ShoppingCart, User, Shield, Download, MapPin, ChevronDown, Heart } from "lucide-react";
 import { useCart } from "@/lib/cart";
+import { useWishlist } from "@/hooks/useWishlist";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { promptPwaInstall } from "@/components/PwaPrompt";
 
@@ -26,6 +27,7 @@ declare global {
 
 export function SiteHeader() {
   const { count } = useCart();
+  const { count: wishlistCount } = useWishlist();
   const { data: settings } = useQuery(settingsQuery);
   const { data: myRoles } = useQuery(myRolesQuery);
   const { lang, setLang } = useTranslation();
@@ -246,6 +248,20 @@ export function SiteHeader() {
             <div className="shrink-0">
               <ThemeToggle />
             </div>
+
+            {/* Wishlist on desktop */}
+            <Link
+              to="/wishlist"
+              className="hidden sm:flex relative rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              aria-label="Wishlist"
+            >
+              <Heart className="size-5" />
+              {wishlistCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-semibold text-white">
+                  {wishlistCount}
+                </span>
+              )}
+            </Link>
 
             {/* Cart on desktop (mobile has bottom bar and floating cart) */}
             <Link

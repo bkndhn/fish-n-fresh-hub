@@ -52,6 +52,9 @@ export interface ShippingScopeConfig {
 
   // 5. Merchant Packaging & Handling Policy
   custom_packaging_notice: string;
+
+  // 6. App Defaults
+  default_language?: "en" | "ta" | "hi";
 }
 
 export const TAMIL_NADU_DISTRICTS: string[] = [

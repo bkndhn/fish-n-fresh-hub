@@ -784,24 +784,26 @@ function SchedulePage() {
                 ) : (
                   list.map((w) => (
                     <div key={w.id} className="rounded-xl border border-border p-3 transition hover:border-primary/40">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <Clock className="size-4 text-primary shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold">{w.label}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {w.start_time}–{w.end_time} · up to {w.capacity} orders · cut-off {w.cutoff_minutes} min
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {(w.weekdays ?? []).map((d) => WEEKDAY_LABELS[d]).join(", ")}
-                          </p>
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-start gap-2.5">
+                          <Clock className="size-4 text-primary shrink-0 mt-0.5" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold">{w.label}</p>
+                            <p className="text-xs text-muted-foreground leading-relaxed text-balance">
+                              {w.start_time}–{w.end_time} &middot; up to {w.capacity} orders &middot; cut-off {w.cutoff_minutes} min
+                            </p>
+                            <p className="text-xs text-muted-foreground leading-relaxed text-balance">
+                              {(w.weekdays ?? []).map((d) => WEEKDAY_LABELS[d]).join(", ")}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center justify-end gap-2 sm:pl-7 border-t border-border/50 pt-2 sm:border-0 sm:pt-0">
                           {w.active ? (
-                            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 mr-auto sm:mr-0">
                               ● Active
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5">
+                            <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5 mr-auto sm:mr-0">
                               ○ Paused
                             </Badge>
                           )}

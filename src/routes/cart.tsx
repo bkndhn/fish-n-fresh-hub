@@ -332,10 +332,64 @@ function CartPage() {
         </div>
       )}
 
-      <div className="mt-4 flex gap-3">
+      <div className="mt-4 flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-2.5 flex-1 order-1 sm:order-2">
+          {orderingMode === "whatsapp_only" ? (
+            <Button
+              type="button"
+              disabled={availableWhatsAppItems.length === 0}
+              onClick={() => setWhatsAppModalOpen(true)}
+              className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-semibold shadow-xs h-11 text-sm w-full"
+            >
+              <MessageSquare className="size-4" />
+              {availableWhatsAppItems.length === 0
+                ? "All items sold out"
+                : outOfStockCount > 0
+                ? `Order ${availableWhatsAppItems.length} Available Items on WhatsApp 💬 (${inr(availableSubtotal)})`
+                : `Order on WhatsApp 💬 (${inr(availableSubtotal)})`}
+            </Button>
+          ) : orderingMode === "catalog_only" ? (
+            <Button
+              type="button"
+              onClick={() => setWhatsAppModalOpen(true)}
+              className="flex-1 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground gap-2 font-semibold h-11 text-sm w-full"
+            >
+              <MessageSquare className="size-4" />
+              Inquire on WhatsApp 💬
+            </Button>
+          ) : (
+            <>
+              {hasOutOfStockItems ? (
+                <Button disabled className="flex-1 rounded-xl opacity-75 bg-destructive hover:bg-destructive text-destructive-foreground h-11 text-xs sm:text-sm w-full">
+                  Remove Sold Out Items to Checkout
+                </Button>
+              ) : storeStatus && !storeStatus.canAcceptOrder ? (
+                <Button disabled className="flex-1 rounded-xl opacity-60 h-11 text-xs sm:text-sm w-full">
+                  Orders Paused · {storeStatus.statusTitle}
+                </Button>
+              ) : (
+                <Button asChild className="flex-1 rounded-xl h-11 text-xs sm:text-sm shadow-xs font-semibold w-full">
+                  <Link to="/checkout">
+                    {storeStatus && !storeStatus.isOpen ? "Proceed to Pre-Order" : "Proceed to Checkout"}
+                  </Link>
+                </Button>
+              )}
+              <Button
+                type="button"
+                disabled={availableWhatsAppItems.length === 0}
+                onClick={() => setWhatsAppModalOpen(true)}
+                className="flex-1 sm:flex-initial rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-semibold shadow-xs h-11 px-5 text-xs sm:text-sm w-full"
+              >
+                <MessageSquare className="size-4 shrink-0" />
+                <span>Order on WhatsApp 💬</span>
+              </Button>
+            </>
+          )}
+        </div>
+        
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="outline" className="rounded-xl gap-1.5 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors">
+            <Button variant="outline" className="rounded-xl gap-1.5 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors order-2 sm:order-1 h-11 w-full sm:w-auto">
               <Trash2 className="size-3.5" />
               <span>Clear</span>
             </Button>
@@ -370,57 +424,6 @@ function CartPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-        {orderingMode === "whatsapp_only" ? (
-          <Button
-            type="button"
-            disabled={availableWhatsAppItems.length === 0}
-            onClick={() => setWhatsAppModalOpen(true)}
-            className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-semibold shadow-xs h-11 text-sm"
-          >
-            <MessageSquare className="size-4" />
-            {availableWhatsAppItems.length === 0
-              ? "All items sold out"
-              : outOfStockCount > 0
-              ? `Order ${availableWhatsAppItems.length} Available Items on WhatsApp 💬 (${inr(availableSubtotal)})`
-              : `Order on WhatsApp 💬 (${inr(availableSubtotal)})`}
-          </Button>
-        ) : orderingMode === "catalog_only" ? (
-          <Button
-            type="button"
-            onClick={() => setWhatsAppModalOpen(true)}
-            className="flex-1 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground gap-2 font-semibold h-11 text-sm"
-          >
-            <MessageSquare className="size-4" />
-            Inquire on WhatsApp 💬
-          </Button>
-        ) : (
-          <div className="flex flex-1 flex-col sm:flex-row gap-2.5">
-            {hasOutOfStockItems ? (
-              <Button disabled className="flex-1 rounded-xl opacity-75 bg-destructive hover:bg-destructive text-destructive-foreground h-11 text-xs sm:text-sm">
-                Remove Sold Out Items to Checkout
-              </Button>
-            ) : storeStatus && !storeStatus.canAcceptOrder ? (
-              <Button disabled className="flex-1 rounded-xl opacity-60 h-11 text-xs sm:text-sm">
-                Orders Paused · {storeStatus.statusTitle}
-              </Button>
-            ) : (
-              <Button asChild className="flex-1 rounded-xl h-11 text-xs sm:text-sm shadow-xs font-semibold">
-                <Link to="/checkout">
-                  {storeStatus && !storeStatus.isOpen ? "Proceed to Pre-Order" : "Proceed to Checkout"}
-                </Link>
-              </Button>
-            )}
-            <Button
-              type="button"
-              disabled={availableWhatsAppItems.length === 0}
-              onClick={() => setWhatsAppModalOpen(true)}
-              className="flex-1 sm:flex-initial rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-semibold shadow-xs h-11 px-5 text-xs sm:text-sm"
-            >
-              <MessageSquare className="size-4 shrink-0" />
-              <span>Order on WhatsApp 💬</span>
-            </Button>
-          </div>
-        )}
       </div>
 
       <WhatsAppOrderDialog

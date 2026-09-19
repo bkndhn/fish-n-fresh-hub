@@ -1,18 +1,21 @@
 import { Link } from "@tanstack/react-router";
-import { Home, LayoutGrid, ReceiptText, ShoppingCart, Shield } from "lucide-react";
+import { Home, LayoutGrid, ReceiptText, ShoppingCart, Shield, Heart } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { myRolesQuery } from "@/lib/admin";
 import { useCart } from "@/lib/cart";
+import { useWishlist } from "@/hooks/useWishlist";
 
 const items = [
   { to: "/", label: "Home", icon: Home },
   { to: "/catalog", label: "Catalog", icon: LayoutGrid },
+  { to: "/wishlist", label: "Saved", icon: Heart, isWishlistBadge: true },
   { to: "/cart", label: "Cart", icon: ShoppingCart, hasBadge: true },
   { to: "/orders", label: "Orders", icon: ReceiptText },
 ] as const;
 
 export function BottomNav() {
   const { count } = useCart();
+  const { count: wishlistCount } = useWishlist();
   const { data: myRoles } = useQuery(myRolesQuery);
   const showAdmin = myRoles?.some((r) => ["admin", "staff", "driver"].includes(r));
 
@@ -36,6 +39,11 @@ export function BottomNav() {
                   {"hasBadge" in rest && rest.hasBadge && count > 0 && (
                     <span className="absolute -top-1.5 -right-2.5 flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground font-extrabold text-[9px] shadow-xs ring-2 ring-background animate-in zoom-in-75">
                       {count > 99 ? "99+" : count}
+                    </span>
+                  )}
+                  {"isWishlistBadge" in rest && rest.isWishlistBadge && wishlistCount > 0 && (
+                    <span className="absolute -top-1.5 -right-2.5 flex size-4 items-center justify-center rounded-full bg-rose-500 text-white font-extrabold text-[9px] shadow-xs ring-2 ring-background animate-in zoom-in-75">
+                      {wishlistCount > 99 ? "99+" : wishlistCount}
                     </span>
                   )}
                 </div>

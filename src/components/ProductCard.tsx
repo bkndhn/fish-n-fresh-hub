@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
-import { Minus, Plus, Star, Fish, Zap, Trash2, X } from "lucide-react";
+import { Minus, Plus, Star, Fish, Zap, Trash2, X, Heart } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/lib/cart";
+import { useWishlist } from "@/hooks/useWishlist";
 import { inr, formatStockDisplay } from "@/lib/format";
 import { settingsQuery } from "@/lib/queries";
 import type { Product } from "@/lib/types";
@@ -14,6 +15,8 @@ import { useCustomerBranch } from "@/lib/customerBranchContext";
 
 export function ProductCard({ product }: { product: Product }) {
   const { items, add, setQty, remove } = useCart();
+  const { toggle, isInWishlist } = useWishlist();
+  const isWishlisted = isInWishlist(product.id);
   const { activeBranch } = useCustomerBranch();
   const cartItem = items.find((i) => i.product_id === product.id);
   const { data: settings } = useQuery(settingsQuery);
@@ -100,9 +103,32 @@ export function ProductCard({ product }: { product: Product }) {
           )}
         </div>
 
-        {/* Top Right: In-Cart Badge or Express SLA */}
-        {cartItem ? (
-          <div className="absolute top-2 right-2 z-10">
+        {/* Top Right: Wishlist Button & In-Cart Badge / Express SLA */}
+        <div className="absolute top-2 right-2 z-10 flex flex-col gap-1.5 items-end">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggle(product.id);
+              if (!isWishlisted) {
+                toast.success(`${product.name} saved to wishlist!`, {
+                  icon: <Heart className="size-4 fill-rose-500 text-rose-500" />
+                });
+              }
+            }}
+            className="flex size-8 items-center justify-center rounded-full bg-background/80 backdrop-blur-sm border shadow-sm transition-colors hover:bg-background cursor-pointer"
+            aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          >
+            <Heart 
+              className={cn(
+                "size-4 transition-colors", 
+                isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground hover:text-foreground"
+              )} 
+            />
+          </button>
+
+          {cartItem ? (
             <span className="rounded-lg bg-primary text-primary-foreground pl-2 pr-1.5 py-0.5 text-[10px] font-bold shadow-md flex items-center gap-1.5 border border-white/20 animate-in fade-in">
               <span>✓ In Cart: {cartItem.qty} {product.unit || "kg"}</span>
               <button
@@ -120,15 +146,13 @@ export function ProductCard({ product }: { product: Product }) {
                 <X className="size-2.5" />
               </button>
             </span>
-          </div>
-        ) : !isOutOfStock && (s?.express_delivery_enabled ?? true) ? (
-          <div className="absolute top-2 right-2 pointer-events-none">
+          ) : !isOutOfStock && (s?.express_delivery_enabled ?? true) ? (
             <span className="rounded-md bg-black/65 backdrop-blur-md px-1.5 py-0.5 text-[9px] font-mono font-bold text-amber-300 flex items-center gap-0.5 shadow-xs border border-white/10">
               <Zap className="size-2.5 fill-amber-400 text-amber-400" />
               {s?.express_sla_mins || 35}m
             </span>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
       <div className="space-y-1 p-2.5 sm:p-3">
         <Link

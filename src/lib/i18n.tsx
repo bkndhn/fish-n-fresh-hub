@@ -63,15 +63,28 @@ interface I18nContextType {
 
 const I18nContext = createContext<I18nContextType | null>(null);
 
+import { useQuery } from "@tanstack/react-query";
+import { settingsQuery } from "./queries";
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<Language>("en");
+  const { data: settings } = useQuery(settingsQuery);
 
   useEffect(() => {
     const saved = localStorage.getItem("fnf_lang") as Language;
     if (saved && ["en", "ta", "hi"].includes(saved)) {
       setLang(saved);
+    } else if (settings && (settings as any).terms_content) {
+      try {
+        const parsed = JSON.parse((settings as any).terms_content);
+        if (parsed && parsed.default_language && ["en", "ta", "hi"].includes(parsed.default_language)) {
+          setLang(parsed.default_language as Language);
+        }
+      } catch (e) {
+        // ignore
+      }
     }
-  }, []);
+  }, [settings]);
 
   const handleSetLang = (newLang: Language) => {
     setLang(newLang);

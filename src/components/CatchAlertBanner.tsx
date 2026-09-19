@@ -99,11 +99,8 @@ export function CatchAlertBanner() {
 
   const s = settings as SiteSettings | undefined;
 
-  // Admin Killswitch / Toggle: If live alerts are disabled in store settings or local override, do not display!
-  const localOverride = typeof window !== "undefined" ? localStorage.getItem("fnf_live_alerts_enabled") : null;
-  const isAlertsEnabled = localOverride !== null
-    ? localOverride === "true"
-    : (settings ? (s?.live_alerts_enabled !== false) : false);
+  // Admin Killswitch / Toggle: If live alerts are disabled in store settings, do not display!
+  const isAlertsEnabled = settings ? (s?.live_alerts_enabled !== false) : false;
 
   if (!isAlertsEnabled || dismissed) return null;
 

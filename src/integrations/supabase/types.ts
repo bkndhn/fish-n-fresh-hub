@@ -1707,6 +1707,7 @@ export type Database = {
           custom_holidays: Json | null
           daily_atmosphere_enabled: boolean
           default_gst_percent: number
+          default_language: string | null
           delivery_enabled: boolean
           delivery_fee: number
           delivery_radius_km: number
@@ -1856,6 +1857,7 @@ export type Database = {
           custom_holidays?: Json | null
           daily_atmosphere_enabled?: boolean
           default_gst_percent?: number
+          default_language?: string | null
           delivery_enabled?: boolean
           delivery_fee?: number
           delivery_radius_km?: number
@@ -2005,6 +2007,7 @@ export type Database = {
           custom_holidays?: Json | null
           daily_atmosphere_enabled?: boolean
           default_gst_percent?: number
+          default_language?: string | null
           delivery_enabled?: boolean
           delivery_fee?: number
           delivery_radius_km?: number
