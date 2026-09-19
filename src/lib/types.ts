@@ -137,6 +137,10 @@ export type Product = {
   aisle_location?: string | null;
   variants?: ProductVariant[] | null;
   requires_serial?: boolean;
+  // Wholesale (trade buyer) pricing
+  wholesale_price?: number | null;
+  wholesale_min_qty?: number | null;
+  wholesale_tiers?: unknown;
 };
 
 /**
