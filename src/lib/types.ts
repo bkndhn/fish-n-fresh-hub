@@ -22,6 +22,7 @@ export type SiteSettings = Database['public']['Tables']['store_settings']['Row']
   printer_custom_footer_message?: string | null;
   printer_whatsapp_number?: string | null;
   printer_social_handle?: string | null;
+  shipping_scope_config?: any | null;
 };
 
 export type StoreOrderingMode = "standard" | "both" | "whatsapp_only" | "catalog_only";

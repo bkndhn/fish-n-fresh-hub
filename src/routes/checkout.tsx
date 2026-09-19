@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import type { Database } from "@/integrations/supabase/types";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { MapPin, Copy, QrCode, Smartphone, Tag, MessageCircle, MessageSquare, AlertTriangle, CheckCircle2, Zap, Clock, Gift, Wallet, Sparkles, Upload, X, Check, Store } from "lucide-react";
+import { MapPin, Copy, QrCode, Smartphone, Tag, MessageCircle, MessageSquare, AlertTriangle, CheckCircle2, Zap, Clock, Gift, Wallet, Sparkles, Upload, X, Check, Store, Globe, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,15 @@ import { AddressBook } from "@/components/AddressBook";
 import { MapPinPickerModal } from "@/components/MapPinPickerModal";
 import { calculateDistanceKm, getGoogleMapsDirUrl, forwardGeocodeAddress, getOsrmRoadRoute } from "@/lib/maps";
 import { settingsQuery, productsQuery } from "@/lib/queries";
+import {
+  getShippingScopeConfig,
+  evaluateOrderShippingRate,
+  TAMIL_NADU_DISTRICTS,
+  INDIAN_STATES,
+  INTERNATIONAL_COUNTRIES,
+  type ShippingScopeConfig,
+  type ShippingRateEvaluation,
+} from "@/lib/shippingScope";
 import { deliveryWindowsQuery, windowText } from "@/lib/delivery";
 import { isPaymentsConfigured } from "@/lib/stripe";
 import { StripeOrderCheckout } from "@/components/StripeOrderCheckout";
@@ -189,23 +198,53 @@ function Checkout() {
 
   const freeOver = Number(settings?.free_delivery_over ?? 500);
 
+  // Geographic Delivery Coverage & Multi-Tier Shipping Scope
+  const [shippingConfig, setShippingConfig] = useState<ShippingScopeConfig>(() =>
+    getShippingScopeConfig(settings as SiteSettings | null | undefined)
+  );
+
+  useEffect(() => {
+    if (settings) {
+      const fresh = getShippingScopeConfig(settings as SiteSettings);
+      setShippingConfig(fresh);
+      if (fresh.state_name) {
+        setSelectedState((prev) => prev || fresh.state_name);
+      }
+    }
+  }, [settings]);
+
+  useEffect(() => {
+    const handleConfigUpdate = () => {
+      setShippingConfig(getShippingScopeConfig(settings as SiteSettings));
+    };
+    window.addEventListener("fishnfresh:shipping-scope-updated", handleConfigUpdate);
+    return () => window.removeEventListener("fishnfresh:shipping-scope-updated", handleConfigUpdate);
+  }, [settings]);
+
+  const [selectedState, setSelectedState] = useState<string>(() => shippingConfig.state_name || "Tamil Nadu");
+  const [selectedDistrict, setSelectedDistrict] = useState<string>("");
+  const [selectedCountry, setSelectedCountry] = useState<string>("India");
+  const [postalCode, setPostalCode] = useState<string>("");
+  const [shippingTierOverride, setShippingTierOverride] = useState<"local" | "state" | "national" | "international" | null>(null);
+
   // Delivery Speed Express Surcharge
   const isExpressActive =
     fulfillment === "delivery" &&
     deliverySpeed === "express" &&
     ((settings as SiteSettings)?.express_delivery_enabled ?? true);
-  const expressFee = isExpressActive ? Number((settings as SiteSettings)?.express_delivery_fee ?? 25) : 0;
 
-  // Dynamic Delivery Fee
-  let deliveryFee = 0;
-  if (fulfillment === "delivery") {
-    if (subtotal < freeOver) {
-      const baseFee = Number(settings?.base_delivery_fee ?? settings?.delivery_fee ?? 40);
-      const perKm = Number(settings?.per_km_charge ?? 0);
-      deliveryFee = distanceKm ? baseFee + Math.round(distanceKm * perKm) : baseFee;
-    }
-    deliveryFee += expressFee;
-  }
+  // Dynamic Geographic Shipping & Delivery Fee Evaluation
+  const shippingEval: ShippingRateEvaluation = evaluateOrderShippingRate(shippingConfig, {
+    subtotal,
+    distanceKm,
+    state: selectedState,
+    district: selectedDistrict,
+    country: selectedCountry,
+    isExpress: isExpressActive,
+    selectedTierOverride: shippingTierOverride,
+  });
+
+  const deliveryFee = fulfillment === "delivery" ? shippingEval.fee : 0;
 
   // Smart GST Calculation (Strict ₹0 when disabled)
   const isGstActive = isGstEnabled(settings as SiteSettings);
@@ -378,6 +417,39 @@ function Checkout() {
       return;
     }
 
+    if (fulfillment === "delivery") {
+      if (!shippingEval.isServiceable) {
+        toast.error(shippingEval.unserviceableReason || "Delivery is not serviceable for the selected destination or order value.");
+        return;
+      }
+      if (shippingEval.tier === "state" && !selectedDistrict) {
+        toast.error(`Please select your destination district in ${shippingConfig.state_name || "Tamil Nadu"}`);
+        return;
+      }
+      if (shippingEval.tier === "national" && !selectedState) {
+        toast.error("Please select your destination state");
+        return;
+      }
+      if (shippingEval.tier === "international" && !selectedCountry) {
+        toast.error("Please select your destination country");
+        return;
+      }
+    }
+
+    let formattedAddress = address.trim();
+    if (fulfillment === "delivery") {
+      if (shippingEval.tier === "state" && selectedDistrict && !formattedAddress.toLowerCase().includes(selectedDistrict.toLowerCase())) {
+        formattedAddress = `${formattedAddress}, ${selectedDistrict}, ${selectedState || "Tamil Nadu"}`;
+      } else if (shippingEval.tier === "national" && selectedState && !formattedAddress.toLowerCase().includes(selectedState.toLowerCase())) {
+        formattedAddress = `${formattedAddress}, ${selectedState}, India`;
+      } else if (shippingEval.tier === "international" && selectedCountry && !formattedAddress.toLowerCase().includes(selectedCountry.toLowerCase())) {
+        formattedAddress = `${formattedAddress}, ${selectedCountry}`;
+      }
+      if (postalCode.trim() && !formattedAddress.includes(postalCode.trim())) {
+        formattedAddress = `${formattedAddress} - ${postalCode.trim()}`;
+      }
+    }
+
     const rlCheck = checkRateLimit("checkout_order", cleanPhone || "guest");
     if (!rlCheck.allowed) {
       toast.error(rlCheck.errorMessage || "Too many order requests. Please wait a moment.");
@@ -422,6 +494,8 @@ function Checkout() {
 
     const orderNotes = [
       activeBranch ? `Hub: ${activeBranch.name} (${activeBranch.code})` : "",
+      shippingEval.scopeTag,
+      shippingEval.carrierText ? `Carrier: ${shippingEval.carrierText}` : "",
       notes.trim(),
       upiUtr ? `UPI UTR: ${upiUtr}` : "",
       upiScreenshot ? "Payment Screenshot Proof Attached" : "",
@@ -466,7 +540,7 @@ function Checkout() {
         customer_name: cleanName,
         customer_phone: cleanPhone,
         customer_email: email.trim() || null,
-        customer_address: fulfillment === "delivery" ? address : null,
+        customer_address: fulfillment === "delivery" ? formattedAddress : null,
         location_lat: fulfillment === "delivery" ? finalLat : null,
         location_lng: fulfillment === "delivery" ? finalLng : null,
         items: items as unknown as NonNullable<Database["public"]["Tables"]["orders"]["Insert"]["items"]>,
@@ -595,9 +669,41 @@ function Checkout() {
       toast.error("Please enter your phone number");
       return;
     }
-    if (fulfillment === "delivery" && !address.trim()) {
-      toast.error("Please enter your delivery address");
-      return;
+    if (fulfillment === "delivery") {
+      if (!address.trim()) {
+        toast.error("Please enter your delivery address");
+        return;
+      }
+      if (!shippingEval.isServiceable) {
+        toast.error(shippingEval.unserviceableReason || "Delivery is not serviceable for the selected destination.");
+        return;
+      }
+      if (shippingEval.tier === "state" && !selectedDistrict) {
+        toast.error(`Please select your destination district in ${shippingConfig.state_name || "Tamil Nadu"}`);
+        return;
+      }
+      if (shippingEval.tier === "national" && !selectedState) {
+        toast.error("Please select your destination state");
+        return;
+      }
+      if (shippingEval.tier === "international" && !selectedCountry) {
+        toast.error("Please select your destination country");
+        return;
+      }
+    }
+
+    let formattedAddress = address.trim();
+    if (fulfillment === "delivery") {
+      if (shippingEval.tier === "state" && selectedDistrict && !formattedAddress.toLowerCase().includes(selectedDistrict.toLowerCase())) {
+        formattedAddress = `${formattedAddress}, ${selectedDistrict}, ${selectedState || "Tamil Nadu"}`;
+      } else if (shippingEval.tier === "national" && selectedState && !formattedAddress.toLowerCase().includes(selectedState.toLowerCase())) {
+        formattedAddress = `${formattedAddress}, ${selectedState}, India`;
+      } else if (shippingEval.tier === "international" && selectedCountry && !formattedAddress.toLowerCase().includes(selectedCountry.toLowerCase())) {
+        formattedAddress = `${formattedAddress}, ${selectedCountry}`;
+      }
+      if (postalCode.trim() && !formattedAddress.includes(postalCode.trim())) {
+        formattedAddress = `${formattedAddress} - ${postalCode.trim()}`;
+      }
     }
 
     const rlCheck = checkRateLimit("checkout_order", cleanPhone || "guest");
@@ -610,16 +716,22 @@ function Checkout() {
     const storePhone = (settings as SiteSettings)?.whatsapp_order_phone || settings?.contact_phone || "9843061919";
     const storeName = settings?.store_name || "Fish N Fresh Hub";
 
+    const waNotes = [
+      shippingEval.scopeTag,
+      shippingEval.carrierText ? `Carrier: ${shippingEval.carrierText}` : "",
+      notes.trim(),
+    ].filter(Boolean).join(" | ");
+
     const orderSummary: WhatsAppOrderSummary = {
       storeName,
       storePhone,
       customer: {
         name: name.trim(),
         phone: cleanPhone,
-        address: fulfillment === "delivery" ? address.trim() : undefined,
+        address: fulfillment === "delivery" ? formattedAddress : undefined,
         fulfillment,
         preferredDate: deliveryDate || undefined,
-        notes: notes.trim() || undefined,
+        notes: waNotes || undefined,
       },
       items: items.map((it) => {
         const matched = products?.find((p) => p.id === it.product_id);
@@ -865,8 +977,8 @@ function Checkout() {
         </div>
       )}
 
-      {/* Delivery Radius Boundary Advisory */}
-      {fulfillment === "delivery" && distanceKm !== null && activeBranch && distanceKm > (activeBranch.delivery_radius_km || 15) && (
+      {/* Delivery Radius Boundary Advisory (Only for Local Tier) */}
+      {fulfillment === "delivery" && shippingEval.tier === "local" && distanceKm !== null && activeBranch && distanceKm > (activeBranch.delivery_radius_km || 15) && (
         <div className="mt-2.5 flex items-start gap-2.5 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
           <AlertTriangle className="size-4.5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
           <div className="space-y-0.5">
@@ -911,10 +1023,176 @@ function Checkout() {
           />
         </div>
         {fulfillment === "delivery" && (
-          <div className="space-y-2 pt-2">
+          <div className="space-y-3 pt-2">
+            {/* Hybrid Multi-Tier Scope Selector */}
+            {shippingConfig.scope_mode === "hybrid" && (
+              <div className="space-y-2 rounded-2xl border border-primary/20 bg-primary/5 p-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                    <Globe className="size-3.5 text-primary" /> Delivery Coverage Scope
+                  </Label>
+                  <Badge variant="outline" className="text-[10px] bg-background">Multi-Tier Active</Badge>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setShippingTierOverride("local")}
+                    className={`rounded-xl border p-2 text-center text-xs transition ${
+                      shippingEval.tier === "local"
+                        ? "border-primary bg-primary text-primary-foreground font-bold shadow-xs"
+                        : "border-border bg-card text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <span className="block text-sm">📍</span>
+                    <span className="text-[11px] truncate">City Radius ({shippingConfig.local_radius_km}km)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShippingTierOverride("state")}
+                    className={`rounded-xl border p-2 text-center text-xs transition ${
+                      shippingEval.tier === "state"
+                        ? "border-primary bg-primary text-primary-foreground font-bold shadow-xs"
+                        : "border-border bg-card text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <span className="block text-sm">🗺️</span>
+                    <span className="text-[11px] truncate">{shippingConfig.state_name || "Tamil Nadu"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShippingTierOverride("national")}
+                    className={`rounded-xl border p-2 text-center text-xs transition ${
+                      shippingEval.tier === "national"
+                        ? "border-primary bg-primary text-primary-foreground font-bold shadow-xs"
+                        : "border-border bg-card text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <span className="block text-sm">🇮🇳</span>
+                    <span className="text-[11px] truncate">Pan-India</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShippingTierOverride("international")}
+                    className={`rounded-xl border p-2 text-center text-xs transition ${
+                      shippingEval.tier === "international"
+                        ? "border-primary bg-primary text-primary-foreground font-bold shadow-xs"
+                        : "border-border bg-card text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <span className="block text-sm">🌍</span>
+                    <span className="text-[11px] truncate">Global Export</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Scope-specific Destination Selectors */}
+            {/* 1. State-Wide / Tamil Nadu District Selector */}
+            {(shippingConfig.scope_mode === "state" || shippingEval.tier === "state") && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 rounded-2xl border border-sky-500/30 bg-sky-500/5 p-3">
+                <div>
+                  <Label htmlFor="destination-state" className="text-xs font-semibold text-foreground">
+                    State / Region
+                  </Label>
+                  <Input
+                    id="destination-state"
+                    value={selectedState || shippingConfig.state_name || "Tamil Nadu"}
+                    readOnly
+                    className="mt-1 rounded-xl bg-background/80 text-xs font-medium cursor-default"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="destination-district" className="text-xs font-semibold text-foreground">
+                    {shippingConfig.state_name || "Tamil Nadu"} District *
+                  </Label>
+                  <select
+                    id="destination-district"
+                    value={selectedDistrict}
+                    onChange={(e) => setSelectedDistrict(e.target.value)}
+                    className="mt-1 flex h-9 w-full rounded-xl border border-input bg-background px-3 py-1 text-xs shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="">-- Select Destination District --</option>
+                    {TAMIL_NADU_DISTRICTS.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* 2. Pan-India Domestic State & PIN Selector */}
+            {(shippingConfig.scope_mode === "national" || shippingEval.tier === "national") && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-3">
+                <div>
+                  <Label htmlFor="national-state" className="text-xs font-semibold text-foreground">
+                    Destination Indian State / UT *
+                  </Label>
+                  <select
+                    id="national-state"
+                    value={selectedState}
+                    onChange={(e) => setSelectedState(e.target.value)}
+                    className="mt-1 flex h-9 w-full rounded-xl border border-input bg-background px-3 py-1 text-xs shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="">-- Select Indian State --</option>
+                    {INDIAN_STATES.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="pincode-input" className="text-xs font-semibold text-foreground">
+                    6-Digit Postal PIN Code *
+                  </Label>
+                  <Input
+                    id="pincode-input"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="e.g. 600001"
+                    value={postalCode}
+                    onChange={(e) => setPostalCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    className="mt-1 rounded-xl text-xs font-mono bg-background"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* 3. International / Worldwide Country & Postal Code Selector */}
+            {(shippingConfig.scope_mode === "international" || shippingEval.tier === "international") && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3">
+                <div>
+                  <Label htmlFor="intl-country" className="text-xs font-semibold text-foreground">
+                    Destination Country / Region *
+                  </Label>
+                  <select
+                    id="intl-country"
+                    value={selectedCountry}
+                    onChange={(e) => setSelectedCountry(e.target.value)}
+                    className="mt-1 flex h-9 w-full rounded-xl border border-input bg-background px-3 py-1 text-xs shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="">-- Select Destination Country --</option>
+                    {INTERNATIONAL_COUNTRIES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="intl-postal" className="text-xs font-semibold text-foreground">
+                    ZIP / Postal Code *
+                  </Label>
+                  <Input
+                    id="intl-postal"
+                    placeholder="e.g. 90210 or SW1A 1AA"
+                    value={postalCode}
+                    onChange={(e) => setPostalCode(e.target.value.slice(0, 12))}
+                    className="mt-1 rounded-xl text-xs font-mono bg-background"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <Label htmlFor="address" className="font-semibold text-xs sm:text-sm">
-                Delivery Address &amp; Pincode *
+                Delivery Address &amp; Street Details *
               </Label>
               <div className="flex items-center gap-1.5 flex-wrap">
                 {customerLat && customerLng && (
@@ -922,7 +1200,7 @@ function Checkout() {
                     📍 Pinned
                   </span>
                 )}
-                {distanceKm && (
+                {distanceKm && shippingEval.tier === "local" && (
                   <span className="text-[10px] sm:text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 whitespace-nowrap">
                     📍 {distanceKm.toFixed(1)} km from store
                   </span>
@@ -957,29 +1235,31 @@ function Checkout() {
               }} 
             />
 
-            <div className="flex items-center justify-between gap-2 pt-0.5">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setPinPickerOpen(true)}
-                className="rounded-xl text-xs font-bold gap-1.5 h-8 border-primary/40 text-primary hover:bg-primary/10 bg-primary/5 shadow-2xs"
-              >
-                <MapPin className="size-3.5 text-primary" />
-                <span>{customerLat && customerLng ? "Adjust Doorstep Pin on Map" : "📍 Pin Exact Doorstep on Map"}</span>
-              </Button>
+            {shippingEval.tier === "local" && (
+              <div className="flex items-center justify-between gap-2 pt-0.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPinPickerOpen(true)}
+                  className="rounded-xl text-xs font-bold gap-1.5 h-8 border-primary/40 text-primary hover:bg-primary/10 bg-primary/5 shadow-2xs"
+                >
+                  <MapPin className="size-3.5 text-primary" />
+                  <span>{customerLat && customerLng ? "Adjust Doorstep Pin on Map" : "📍 Pin Exact Doorstep on Map"}</span>
+                </Button>
 
-              {customerLat && customerLng && (
-                <span className="text-[10px] font-mono text-muted-foreground">
-                  {customerLat.toFixed(4)}, {customerLng.toFixed(4)}
-                </span>
-              )}
-            </div>
+                {customerLat && customerLng && (
+                  <span className="text-[10px] font-mono text-muted-foreground">
+                    {customerLat.toFixed(4)}, {customerLng.toFixed(4)}
+                  </span>
+                )}
+              </div>
+            )}
 
             <Textarea
               id="address"
               rows={2}
-              placeholder="Full address with flat/house no, street, landmark, and 6-digit pincode…"
+              placeholder="Door/flat no, building name, street, landmark, city and postal details…"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               onBlur={async () => {
@@ -1009,15 +1289,37 @@ function Checkout() {
                 Auto-detecting exact doorstep GPS coordinates from address…
               </p>
             )}
+
+            {/* Unserviceable Warning Banner */}
+            {!shippingEval.isServiceable && (
+              <div className="flex items-start gap-2.5 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+                <AlertTriangle className="size-4.5 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-sm">Destination Minimum Not Met</p>
+                  <p className="mt-0.5 opacity-90">{shippingEval.unserviceableReason}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Carrier Packaging & Handling Policy Note */}
+            {shippingEval.packagingNote && (
+              <div className="flex items-start gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 p-2.5 text-xs text-blue-900 dark:text-blue-200">
+                <Truck className="size-4 shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" />
+                <div className="space-y-0.5">
+                  <p className="font-bold text-blue-800 dark:text-blue-300">Carrier Packaging & Transit Policy</p>
+                  <p className="opacity-90">{shippingEval.packagingNote}</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Delivery Speed / Turnaround Selector */}
-        {fulfillment === "delivery" && (
+        {/* Local Delivery Speed / Turnaround Selector */}
+        {fulfillment === "delivery" && shippingEval.tier === "local" && (
           <div className="space-y-2.5 rounded-2xl border border-border bg-muted/20 p-3.5 sm:p-4">
             <div className="flex items-center justify-between">
               <Label className="text-xs sm:text-sm font-bold flex items-center gap-1.5 text-foreground">
-                <Zap className="size-4 text-amber-500 fill-amber-500" /> Delivery Speed & Turnaround
+                <Zap className="size-4 text-amber-500 fill-amber-500" /> Delivery Speed &amp; Turnaround
               </Label>
               <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px]">
                 Express SLA
@@ -1050,7 +1352,7 @@ function Checkout() {
                     </span>
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Fastest SLA · Packed on crushed ice & dispatched immediately
+                    Fastest SLA · Packed on crushed ice &amp; dispatched immediately
                   </p>
                 </div>
               </button>
@@ -1081,16 +1383,43 @@ function Checkout() {
                     </span>
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Morning 06:30 AM & 02:00 PM harbour boat catch arrival slots
+                    Morning 06:30 AM &amp; 02:00 PM harbour boat catch arrival slots
                   </p>
                 </div>
               </button>
             </div>
           </div>
         )}
+
+        {/* State / Pan-India / International Logistics Carrier Info Card */}
+        {fulfillment === "delivery" && shippingEval.tier !== "local" && (
+          <div className="space-y-2.5 rounded-2xl border border-primary/25 bg-primary/5 p-3.5 sm:p-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs sm:text-sm font-bold flex items-center gap-1.5 text-foreground">
+                <Truck className="size-4 text-primary" /> {shippingEval.tierTitle}
+              </Label>
+              <Badge variant="outline" className="text-[10px] border-primary/30 text-primary bg-background">
+                {shippingEval.carrierText || "Priority Transit"}
+              </Badge>
+            </div>
+            <div className="rounded-xl border border-border/70 bg-card p-3 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-foreground">Estimated Turnaround &amp; SLA</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{shippingEval.slaText}</p>
+              </div>
+              <div className="text-right font-mono text-xs font-bold text-foreground">
+                {shippingEval.fee === 0 ? (
+                  <span className="text-emerald-600 dark:text-emerald-400">FREE SHIPPING</span>
+                ) : (
+                  inr(shippingEval.fee)
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Date & Slot selection (shown if pickup or scheduled delivery) */}
-        {(fulfillment === "pickup" || deliverySpeed === "scheduled") && (
+        {(fulfillment === "pickup" || (fulfillment === "delivery" && shippingEval.tier === "local" && deliverySpeed === "scheduled")) && (
           <div>
             <Label htmlFor="delivery-date">
               {fulfillment === "pickup" ? "Pickup day & time" : "Delivery day & time slot"}
@@ -1582,16 +1911,28 @@ function Checkout() {
           </div>
         )}
         <div className="flex justify-between text-xs sm:text-sm">
-          <span className="text-muted-foreground flex items-center gap-1">
-            Delivery Fee
-            {isExpressActive && (
+          <span className="text-muted-foreground flex items-center gap-1.5">
+            {fulfillment === "delivery" ? shippingEval.tierTitle : "In-Store Pickup"}
+            {shippingEval.tier === "local" && isExpressActive && (
               <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[9px] py-0 px-1 font-mono">
                 ⚡ Express
               </Badge>
             )}
           </span>
-          <span className="font-medium">{deliveryFee === 0 ? "Free" : inr(deliveryFee)}</span>
+          <span className="font-medium font-mono">
+            {deliveryFee === 0 ? (
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold">FREE</span>
+            ) : (
+              inr(deliveryFee)
+            )}
+          </span>
         </div>
+        {fulfillment === "delivery" && shippingEval.amountNeededForFree > 0 && (
+          <div className="flex justify-between items-center text-[11px] text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 px-2.5 py-1 rounded-lg">
+            <span>Add {inr(shippingEval.amountNeededForFree)} more for FREE shipping</span>
+            <span className="font-semibold font-mono">Threshold: {inr(shippingEval.freeOverThreshold)}</span>
+          </div>
+        )}
         {isGstActive && gstAmount > 0 && <Row label="GST (Smart Calculation)" value={inr(gstAmount)} />}
         <div className="flex justify-between border-t border-border pt-2 font-display text-lg font-bold">
           <span>Total</span>
@@ -1612,7 +1953,7 @@ function Checkout() {
         <>
           <Button
             className="mt-4 w-full rounded-xl text-sm font-semibold"
-            disabled={saving || !storeStatus.canAcceptOrder || selectedHoliday.isHoliday}
+            disabled={saving || !storeStatus.canAcceptOrder || selectedHoliday.isHoliday || (fulfillment === "delivery" && !shippingEval.isServiceable)}
             onClick={placeOrder}
           >
             {saving
@@ -1621,9 +1962,11 @@ function Checkout() {
                 ? `Orders Paused · ${storeStatus.statusTitle}`
                 : selectedHoliday.isHoliday
                   ? "Store Closed on Selected Date"
-                  : !storeStatus.isOpen
-                    ? `Place Pre-Order · ${inr(total)}`
-                    : `Place order · ${inr(total)}`}
+                  : fulfillment === "delivery" && !shippingEval.isServiceable
+                    ? (shippingEval.unserviceableReason || "Shipping Not Serviceable")
+                    : !storeStatus.isOpen
+                      ? `Place Pre-Order · ${inr(total)}`
+                      : `Place order · ${inr(total)}`}
           </Button>
 
           <Button

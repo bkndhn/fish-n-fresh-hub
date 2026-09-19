@@ -50,6 +50,16 @@ import {
   getDefaultLiveChatConfig,
   type LiveChatConfig,
 } from "@/lib/liveChatConfig";
+import {
+  getShippingScopeConfig,
+  saveShippingScopeConfig,
+  DEFAULT_SHIPPING_SCOPE_CONFIG,
+  type ShippingScopeConfig,
+  type ShippingScopeMode,
+  TAMIL_NADU_DISTRICTS,
+  INDIAN_STATES,
+  INTERNATIONAL_COUNTRIES,
+} from "@/lib/shippingScope";
 import { Textarea } from "@/components/ui/textarea";
 import { settingsQuery } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
@@ -144,6 +154,38 @@ function AdminSettings() {
       saveLiveChatConfig(defaults, settings.id);
     }
     toast.info(`Live support reset to ${VERTICAL_CONFIGS[vert]?.name || "vertical"} defaults!`);
+  };
+
+  // Geographic Delivery Coverage & Multi-Tier Shipping Scope State
+  const [shippingScope, setShippingScope] = useState<ShippingScopeConfig>(() =>
+    getShippingScopeConfig(settings)
+  );
+
+  useEffect(() => {
+    if (settings) {
+      setShippingScope(getShippingScopeConfig(settings));
+    }
+  }, [settings]);
+
+  const handleSaveShippingScope = () => {
+    saveShippingScopeConfig(shippingScope);
+    setForm((prev: any) => ({
+      ...prev,
+      delivery_radius_km: shippingScope.local_radius_km,
+      base_delivery_fee: shippingScope.local_base_fee,
+      free_delivery_over: shippingScope.local_free_over,
+      per_km_charge: shippingScope.local_per_km_charge,
+      express_delivery_enabled: shippingScope.local_express_enabled,
+      express_delivery_fee: shippingScope.local_express_fee,
+      express_sla_mins: shippingScope.local_express_sla_mins,
+    }));
+    toast.success("Delivery Coverage & Shipping Scope saved!");
+  };
+
+  const handleResetShippingScope = () => {
+    setShippingScope(DEFAULT_SHIPPING_SCOPE_CONFIG);
+    saveShippingScopeConfig(DEFAULT_SHIPPING_SCOPE_CONFIG);
+    toast.info("Delivery scope reset to Local Hyperlocal defaults.");
   };
 
   const handleSeedConfirm = async (options: { archiveExisting: boolean; keepCustomProducts: boolean }) => {
@@ -507,7 +549,7 @@ function AdminSettings() {
   const update = useMutation({
     mutationFn: async (patch: any) => {
       if (!settings?.id) return;
-      const { daily_atmosphere_enabled, ...dbPatch } = patch;
+      const { daily_atmosphere_enabled, shipping_scope_config, ...dbPatch } = patch;
       if (daily_atmosphere_enabled !== undefined) {
         setDailyAtmosphereEnabled(Boolean(daily_atmosphere_enabled));
       }
@@ -539,6 +581,7 @@ function AdminSettings() {
       if (settings?.id && settings.id !== tenant.tenantId) {
         saveLiveChatConfig(liveChatConfig, settings.id);
       }
+      saveShippingScopeConfig(shippingScope);
       toast.success("Settings saved");
       qc.invalidateQueries({ queryKey: ["store_settings"] });
       qc.invalidateQueries({ queryKey: ["payment_gateway_credentials"] });
@@ -553,7 +596,19 @@ function AdminSettings() {
       setConfirmStoreNameModalOpen(true);
       return;
     }
-    update.mutate(form);
+    const finalForm = {
+      ...form,
+      shipping_scope_config: shippingScope,
+      delivery_radius_km: shippingScope.local_radius_km,
+      base_delivery_fee: shippingScope.local_base_fee,
+      free_delivery_over: shippingScope.local_free_over,
+      per_km_charge: shippingScope.local_per_km_charge,
+      express_delivery_enabled: shippingScope.local_express_enabled,
+      express_delivery_fee: shippingScope.local_express_fee,
+      express_sla_mins: shippingScope.local_express_sla_mins,
+    };
+    saveShippingScopeConfig(shippingScope);
+    update.mutate(finalForm);
   };
 
   const handleShopPinConfirm = (loc: GeocodedAddress) => {
@@ -2239,6 +2294,408 @@ If you need any cut modifications, please reply here. Thank you!`}
       )
     },
     {
+      id: "geographic_shipping_scope",
+      tab: "delivery" as const,
+      tabLabel: "Delivery & Logistics",
+      title: "Geographic Delivery Coverage & Multi-Tier Shipping Scope",
+      description: "Accept orders locally, state-wide across all over Tamil Nadu, Pan-India, or Worldwide Export with custom courier rates and SLA.",
+      keywords: ["shipping", "scope", "tamil nadu", "india", "pan india", "world", "international", "export", "courier", "state", "regional", "national", "delivery coverage", "logistics"],
+      content: (
+        <Card className="border-border/80 shadow-sm overflow-hidden">
+          <CardHeader className="bg-muted/30 border-b border-border/60 pb-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Globe className="size-5 text-primary" />
+                  Geographic Delivery Coverage &amp; Multi-Tier Shipping Scope
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Configure whether this store accepts orders locally within city radius, state-wide across all of Tamil Nadu, Pan-India, or Worldwide.
+                </p>
+              </div>
+              <Badge 
+                className={`text-xs font-bold px-2.5 py-1 ${
+                  shippingScope.scope_mode === "local"
+                    ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30"
+                    : shippingScope.scope_mode === "state"
+                    ? "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30"
+                    : shippingScope.scope_mode === "national"
+                    ? "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30"
+                    : shippingScope.scope_mode === "international"
+                    ? "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30"
+                    : "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30"
+                }`}
+              >
+                {shippingScope.scope_mode === "local" && "📍 Local / City Radius"}
+                {shippingScope.scope_mode === "state" && `🗺️ State-Wide (${shippingScope.state_name})`}
+                {shippingScope.scope_mode === "national" && "🇮🇳 Pan-India Domestic"}
+                {shippingScope.scope_mode === "international" && "🌍 Worldwide Export"}
+                {shippingScope.scope_mode === "hybrid" && "🌐 Multi-Tier Hybrid (All Active)"}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6 pt-5">
+            {/* Scope Mode Visual Selector Cards */}
+            <div>
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2.5 block">
+                Select Active Store Shipping Scope:
+              </Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {/* 1. Local Hyperlocal */}
+                <button
+                  type="button"
+                  onClick={() => setShippingScope((prev) => ({ ...prev, scope_mode: "local", local_enabled: true }))}
+                  className={`p-3.5 rounded-2xl border text-left transition-all ${
+                    shippingScope.scope_mode === "local"
+                      ? "border-primary bg-primary/10 ring-2 ring-primary/30 shadow-xs"
+                      : "border-border/80 hover:border-primary/40 bg-card hover:bg-muted/30"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-base font-bold text-foreground flex items-center gap-1.5">
+                      📍 Local City Radius
+                    </span>
+                    {shippingScope.scope_mode === "local" && <CheckCircle2 className="size-4 text-primary" />}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                    Hyperlocal doorstep delivery within store GPS radius ({shippingScope.local_radius_km} km) via bike riders.
+                  </p>
+                </button>
+
+                {/* 2. State-Wide Regional */}
+                <button
+                  type="button"
+                  onClick={() => setShippingScope((prev) => ({ ...prev, scope_mode: "state", state_enabled: true }))}
+                  className={`p-3.5 rounded-2xl border text-left transition-all ${
+                    shippingScope.scope_mode === "state"
+                      ? "border-indigo-500 bg-indigo-500/10 ring-2 ring-indigo-500/30 shadow-xs"
+                      : "border-border/80 hover:border-indigo-500/40 bg-card hover:bg-muted/30"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-base font-bold text-foreground flex items-center gap-1.5">
+                      🗺️ All {shippingScope.state_name || "Tamil Nadu"}
+                    </span>
+                    {shippingScope.scope_mode === "state" && <CheckCircle2 className="size-4 text-indigo-600 dark:text-indigo-400" />}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                    Accepts orders across all districts of {shippingScope.state_name || "Tamil Nadu"} via inter-district cold-chain parcel courier.
+                  </p>
+                </button>
+
+                {/* 3. Pan-India */}
+                <button
+                  type="button"
+                  onClick={() => setShippingScope((prev) => ({ ...prev, scope_mode: "national", national_enabled: true }))}
+                  className={`p-3.5 rounded-2xl border text-left transition-all ${
+                    shippingScope.scope_mode === "national"
+                      ? "border-purple-500 bg-purple-500/10 ring-2 ring-purple-500/30 shadow-xs"
+                      : "border-border/80 hover:border-purple-500/40 bg-card hover:bg-muted/30"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-base font-bold text-foreground flex items-center gap-1.5">
+                      🇮🇳 Pan-India National
+                    </span>
+                    {shippingScope.scope_mode === "national" && <CheckCircle2 className="size-4 text-purple-600 dark:text-purple-400" />}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                    Accepts orders from all 28 states &amp; 8 UTs via domestic express air cargo &amp; speed logistics.
+                  </p>
+                </button>
+
+                {/* 4. Worldwide Export */}
+                <button
+                  type="button"
+                  onClick={() => setShippingScope((prev) => ({ ...prev, scope_mode: "international", international_enabled: true }))}
+                  className={`p-3.5 rounded-2xl border text-left transition-all ${
+                    shippingScope.scope_mode === "international"
+                      ? "border-cyan-500 bg-cyan-500/10 ring-2 ring-cyan-500/30 shadow-xs"
+                      : "border-border/80 hover:border-cyan-500/40 bg-card hover:bg-muted/30"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-base font-bold text-foreground flex items-center gap-1.5">
+                      🌍 Worldwide Export
+                    </span>
+                    {shippingScope.scope_mode === "international" && <CheckCircle2 className="size-4 text-cyan-600 dark:text-cyan-400" />}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                    Cross-border global export shipping via DHL / FedEx International with customs compliance.
+                  </p>
+                </button>
+
+                {/* 5. Multi-Tier Hybrid */}
+                <button
+                  type="button"
+                  onClick={() => setShippingScope((prev) => ({ 
+                    ...prev, 
+                    scope_mode: "hybrid",
+                    local_enabled: true,
+                    state_enabled: true,
+                    national_enabled: true,
+                  }))}
+                  className={`p-3.5 rounded-2xl border text-left transition-all sm:col-span-2 lg:col-span-2 ${
+                    shippingScope.scope_mode === "hybrid"
+                      ? "border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/30 shadow-xs"
+                      : "border-border/80 hover:border-amber-500/40 bg-card hover:bg-muted/30"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-base font-bold text-foreground flex items-center gap-1.5">
+                      🌐 Multi-Tier Hybrid (Smart Auto-Routing)
+                    </span>
+                    {shippingScope.scope_mode === "hybrid" && <CheckCircle2 className="size-4 text-amber-600 dark:text-amber-400" />}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                    Delivers locally within {shippingScope.local_radius_km} km radius, regional cold-chain within {shippingScope.state_name}, and courier for other states / global orders.
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            {/* State-Wide / Regional (Tamil Nadu) Configuration Block */}
+            {(shippingScope.scope_mode === "state" || shippingScope.scope_mode === "hybrid") && (
+              <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-indigo-500" />
+                    <h3 className="font-bold text-sm text-foreground">
+                      State-Wide / Regional Shipping ({shippingScope.state_name})
+                    </h3>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] border-indigo-500/40 text-indigo-700 dark:text-indigo-300">
+                    Inter-District Cold Chain
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <Label className="text-xs">Primary Target State</Label>
+                    <Input
+                      value={shippingScope.state_name}
+                      onChange={(e) => setShippingScope((prev) => ({ ...prev, state_name: e.target.value }))}
+                      placeholder="e.g. Tamil Nadu"
+                      className="mt-1 rounded-xl text-xs"
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Default state for regional orders</p>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs">Regional Shipping Fee (₹)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={shippingScope.state_shipping_fee}
+                      onChange={(e) => setShippingScope((prev) => ({ ...prev, state_shipping_fee: Number(e.target.value) }))}
+                      className="mt-1 rounded-xl text-xs"
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Flat courier charge per shipment</p>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs">Free Regional Shipping Over (₹)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={shippingScope.state_free_over}
+                      onChange={(e) => setShippingScope((prev) => ({ ...prev, state_free_over: Number(e.target.value) }))}
+                      className="mt-1 rounded-xl text-xs"
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Waive courier fee above this total</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Estimated Regional Transit SLA</Label>
+                    <Input
+                      value={shippingScope.state_sla_text}
+                      onChange={(e) => setShippingScope((prev) => ({ ...prev, state_sla_text: e.target.value }))}
+                      placeholder="e.g. Next-Day Cold-Chain Delivery across Tamil Nadu (24–36 Hours)"
+                      className="mt-1 rounded-xl text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Courier &amp; Logistics Partners</Label>
+                    <Input
+                      value={shippingScope.state_courier_partners}
+                      onChange={(e) => setShippingScope((prev) => ({ ...prev, state_courier_partners: e.target.value }))}
+                      placeholder="e.g. ST Courier, Professional Courier, Bus Parcel Express"
+                      className="mt-1 rounded-xl text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Pan-India National Configuration Block */}
+            {(shippingScope.scope_mode === "national" || shippingScope.scope_mode === "hybrid") && (
+              <div className="rounded-2xl border border-purple-500/30 bg-purple-500/5 p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-purple-500" />
+                    <h3 className="font-bold text-sm text-foreground">
+                      Pan-India Domestic Logistics
+                    </h3>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] border-purple-500/40 text-purple-700 dark:text-purple-300">
+                    All 28 States &amp; 8 UTs
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Pan-India Domestic Shipping Fee (₹)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={shippingScope.national_shipping_fee}
+                      onChange={(e) => setShippingScope((prev) => ({ ...prev, national_shipping_fee: Number(e.target.value) }))}
+                      className="mt-1 rounded-xl text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Free Pan-India Delivery Over (₹)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={shippingScope.national_free_over}
+                      onChange={(e) => setShippingScope((prev) => ({ ...prev, national_free_over: Number(e.target.value) }))}
+                      className="mt-1 rounded-xl text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Domestic Transit SLA Text</Label>
+                    <Input
+                      value={shippingScope.national_sla_text}
+                      onChange={(e) => setShippingScope((prev) => ({ ...prev, national_sla_text: e.target.value }))}
+                      placeholder="e.g. 2–3 Days Pan-India Express Air Cargo (Insulated Dry-Ice Packaging)"
+                      className="mt-1 rounded-xl text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Courier Partners</Label>
+                    <Input
+                      value={shippingScope.national_courier_partners}
+                      onChange={(e) => setShippingScope((prev) => ({ ...prev, national_courier_partners: e.target.value }))}
+                      placeholder="e.g. BlueDart, Delhivery, India Post Speed Post"
+                      className="mt-1 rounded-xl text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Worldwide Export Configuration Block */}
+            {(shippingScope.scope_mode === "international" || shippingScope.scope_mode === "hybrid") && (
+              <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-cyan-500" />
+                    <h3 className="font-bold text-sm text-foreground">
+                      Worldwide / Global Export Settings
+                    </h3>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] border-cyan-500/40 text-cyan-700 dark:text-cyan-300">
+                    International Cross-Border
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Worldwide Shipping Fee (₹)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={shippingScope.international_shipping_fee}
+                      onChange={(e) => setShippingScope((prev) => ({ ...prev, international_shipping_fee: Number(e.target.value) }))}
+                      className="mt-1 rounded-xl text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Minimum Order Value for Exports (₹)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={shippingScope.international_min_order}
+                      onChange={(e) => setShippingScope((prev) => ({ ...prev, international_min_order: Number(e.target.value) }))}
+                      className="mt-1 rounded-xl text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Worldwide Delivery SLA</Label>
+                    <Input
+                      value={shippingScope.international_sla_text}
+                      onChange={(e) => setShippingScope((prev) => ({ ...prev, international_sla_text: e.target.value }))}
+                      placeholder="e.g. 4–7 Business Days Worldwide Express (DHL / FedEx / Aramex)"
+                      className="mt-1 rounded-xl text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Customs / Export Compliance Note</Label>
+                    <Input
+                      value={shippingScope.international_customs_note}
+                      onChange={(e) => setShippingScope((prev) => ({ ...prev, international_customs_note: e.target.value }))}
+                      placeholder="e.g. Vacuum packed &amp; airtight insulated. Subject to destination customs clearance."
+                      className="mt-1 rounded-xl text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Custom Packaging Notice for Outstation Shipments */}
+            <div>
+              <Label className="text-xs font-semibold">
+                Customer Packaging &amp; Freshness Notice (Shown for Outstation / Courier Orders)
+              </Label>
+              <Textarea
+                rows={2}
+                value={shippingScope.custom_packaging_notice}
+                onChange={(e) => setShippingScope((prev) => ({ ...prev, custom_packaging_notice: e.target.value }))}
+                placeholder="e.g. Fresh items for outstation shipping are packed in thermocol boxes with food-grade gel ice packs / dry ice."
+                className="mt-1.5 rounded-xl text-xs"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Displayed in the order summary at checkout when outstation / courier shipping is triggered.
+              </p>
+            </div>
+
+            {/* Action Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-border/60">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleResetShippingScope}
+                className="rounded-xl text-xs h-8.5 gap-1 text-muted-foreground hover:text-foreground"
+              >
+                <RotateCcw className="size-3.5" />
+                Reset to Local Defaults
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleSaveShippingScope}
+                className="rounded-xl text-xs font-bold h-8.5 px-4 gap-1.5 shadow-xs"
+              >
+                <CheckCircle2 className="size-4" />
+                Save Delivery Coverage
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )
+    },
+    {
       id: "delivery_pricing",
       tab: "delivery" as const,
       tabLabel: "Delivery & Logistics",
@@ -2256,7 +2713,11 @@ If you need any cut modifications, please reply here. Thank you!`}
               <Input
                 type="number"
                 value={form.base_delivery_fee ?? ""}
-                onChange={(e) => setForm({ ...form, base_delivery_fee: Number(e.target.value) })}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setForm({ ...form, base_delivery_fee: val });
+                  setShippingScope((prev) => ({ ...prev, local_base_fee: val }));
+                }}
               />
             </div>
             <div>
@@ -2264,7 +2725,11 @@ If you need any cut modifications, please reply here. Thank you!`}
               <Input
                 type="number"
                 value={form.per_km_charge ?? ""}
-                onChange={(e) => setForm({ ...form, per_km_charge: Number(e.target.value) })}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setForm({ ...form, per_km_charge: val });
+                  setShippingScope((prev) => ({ ...prev, local_per_km_charge: val }));
+                }}
               />
             </div>
             <div>
@@ -2272,7 +2737,11 @@ If you need any cut modifications, please reply here. Thank you!`}
               <Input
                 type="number"
                 value={form.free_delivery_over ?? ""}
-                onChange={(e) => setForm({ ...form, free_delivery_over: Number(e.target.value) })}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setForm({ ...form, free_delivery_over: val });
+                  setShippingScope((prev) => ({ ...prev, local_free_over: val }));
+                }}
               />
             </div>
           </CardContent>
@@ -3909,7 +4378,19 @@ If you need any cut modifications, please reply here. Thank you!`}
         requiresPassword={true}
         confirmText="Confirm & Apply Brand Change"
         onConfirm={async () => {
-          await update.mutateAsync(form);
+          const finalForm = {
+            ...form,
+            shipping_scope_config: shippingScope,
+            delivery_radius_km: shippingScope.local_radius_km,
+            base_delivery_fee: shippingScope.local_base_fee,
+            free_delivery_over: shippingScope.local_free_over,
+            per_km_charge: shippingScope.local_per_km_charge,
+            express_delivery_enabled: shippingScope.local_express_enabled,
+            express_delivery_fee: shippingScope.local_express_fee,
+            express_sla_mins: shippingScope.local_express_sla_mins,
+          };
+          saveShippingScopeConfig(shippingScope);
+          await update.mutateAsync(finalForm);
         }}
       />
 

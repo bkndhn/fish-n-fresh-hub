@@ -55,6 +55,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import type { SiteSettings } from '@/lib/types';
+import { extractScopeBadge } from "@/lib/shippingScope";
 
 export const Route = createFileRoute("/_authenticated/admin/orders")({
   head: () => ({
@@ -630,6 +631,7 @@ function OrdersAdmin() {
           const isDelivered = o.status === "delivered";
           const isCancelled = o.status === "cancelled";
           const isSelected = selectedOrderIds.includes(o.id);
+          const scopeBadge = extractScopeBadge(o.notes);
 
           return (
             <Card
@@ -669,18 +671,25 @@ function OrdersAdmin() {
                     </div>
                   </div>
 
-                  <Badge
-                    variant={isDelivered ? "default" : isCancelled ? "destructive" : "secondary"}
-                    className={`capitalize text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                      o.status === "out_for_delivery"
-                        ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30"
-                        : o.status === "preparing"
-                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
-                        : ""
-                    }`}
-                  >
-                    {o.status.replace(/_/g, " ")}
-                  </Badge>
+                  <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                    {scopeBadge && (
+                      <Badge variant="outline" className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${scopeBadge.badgeClass}`}>
+                        {scopeBadge.label}
+                      </Badge>
+                    )}
+                    <Badge
+                      variant={isDelivered ? "default" : isCancelled ? "destructive" : "secondary"}
+                      className={`capitalize text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                        o.status === "out_for_delivery"
+                          ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30"
+                          : o.status === "preparing"
+                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
+                          : ""
+                      }`}
+                    >
+                      {o.status.replace(/_/g, " ")}
+                    </Badge>
+                  </div>
                 </div>
 
                 {/* Customer Contact & Channel Bar */}
