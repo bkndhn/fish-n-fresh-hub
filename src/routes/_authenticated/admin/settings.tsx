@@ -691,7 +691,7 @@ function AdminSettings() {
     tabLabel: string;
     title: string;
     description: string;
-    keywords: string[];
+    keywords?: string[];
     content: React.ReactNode;
   }
 

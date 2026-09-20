@@ -39,6 +39,13 @@ export type OrderRow = {
   settlement_id?: string | null;
   settled_at?: string | null;
   actual_payment_method?: string | null;
+  user_id?: string | null;
+  return_status?: string | null;
+  return_reason?: string | null;
+  return_requested_at?: string | null;
+  returned_at?: string | null;
+  refund_status?: string | null;
+  refund_processed_at?: string | null;
 };
 
 export type PromotionRow = {
