@@ -171,7 +171,8 @@ export function ProductCard({ product }: { product: Product }) {
           {Number(product.rating).toFixed(1)}
           <span>· {product.unit}</span>
         </div>
-        <div className="mt-1.5 flex items-center justify-between gap-1 flex-wrap min-w-0">
+        <div className="mt-auto pt-2 flex flex-col gap-2 w-full">
+          {/* Price Block */}
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-1 flex-wrap">
               <span className="font-display text-sm sm:text-base font-bold text-foreground whitespace-nowrap">
@@ -190,18 +191,18 @@ export function ProductCard({ product }: { product: Product }) {
             )}
           </div>
           
-          <div className="shrink-0 ml-auto">
+          <div className="w-full">
             {isOutOfStock ? (
               <Button
                 size="sm"
                 variant="secondary"
                 disabled
-                className="h-7 rounded-full px-2.5 text-[11px] font-bold opacity-60 cursor-not-allowed"
+                className="h-8 w-full rounded-full px-2.5 text-[11px] font-bold opacity-60 cursor-not-allowed"
               >
                 Sold Out
               </Button>
             ) : cartItem ? (
-              <div className="flex items-center gap-0.5 rounded-full border border-primary/40 bg-primary/10 dark:bg-primary/20 p-0.5 shadow-2xs">
+              <div className="flex w-full justify-between items-center gap-0.5 rounded-full border border-primary/40 bg-primary/10 dark:bg-primary/20 p-0.5 shadow-2xs">
                 {(() => {
                   const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
                   const step = isWeighted ? (cartItem.qty <= 1 ? 0.25 : 0.5) : 1;
@@ -264,7 +265,7 @@ export function ProductCard({ product }: { product: Product }) {
                       setLocalQtyStr(String(product.stock));
                     }
                   }}
-                  className="w-6.5 sm:w-7 bg-transparent text-center text-[11px] sm:text-xs font-black font-mono outline-none text-primary dark:text-primary-foreground select-all p-0 leading-none"
+                  className="w-full min-w-0 flex-1 bg-transparent text-center text-[11px] sm:text-xs font-black font-mono outline-none text-primary dark:text-primary-foreground select-all p-0 leading-none"
                   title="Type custom quantity"
                 />
 
@@ -288,7 +289,7 @@ export function ProductCard({ product }: { product: Product }) {
             ) : (
               <Button
                 size="sm"
-                className="h-7 sm:h-7.5 rounded-full px-2.5 xs:px-3 text-[11px] xs:text-xs font-bold shadow-2xs hover:shadow-xs active:scale-95 transition-all"
+                className="h-8 w-full rounded-full px-2.5 text-xs font-bold shadow-2xs hover:shadow-xs active:scale-95 transition-all"
                 onClick={() => {
                   if (product.stock !== null && Number(product.stock) <= 0) {
                     toast.error("This product is currently out of stock");
