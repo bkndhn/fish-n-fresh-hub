@@ -180,6 +180,11 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
               </Button>
             </div>
 
+            {btReason ? (
+              <p className="text-[11px] text-destructive break-words">{btReason}</p>
+            ) : null}
+
+
             <p className="text-[11px] text-muted-foreground">
               If no direct hardware printer is connected, the app uses tailored high-contrast thermal browser printing.
             </p>
