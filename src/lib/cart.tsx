@@ -63,6 +63,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     discount: 0,
     name: null,
   });
+  const [bands, setBands] = useState<WholesaleBand[]>([]);
+  const [minOrderValue, setMinOrderValue] = useState(0);
+
 
   // Load the signed-in buyer's trade account, if they have an approved one.
   useEffect(() => {
