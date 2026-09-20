@@ -30,7 +30,7 @@ const STAFF_ROLES: CallerRole[] = [
   "driver",
 ];
 
-const ADMIN_ROLES: CallerRole[] = ["admin", "super_admin"];
+const ADMIN_ROLES: CallerRole[] = ["admin", "super_admin", "manager"];
 
 export class AuthorizationError extends Error {
   constructor(message = "Unauthorized") {
