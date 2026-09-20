@@ -114,8 +114,9 @@ export async function redeemWalletBalance(params: {
   try {
     const { data, error } = await supabase.rpc("redeem_wallet_balance", {
       p_amount: amount,
-      p_order_id: orderId ?? undefined,
+      ...(orderId ? { p_order_id: orderId } : {}),
     });
+
     if (error) {
       console.warn("Wallet redemption failed:", error.message);
       return false;
