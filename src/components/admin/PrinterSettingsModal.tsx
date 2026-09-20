@@ -31,6 +31,8 @@ import {
   getSavedPrinterConfig,
   savePrinterConfig,
   connectBluetoothPrinter,
+  getBluetoothUnavailableReason,
+
   connectSerialUsbPrinter,
   sendEscPosToPrinter,
   buildTestPrintForFormat,
