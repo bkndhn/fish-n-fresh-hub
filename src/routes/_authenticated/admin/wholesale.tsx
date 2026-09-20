@@ -16,8 +16,13 @@ import {
   listWholesalePrices,
   saveWholesalePrice,
   updateWholesaleAccount,
+  listWholesaleBands,
+  saveWholesaleBand,
+  deleteWholesaleBand,
+  saveWholesaleMinOrderValue,
   type WholesalePriceRow,
 } from "@/lib/wholesale.functions";
+
 import { parseTiers, type WholesaleTier } from "@/lib/wholesale";
 import { formatINR } from "@/lib/format";
 
