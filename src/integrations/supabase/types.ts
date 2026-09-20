@@ -1831,6 +1831,7 @@ export type Database = {
           weekly_holidays: string[]
           whatsapp_number: string | null
           whatsapp_order_phone: string | null
+          wholesale_min_order_value: number
           working_days: Json | null
         }
         Insert: {
@@ -1981,6 +1982,7 @@ export type Database = {
           weekly_holidays?: string[]
           whatsapp_number?: string | null
           whatsapp_order_phone?: string | null
+          wholesale_min_order_value?: number
           working_days?: Json | null
         }
         Update: {
@@ -2131,6 +2133,7 @@ export type Database = {
           weekly_holidays?: string[]
           whatsapp_number?: string | null
           whatsapp_order_phone?: string | null
+          wholesale_min_order_value?: number
           working_days?: Json | null
         }
         Relationships: []
@@ -2591,6 +2594,39 @@ export type Database = {
           },
         ]
       }
+      wholesale_discount_bands: {
+        Row: {
+          active: boolean
+          created_at: string
+          discount_percent: number
+          id: string
+          label: string | null
+          min_order_value: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          discount_percent?: number
+          id?: string
+          label?: string | null
+          min_order_value?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          discount_percent?: number
+          id?: string
+          label?: string | null
+          min_order_value?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -2649,6 +2685,10 @@ export type Database = {
           p_override_reason?: string
         }
         Returns: Json
+      }
+      wholesale_order_discount_percent: {
+        Args: { p_subtotal: number }
+        Returns: number
       }
       wholesale_unit_price: {
         Args: { p_product_id: string; p_qty: number }
