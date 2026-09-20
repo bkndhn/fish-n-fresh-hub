@@ -170,6 +170,22 @@ function ProductPage() {
           { name: product.name, path: `/product/${product.id}` },
         ]}
       />
+      {/* ── Back button ─────────────────────────────────────────────────── */}
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={() => {
+            if (window.history.length > 1) { window.history.back(); }
+            else { navigate({ to: "/catalog" }); }
+          }}
+          className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-sm hover:bg-muted hover:shadow-md active:scale-95 transition-all duration-150"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" aria-hidden="true">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          Back
+        </button>
+      </div>
       <div className="grid gap-6 md:grid-cols-2">
         <div className="overflow-hidden rounded-3xl border border-border bg-muted">
           {product.image_url ? (

@@ -29,11 +29,26 @@ export function getProductsQuery(branchId?: string) {
     staleTime: 1000 * 60 * 10, // 10 minutes fresh cache
     gcTime: 1000 * 60 * 60 * 24, // 24 hours persistence
     queryFn: async (): Promise<Product[]> => {
+      // Categories to hide — chicken/poultry products excluded from seafood store
+      const HIDDEN_CATEGORIES = [
+        "Chicken & Meat",
+        "Chicken",
+        "Meat",
+        "Poultry",
+        "Country Chicken",
+        "Nattu Kozhi",
+      ];
+
       let q = supabase
         .from("products")
         .select("*")
         .eq("is_available", true)
         .order("name");
+
+      // Exclude all chicken/meat categories
+      for (const cat of HIDDEN_CATEGORIES) {
+        q = q.neq("category", cat);
+      }
 
       if (branchId) {
         q = q.or(`branch_id.eq.${branchId},branch_id.is.null`);
@@ -43,13 +58,17 @@ export function getProductsQuery(branchId?: string) {
       if (error) throw error;
       const list = ((data ?? []) as unknown as Product[]).map(sanitizeProduct);
 
-      // If branch has no products yet, fallback to all available products
+      // If branch has no products yet, fallback to all available products (still excluding hidden)
       if (branchId && list.length === 0) {
-        const { data: fallbackData } = await supabase
+        let fallbackQ = supabase
           .from("products")
           .select("*")
           .eq("is_available", true)
           .order("name");
+        for (const cat of HIDDEN_CATEGORIES) {
+          fallbackQ = fallbackQ.neq("category", cat);
+        }
+        const { data: fallbackData } = await fallbackQ;
         return ((fallbackData ?? []) as unknown as Product[]).map(sanitizeProduct);
       }
 
