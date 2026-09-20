@@ -94,3 +94,38 @@ export function nextTier(product: WholesalePricing, qty: number): WholesaleTier 
   );
   return upcoming[0] ?? null;
 }
+
+/**
+ * Order-value discount bands: a whole basket above a value earns an extra
+ * percentage off. Mirrors the database function
+ * `wholesale_order_discount_percent()`, which is authoritative at order time.
+ */
+export type WholesaleBand = {
+  id: string;
+  label: string | null;
+  min_order_value: number;
+  discount_percent: number;
+  active: boolean;
+};
+
+/** Highest band percentage the given order value qualifies for. */
+export function resolveBandPercent(bands: WholesaleBand[], subtotal: number): number {
+  let best = 0;
+  for (const b of bands) {
+    if (!b.active) continue;
+    if (Number(subtotal) >= Number(b.min_order_value) && Number(b.discount_percent) > best) {
+      best = Number(b.discount_percent);
+    }
+  }
+  return Math.min(Math.max(best, 0), 50);
+}
+
+/** The next band above the current order value, for "spend N more" hints. */
+export function nextBand(bands: WholesaleBand[], subtotal: number): WholesaleBand | null {
+  const current = resolveBandPercent(bands, subtotal);
+  const upcoming = bands
+    .filter((b) => b.active && Number(b.min_order_value) > Number(subtotal) && Number(b.discount_percent) > current)
+    .sort((a, b) => Number(a.min_order_value) - Number(b.min_order_value));
+  return upcoming[0] ?? null;
+}
+

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireAdmin, requireUser, getCallerUserId } from "@/lib/authz.server";
-import type { WholesaleAccount } from "@/lib/wholesale";
+import type { WholesaleAccount, WholesaleBand } from "@/lib/wholesale";
+
 
 const ACCOUNT_FIELDS =
   "id, user_id, business_name, contact_name, phone, email, gstin, address, status, extra_discount_percent, credit_limit, notes, created_at";
@@ -179,6 +180,88 @@ export const saveWholesalePrice = createServerFn({ method: "POST" })
         wholesale_tiers: data.tiers,
       } as never)
       .eq("id", data.productId);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  });
+
+const BAND_FIELDS = "id, label, min_order_value, discount_percent, active";
+
+/** Active order-value discount bands plus the minimum bulk order value. */
+export const listWholesaleBands = createServerFn({ method: "GET" }).handler(
+  async (): Promise<{ bands: WholesaleBand[]; minOrderValue: number }> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [{ data: bands }, { data: settings }] = await Promise.all([
+      supabaseAdmin
+        .from("wholesale_discount_bands")
+        .select(BAND_FIELDS)
+        .order("min_order_value", { ascending: true }),
+      supabaseAdmin.from("store_settings").select("wholesale_min_order_value").limit(1).maybeSingle(),
+    ]);
+    return {
+      bands: ((bands ?? []) as unknown as WholesaleBand[]).map((b) => ({
+        id: b.id,
+        label: b.label ?? null,
+        min_order_value: Number(b.min_order_value) || 0,
+        discount_percent: Number(b.discount_percent) || 0,
+        active: Boolean(b.active),
+      })),
+      minOrderValue: Number((settings as { wholesale_min_order_value?: number } | null)?.wholesale_min_order_value ?? 0) || 0,
+    };
+  },
+);
+
+/** Admin: create or update one order-value discount band. */
+export const saveWholesaleBand = createServerFn({ method: "POST" })
+  .inputValidator((input: { id?: string; label?: string; min_order_value: number; discount_percent: number; active?: boolean }) => ({
+    id: input?.id ? String(input.id) : null,
+    label: String(input?.label ?? "").trim().slice(0, 60) || null,
+    min_order_value: Math.max(0, Number(input?.min_order_value) || 0),
+    discount_percent: Math.min(Math.max(Number(input?.discount_percent) || 0, 0), 50),
+    active: input?.active !== false,
+  }))
+  .handler(async ({ data }) => {
+    await requireAdmin();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const patch = {
+      label: data.label,
+      min_order_value: data.min_order_value,
+      discount_percent: data.discount_percent,
+      active: data.active,
+    };
+    const { error } = data.id
+      ? await supabaseAdmin.from("wholesale_discount_bands").update(patch as never).eq("id", data.id)
+      : await supabaseAdmin.from("wholesale_discount_bands").insert(patch as never);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  });
+
+/** Admin: remove a discount band. */
+export const deleteWholesaleBand = createServerFn({ method: "POST" })
+  .inputValidator((input: { id: string }) => {
+    const id = String(input?.id ?? "");
+    if (!id) throw new Error("Missing band");
+    return { id };
+  })
+  .handler(async ({ data }) => {
+    await requireAdmin();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("wholesale_discount_bands").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  });
+
+/** Admin: set the minimum order value trade buyers must reach. */
+export const saveWholesaleMinOrderValue = createServerFn({ method: "POST" })
+  .inputValidator((input: { value: number }) => ({ value: Math.max(0, Number(input?.value) || 0) }))
+  .handler(async ({ data }) => {
+    await requireAdmin();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row } = await supabaseAdmin.from("store_settings").select("id").limit(1).maybeSingle();
+    if (!row) throw new Error("Store settings not found");
+    const { error } = await supabaseAdmin
+      .from("store_settings")
+      .update({ wholesale_min_order_value: data.value } as never)
+      .eq("id", (row as { id: string }).id);
     if (error) throw new Error(error.message);
     return { success: true };
   });

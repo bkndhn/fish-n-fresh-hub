@@ -265,9 +265,10 @@ export function Footer() {
               <div className="pt-3 space-y-2.5">
                 <div className="font-semibold text-[11px] uppercase tracking-wider text-muted-foreground border-t border-border/50 pt-2.5">Our Branches</div>
                 {branches.filter(b => b.is_active).map(branch => {
-                  const branchMapLink = branch.latitude && branch.longitude 
-                    ? `https://www.google.com/maps/dir/?api=1&destination=${branch.latitude},${branch.longitude}`
-                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(branch.address)}`;
+                  const branchMapLink = branch.lat && branch.lng
+                    ? `https://www.google.com/maps/dir/?api=1&destination=${branch.lat},${branch.lng}`
+                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(branch.address ?? branch.name)}`;
+
                   return (
                     <a
                       key={branch.id}

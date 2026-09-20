@@ -16,8 +16,13 @@ import {
   listWholesalePrices,
   saveWholesalePrice,
   updateWholesaleAccount,
+  listWholesaleBands,
+  saveWholesaleBand,
+  deleteWholesaleBand,
+  saveWholesaleMinOrderValue,
   type WholesalePriceRow,
 } from "@/lib/wholesale.functions";
+
 import { parseTiers, type WholesaleTier } from "@/lib/wholesale";
 import { formatINR } from "@/lib/format";
 
@@ -45,12 +50,16 @@ function AdminWholesale() {
   return (
     <AdminShell title="Wholesale rates" allow={["admin", "manager"]}>
       <Tabs defaultValue="prices">
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 flex w-full min-w-0 flex-wrap gap-1 h-auto">
           <TabsTrigger value="prices">Bulk price list</TabsTrigger>
+          <TabsTrigger value="bands">Bulk discounts</TabsTrigger>
           <TabsTrigger value="accounts">Trade buyers</TabsTrigger>
         </TabsList>
         <TabsContent value="prices">
           <PriceList />
+        </TabsContent>
+        <TabsContent value="bands">
+          <DiscountBands />
         </TabsContent>
         <TabsContent value="accounts">
           <Accounts />
@@ -59,6 +68,195 @@ function AdminWholesale() {
     </AdminShell>
   );
 }
+
+function DiscountBands() {
+  const qc = useQueryClient();
+  const fetchBands = useServerFn(listWholesaleBands);
+  const saveBand = useServerFn(saveWholesaleBand);
+  const removeBand = useServerFn(deleteWholesaleBand);
+  const saveMin = useServerFn(saveWholesaleMinOrderValue);
+
+  const query = useQuery({ queryKey: ["admin", "wholesale", "bands"], queryFn: () => fetchBands() });
+  const [draft, setDraft] = useState({ min_order_value: "", discount_percent: "", label: "" });
+  const [minValue, setMinValue] = useState<string | null>(null);
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["admin", "wholesale", "bands"] });
+
+  const add = useMutation({
+    mutationFn: async () =>
+      saveBand({
+        data: {
+          label: draft.label,
+          min_order_value: Number(draft.min_order_value) || 0,
+          discount_percent: Number(draft.discount_percent) || 0,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Discount rule added");
+      setDraft({ min_order_value: "", discount_percent: "", label: "" });
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const update = useMutation({
+    mutationFn: async (input: { id: string; min_order_value: number; discount_percent: number; active: boolean; label: string | null }) =>
+      saveBand({ data: { ...input, label: input.label ?? "" } }),
+    onSuccess: () => {
+      toast.success("Rule updated");
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => removeBand({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Rule removed");
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const minMutation = useMutation({
+    mutationFn: async (value: number) => saveMin({ data: { value } }),
+    onSuccess: () => {
+      toast.success("Minimum bulk order value saved");
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const bands = query.data?.bands ?? [];
+  const currentMin = minValue ?? String(query.data?.minOrderValue ?? 0);
+
+  return (
+    <div className="grid gap-4">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Minimum bulk order</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-end gap-2">
+          <div className="space-y-1">
+            <Label className="text-xs">Order value trade buyers must reach</Label>
+            <Input
+              className="w-40"
+              inputMode="decimal"
+              value={currentMin}
+              onChange={(e) => setMinValue(e.target.value)}
+            />
+          </div>
+          <Button size="sm" onClick={() => minMutation.mutate(Number(currentMin) || 0)} disabled={minMutation.isPending}>
+            <Save className="mr-1 h-4 w-4" /> Save
+          </Button>
+          <p className="w-full text-xs text-muted-foreground">Set 0 for no minimum.</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Order value discount bands</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {query.isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading rules…</p>
+          ) : bands.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No bands yet — add one below.</p>
+          ) : (
+            bands.map((b) => (
+              <div key={b.id} className="flex flex-wrap items-end gap-2 rounded-lg border p-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Order above</Label>
+                  <Input
+                    className="w-32"
+                    inputMode="decimal"
+                    defaultValue={String(b.min_order_value)}
+                    onBlur={(e) =>
+                      update.mutate({
+                        id: b.id,
+                        min_order_value: Number(e.target.value) || 0,
+                        discount_percent: b.discount_percent,
+                        active: b.active,
+                        label: b.label,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Discount %</Label>
+                  <Input
+                    className="w-24"
+                    inputMode="decimal"
+                    defaultValue={String(b.discount_percent)}
+                    onBlur={(e) =>
+                      update.mutate({
+                        id: b.id,
+                        min_order_value: b.min_order_value,
+                        discount_percent: Number(e.target.value) || 0,
+                        active: b.active,
+                        label: b.label,
+                      })
+                    }
+                  />
+                </div>
+                <Badge variant={b.active ? "default" : "secondary"}>{b.active ? "Active" : "Off"}</Badge>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    update.mutate({
+                      id: b.id,
+                      min_order_value: b.min_order_value,
+                      discount_percent: b.discount_percent,
+                      active: !b.active,
+                      label: b.label,
+                    })
+                  }
+                >
+                  {b.active ? "Turn off" : "Turn on"}
+                </Button>
+                <Button size="icon" variant="ghost" onClick={() => del.mutate(b.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))
+          )}
+
+          <div className="flex flex-wrap items-end gap-2 rounded-lg border border-dashed p-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Order above</Label>
+              <Input
+                className="w-32"
+                inputMode="decimal"
+                value={draft.min_order_value}
+                onChange={(e) => setDraft((d) => ({ ...d, min_order_value: e.target.value }))}
+                placeholder="10000"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Discount %</Label>
+              <Input
+                className="w-24"
+                inputMode="decimal"
+                value={draft.discount_percent}
+                onChange={(e) => setDraft((d) => ({ ...d, discount_percent: e.target.value }))}
+                placeholder="5"
+              />
+            </div>
+            <Button size="sm" onClick={() => add.mutate()} disabled={add.isPending}>
+              <Plus className="mr-1 h-4 w-4" /> Add rule
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            The highest matching band applies to the whole basket, on top of item slab rates and the buyer&apos;s own
+            extra discount. Prices are always recalculated on the server when the order is placed.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 
 function PriceList() {
   const fetchPrices = useServerFn(listWholesalePrices);
