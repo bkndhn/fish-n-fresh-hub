@@ -106,7 +106,13 @@ export const Route = createFileRoute("/checkout")({
 function Checkout() {
   const { items, subtotal, clear } = useCart();
   const { data: settings } = useQuery(settingsQuery);
+  const { data: upiTarget } = useQuery({
+    queryKey: ["store-upi-target"],
+    queryFn: () => getStoreUpiTarget(),
+    staleTime: 1000 * 60 * 15,
+  });
   const { data: products } = useQuery(productsQuery());
+
   const { activeBranch, isWithinDeliveryRadius, setIsLocationModalOpen } = useCustomerBranch();
   const navigate = useNavigate();
   const { user } = useSessionUser();
