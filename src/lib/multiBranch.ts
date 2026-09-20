@@ -211,6 +211,18 @@ export function validateCartForBranch(
 export const validateCartBranchMatch = validateCartForBranch;
 
 /**
+ * Columns anonymous visitors are allowed to read. Financial and manager
+ * identity fields (UPI ID, GSTIN, FSSAI, manager contact) stay staff-only.
+ */
+const PUBLIC_BRANCH_FIELDS =
+  "id, name, address, phone, lat, lng, open_time, close_time, delivery_radius_km, is_active, sort_order, slug, code, is_default, min_order_amount, created_at, updated_at";
+
+async function branchFields(): Promise<string> {
+  const { data } = await supabase.auth.getSession();
+  return data.session ? "*" : PUBLIC_BRANCH_FIELDS;
+}
+
+/**
  * TanStack query options to fetch all branches ordered by priority.
  */
 export const branchesQuery = queryOptions({
@@ -218,12 +230,12 @@ export const branchesQuery = queryOptions({
   queryFn: async (): Promise<Branch[]> => {
     const { data, error } = await supabase
       .from("branches")
-      .select("*")
+      .select(await branchFields())
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true });
 
     if (error) throw error;
-    return ((data ?? []) as Partial<Branch>[]).map(normalizeBranch);
+    return ((data ?? []) as unknown as Partial<Branch>[]).map(normalizeBranch);
   },
   staleTime: 1000 * 60 * 5, // 5 minutes
 });
@@ -236,15 +248,16 @@ export const activeBranchesQuery = queryOptions({
   queryFn: async (): Promise<Branch[]> => {
     const { data, error } = await supabase
       .from("branches")
-      .select("*")
+      .select(await branchFields())
       .eq("is_active", true)
       .order("sort_order", { ascending: true });
 
     if (error) throw error;
-    return ((data ?? []) as Partial<Branch>[]).map(normalizeBranch);
+    return ((data ?? []) as unknown as Partial<Branch>[]).map(normalizeBranch);
   },
   staleTime: 1000 * 60 * 5,
 });
+
 
 /**
  * Updates branch operational parameters (Client Admin action).

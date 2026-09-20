@@ -94,11 +94,16 @@ export const settingsQuery = queryOptions({
   staleTime: 1000 * 60 * 15,
   gcTime: 1000 * 60 * 60 * 24,
   queryFn: async () => {
-    const { data, error } = await supabase.from("store_settings").select("*").limit(1).maybeSingle();
+    // Signed-out visitors read the public-safe view (no UPI ID, GSTIN, FSSAI or
+    // integration keys). Signed-in staff/admins read the full settings row.
+    const { data: sessionData } = await supabase.auth.getSession();
+    const source = sessionData.session ? "store_settings" : "store_settings_public";
+    const { data, error } = await supabase.from(source as "store_settings").select("*").limit(1).maybeSingle();
     if (error) throw error;
     return data;
   },
 });
+
 
 export function productQuery(id: string) {
   return queryOptions({

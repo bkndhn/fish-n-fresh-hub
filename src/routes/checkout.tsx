@@ -18,6 +18,8 @@ import { AddressBook } from "@/components/AddressBook";
 import { MapPinPickerModal } from "@/components/MapPinPickerModal";
 import { calculateDistanceKm, getGoogleMapsDirUrl, forwardGeocodeAddress, getOsrmRoadRoute } from "@/lib/maps";
 import { settingsQuery, productsQuery } from "@/lib/queries";
+import { getStoreUpiTarget } from "@/lib/storefront.functions";
+
 import {
   getShippingScopeConfig,
   evaluateOrderShippingRate,
@@ -106,7 +108,13 @@ export const Route = createFileRoute("/checkout")({
 function Checkout() {
   const { items, subtotal, clear } = useCart();
   const { data: settings } = useQuery(settingsQuery);
+  const { data: upiTarget } = useQuery({
+    queryKey: ["store-upi-target"],
+    queryFn: () => getStoreUpiTarget(),
+    staleTime: 1000 * 60 * 15,
+  });
   const { data: products } = useQuery(productsQuery());
+
   const { activeBranch, isWithinDeliveryRadius, setIsLocationModalOpen } = useCustomerBranch();
   const navigate = useNavigate();
   const { user } = useSessionUser();
@@ -591,18 +599,19 @@ function Checkout() {
       }
     }
 
-    // Deduct redeemed FreshCash from customer wallet
+    // Deduct redeemed FreshCash from customer wallet (atomic, server-enforced).
     if (walletDiscount > 0 && userId) {
-      try {
-        await redeemWalletBalance({
-          userId,
-          amount: walletDiscount,
-          orderId: data.id,
-        });
-      } catch (wErr) {
-        console.warn("Wallet deduction notice:", wErr);
+      const redeemed = await redeemWalletBalance({
+        userId,
+        amount: walletDiscount,
+        orderId: data.id,
+      });
+      if (!redeemed) {
+        toast.error("FreshCash could not be applied to this order — your balance was not enough.");
       }
     }
+
+
 
     // Trigger FCM instant push confirmation
     try {
@@ -878,8 +887,9 @@ function Checkout() {
     );
   }
 
-  const upiId = settings?.upi_id || "9843061919@upi";
-  const upiName = settings?.upi_name || "Fish N Fresh";
+  const upiId = settings?.upi_id || upiTarget?.upi_id || "9843061919@upi";
+  const upiName = settings?.upi_name || upiTarget?.upi_name || "Fish N Fresh";
+
   const upiDeepLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${total}&cu=INR&tn=${encodeURIComponent("Fish N Fresh Seafood")}`;
   const gpayDeepLink = `tez://upi/pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${total}&cu=INR&tn=${encodeURIComponent("Fish N Fresh Seafood")}`;
   const phonepeDeepLink = `phonepe://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${total}&cu=INR&tn=${encodeURIComponent("Fish N Fresh Seafood")}`;

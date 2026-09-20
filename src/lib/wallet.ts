@@ -2,58 +2,20 @@ import { supabase } from "@/integrations/supabase/client";
 import type { CustomerWallet, WalletTransaction } from "./types";
 
 /**
- * Fetch or auto-provision customer FreshCash wallet.
- * Every user gets a unique referral code (e.g. FNF-9A4B2).
+ * Fetch or auto-provision the signed-in customer's FreshCash wallet.
+ * Creation happens in a trusted database function so balances can never be
+ * invented on the client.
  */
 export async function getOrCreateUserWallet(userId: string): Promise<CustomerWallet | null> {
   if (!userId) return null;
 
   try {
-    const { data, error } = await supabase
-      .from("customer_wallets")
-      .select("*")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (error && error.code !== "PGRST116") {
-      console.warn("Error fetching wallet:", error);
+    const { data, error } = await supabase.rpc("ensure_my_wallet");
+    if (error) {
+      console.warn("Wallet unavailable:", error.message);
+      return null;
     }
-
-    if (data) {
-      return data as CustomerWallet;
-    }
-
-    // Auto-generate code e.g. FNF-8X2M9
-    const suffix = Math.random().toString(36).substring(2, 7).toUpperCase();
-    const referralCode = `FNF-${suffix}`;
-
-    const { data: newWallet, error: insertError } = await supabase
-      .from("customer_wallets")
-      .insert({
-        user_id: userId,
-        balance: 0,
-        referral_code: referralCode,
-        total_earned: 0,
-        total_redeemed: 0,
-      })
-      .select("*")
-      .single();
-
-    if (insertError) {
-      // Fallback: if table doesn't exist yet in remote DB, return in-memory mock wallet
-      console.warn("Wallet creation fallback:", insertError.message);
-      return {
-        user_id: userId,
-        balance: 50, // Welcome gift
-        referral_code: referralCode,
-        total_earned: 50,
-        total_redeemed: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-    }
-
-    return newWallet as CustomerWallet;
+    return (data as unknown as CustomerWallet) ?? null;
   } catch (err) {
     console.error("Failed to getOrCreateUserWallet:", err);
     return null;
@@ -117,7 +79,7 @@ export async function validateReferralCode(code: string, currentUserId?: string)
       message: "Valid referral code! You will get ₹50 FreshCash discount",
       referrerWallet: data as CustomerWallet,
     };
-  } catch (err) {
+  } catch {
     return { valid: false, message: "Could not verify referral code at this moment" };
   }
 }
@@ -136,7 +98,10 @@ export function calculateMaxRedeemable(
 }
 
 /**
- * Deduct wallet balance during checkout
+ * Deduct wallet balance during checkout.
+ * The balance check and deduction happen atomically in the database, so a
+ * customer cannot reuse the same balance on multiple orders. Returns false when
+ * the deduction did not happen — callers must then drop the wallet discount.
  */
 export async function redeemWalletBalance(params: {
   userId: string;
@@ -147,46 +112,17 @@ export async function redeemWalletBalance(params: {
   if (!userId || amount <= 0) return false;
 
   try {
-    // 1. Fetch current wallet
-    const { data: wallet } = await supabase
-      .from("customer_wallets")
-      .select("balance, total_redeemed")
-      .eq("user_id", userId)
-      .single();
-
-    if (!wallet || Number(wallet.balance) < amount) {
-      console.warn("Insufficient wallet balance for redemption");
-      return false;
-    }
-
-    const newBalance = Number(wallet.balance) - amount;
-    const newTotalRedeemed = Number(wallet.total_redeemed || 0) + amount;
-
-    // 2. Update wallet
-    const { error: updateError } = await supabase
-      .from("customer_wallets")
-      .update({
-        balance: newBalance,
-        total_redeemed: newTotalRedeemed,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_id", userId);
-
-    if (updateError) {
-      console.error("Failed to update wallet balance:", updateError);
-      return false;
-    }
-
-    // 3. Insert transaction
-    await supabase.from("wallet_transactions").insert({
-      wallet_id: userId,
-      amount: -amount,
-      type: "order_redemption",
-      description: `Redeemed for Order #${orderId ? orderId.slice(0, 8) : "Checkout"}`,
-      order_id: orderId || null,
+    const { data, error } = await supabase.rpc("redeem_wallet_balance", {
+      p_amount: amount,
+      ...(orderId ? { p_order_id: orderId } : {}),
     });
 
-    return true;
+    if (error) {
+      console.warn("Wallet redemption failed:", error.message);
+      return false;
+    }
+    const result = (data ?? {}) as { success?: boolean };
+    return Boolean(result.success);
   } catch (err) {
     console.error("Wallet redemption error:", err);
     return false;
@@ -194,48 +130,19 @@ export async function redeemWalletBalance(params: {
 }
 
 /**
- * Credit cashback or referral reward to wallet
+ * Credit cashback for a completed order. The amount is computed server-side
+ * from the order total and store settings, and can only be claimed once.
  */
-export async function creditWalletBalance(params: {
-  userId: string;
-  amount: number;
-  type: "cashback" | "referral_bonus" | "signup_bonus" | "admin_adjustment";
-  description: string;
-  orderId?: string;
-}): Promise<boolean> {
-  const { userId, amount, type, description, orderId } = params;
-  if (!userId || amount <= 0) return false;
-
+export async function creditWalletCashback(orderId: string): Promise<boolean> {
+  if (!orderId) return false;
   try {
-    const { data: wallet } = await supabase
-      .from("customer_wallets")
-      .select("balance, total_earned")
-      .eq("user_id", userId)
-      .single();
-
-    if (!wallet) return false;
-
-    const newBalance = Number(wallet.balance) + amount;
-    const newTotalEarned = Number(wallet.total_earned || 0) + amount;
-
-    await supabase
-      .from("customer_wallets")
-      .update({
-        balance: newBalance,
-        total_earned: newTotalEarned,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_id", userId);
-
-    await supabase.from("wallet_transactions").insert({
-      wallet_id: userId,
-      amount,
-      type,
-      description,
-      order_id: orderId || null,
-    });
-
-    return true;
+    const { data, error } = await supabase.rpc("credit_wallet_cashback", { p_order_id: orderId });
+    if (error) {
+      console.warn("Cashback credit failed:", error.message);
+      return false;
+    }
+    const result = (data ?? {}) as { success?: boolean };
+    return Boolean(result.success);
   } catch (err) {
     console.error("Failed to credit wallet:", err);
     return false;

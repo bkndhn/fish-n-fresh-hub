@@ -15,6 +15,13 @@
       "when": 1789873256269,
       "tag": "0001_wholesale_order_discount_bands",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789883038121,
+      "tag": "0002_security_fixes_exposed_data_and_wallet",
+      "breakpoints": true
     }
   ]
 }
