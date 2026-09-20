@@ -601,8 +601,8 @@ function Checkout() {
       if (!redeemed) {
         toast.error("FreshCash could not be applied to this order — your balance was not enough.");
       }
-      void qc.invalidateQueries({ queryKey: ["wallet"] });
     }
+
 
 
     // Trigger FCM instant push confirmation
