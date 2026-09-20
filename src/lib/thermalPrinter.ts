@@ -906,81 +906,120 @@ export function buildPosReceiptHtml(
       ? "KITCHEN / CUTTING TOKEN"
       : data.copyType === "merchant_copy" || data.copyType === "STORE RECORD"
       ? "MERCHANT / STORE AUDIT COPY"
-      : "RETAIL INVOICE / COUNTER BILL";
+      : "RETAIL TAX INVOICE";
+
+  // Item rows as proper table
+  const itemRows = data.items.map((it, idx) => {
+    const qtyStr = it.weightKg
+      ? `${it.weightKg.toFixed(3)} kg`
+      : `${it.qty || 1} pcs`;
+    const rate = `&#8377;${(it.unitPrice || 0).toFixed(2)}`;
+    const amount = `&#8377;${(it.totalPrice ?? (it.unitPrice * (it.qty || 1))).toFixed(2)}`;
+    const nameLine = `${it.brand ? `[${escapeHtml(it.brand)}] ` : ""}${escapeHtml(it.name)}${it.cuttingStyle ? ` [${escapeHtml(it.cuttingStyle)}]` : ""}`;
+    const extras = [
+      it.variant ? `Variant: ${escapeHtml(it.variant)}` : "",
+      it.serialNumbers && it.serialNumbers.length > 0 ? `SN: ${escapeHtml(it.serialNumbers.join(", "))}` : "",
+      it.warrantyMonths && it.warrantyMonths > 0 ? `Warranty: ${it.warrantyMonths}M` : "",
+    ].filter(Boolean).join(" | ");
+
+    return `
+      <tr class="item-row" style="border-bottom:1px dashed #ccc;">
+        <td style="padding:3px 2px;vertical-align:top;">
+          <div style="font-weight:bold;font-size:1em;">${idx + 1}. ${nameLine}</div>
+          <div style="color:#555;font-size:0.88em;padding-left:8px;">${qtyStr} &times; ${rate}</div>
+          ${extras ? `<div style="color:#888;font-size:0.78em;padding-left:8px;">${extras}</div>` : ""}
+        </td>
+        <td style="padding:3px 2px;text-align:right;vertical-align:top;font-weight:bold;white-space:nowrap;">${amount}</td>
+      </tr>`;
+  }).join("");
+
+  // Split payment rows
+  const splitRows = data.splitPayments
+    ? [
+        data.splitPayments.cash ? `<tr><td>Cash</td><td style="text-align:right;">&#8377;${data.splitPayments.cash}</td></tr>` : "",
+        data.splitPayments.upi ? `<tr><td>UPI</td><td style="text-align:right;">&#8377;${data.splitPayments.upi}</td></tr>` : "",
+        data.splitPayments.card ? `<tr><td>Card</td><td style="text-align:right;">&#8377;${data.splitPayments.card}</td></tr>` : "",
+      ].filter(Boolean).join("")
+    : "";
 
   return `
-    ${
-      data.isReprint
-        ? `
-      <div style="border: 1px dashed #000; padding: 4px; text-align: center; margin-bottom: 6px; font-weight: bold;">
-        <div>*** REPRINT COPY (AUDIT) ***</div>
-        <div style="font-size: 0.85em;">Reprint #${escapeHtml(data.reprintCount || 1)} · ${escapeHtml(data.reprintTimestamp || new Date().toLocaleTimeString("en-IN"))}</div>
-        <div style="font-size: 0.8em;">Cashier: ${escapeHtml(data.cashierName)} · NOT AN ORIGINAL</div>
+    ${data.isReprint ? `
+      <div style="border:1px dashed #000;padding:4px;text-align:center;margin-bottom:8px;font-weight:bold;">
+        <div>&#9888; REPRINT COPY (AUDIT) &#9888;</div>
+        <div style="font-size:0.85em;">Reprint #${escapeHtml(data.reprintCount || 1)} &bull; ${escapeHtml(data.reprintTimestamp || new Date().toLocaleTimeString("en-IN"))}</div>
+        <div style="font-size:0.8em;">Cashier: ${escapeHtml(data.cashierName)} &bull; NOT AN ORIGINAL</div>
+      </div>` : ""}
+
+    <!-- STORE HEADER -->
+    ${config.showHeaderStoreName !== false ? `
+    <div style="text-align:center;font-size:1.45em;font-weight:900;letter-spacing:0.5px;text-transform:uppercase;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:3px;">
+      ${escapeHtml(store)}
+    </div>` : ""}
+    ${config.showHeaderAddress !== false && data.storeAddress ? `<div style="text-align:center;font-size:0.85em;">${escapeHtml(data.storeAddress)}</div>` : ""}
+    ${config.showHeaderPhone !== false && (data.storePhone || config.supportPhone) ? `<div style="text-align:center;font-size:0.85em;">Ph: ${escapeHtml(data.storePhone || config.supportPhone)}</div>` : ""}
+    ${config.showHeaderGstin !== false && data.storeGstin ? `<div style="text-align:center;font-size:0.85em;">GSTIN: ${escapeHtml(data.storeGstin)}</div>` : ""}
+    ${config.showHeaderFssai !== false && (data.storeFssai || config.fssaiNumber) ? `<div style="text-align:center;font-size:0.85em;">FSSAI: ${escapeHtml(data.storeFssai || config.fssaiNumber)}</div>` : ""}
+
+    <!-- BILL TYPE HEADING -->
+    <div style="text-align:center;font-weight:bold;font-size:0.95em;border-top:1px solid #000;border-bottom:1px solid #000;padding:3px 0;margin:4px 0;">
+      ${copyHeader}
+    </div>
+
+    <!-- BILL META -->
+    <table style="width:100%;font-size:0.85em;border-collapse:collapse;margin-bottom:4px;">
+      <tr><td>Bill No</td><td style="text-align:right;font-weight:bold;">${escapeHtml(data.receiptNo)}</td></tr>
+      <tr><td>Date &amp; Time</td><td style="text-align:right;">${escapeHtml(data.date)}</td></tr>
+      <tr><td>Cashier</td><td style="text-align:right;">${escapeHtml(data.cashierName)}</td></tr>
+      ${data.customerPhone ? `<tr><td>Customer</td><td style="text-align:right;">${escapeHtml(data.customerName || "Walk-in")} (${escapeHtml(data.customerPhone)})</td></tr>` : ""}
+    </table>
+
+    <!-- ITEMS TABLE -->
+    <table style="width:100%;border-collapse:collapse;font-size:0.9em;margin-bottom:2px;">
+      <thead>
+        <tr style="border-top:1px solid #000;border-bottom:1px solid #000;">
+          <th style="text-align:left;padding:2px 2px;font-size:0.85em;">ITEM</th>
+          <th style="text-align:right;padding:2px 2px;font-size:0.85em;">AMT</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemRows}
+      </tbody>
+    </table>
+
+    <!-- TOTALS -->
+    <table style="width:100%;border-collapse:collapse;font-size:0.9em;">
+      <tr style="border-top:1px solid #000;"><td>&nbsp;</td><td></td></tr>
+      <tr><td>Subtotal</td><td style="text-align:right;">&#8377;${(data.subtotal || 0).toFixed(2)}</td></tr>
+      ${(data.discount || 0) > 0 ? `<tr><td>${data.discountPercent && data.discountPercent > 0 ? `Discount (${escapeHtml(data.discountPercent)}%)` : "Discount"}</td><td style="text-align:right;color:#c00;">-&#8377;${data.discount.toFixed(2)}</td></tr>` : ""}
+      ${(data.gstAmount || 0) > 0 ? `<tr><td>GST</td><td style="text-align:right;">&#8377;${data.gstAmount.toFixed(2)}</td></tr>` : ""}
+      <tr style="border-top:2px solid #000;border-bottom:2px solid #000;">
+        <td style="font-weight:900;font-size:1.1em;padding:3px 0;text-transform:uppercase;">TOTAL PAYABLE</td>
+        <td style="text-align:right;font-weight:900;font-size:1.1em;">&#8377;${(data.total || 0).toFixed(2)}</td>
+      </tr>
+      ${data.splitPayments ? `
+        <tr><td colspan="2" style="padding-top:3px;font-weight:bold;">Split Payment:</td></tr>
+        ${splitRows}
+      ` : `
+        <tr><td>Payment</td><td style="text-align:right;font-weight:bold;">${escapeHtml((data.paymentMethod || "CASH").toUpperCase())}</td></tr>
+      `}
+      ${data.amountTendered ? `<tr><td>Cash Tendered</td><td style="text-align:right;">&#8377;${data.amountTendered.toFixed(2)}</td></tr>` : ""}
+      ${typeof data.changeDue === "number" ? `<tr><td>Change Returned</td><td style="text-align:right;">&#8377;${data.changeDue.toFixed(2)}</td></tr>` : ""}
+      ${data.upiRef ? `<tr><td colspan="2" style="font-size:0.8em;color:#555;">UPI Ref: ${escapeHtml(data.upiRef)}</td></tr>` : ""}
+    </table>
+
+    <!-- FOOTER -->
+    <div style="border-top:1px dashed #000;margin-top:6px;padding-top:5px;text-align:center;font-size:0.82em;">
+      ${config.showFooterWhatsapp !== false && config.whatsappNumber ? `<div>&#128172; WhatsApp: ${escapeHtml(config.whatsappNumber)}</div>` : ""}
+      ${config.showFooterSupport !== false && (config.supportPhone || data.storePhone) ? `<div>&#128222; Support: ${escapeHtml(config.supportPhone || data.storePhone)}</div>` : ""}
+      ${config.showFooterSocial !== false && config.socialHandle ? `<div>&#127760; Follow: ${escapeHtml(config.socialHandle)}</div>` : ""}
+      ${config.showFooterGstin && data.storeGstin ? `<div>GSTIN: ${escapeHtml(data.storeGstin)}</div>` : ""}
+      ${config.showFooterReturnPolicy !== false && (config.returnPolicyText || config.footerText) ? `<div style="margin-top:3px;color:#555;">${escapeHtml(config.returnPolicyText || config.footerText)}</div>` : ""}
+      ${config.customFooterNote ? `<div style="margin-top:2px;font-style:italic;">${escapeHtml(config.customFooterNote)}</div>` : ""}
+      <div style="font-weight:bold;font-size:1em;margin-top:5px;border-top:1px solid #000;padding-top:4px;">
+        ${escapeHtml(config.footerLine1 || "Have a Healthy & Delicious Meal! 🐟")}
       </div>
-    `
-        : ""
-    }
-    ${config.showHeaderStoreName !== false ? `<div class="center bold title">${escapeHtml(store)}</div>` : ""}
-    ${config.showHeaderAddress !== false && data.storeAddress ? `<div class="center">${escapeHtml(data.storeAddress)}</div>` : ""}
-    ${config.showHeaderPhone !== false && (data.storePhone || config.supportPhone) ? `<div class="center">Ph: ${escapeHtml(data.storePhone || config.supportPhone)}</div>` : ""}
-    ${config.showHeaderGstin !== false && data.storeGstin ? `<div class="center">GSTIN: ${escapeHtml(data.storeGstin)}</div>` : ""}
-    ${config.showHeaderFssai !== false && (data.storeFssai || config.fssaiNumber) ? `<div class="center">FSSAI: ${escapeHtml(data.storeFssai || config.fssaiNumber)}</div>` : ""}
-    <div class="hr"></div>
-    <div class="center bold">${copyHeader}</div>
-    <div class="hr"></div>
-    <div class="row"><span>Bill No:</span><span class="bold">${escapeHtml(data.receiptNo)}</span></div>
-    <div class="row"><span>Date:</span><span>${escapeHtml(data.date)}</span></div>
-    <div class="row"><span>Cashier:</span><span>${escapeHtml(data.cashierName)}</span></div>
-    ${data.customerPhone ? `<div class="row"><span>Customer:</span><span>${escapeHtml(data.customerName || "Walk-in")} (${escapeHtml(data.customerPhone)})</span></div>` : ""}
-    <div class="hr"></div>
-    ${data.items
-      .map(
-        (it) => `
-      <div class="row">
-        <span>${it.brand ? `[${escapeHtml(it.brand)}] ` : ""}${escapeHtml(it.name)}${it.cuttingStyle ? ` [${escapeHtml(it.cuttingStyle)}]` : ""}</span>
-        <span class="bold">₹${(it.totalPrice ?? (it.unitPrice * (it.qty || 1))).toFixed(0)}</span>
-      </div>
-      <div class="row muted font-mono" style="padding-left: 6px; font-size: 0.9em;">
-        <span>${it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} pcs`} × ₹${(it.unitPrice || 0).toFixed(0)}</span>
-      </div>
-      ${it.variant ? `<div class="row muted font-mono" style="padding-left: 6px; font-size: 0.8em;"><span>Variant: ${escapeHtml(it.variant)}</span></div>` : ""}
-      ${it.serialNumbers && it.serialNumbers.length > 0 ? `<div class="row muted font-mono" style="padding-left: 6px; font-size: 0.8em;"><span>IMEI/SN: ${escapeHtml(it.serialNumbers.join(", "))}</span></div>` : ""}
-      ${it.warrantyMonths && it.warrantyMonths > 0 ? `<div class="row muted font-mono" style="padding-left: 6px; font-size: 0.8em;"><span>Warranty: ${escapeHtml(it.warrantyMonths)}M Official</span></div>` : ""}
-      ${it.aisleLocation ? `<div class="row muted font-mono" style="padding-left: 6px; font-size: 0.8em;"><span>Loc: ${escapeHtml(it.aisleLocation)}</span></div>` : ""}
-    `
-      )
-      .join("")}
-    <div class="hr"></div>
-    <div class="row"><span>Subtotal:</span><span>₹${(data.subtotal || 0).toFixed(0)}</span></div>
-    ${(data.discount || 0) > 0 ? `<div class="row"><span>${data.discountPercent && data.discountPercent > 0 ? `Discount (${escapeHtml(data.discountPercent)}%):` : "Discount:"}</span><span>-₹${data.discount.toFixed(0)}</span></div>` : ""}
-    ${(data.gstAmount || 0) > 0 ? `<div class="row"><span>GST:</span><span>₹${data.gstAmount.toFixed(0)}</span></div>` : ""}
-    <div class="hr"></div>
-    <div class="row bold total"><span>TOTAL PAYABLE:</span><span>₹${(data.total || 0).toFixed(0)}</span></div>
-    <div class="hr"></div>
-    ${
-      data.splitPayments
-        ? `
-      <div class="row"><span>Split Tender:</span></div>
-      ${data.splitPayments.cash ? `<div class="row muted" style="padding-left: 8px;"><span>Cash:</span><span>₹${escapeHtml(data.splitPayments.cash)}</span></div>` : ""}
-      ${data.splitPayments.upi ? `<div class="row muted" style="padding-left: 8px;"><span>UPI:</span><span>₹${escapeHtml(data.splitPayments.upi)}</span></div>` : ""}
-      ${data.splitPayments.card ? `<div class="row muted" style="padding-left: 8px;"><span>Card:</span><span>₹${escapeHtml(data.splitPayments.card)}</span></div>` : ""}
-    `
-        : `
-      <div class="row"><span>Payment Mode:</span><span class="bold">${escapeHtml((data.paymentMethod || "CASH").toUpperCase())}</span></div>
-    `
-    }
-    ${data.amountTendered ? `<div class="row"><span>Cash Tendered:</span><span>₹${data.amountTendered.toFixed(0)}</span></div>` : ""}
-    ${typeof data.changeDue === "number" ? `<div class="row"><span>Change Returned:</span><span>₹${data.changeDue.toFixed(0)}</span></div>` : ""}
-    ${data.upiRef ? `<div class="row muted font-mono"><span>UPI Ref:</span><span>${escapeHtml(data.upiRef)}</span></div>` : ""}
-    <div class="hr"></div>
-    ${config.showFooterWhatsapp !== false && config.whatsappNumber ? `<div class="center font-mono" style="font-size: 0.85em;">💬 WhatsApp: ${escapeHtml(config.whatsappNumber)}</div>` : ""}
-    ${config.showFooterSupport !== false && (config.supportPhone || data.storePhone) ? `<div class="center font-mono" style="font-size: 0.85em;">📞 Support: ${escapeHtml(config.supportPhone || data.storePhone)}</div>` : ""}
-    ${config.showFooterSocial !== false && config.socialHandle ? `<div class="center font-mono" style="font-size: 0.85em;">🌐 Follow: ${escapeHtml(config.socialHandle)}</div>` : ""}
-    ${config.showFooterGstin && data.storeGstin ? `<div class="center font-mono" style="font-size: 0.85em;">GSTIN: ${escapeHtml(data.storeGstin)}</div>` : ""}
-    ${config.showFooterReturnPolicy !== false && (config.returnPolicyText || config.footerText) ? `<div class="center font-mono muted" style="font-size: 0.8em; margin-top: 4px;">${escapeHtml(config.returnPolicyText || config.footerText)}</div>` : ""}
-    ${config.customFooterNote ? `<div class="center italic" style="font-size: 0.8em; margin-top: 2px;">${escapeHtml(config.customFooterNote)}</div>` : ""}
-    <div class="center bold footer" style="margin-top: 4px;">${escapeHtml(config.footerLine1 || "Have a Healthy & Delicious Meal!")}</div>
-    ${config.footerLine2 ? `<div class="center muted">${escapeHtml(config.footerLine2)}</div>` : ""}
+      ${config.footerLine2 ? `<div style="color:#555;">${escapeHtml(config.footerLine2)}</div>` : ""}
+    </div>
   `;
 }
 

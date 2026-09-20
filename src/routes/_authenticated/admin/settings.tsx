@@ -4225,7 +4225,7 @@ If you need any cut modifications, please reply here. Thank you!`}
       </Card>
       )
     },
-  ], [form, settings, schemaVersion, testingEmail, testEmailAddress, exportingBackup, liveChatConfig, newFaqQ, newFaqA]);
+  ], [form, settings, schemaVersion, testingEmail, testEmailAddress, exportingBackup, liveChatConfig, newFaqQ, newFaqA, paymentConfig, layoutConfig, shippingScope, newMethodName, newMethodDesc, newMethodRequiresRef, newMethodRefPlaceholder]);
 
   // Filter sections when searching
   const filteredSections: SettingSectionItem[] = useMemo(() => {
