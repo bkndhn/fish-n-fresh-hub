@@ -124,35 +124,68 @@ function OtpInput({
   );
 }
 
-// ─── Password strength bar ─────────────────────────────────────────────────────
+// ─── Password requirements checklist (matches Supabase config exactly) ────────
+export function getPasswordErrors(password: string): string[] {
+  const errors: string[] = [];
+  if (password.length < 6) errors.push("length");
+  if (!/[a-z]/.test(password)) errors.push("lowercase");
+  if (!/[A-Z]/.test(password)) errors.push("uppercase");
+  if (!/[0-9]/.test(password)) errors.push("number");
+  return errors;
+}
+
 function PasswordStrength({ password }: { password: string }) {
   if (!password) return null;
-  let score = 0;
-  if (password.length >= 8) score++;
-  if (/[A-Z]/.test(password)) score++;
-  if (/[0-9]/.test(password)) score++;
-  if (/[^A-Za-z0-9]/.test(password)) score++;
 
-  const labels = ["Weak", "Fair", "Good", "Strong"];
-  const colors = ["bg-rose-500", "bg-amber-500", "bg-blue-500", "bg-emerald-500"];
-  const textColors = ["text-rose-500", "text-amber-500", "text-blue-500", "text-emerald-500"];
+  const rules = [
+    { key: "length",    label: "At least 6 characters", met: password.length >= 6 },
+    { key: "lowercase", label: "One lowercase letter (a–z)", met: /[a-z]/.test(password) },
+    { key: "uppercase", label: "One uppercase letter (A–Z)", met: /[A-Z]/.test(password) },
+    { key: "number",    label: "One number (0–9)", met: /[0-9]/.test(password) },
+  ];
+
+  const metCount = rules.filter((r) => r.met).length;
+  const allMet = metCount === rules.length;
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
+      {/* Strength bar */}
       <div className="flex gap-1">
         {[0, 1, 2, 3].map((i) => (
           <div
             key={i}
             className={cn(
               "h-1 flex-1 rounded-full transition-all duration-300",
-              i < score ? colors[score - 1] : "bg-muted"
+              i < metCount
+                ? metCount === 4 ? "bg-emerald-500"
+                  : metCount === 3 ? "bg-blue-500"
+                  : metCount === 2 ? "bg-amber-500"
+                  : "bg-rose-500"
+                : "bg-muted"
             )}
           />
         ))}
       </div>
-      {score > 0 && (
-        <p className={cn("text-[11px] font-semibold", textColors[score - 1])}>
-          {labels[score - 1]} password
+      {/* Per-rule checklist */}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+        {rules.map((r) => (
+          <p key={r.key} className={cn(
+            "text-[11px] flex items-center gap-1 transition-colors",
+            r.met ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
+          )}>
+            <span className={cn(
+              "size-3 rounded-full flex items-center justify-center text-[8px] font-black shrink-0",
+              r.met ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
+            )}>
+              {r.met ? "✓" : "·"}
+            </span>
+            {r.label}
+          </p>
+        ))}
+      </div>
+      {allMet && (
+        <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+          ✓ Password meets all requirements
         </p>
       )}
     </div>
@@ -385,8 +418,15 @@ function AuthPage() {
   // ─── SIGN UP — Step 3: Set Password & Finalize ────────────────────────────
   async function finalizeSignup(e: React.FormEvent) {
     e.preventDefault();
-    if (signupPassword.length < 6) {
-      toast.error("Password must be at least 6 characters.");
+    const pwErrors = getPasswordErrors(signupPassword);
+    if (pwErrors.length > 0) {
+      const msgs: Record<string, string> = {
+        length: "Password must be at least 6 characters.",
+        lowercase: "Password must include at least one lowercase letter.",
+        uppercase: "Password must include at least one uppercase letter.",
+        number: "Password must include at least one number.",
+      };
+      toast.error(msgs[pwErrors[0]] || "Password does not meet requirements.");
       return;
     }
     if (signupPassword !== signupConfirmPassword) {
@@ -490,8 +530,15 @@ function AuthPage() {
   // ─── RESET — Step 3: Update Password ─────────────────────────────────────
   async function updatePassword(e: React.FormEvent) {
     e.preventDefault();
-    if (newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters.");
+    const pwErrors = getPasswordErrors(newPassword);
+    if (pwErrors.length > 0) {
+      const msgs: Record<string, string> = {
+        length: "Password must be at least 6 characters.",
+        lowercase: "Password must include at least one lowercase letter.",
+        uppercase: "Password must include at least one uppercase letter.",
+        number: "Password must include at least one number.",
+      };
+      toast.error(msgs[pwErrors[0]] || "Password does not meet requirements.");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -666,7 +713,11 @@ function AuthPage() {
                     <p className="text-xs text-rose-500 font-medium">Passwords do not match</p>
                   )}
                 </div>
-                <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading}>
+                <Button
+                  type="submit"
+                  className="w-full rounded-xl font-bold"
+                  disabled={loading || getPasswordErrors(newPassword).length > 0 || newPassword !== confirmPassword}
+                >
                   {loading ? "Updating Password..." : "Save New Password & Sign In"}
                 </Button>
               </form>
@@ -932,7 +983,11 @@ function AuthPage() {
                       <p className="text-xs text-rose-500 font-medium">Passwords do not match</p>
                     )}
                   </div>
-                  <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading}>
+                  <Button
+                    type="submit"
+                    className="w-full rounded-xl font-bold"
+                    disabled={loading || getPasswordErrors(signupPassword).length > 0 || signupPassword !== signupConfirmPassword}
+                  >
                     {loading ? "Creating Account..." : "Create Account 🎉"}
                   </Button>
                 </form>
