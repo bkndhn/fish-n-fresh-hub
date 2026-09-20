@@ -18,8 +18,6 @@ import { CategoryManagement } from "@/components/admin/CategoryManagement";
 import { SmartCatalogSeedModal } from "@/components/admin/SmartCatalogSeedModal";
 import { ProductAiBenefitsCard } from "@/components/ProductAiBenefitsCard";
 import { InventoryLedgerModal } from "@/components/admin/InventoryLedgerModal";
-import { MultiImageUpload } from "@/components/MultiImageUpload";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   matchSpeciesVisualProfile,
   buildSpeciesAiPrompt,
@@ -33,6 +31,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageUpload } from "@/components/ImageUpload";
+import { MultiImageUpload } from "@/components/MultiImageUpload";
 import {
   Dialog,
   DialogContent,
@@ -195,14 +194,8 @@ function ProductsAdmin() {
     is_featured: false,
     is_bestseller: false,
     allow_custom_qty: true,
-    rating: "4.8",
-    reviews_count: "124",
     image_url: "",
-    gallery_urls: [] as string[],
     description: "",
-    rich_description: "",
-    delivery_info: "Standard local delivery window.",
-    storage_info: "Keep refrigerated.",
     brand: "",
     model_number: "",
     warranty_period_months: "0",
@@ -298,7 +291,7 @@ function ProductsAdmin() {
         is_featured: newProduct.is_featured,
         is_bestseller: newProduct.is_bestseller,
         image_url: newProduct.image_url || null,
-        gallery_urls: newProduct.gallery_urls,
+        gallery_urls: newProduct.gallery_urls || [],
         rich_description: newProduct.rich_description || null,
         description: newProduct.description.trim() || null,
         branch_id: selectedBranchId || null,
@@ -1194,21 +1187,12 @@ function ProductsAdmin() {
                 </div>
               )}
 
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label>Main Image</Label>
-                  <ImageUpload
-                    currentImage={newProduct.image_url}
-                    onUpload={(url) => setNewProduct({ ...newProduct, image_url: url })}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Gallery (up to 5 additional images)</Label>
-                  <MultiImageUpload
-                    urls={newProduct.gallery_urls || []}
-                    onChange={(urls) => setNewProduct({ ...newProduct, gallery_urls: urls })}
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <Label>Product Image</Label>
+                <ImageUpload
+                  currentImage={newProduct.image_url}
+                  onUpload={(url) => setNewProduct({ ...newProduct, image_url: url })}
+                />
               </div>
 
               <div className="space-y-1.5">
@@ -2067,21 +2051,28 @@ function ProductsAdmin() {
                     Discount: <strong>{Math.round(((Number(editingProduct.old_price) - Number(editingProduct.price)) / Number(editingProduct.old_price)) * 100)}% OFF</strong>
                   </span>
                   <span>
+                    Customer saves <strong>{formatINR(Number(editingProduct.old_price) - Number(editingProduct.price))}</strong>
+                  </span>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <Label>Product Image</Label>
+                <ImageUpload
+                  currentImage={editingProduct.image_url}
+                  onUpload={(url) => setEditingProduct({ ...editingProduct, image_url: url })}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-desc">Description</Label>
+                <Textarea
                   id="edit-desc"
                   placeholder={formFields.descriptionPlaceholder}
                   value={editingProduct.description ?? ""}
                   onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1.5 mt-4">
-                  <Label htmlFor="edit-rich-desc">Rich Description (Full details)</Label>
-                  <Textarea
-                    id="edit-rich-desc"
-                    value={editingProduct.rich_description || ""}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, rich_description: e.target.value })}
-                    className="rounded-xl min-h-[120px] text-sm"
-                  />
-                </div>
+                />
+              </div>
 
               {/* Optional Retail & Hardware Tracking (Collapsed by default) */}
               <div className="rounded-2xl border border-border/80 bg-muted/15 p-3">
