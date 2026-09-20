@@ -50,6 +50,8 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
   const [isConnecting, setIsConnecting] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testFormat, setTestFormat] = useState<PrintFormat>(config.defaultFormat || "58mm");
+  const [btReason, setBtReason] = useState<string | null>(null);
+
 
   useEffect(() => {
     if (open) {
