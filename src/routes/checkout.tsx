@@ -144,6 +144,14 @@ function Checkout() {
   
   const [fulfillment, setFulfillment] = useState<"delivery" | "pickup">("delivery");
   const [payment, setPayment] = useState<"cod" | "upi" | "card">("cod");
+  // Card payments only appear when a card provider is actually connected.
+  const [cardPaymentAvailable, setCardPaymentAvailable] = useState(false);
+  useEffect(() => {
+    const available = isPaymentsConfigured();
+    setCardPaymentAvailable(available);
+    if (!available) setPayment((p) => (p === "card" ? "cod" : p));
+  }, []);
+
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [checkoutOrderId, setCheckoutOrderId] = useState<string | null>(null);
@@ -1646,7 +1654,7 @@ function Checkout() {
       ) : (
         <div className="mt-5">
           <p className="mb-2 text-sm font-medium">Payment method</p>
-        <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+        <div className={`grid gap-1.5 sm:gap-2 ${cardPaymentAvailable ? "grid-cols-3" : "grid-cols-2"}`}>
           <Button
             variant={payment === "cod" ? "default" : "outline"}
             className="rounded-xl px-1.5 sm:px-3 text-[11px] sm:text-xs text-center h-auto min-h-[2.5rem] py-1.5 whitespace-normal leading-tight"
@@ -1662,14 +1670,17 @@ function Checkout() {
           >
             UPI / QR Code
           </Button>
-          <Button
-            variant={payment === "card" ? "default" : "outline"}
-            className="rounded-xl px-1.5 sm:px-3 text-[11px] sm:text-xs text-center h-auto min-h-[2.5rem] py-1.5 whitespace-normal leading-tight"
-            onClick={() => setPayment("card")}
-          >
-            Card
-          </Button>
+          {cardPaymentAvailable && (
+            <Button
+              variant={payment === "card" ? "default" : "outline"}
+              className="rounded-xl px-1.5 sm:px-3 text-[11px] sm:text-xs text-center h-auto min-h-[2.5rem] py-1.5 whitespace-normal leading-tight"
+              onClick={() => setPayment("card")}
+            >
+              Card
+            </Button>
+          )}
         </div>
+
 
         {payment === "upi" && (
           <div className="mt-4 rounded-2xl border border-primary/30 bg-primary/5 p-4 space-y-3.5">
