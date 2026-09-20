@@ -218,8 +218,9 @@ const PUBLIC_BRANCH_FIELDS =
   "id, name, address, phone, lat, lng, open_time, close_time, delivery_radius_km, is_active, sort_order, slug, code, is_default, min_order_amount, created_at, updated_at";
 
 async function branchFields(): Promise<string> {
-  const { data } = await supabase.auth.getSession();
-  return data.session ? "*" : PUBLIC_BRANCH_FIELDS;
+  // Financial and identity fields (GSTIN, FSSAI, UPI, manager) are never served
+  // through the Data API — staff tools read them through server functions.
+  return PUBLIC_BRANCH_FIELDS;
 }
 
 /**

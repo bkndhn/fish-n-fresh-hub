@@ -179,7 +179,7 @@ export const superAdminStatsQuery = queryOptions({
       // 1. Fetch active branches
       const { count: branchesCount } = await supabase
         .from("branches")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("is_active", true);
 
       // 2. Fetch staff members
@@ -392,7 +392,7 @@ export async function createBranchWithQuotaGuard(
     // 1. Check current active count vs quota
     const { count: currentCount } = await supabase
       .from("branches")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("is_active", true);
 
     const { data: quotaData } = await supabase
