@@ -293,11 +293,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const value = useMemo<CartContextValue>(() => {
     const subtotal = pricedItems.reduce((sum, i) => sum + i.price * i.qty, 0);
     const count = pricedItems.reduce((sum, i) => sum + i.qty, 0);
+    const bandPercent = wholesale.active ? resolveBandPercent(bands, subtotal) : 0;
+    const bandAmount = bandPercent > 0 ? Math.round((subtotal * bandPercent) / 100) : 0;
+    const upcoming = wholesale.active ? nextBand(bands, subtotal) : null;
     return {
       items: pricedItems,
       isWholesale: wholesale.active,
       wholesaleDiscountPercent: wholesale.discount,
       wholesaleBusinessName: wholesale.name,
+      bulkDiscountPercent: bandPercent,
+      bulkDiscountAmount: bandAmount,
+      wholesaleMinOrderValue: wholesale.active ? minOrderValue : 0,
+      nextBulkBand: upcoming
+        ? { min_order_value: upcoming.min_order_value, discount_percent: upcoming.discount_percent }
+        : null,
       subtotal,
       count,
       cartBranchId,
@@ -315,6 +324,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [
     pricedItems,
     wholesale,
+    bands,
+    minOrderValue,
     cartBranchId,
     cartBranchName,
     pendingMismatch,
@@ -327,6 +338,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     remove,
     clear,
   ]);
+
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
