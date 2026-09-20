@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireAdmin, requireUser, getCallerUserId } from "@/lib/authz.server";
-import type { WholesaleAccount } from "@/lib/wholesale";
+import type { WholesaleAccount, WholesaleBand } from "@/lib/wholesale";
+
 
 const ACCOUNT_FIELDS =
   "id, user_id, business_name, contact_name, phone, email, gstin, address, status, extra_discount_percent, credit_limit, notes, created_at";
