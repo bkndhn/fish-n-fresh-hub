@@ -9,8 +9,6 @@ export type RateLimitAction =
   | "auth_signin"
   | "auth_signup"
   | "auth_reset"
-  | "auth_otp_verify"
-  | "auth_otp_send"
   | "checkout_order"
   | "delivery_pin"
   | "support_chat"
@@ -40,16 +38,6 @@ export const RATE_LIMIT_CONFIGS: Record<RateLimitAction, RateLimitRule> = {
     maxAttempts: 3,
     windowMs: 10 * 60 * 1000, // 10 minutes
     label: "Password reset",
-  },
-  auth_otp_verify: {
-    maxAttempts: 5,             // 5 wrong guesses = locked out
-    windowMs: 15 * 60 * 1000,  // 15-minute window
-    label: "OTP verification",
-  },
-  auth_otp_send: {
-    maxAttempts: 3,             // 3 OTP send requests max
-    windowMs: 10 * 60 * 1000,  // 10-minute window
-    label: "OTP send",
   },
   checkout_order: {
     maxAttempts: 5,
