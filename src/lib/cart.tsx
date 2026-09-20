@@ -351,6 +351,11 @@ const FALLBACK: CartContextValue = {
   isWholesale: false,
   wholesaleDiscountPercent: 0,
   wholesaleBusinessName: null,
+  bulkDiscountPercent: 0,
+  bulkDiscountAmount: 0,
+  wholesaleMinOrderValue: 0,
+  nextBulkBand: null,
+
   cartBranchId: null,
   cartBranchName: null,
   pendingMismatch: null,
