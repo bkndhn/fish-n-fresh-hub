@@ -36,6 +36,15 @@ type CartContextValue = {
   isWholesale: boolean;
   wholesaleDiscountPercent: number;
   wholesaleBusinessName: string | null;
+  /** Extra % off the whole basket from the order-value discount bands. */
+  bulkDiscountPercent: number;
+  /** Rupee value of the order-value band discount. */
+  bulkDiscountAmount: number;
+  /** Minimum order value trade buyers must reach (0 = no minimum). */
+  wholesaleMinOrderValue: number;
+  /** Next band the buyer can unlock, for "spend N more" hints. */
+  nextBulkBand: { min_order_value: number; discount_percent: number } | null;
+
   add: (product: Product, qty?: number, cut_preference?: string, branch?: CartBranchInfo) => { added: boolean; mismatch: boolean };
   clearAndAdd: (product: Product, qty?: number, cut_preference?: string, branch?: CartBranchInfo) => void;
   setQty: (productId: string, qty: number) => void;
