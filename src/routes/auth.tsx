@@ -1,6 +1,18 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Fish, Eye, EyeOff, KeyRound, ArrowLeft, CheckCircle2, Mail, ShieldCheck } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import {
+  Fish,
+  Eye,
+  EyeOff,
+  KeyRound,
+  ArrowLeft,
+  CheckCircle2,
+  Mail,
+  ShieldCheck,
+  Send,
+  RefreshCw,
+  Lock,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { checkRateLimit, recordRateLimitAttempt, resetRateLimit } from "@/lib/rateLimiter";
+import { cn } from "@/lib/utils";
 
 function safeNext(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -43,59 +56,202 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+// ─── OTP input: 6 individual digit boxes ──────────────────────────────────────
+function OtpInput({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const refs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const digits = value.split("").concat(Array(6).fill("")).slice(0, 6);
+
+  function handleChange(idx: number, e: React.ChangeEvent<HTMLInputElement>) {
+    const char = e.target.value.replace(/\D/g, "").slice(-1);
+    const next = [...digits];
+    next[idx] = char;
+    const joined = next.join("");
+    onChange(joined);
+    if (char && idx < 5) {
+      refs.current[idx + 1]?.focus();
+    }
+  }
+
+  function handleKeyDown(idx: number, e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Backspace" && !digits[idx] && idx > 0) {
+      refs.current[idx - 1]?.focus();
+    }
+    if (e.key === "ArrowLeft" && idx > 0) refs.current[idx - 1]?.focus();
+    if (e.key === "ArrowRight" && idx < 5) refs.current[idx + 1]?.focus();
+  }
+
+  function handlePaste(e: React.ClipboardEvent) {
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (pasted) {
+      onChange(pasted);
+      refs.current[Math.min(pasted.length, 5)]?.focus();
+    }
+    e.preventDefault();
+  }
+
+  return (
+    <div className="flex gap-2 justify-center" onPaste={handlePaste}>
+      {digits.map((d, i) => (
+        <input
+          key={i}
+          ref={(el) => { refs.current[i] = el; }}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={d}
+          disabled={disabled}
+          onChange={(e) => handleChange(i, e)}
+          onKeyDown={(e) => handleKeyDown(i, e)}
+          onFocus={(e) => e.target.select()}
+          className={cn(
+            "w-11 h-13 text-center text-xl font-black font-mono rounded-xl border-2 bg-background outline-none transition-all",
+            "focus:border-primary focus:ring-2 focus:ring-primary/30",
+            d ? "border-primary/70 text-foreground" : "border-border text-muted-foreground",
+            disabled && "opacity-50 cursor-not-allowed"
+          )}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── Password strength bar ─────────────────────────────────────────────────────
+function PasswordStrength({ password }: { password: string }) {
+  if (!password) return null;
+  let score = 0;
+  if (password.length >= 8) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+
+  const labels = ["Weak", "Fair", "Good", "Strong"];
+  const colors = ["bg-rose-500", "bg-amber-500", "bg-blue-500", "bg-emerald-500"];
+  const textColors = ["text-rose-500", "text-amber-500", "text-blue-500", "text-emerald-500"];
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex gap-1">
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className={cn(
+              "h-1 flex-1 rounded-full transition-all duration-300",
+              i < score ? colors[score - 1] : "bg-muted"
+            )}
+          />
+        ))}
+      </div>
+      {score > 0 && (
+        <p className={cn("text-[11px] font-semibold", textColors[score - 1])}>
+          {labels[score - 1]} password
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ─── Main component ────────────────────────────────────────────────────────────
 function AuthPage() {
   const navigate = useNavigate();
   const searchParams = Route.useSearch();
   const next = searchParams.next;
 
+  // Sign-in state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Password Recovery States
-  const [viewMode, setViewMode] = useState<"auth" | "forgot" | "reset">("auth");
+  // Sign-up state (multi-step: 1=details, 2=otp, 3=password)
+  const [signupStep, setSignupStep] = useState<1 | 2 | 3>(1);
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupFullName, setSignupFullName] = useState("");
+  const [signupPhone, setSignupPhone] = useState("");
+  const [signupOtp, setSignupOtp] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [otpCooldown, setOtpCooldown] = useState(0);
+
+  // Forgot / reset password state (multi-step: 1=email, 2=otp, 3=new password)
+  const [viewMode, setViewMode] = useState<"auth" | "forgot">("auth");
+  const [resetStep, setResetStep] = useState<1 | 2 | 3>(1);
   const [forgotEmail, setForgotEmail] = useState("");
-  const [resetSent, setResetSent] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
+  const [resetOtp, setResetOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [resetCooldown, setResetCooldown] = useState(0);
+
+  // Rate limit lockouts
+  const [signinLockout, setSigninLockout] = useState(0);
+  const [signupLockout, setSignupLockout] = useState(0);
+  const [resetLockout, setResetLockout] = useState(0);
+
+  // Global countdown timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setOtpCooldown((p) => (p > 0 ? p - 1 : 0));
+      setResetCooldown((p) => (p > 0 ? p - 1 : 0));
+      setSigninLockout((p) => (p > 0 ? p - 1 : 0));
+      setSignupLockout((p) => (p > 0 ? p - 1 : 0));
+      setResetLockout((p) => (p > 0 ? p - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Restore reset mode from URL/hash
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes("type=recovery") || searchParams.mode === "reset") {
+      setViewMode("forgot");
+      setResetStep(3); // Jump straight to new password if arriving via link
+    }
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setViewMode("forgot");
+        setResetStep(3);
+      }
+    });
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session && !hash.includes("type=recovery") && searchParams.mode !== "reset") {
+        void routeAfterLogin();
+      }
+    });
+
+    return () => { authListener.subscription.unsubscribe(); };
+  }, [navigate, searchParams.mode]);
 
   function getSafeRedirectUrl(target: string | undefined): string | null {
     if (!target) return null;
-    // Prevent protocol-relative URLs (//evil.com) or backslash tricks (/\evil.com)
-    if (!target.startsWith("/") || target.startsWith("//") || target.startsWith("/\\")) {
-      return null;
-    }
+    if (!target.startsWith("/") || target.startsWith("//") || target.startsWith("/\\")) return null;
     try {
       const parsed = new URL(target, window.location.origin);
       if (parsed.origin !== window.location.origin) return null;
       return parsed.pathname + parsed.search + parsed.hash;
-    } catch {
-      return null;
-    }
+    } catch { return null; }
   }
 
   async function routeAfterLogin() {
-    const safeNext = getSafeRedirectUrl(next);
-    if (safeNext) {
-      window.location.href = safeNext;
-      return;
-    }
+    const safeNextUrl = getSafeRedirectUrl(next);
+    if (safeNextUrl) { window.location.href = safeNextUrl; return; }
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const uid = sessionData.session?.user?.id;
-      if (!uid) {
-        navigate({ to: "/orders" });
-        return;
-      }
-
+      if (!uid) { navigate({ to: "/orders" }); return; }
       const { data: rolesData } = await supabase.from("user_roles").select("role").eq("user_id", uid);
       const roles = (rolesData ?? []).map((r) => r.role as string);
-
       if (roles.includes("super_admin") || roles.includes("admin") || roles.includes("manager")) {
         navigate({ to: "/admin" });
       } else if (roles.includes("cashier")) {
@@ -106,79 +262,13 @@ function AuthPage() {
         navigate({ to: "/admin/products" });
       } else if (roles.includes("support_staff")) {
         navigate({ to: "/admin/support" });
-      } else if (roles.includes("staff")) {
-        navigate({ to: "/admin" });
       } else {
         navigate({ to: "/orders" });
       }
-    } catch {
-      navigate({ to: "/orders" });
-    }
+    } catch { navigate({ to: "/orders" }); }
   }
 
-  // Detect recovery mode from hash or URL query param
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (hash.includes("type=recovery") || searchParams.mode === "reset") {
-      setViewMode("reset");
-    }
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setViewMode("reset");
-      }
-    });
-
-    supabase.auth.getSession().then(({ data }) => {
-      // If regular active session and not resetting password, route after login
-      if (data.session && !hash.includes("type=recovery") && searchParams.mode !== "reset") {
-        void routeAfterLogin();
-      }
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, [navigate, searchParams.mode]);
-
-  // Rate Limit Lockout States
-  const [signinLockout, setSigninLockout] = useState(0);
-  const [signupLockout, setSignupLockout] = useState(0);
-  const [resetLockout, setResetLockout] = useState(0);
-
-  // Cooldown & Lockout countdown timer
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCooldown((prev) => (prev > 0 ? prev - 1 : 0));
-      setSigninLockout((prev) => (prev > 0 ? prev - 1 : 0));
-      setSignupLockout((prev) => (prev > 0 ? prev - 1 : 0));
-      setResetLockout((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Sync lockout state on email change
-  useEffect(() => {
-    const check = checkRateLimit("auth_signin", email || "guest");
-    if (!check.allowed && check.retryAfterSeconds > 0) {
-      setSigninLockout(check.retryAfterSeconds);
-    }
-  }, [email]);
-
-  useEffect(() => {
-    const check = checkRateLimit("auth_signup", email || "guest");
-    if (!check.allowed && check.retryAfterSeconds > 0) {
-      setSignupLockout(check.retryAfterSeconds);
-    }
-  }, [email]);
-
-  useEffect(() => {
-    const check = checkRateLimit("auth_reset", forgotEmail || "guest");
-    if (!check.allowed && check.retryAfterSeconds > 0) {
-      setResetLockout(check.retryAfterSeconds);
-    }
-  }, [forgotEmail]);
-
+  // ─── SIGN IN ───────────────────────────────────────────────────────────────
   async function signIn(e: React.FormEvent) {
     e.preventDefault();
     const rlCheck = checkRateLimit("auth_signin", email || "guest");
@@ -187,108 +277,162 @@ function AuthPage() {
       toast.error(rlCheck.errorMessage || "Too many sign in attempts. Please wait.");
       return;
     }
-
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
       const res = recordRateLimitAttempt("auth_signin", email || "guest");
-      if (!res.allowed && res.retryAfterSeconds > 0) {
-        setSigninLockout(res.retryAfterSeconds);
-      }
+      if (!res.allowed && res.retryAfterSeconds > 0) setSigninLockout(res.retryAfterSeconds);
       toast.error(error.message);
       return;
     }
     resetRateLimit("auth_signin", email || "guest");
     setSigninLockout(0);
-    toast.success("Welcome back");
+    toast.success("Welcome back!");
     await routeAfterLogin();
   }
 
-  async function signUp(e: React.FormEvent) {
+  // ─── SIGN UP — Step 1→2: Send OTP ─────────────────────────────────────────
+  async function sendSignupOtp(e: React.FormEvent) {
     e.preventDefault();
-    const rlCheck = checkRateLimit("auth_signup", email || "guest");
+    const rlCheck = checkRateLimit("auth_signup", signupEmail || "guest");
     if (!rlCheck.allowed) {
       setSignupLockout(rlCheck.retryAfterSeconds);
       toast.error(rlCheck.errorMessage || "Too many registration attempts. Please wait.");
       return;
     }
-
-    if (!/^[6-9]\d{9}$/.test(phone)) {
-      toast.error("Please enter a valid 10-digit phone number starting with 6-9.");
+    if (!/^[6-9]\d{9}$/.test(signupPhone)) {
+      toast.error("Please enter a valid 10-digit Indian phone number.");
       return;
     }
-    
+    if (!signupFullName.trim() || signupFullName.trim().length < 2) {
+      toast.error("Please enter your full name.");
+      return;
+    }
     setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}${next ?? "/orders"}`,
-        data: { full_name: fullName, phone },
-      },
+    // signInWithOtp with shouldCreateUser creates/sends OTP — no redirect link
+    const { error } = await supabase.auth.signInWithOtp({
+      email: signupEmail,
+      options: { shouldCreateUser: true },
     });
     setLoading(false);
     if (error) {
-      const res = recordRateLimitAttempt("auth_signup", email || "guest");
-      if (!res.allowed && res.retryAfterSeconds > 0) {
-        setSignupLockout(res.retryAfterSeconds);
-      }
+      recordRateLimitAttempt("auth_signup", signupEmail || "guest");
       toast.error(error.message);
       return;
     }
-    
-    resetRateLimit("auth_signup", email || "guest");
-    setSignupLockout(0);
-    if (data.session) {
-      toast.success("Account created successfully!");
-      await routeAfterLogin();
-    } else {
-      toast.success("Account created! Please check your email to verify before signing in.");
-    }
+    setSignupStep(2);
+    setOtpCooldown(60);
+    toast.success("6-digit code sent! Check your inbox.");
   }
 
-  async function sendPasswordReset(e: React.FormEvent) {
+  // ─── SIGN UP — Step 2→3: Verify OTP ───────────────────────────────────────
+  async function verifySignupOtp(e: React.FormEvent) {
+    e.preventDefault();
+    if (signupOtp.length < 6) {
+      toast.error("Please enter the complete 6-digit code.");
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.verifyOtp({
+      email: signupEmail,
+      token: signupOtp,
+      type: "email",
+    });
+    setLoading(false);
+    if (error) {
+      toast.error("Invalid or expired code. Please try again.");
+      setSignupOtp("");
+      return;
+    }
+    // OTP verified — now set password & profile
+    setSignupStep(3);
+  }
+
+  // ─── SIGN UP — Step 3: Set Password & Finalize ────────────────────────────
+  async function finalizeSignup(e: React.FormEvent) {
+    e.preventDefault();
+    if (signupPassword.length < 6) {
+      toast.error("Password must be at least 6 characters.");
+      return;
+    }
+    if (signupPassword !== signupConfirmPassword) {
+      toast.error("Passwords do not match.");
+      return;
+    }
+    setLoading(true);
+    // Update the now-verified user with password + metadata
+    const { error } = await supabase.auth.updateUser({
+      password: signupPassword,
+      data: { full_name: signupFullName, phone: signupPhone },
+    });
+    setLoading(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    resetRateLimit("auth_signup", signupEmail || "guest");
+    toast.success("Account created! Welcome to Fish N Fresh 🎉");
+    await routeAfterLogin();
+  }
+
+  // ─── RESET — Step 1→2: Send OTP ───────────────────────────────────────────
+  async function sendResetOtp(e: React.FormEvent) {
     e.preventDefault();
     if (!forgotEmail.trim() || !forgotEmail.includes("@")) {
       toast.error("Please enter a valid email address.");
       return;
     }
-
     const rlCheck = checkRateLimit("auth_reset", forgotEmail.trim());
     if (!rlCheck.allowed) {
       setResetLockout(rlCheck.retryAfterSeconds);
       toast.error(rlCheck.errorMessage || "Too many reset attempts. Please wait.");
       return;
     }
-
-    if (cooldown > 0) {
-      toast.info(`Please wait ${cooldown}s before requesting another reset email.`);
+    if (resetCooldown > 0) {
+      toast.info(`Please wait ${resetCooldown}s before requesting another code.`);
       return;
     }
-
     setLoading(true);
-    const redirectUrl = `${window.location.origin}/auth?mode=reset`;
-    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
-      redirectTo: redirectUrl,
+    const { error } = await supabase.auth.signInWithOtp({
+      email: forgotEmail.trim(),
+      options: { shouldCreateUser: false },
     });
     setLoading(false);
-
     const res = recordRateLimitAttempt("auth_reset", forgotEmail.trim());
-    if (!res.allowed && res.retryAfterSeconds > 0) {
-      setResetLockout(res.retryAfterSeconds);
-    }
-
+    if (!res.allowed && res.retryAfterSeconds > 0) setResetLockout(res.retryAfterSeconds);
     if (error) {
       toast.error(error.message);
       return;
     }
-
-    setResetSent(true);
-    setCooldown(60);
-    toast.success("Password reset email sent! Check your inbox or spam folder.");
+    setResetStep(2);
+    setResetCooldown(60);
+    toast.success("6-digit reset code sent! Check your inbox.");
   }
 
+  // ─── RESET — Step 2→3: Verify OTP ─────────────────────────────────────────
+  async function verifyResetOtp(e: React.FormEvent) {
+    e.preventDefault();
+    if (resetOtp.length < 6) {
+      toast.error("Please enter the complete 6-digit code.");
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.verifyOtp({
+      email: forgotEmail,
+      token: resetOtp,
+      type: "email",
+    });
+    setLoading(false);
+    if (error) {
+      toast.error("Invalid or expired code. Please try again.");
+      setResetOtp("");
+      return;
+    }
+    setResetStep(3);
+  }
+
+  // ─── RESET — Step 3: Update Password ─────────────────────────────────────
   async function updatePassword(e: React.FormEvent) {
     e.preventDefault();
     if (newPassword.length < 6) {
@@ -299,100 +443,21 @@ function AuthPage() {
       toast.error("Passwords do not match.");
       return;
     }
-
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     setLoading(false);
-
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-
-    toast.success("Password updated successfully! Redirecting...");
+    if (error) { toast.error(error.message); return; }
+    toast.success("Password updated successfully!");
     setViewMode("auth");
+    setResetStep(1);
+    setForgotEmail("");
+    setResetOtp("");
+    setNewPassword("");
+    setConfirmPassword("");
     await routeAfterLogin();
   }
 
-  // Screen 1: Set New Password (User arrived via reset link)
-  if (viewMode === "reset") {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
-        <Card className="w-full max-w-md rounded-3xl border-border/80 shadow-lg">
-          <CardHeader className="text-center pb-2">
-            <div className="ocean-gradient mx-auto flex size-12 items-center justify-center rounded-2xl text-primary-foreground shadow-sm">
-              <ShieldCheck className="size-6" />
-            </div>
-            <CardTitle className="mt-3 font-display text-2xl">Create New Password</CardTitle>
-            <CardDescription>
-              Enter a strong, secure password for your Fish N Fresh account.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={updatePassword} className="space-y-4 pt-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="new-pass">New Password</Label>
-                <div className="relative">
-                  <Input
-                    id="new-pass"
-                    type={showNewPassword ? "text" : "password"}
-                    required
-                    minLength={6}
-                    placeholder="At least 6 characters"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="rounded-xl pr-10"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                  >
-                    {showNewPassword ? (
-                      <EyeOff className="size-4 text-muted-foreground" />
-                    ) : (
-                      <Eye className="size-4 text-muted-foreground" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="confirm-pass">Confirm New Password</Label>
-                <Input
-                  id="confirm-pass"
-                  type={showNewPassword ? "text" : "password"}
-                  required
-                  minLength={6}
-                  placeholder="Re-enter new password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="rounded-xl"
-                />
-              </div>
-
-              <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading}>
-                {loading ? "Updating Password..." : "Save & Sign In"}
-              </Button>
-
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full text-xs text-muted-foreground hover:text-foreground"
-                onClick={() => setViewMode("auth")}
-              >
-                Cancel and return to sign in
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Screen 2: Forgot Password Request Form
+  // ─── FORGOT PASSWORD SCREENS ───────────────────────────────────────────────
   if (viewMode === "forgot") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
@@ -401,67 +466,147 @@ function AuthPage() {
             <div className="ocean-gradient mx-auto flex size-12 items-center justify-center rounded-2xl text-primary-foreground shadow-sm">
               <KeyRound className="size-6" />
             </div>
-            <CardTitle className="mt-3 font-display text-2xl">Reset Your Password</CardTitle>
+            <CardTitle className="mt-3 font-display text-2xl">Reset Password</CardTitle>
             <CardDescription>
-              We'll send a secure password reset link to your verified email address.
+              {resetStep === 1 && "We'll email you a 6-digit code to verify it's you."}
+              {resetStep === 2 && `Enter the 6-digit code sent to ${forgotEmail}`}
+              {resetStep === 3 && "Create your new secure password."}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {resetSent ? (
-              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center space-y-3">
-                <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                  <CheckCircle2 className="size-6" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-foreground">Verification Link Sent!</h4>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    A password recovery link has been emailed to{" "}
-                    <span className="font-semibold text-foreground">{forgotEmail}</span>.
-                    Click the link in your email to choose a new password.
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={cooldown > 0 || loading}
-                  className="rounded-xl text-xs w-full mt-2"
-                  onClick={sendPasswordReset}
-                >
-                  <Mail className="mr-1.5 size-3.5" />
-                  {cooldown > 0 ? `Resend email in ${cooldown}s` : "Resend Recovery Email"}
-                </Button>
-              </div>
-            ) : (
-              <form onSubmit={sendPasswordReset} className="space-y-4 pt-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="forgot-email">Account Email Address</Label>
-                  <Input
-                    id="forgot-email"
-                    type="email"
-                    required
-                    placeholder="Enter the email associated with your account"
-                    value={forgotEmail}
-                    onChange={(e) => setForgotEmail(e.target.value)}
-                    className="rounded-xl"
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Works for staff, admin, and customer accounts.
-                  </p>
-                </div>
 
+          {/* Step indicator */}
+          <div className="flex items-center justify-center gap-2 pb-2">
+            {[1, 2, 3].map((s) => (
+              <div key={s} className="flex items-center gap-2">
+                <div className={cn(
+                  "size-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all",
+                  resetStep > s
+                    ? "bg-primary border-primary text-primary-foreground"
+                    : resetStep === s
+                    ? "border-primary text-primary bg-primary/10"
+                    : "border-muted-foreground/30 text-muted-foreground/50"
+                )}>
+                  {resetStep > s ? <CheckCircle2 className="size-3.5" /> : s}
+                </div>
+                {s < 3 && <div className={cn("h-0.5 w-8 rounded-full transition-all", resetStep > s ? "bg-primary" : "bg-muted")} />}
+              </div>
+            ))}
+          </div>
+
+          <CardContent className="space-y-4">
+            {/* Step 1: Email entry */}
+            {resetStep === 1 && (
+              <form onSubmit={sendResetOtp} className="space-y-4 pt-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="forgot-email">Account Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      required
+                      placeholder="you@example.com"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="rounded-xl pl-10"
+                    />
+                  </div>
+                </div>
                 {resetLockout > 0 && (
                   <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2.5">
                     <ShieldCheck className="size-4 shrink-0 text-amber-500" />
-                    <div className="flex-1 leading-tight">
-                      <span className="font-bold block">Security Rate Limit Active</span>
-                      <span>Too many reset attempts. Please wait <strong className="font-mono text-foreground font-bold">{resetLockout}s</strong> before trying again.</span>
-                    </div>
+                    <span>Too many attempts. Wait <strong className="font-mono">{resetLockout}s</strong>.</span>
                   </div>
                 )}
-
                 <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading || resetLockout > 0}>
-                  {loading ? "Sending link..." : resetLockout > 0 ? `Locked (${resetLockout}s cooldown)` : "Send Reset Link"}
+                  {loading ? "Sending Code..." : <><Send className="mr-2 size-4" /> Send 6-Digit Code</>}
+                </Button>
+              </form>
+            )}
+
+            {/* Step 2: OTP verification */}
+            {resetStep === 2 && (
+              <form onSubmit={verifyResetOtp} className="space-y-5 pt-2">
+                <div className="space-y-3">
+                  <Label className="text-center block">Enter Verification Code</Label>
+                  <OtpInput value={resetOtp} onChange={setResetOtp} disabled={loading} />
+                  <p className="text-center text-xs text-muted-foreground">
+                    Sent to <span className="font-semibold text-foreground">{forgotEmail}</span>
+                  </p>
+                </div>
+                <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading || resetOtp.length < 6}>
+                  {loading ? "Verifying..." : "Verify Code →"}
+                </Button>
+                <div className="text-center">
+                  {resetCooldown > 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      <RefreshCw className="inline size-3 mr-1 animate-spin" />
+                      Resend in <strong className="font-mono text-foreground">{resetCooldown}s</strong>
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      className="text-xs text-primary hover:underline"
+                      onClick={sendResetOtp as unknown as React.MouseEventHandler}
+                    >
+                      Didn't receive it? Resend code
+                    </button>
+                  )}
+                </div>
+              </form>
+            )}
+
+            {/* Step 3: New password */}
+            {resetStep === 3 && (
+              <form onSubmit={updatePassword} className="space-y-4 pt-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="new-pass">New Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input
+                      id="new-pass"
+                      type={showNewPassword ? "text" : "password"}
+                      required
+                      minLength={6}
+                      placeholder="At least 6 characters"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="rounded-xl pl-10 pr-10"
+                    />
+                    <Button
+                      type="button" variant="ghost" size="icon"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                    >
+                      {showNewPassword ? <EyeOff className="size-4 text-muted-foreground" /> : <Eye className="size-4 text-muted-foreground" />}
+                    </Button>
+                  </div>
+                  <PasswordStrength password={newPassword} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirm-pass">Confirm New Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input
+                      id="confirm-pass"
+                      type={showNewPassword ? "text" : "password"}
+                      required
+                      minLength={6}
+                      placeholder="Re-enter new password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className={cn(
+                        "rounded-xl pl-10",
+                        confirmPassword && confirmPassword !== newPassword && "border-rose-500 focus-visible:ring-rose-500/30"
+                      )}
+                    />
+                  </div>
+                  {confirmPassword && confirmPassword !== newPassword && (
+                    <p className="text-xs text-rose-500 font-medium">Passwords do not match</p>
+                  )}
+                </div>
+                <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading}>
+                  {loading ? "Updating Password..." : "Save New Password & Sign In"}
                 </Button>
               </form>
             )}
@@ -472,7 +617,9 @@ function AuthPage() {
               className="w-full rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground gap-1.5"
               onClick={() => {
                 setViewMode("auth");
-                setResetSent(false);
+                setResetStep(1);
+                setForgotEmail("");
+                setResetOtp("");
               }}
             >
               <ArrowLeft className="size-3.5" /> Back to Sign In
@@ -483,7 +630,7 @@ function AuthPage() {
     );
   }
 
-  // Screen 3: Default Sign In & Sign Up Form
+  // ─── DEFAULT: Sign In + Sign Up (tabbed) ──────────────────────────────────
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <Card className="w-full max-w-md rounded-3xl border-border/80 shadow-lg">
@@ -491,168 +638,238 @@ function AuthPage() {
           <span className="ocean-gradient mx-auto flex size-12 items-center justify-center rounded-2xl text-primary-foreground shadow-sm">
             <Fish className="size-6" />
           </span>
-          <CardTitle className="mt-3 font-display text-2xl">Fish N Fresh Console</CardTitle>
+          <CardTitle className="mt-3 font-display text-2xl">Fish N Fresh</CardTitle>
           <CardDescription>Customers, staff &amp; admin</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin">
             <TabsList className="grid w-full grid-cols-2 rounded-2xl">
-              <TabsTrigger value="signin" className="rounded-xl font-semibold">Sign in</TabsTrigger>
-              <TabsTrigger value="signup" className="rounded-xl font-semibold">Create account</TabsTrigger>
+              <TabsTrigger value="signin" className="rounded-xl font-semibold">Sign In</TabsTrigger>
+              <TabsTrigger value="signup" className="rounded-xl font-semibold">Create Account</TabsTrigger>
             </TabsList>
 
+            {/* ── Sign In Tab ── */}
             <TabsContent value="signin">
               <form onSubmit={signIn} className="space-y-4 pt-4">
                 {signinLockout > 0 && (
                   <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2.5">
                     <ShieldCheck className="size-4 shrink-0 text-amber-500" />
-                    <div className="flex-1 leading-tight">
-                      <span className="font-bold block">Security Lockout Active</span>
-                      <span>Too many failed sign-in attempts. Try again in <strong className="font-mono text-foreground font-bold">{signinLockout}s</strong>.</span>
-                    </div>
+                    <span>Locked out. Try again in <strong className="font-mono">{signinLockout}s</strong>.</span>
                   </div>
                 )}
-
                 <div className="space-y-1.5">
                   <Label htmlFor="email">Email</Label>
-                  <Input 
-                    id="email" 
-                    type="email" 
-                    required 
-                    placeholder="Enter your email"
-                    value={email} 
-                    onChange={(e) => setEmail(e.target.value)} 
-                    className="rounded-xl"
-                  />
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input
+                      id="email" type="email" required
+                      placeholder="you@example.com"
+                      value={email} onChange={(e) => setEmail(e.target.value)}
+                      className="rounded-xl pl-10"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="password">Password</Label>
                     <button
                       type="button"
-                      onClick={() => {
-                        setForgotEmail(email);
-                        setViewMode("forgot");
-                      }}
+                      onClick={() => { setForgotEmail(email); setViewMode("forgot"); }}
                       className="text-xs font-semibold text-primary hover:underline"
                     >
                       Forgot password?
                     </button>
                   </div>
                   <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
                       required
-                      placeholder="Enter password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="rounded-xl pr-10"
+                      placeholder="Enter your password"
+                      value={password} onChange={(e) => setPassword(e.target.value)}
+                      className="rounded-xl pl-10 pr-10"
                     />
                     <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      type="button" variant="ghost" size="icon"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                       onClick={() => setShowPassword(!showPassword)}
                     >
-                      {showPassword ? (
-                        <EyeOff className="size-4 text-muted-foreground" />
-                      ) : (
-                        <Eye className="size-4 text-muted-foreground" />
-                      )}
+                      {showPassword ? <EyeOff className="size-4 text-muted-foreground" /> : <Eye className="size-4 text-muted-foreground" />}
                     </Button>
                   </div>
                 </div>
                 <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading || signinLockout > 0}>
-                  {loading ? "Signing in..." : signinLockout > 0 ? `Locked (${signinLockout}s cooldown)` : "Sign in"}
+                  {loading ? "Signing in..." : signinLockout > 0 ? `Locked (${signinLockout}s)` : "Sign In"}
                 </Button>
               </form>
             </TabsContent>
 
+            {/* ── Sign Up Tab ── */}
             <TabsContent value="signup">
-              <form onSubmit={signUp} className="space-y-4 pt-4">
-                {signupLockout > 0 && (
-                  <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2.5">
-                    <ShieldCheck className="size-4 shrink-0 text-amber-500" />
-                    <div className="flex-1 leading-tight">
-                      <span className="font-bold block">Security Lockout Active</span>
-                      <span>Too many registration attempts. Try again in <strong className="font-mono text-foreground font-bold">{signupLockout}s</strong>.</span>
+              {/* Step indicator */}
+              <div className="flex items-center justify-center gap-2 pt-4 pb-2">
+                {[1, 2, 3].map((s) => (
+                  <div key={s} className="flex items-center gap-2">
+                    <div className={cn(
+                      "size-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all",
+                      signupStep > s
+                        ? "bg-primary border-primary text-primary-foreground"
+                        : signupStep === s
+                        ? "border-primary text-primary bg-primary/10"
+                        : "border-muted-foreground/30 text-muted-foreground/50"
+                    )}>
+                      {signupStep > s ? <CheckCircle2 className="size-3.5" /> : s}
+                    </div>
+                    {s < 3 && <div className={cn("h-0.5 w-8 rounded-full transition-all", signupStep > s ? "bg-primary" : "bg-muted")} />}
+                  </div>
+                ))}
+              </div>
+              <p className="text-center text-xs text-muted-foreground mb-3">
+                {signupStep === 1 && "Your details"}
+                {signupStep === 2 && "Verify email"}
+                {signupStep === 3 && "Set password"}
+              </p>
+
+              {/* Step 1 — Details + Send OTP */}
+              {signupStep === 1 && (
+                <form onSubmit={sendSignupOtp} className="space-y-4">
+                  {signupLockout > 0 && (
+                    <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2.5">
+                      <ShieldCheck className="size-4 shrink-0 text-amber-500" />
+                      <span>Too many attempts. Wait <strong className="font-mono">{signupLockout}s</strong>.</span>
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input
+                      id="name" required placeholder="e.g. Ramesh Kumar"
+                      value={signupFullName} onChange={(e) => setSignupFullName(e.target.value)}
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone" type="tel" required
+                      pattern="[6-9][0-9]{9}"
+                      placeholder="e.g. 9876543210"
+                      value={signupPhone} onChange={(e) => setSignupPhone(e.target.value)}
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="signup-email">Email Address</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                      <Input
+                        id="signup-email" type="email" required
+                        placeholder="you@example.com"
+                        value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)}
+                        className="rounded-xl pl-10"
+                      />
                     </div>
                   </div>
-                )}
+                  <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading || signupLockout > 0}>
+                    {loading ? "Sending Code..." : <><Send className="mr-2 size-4" /> Send Verification Code</>}
+                  </Button>
+                  <p className="text-center text-xs text-muted-foreground">
+                    The first account created becomes the store admin.
+                  </p>
+                </form>
+              )}
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="name">Full name</Label>
-                  <Input 
-                    id="name" 
-                    required 
-                    placeholder="e.g. John Doe"
-                    value={fullName} 
-                    onChange={(e) => setFullName(e.target.value)} 
-                    className="rounded-xl"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="phone">Phone number</Label>
-                  <Input 
-                    id="phone" 
-                    type="tel" 
-                    required 
-                    pattern="[6-9][0-9]{9}"
-                    placeholder="e.g. 9876543210"
-                    value={phone} 
-                    onChange={(e) => setPhone(e.target.value)} 
-                    className="rounded-xl"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="email2">Email</Label>
-                  <Input 
-                    id="email2" 
-                    type="email" 
-                    required 
-                    placeholder="Enter your email"
-                    value={email} 
-                    onChange={(e) => setEmail(e.target.value)} 
-                    className="rounded-xl"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="password2">Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="password2"
-                      type={showPassword ? "text" : "password"}
-                      required
-                      minLength={6}
-                      placeholder="Create a password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="rounded-xl pr-10"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="size-4 text-muted-foreground" />
-                      ) : (
-                        <Eye className="size-4 text-muted-foreground" />
-                      )}
-                    </Button>
+              {/* Step 2 — OTP Verification */}
+              {signupStep === 2 && (
+                <form onSubmit={verifySignupOtp} className="space-y-5">
+                  <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-center space-y-1">
+                    <Mail className="mx-auto size-6 text-primary" />
+                    <p className="text-sm font-semibold text-foreground">Check your email</p>
+                    <p className="text-xs text-muted-foreground">
+                      We sent a 6-digit code to <span className="font-semibold text-foreground">{signupEmail}</span>
+                    </p>
                   </div>
-                </div>
-                <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading || signupLockout > 0}>
-                  {loading ? "Creating..." : signupLockout > 0 ? `Locked (${signupLockout}s cooldown)` : "Create account"}
-                </Button>
-                <p className="text-center text-xs text-muted-foreground">
-                  The first account created becomes the store admin.
-                </p>
-              </form>
+                  <div className="space-y-3">
+                    <Label className="text-center block">Verification Code</Label>
+                    <OtpInput value={signupOtp} onChange={setSignupOtp} disabled={loading} />
+                  </div>
+                  <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading || signupOtp.length < 6}>
+                    {loading ? "Verifying..." : "Verify & Continue →"}
+                  </Button>
+                  <div className="flex items-center justify-between text-xs">
+                    <button type="button" className="text-muted-foreground hover:text-foreground gap-1 flex items-center" onClick={() => setSignupStep(1)}>
+                      <ArrowLeft className="size-3" /> Change email
+                    </button>
+                    {otpCooldown > 0 ? (
+                      <span className="text-muted-foreground">Resend in <strong className="font-mono text-foreground">{otpCooldown}s</strong></span>
+                    ) : (
+                      <button type="button" className="text-primary hover:underline" onClick={sendSignupOtp as unknown as React.MouseEventHandler}>
+                        Resend code
+                      </button>
+                    )}
+                  </div>
+                </form>
+              )}
+
+              {/* Step 3 — Set Password */}
+              {signupStep === 3 && (
+                <form onSubmit={finalizeSignup} className="space-y-4">
+                  <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3 flex items-center gap-2.5">
+                    <CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Email verified!</p>
+                      <p className="text-[11px] text-emerald-700 dark:text-emerald-400">{signupEmail}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="signup-pass">Create Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                      <Input
+                        id="signup-pass"
+                        type={showSignupPassword ? "text" : "password"}
+                        required minLength={6}
+                        placeholder="At least 6 characters"
+                        value={signupPassword}
+                        onChange={(e) => setSignupPassword(e.target.value)}
+                        className="rounded-xl pl-10 pr-10"
+                      />
+                      <Button
+                        type="button" variant="ghost" size="icon"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => setShowSignupPassword(!showSignupPassword)}
+                      >
+                        {showSignupPassword ? <EyeOff className="size-4 text-muted-foreground" /> : <Eye className="size-4 text-muted-foreground" />}
+                      </Button>
+                    </div>
+                    <PasswordStrength password={signupPassword} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="signup-confirm-pass">Confirm Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                      <Input
+                        id="signup-confirm-pass"
+                        type={showSignupPassword ? "text" : "password"}
+                        required minLength={6}
+                        placeholder="Re-enter your password"
+                        value={signupConfirmPassword}
+                        onChange={(e) => setSignupConfirmPassword(e.target.value)}
+                        className={cn(
+                          "rounded-xl pl-10",
+                          signupConfirmPassword && signupConfirmPassword !== signupPassword && "border-rose-500 focus-visible:ring-rose-500/30"
+                        )}
+                      />
+                    </div>
+                    {signupConfirmPassword && signupConfirmPassword !== signupPassword && (
+                      <p className="text-xs text-rose-500 font-medium">Passwords do not match</p>
+                    )}
+                  </div>
+                  <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading}>
+                    {loading ? "Creating Account..." : "Create Account 🎉"}
+                  </Button>
+                </form>
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>
@@ -660,4 +877,3 @@ function AuthPage() {
     </div>
   );
 }
-
