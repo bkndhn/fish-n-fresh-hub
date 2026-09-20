@@ -18,6 +18,8 @@ import { AddressBook } from "@/components/AddressBook";
 import { MapPinPickerModal } from "@/components/MapPinPickerModal";
 import { calculateDistanceKm, getGoogleMapsDirUrl, forwardGeocodeAddress, getOsrmRoadRoute } from "@/lib/maps";
 import { settingsQuery, productsQuery } from "@/lib/queries";
+import { getStoreUpiTarget } from "@/lib/storefront.functions";
+
 import {
   getShippingScopeConfig,
   evaluateOrderShippingRate,
@@ -885,8 +887,9 @@ function Checkout() {
     );
   }
 
-  const upiId = settings?.upi_id || "9843061919@upi";
-  const upiName = settings?.upi_name || "Fish N Fresh";
+  const upiId = settings?.upi_id || upiTarget?.upi_id || "9843061919@upi";
+  const upiName = settings?.upi_name || upiTarget?.upi_name || "Fish N Fresh";
+
   const upiDeepLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${total}&cu=INR&tn=${encodeURIComponent("Fish N Fresh Seafood")}`;
   const gpayDeepLink = `tez://upi/pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${total}&cu=INR&tn=${encodeURIComponent("Fish N Fresh Seafood")}`;
   const phonepeDeepLink = `phonepe://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${total}&cu=INR&tn=${encodeURIComponent("Fish N Fresh Seafood")}`;
