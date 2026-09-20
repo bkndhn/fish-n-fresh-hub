@@ -81,15 +81,46 @@ export function CartProvider({ children }: { children: ReactNode }) {
           .eq("user_id", uid)
           .maybeSingle();
         if (cancelled) return;
+        const approved = data?.status === "approved";
         setWholesale({
-          active: data?.status === "approved",
+          active: approved,
           discount: Number(data?.extra_discount_percent ?? 0) || 0,
           name: (data?.business_name as string | null) ?? null,
         });
+
+        if (approved) {
+          const [bandRes, settingsRes] = await Promise.all([
+            supabase
+              .from("wholesale_discount_bands")
+              .select("id, label, min_order_value, discount_percent, active")
+              .eq("active", true)
+              .order("min_order_value", { ascending: true }),
+            supabase.from("store_settings").select("wholesale_min_order_value").limit(1).maybeSingle(),
+          ]);
+          if (cancelled) return;
+          setBands(
+            ((bandRes.data ?? []) as unknown as WholesaleBand[]).map((b) => ({
+              id: b.id,
+              label: b.label ?? null,
+              min_order_value: Number(b.min_order_value) || 0,
+              discount_percent: Number(b.discount_percent) || 0,
+              active: Boolean(b.active),
+            })),
+          );
+          setMinOrderValue(
+            Number(
+              (settingsRes.data as { wholesale_min_order_value?: number } | null)?.wholesale_min_order_value ?? 0,
+            ) || 0,
+          );
+        } else {
+          setBands([]);
+          setMinOrderValue(0);
+        }
       } catch {
         /* ignore */
       }
     };
+
     void load();
     const { data: sub } = supabase.auth.onAuthStateChange(() => {
       void load();
