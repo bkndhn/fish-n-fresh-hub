@@ -27,6 +27,8 @@ import {
   KeyRound,
   FileText,
   Repeat,
+  Copy,
+  Share2,
 } from "lucide-react";
 import { generateDueSubscriptionOrders } from "@/lib/subscriptions.functions";
 import { AdminShell } from "@/components/admin/AdminShell";
@@ -100,6 +102,7 @@ function OrdersAdmin() {
   const [invoiceOrder, setInvoiceOrder] = useState<OrderRow | null>(null);
   const [shippingModalOrder, setShippingModalOrder] = useState<OrderRow | null>(null);
   const [shippingForm, setShippingForm] = useState({ partner: "", awb: "", url: "" });
+  const [shippedOrderData, setShippedOrderData] = useState<{ order: OrderRow; partner: string; awb: string; url: string } | null>(null);
 
   // Subscriptions & MRR Pipeline State
   const { data: adminSubscriptions = [], refetch: refetchAdminSubs } = useQuery({
@@ -191,8 +194,14 @@ function OrdersAdmin() {
       );
     },
     onSuccess: () => {
-      toast.success("Shipping details saved!");
-      setShippingModalOrder(null);
+      toast.success("Shipment confirmed! Share tracking with customer below.");
+      // Keep modal open to show the share panel
+      setShippedOrderData({
+        order: shippingModalOrder!,
+        partner: shippingForm.partner,
+        awb: shippingForm.awb,
+        url: shippingForm.url,
+      });
       qc.invalidateQueries({ queryKey: ["admin", "orders"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -1303,56 +1312,178 @@ function OrdersAdmin() {
         />
       )}
       {/* Shipping / Courier Modal */}
-      <Dialog open={!!shippingModalOrder} onOpenChange={(open) => !open && setShippingModalOrder(null)}>
+      <Dialog
+        open={!!shippingModalOrder}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShippingModalOrder(null);
+            setShippedOrderData(null);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md rounded-3xl p-6">
           <DialogHeader>
-            <DialogTitle className="text-xl">Mark as Shipped</DialogTitle>
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <Truck className="size-5 text-primary" />
+              {shippedOrderData ? "Shipment Confirmed ✓" : "Mark as Shipped"}
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Courier Partner</Label>
-              <Input
-                placeholder="e.g. Delhivery, BlueDart, Shiprocket"
-                value={shippingForm.partner}
-                onChange={(e) => setShippingForm({ ...shippingForm, partner: e.target.value })}
-                className="h-9 rounded-xl text-sm"
-              />
+
+          {/* ── PHASE 1: Form ── */}
+          {!shippedOrderData && (
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Courier Partner</label>
+                <Input
+                  placeholder="e.g. Delhivery, BlueDart, Shiprocket, DTDC"
+                  value={shippingForm.partner}
+                  onChange={(e) => setShippingForm({ ...shippingForm, partner: e.target.value })}
+                  className="h-9 rounded-xl text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">AWB / Tracking Number</label>
+                <Input
+                  placeholder="e.g. 1234567890"
+                  value={shippingForm.awb}
+                  onChange={(e) => setShippingForm({ ...shippingForm, awb: e.target.value })}
+                  className="h-9 rounded-xl text-sm font-mono"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Tracking URL <span className="normal-case font-normal text-muted-foreground">(optional)</span>
+                </label>
+                <Input
+                  placeholder="https://track.delhivery.com/..."
+                  value={shippingForm.url}
+                  onChange={(e) => setShippingForm({ ...shippingForm, url: e.target.value })}
+                  className="h-9 rounded-xl text-sm"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Paste the direct tracking page URL. Customer can click to track live.
+                </p>
+              </div>
+              <div className="flex justify-end gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => { setShippingModalOrder(null); setShippedOrderData(null); }}
+                  className="rounded-xl h-9 text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => saveShippingDetails.mutate()}
+                  disabled={saveShippingDetails.isPending || !shippingForm.awb.trim()}
+                  className="rounded-xl h-9 text-xs font-bold shadow-xs px-6"
+                >
+                  {saveShippingDetails.isPending ? "Saving..." : "Confirm Shipment →"}
+                </Button>
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">AWB / Tracking Number</Label>
-              <Input
-                placeholder="e.g. 1Z9999999999999999"
-                value={shippingForm.awb}
-                onChange={(e) => setShippingForm({ ...shippingForm, awb: e.target.value })}
-                className="h-9 rounded-xl text-sm"
-              />
+          )}
+
+          {/* ── PHASE 2: Share Panel after save ── */}
+          {shippedOrderData && (
+            <div className="space-y-4 py-2">
+              {/* Summary badge */}
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/8 p-4 space-y-1.5">
+                <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold text-sm">
+                  <CheckCircle2 className="size-4" />
+                  Order #{shippedOrderData.order.order_number ?? shippedOrderData.order.id.slice(0, 8)} is now Shipped
+                </div>
+                {shippedOrderData.partner && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <Truck className="size-3" /> <strong>{shippedOrderData.partner}</strong>
+                  </p>
+                )}
+                {shippedOrderData.awb && (
+                  <p className="text-xs font-mono text-foreground">
+                    AWB: <strong>{shippedOrderData.awb}</strong>
+                  </p>
+                )}
+              </div>
+
+              {/* Share options */}
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Share tracking with customer</p>
+
+                {/* WhatsApp deep link */}
+                {(() => {
+                  const o = shippedOrderData.order;
+                  const trackingLine = shippedOrderData.url
+                    ? `\n🔗 Track here: ${shippedOrderData.url}`
+                    : "";
+                  const awbLine = shippedOrderData.awb
+                    ? `\n📦 AWB: ${shippedOrderData.awb} (${shippedOrderData.partner || "Courier"})`
+                    : "";
+                  const msg = `Hi ${o.customer_name}! 🐟\n\nYour Fish N Fresh order #${o.order_number ?? o.id.slice(0, 8)} has been shipped!${awbLine}${trackingLine}\n\nExpected delivery in 1-3 days. Thank you for shopping with us! 🙏`;
+                  const waUrl = getWhatsAppUrl(o.customer_phone, msg);
+
+                  return (
+                    <a
+                      href={waUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-3 rounded-xl border border-green-500/30 bg-green-500/8 hover:bg-green-500/15 px-4 py-3 transition-all group"
+                    >
+                      <WhatsAppIcon className="size-5 text-green-600 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-green-800 dark:text-green-300">WhatsApp Customer</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{o.customer_phone}</p>
+                      </div>
+                      <Share2 className="size-4 text-green-600 opacity-70 group-hover:opacity-100" />
+                    </a>
+                  );
+                })()}
+
+                {/* Copy tracking URL button */}
+                {shippedOrderData.url && (
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 px-4 py-3 transition-all text-left"
+                    onClick={() => {
+                      navigator.clipboard.writeText(shippedOrderData.url).then(() => {
+                        toast.success("Tracking URL copied!");
+                      });
+                    }}
+                  >
+                    <Copy className="size-4 text-muted-foreground shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground">Copy Tracking Link</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{shippedOrderData.url}</p>
+                    </div>
+                  </button>
+                )}
+
+                {/* Copy AWB */}
+                {shippedOrderData.awb && (
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 px-4 py-3 transition-all text-left"
+                    onClick={() => {
+                      navigator.clipboard.writeText(shippedOrderData.awb).then(() => {
+                        toast.success("AWB number copied!");
+                      });
+                    }}
+                  >
+                    <Copy className="size-4 text-muted-foreground shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground">Copy AWB Number</p>
+                      <p className="text-[11px] font-mono text-muted-foreground">{shippedOrderData.awb}</p>
+                    </div>
+                  </button>
+                )}
+              </div>
+
+              <Button
+                className="w-full rounded-xl font-bold"
+                onClick={() => { setShippingModalOrder(null); setShippedOrderData(null); }}
+              >
+                Done
+              </Button>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Tracking URL (Optional)</Label>
-              <Input
-                placeholder="https://..."
-                value={shippingForm.url}
-                onChange={(e) => setShippingForm({ ...shippingForm, url: e.target.value })}
-                className="h-9 rounded-xl text-sm"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setShippingModalOrder(null)}
-              className="rounded-xl h-9 text-xs"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => saveShippingDetails.mutate()}
-              disabled={saveShippingDetails.isPending}
-              className="rounded-xl h-9 text-xs font-bold shadow-xs px-6"
-            >
-              {saveShippingDetails.isPending ? "Saving..." : "Confirm Shipment"}
-            </Button>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
     </AdminShell>
