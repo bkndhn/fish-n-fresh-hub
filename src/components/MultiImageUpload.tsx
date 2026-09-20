@@ -32,6 +32,7 @@ export function MultiImageUpload({
       const newUrls = [...urls];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
+        if (!file) continue;
         const compressedFile = await compressImageFile(file, 0.1, 1200);
 
         const fileExt = file.name.split(".").pop() || "jpg";

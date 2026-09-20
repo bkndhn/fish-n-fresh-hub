@@ -142,6 +142,7 @@ export type Product = {
   wholesale_price?: number | null;
   wholesale_min_qty?: number | null;
   wholesale_tiers?: unknown;
+  hsn_code?: string | null;
 };
 
 /**
