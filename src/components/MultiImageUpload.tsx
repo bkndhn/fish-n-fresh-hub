@@ -70,6 +70,7 @@ export function MultiImageUpload({
     if (!result.destination) return;
     const items = Array.from(urls);
     const [reorderedItem] = items.splice(result.source.index, 1);
+    if (!reorderedItem) return;
     items.splice(result.destination.index, 0, reorderedItem);
     onChange(items);
   };

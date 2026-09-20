@@ -15,13 +15,13 @@ export async function requestReturn(orderId: string, reason: string) {
 }
 
 export async function updateReturnStatus(orderId: string, status: "approved" | "rejected" | "returned") {
-  const updateData: Record<string, unknown> = { return_status: status };
-  if (status === "returned") {
-    updateData.returned_at = new Date().toISOString();
-  }
   const { error } = await supabase
     .from("orders")
-    .update(updateData)
+    .update(
+      status === "returned"
+        ? { return_status: status, returned_at: new Date().toISOString() }
+        : { return_status: status },
+    )
     .eq("id", orderId);
 
   if (error) throw error;
@@ -42,6 +42,7 @@ export async function processRefundToWallet(orderId: string, customerId: string,
     const { error: createErr } = await supabase.from("customer_wallets").insert({
       user_id: customerId,
       balance: amount,
+      referral_code: `FNF-${customerId.slice(0, 5).toUpperCase()}`,
     });
     if (createErr) throw createErr;
   } else {

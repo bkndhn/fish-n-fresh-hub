@@ -293,8 +293,6 @@ function ProductsAdmin() {
         is_featured: newProduct.is_featured,
         is_bestseller: newProduct.is_bestseller,
         image_url: newProduct.image_url || null,
-        gallery_urls: newProduct.gallery_urls || [],
-        rich_description: newProduct.rich_description || null,
         description: newProduct.description.trim() || null,
         branch_id: selectedBranchId || null,
         brand: newProduct.brand?.trim() || null,

@@ -4236,7 +4236,7 @@ If you need any cut modifications, please reply here. Thank you!`}
         s.title.toLowerCase().includes(q) ||
         s.description.toLowerCase().includes(q) ||
         s.tabLabel.toLowerCase().includes(q) ||
-        s.keywords.some((k: string) => k.toLowerCase().includes(q))
+        (s.keywords ?? []).some((k: string) => k.toLowerCase().includes(q))
       );
     });
   }, [searchQuery, SETTINGS_SECTIONS]);
