@@ -845,49 +845,100 @@ function AuthPage() {
 
               {/* Step 1 — Details + Send OTP */}
               {signupStep === 1 && (
-                <form onSubmit={sendSignupOtp} className="space-y-4">
+                <form onSubmit={sendSignupOtp} className="space-y-4" noValidate>
                   {signupLockout > 0 && (
                     <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2.5">
                       <ShieldCheck className="size-4 shrink-0 text-amber-500" />
                       <span>Too many attempts. Wait <strong className="font-mono">{signupLockout}s</strong>.</span>
                     </div>
                   )}
+
+                  {/* Full Name */}
                   <div className="space-y-1.5">
                     <Label htmlFor="name">Full Name</Label>
                     <Input
-                      id="name" required placeholder="e.g. Ramesh Kumar"
-                      value={signupFullName} onChange={(e) => setSignupFullName(e.target.value)}
-                      className="rounded-xl"
+                      id="name"
+                      placeholder="e.g. Ramesh Kumar"
+                      value={signupFullName}
+                      onChange={(e) => setSignupFullName(e.target.value)}
+                      className={cn("rounded-xl", signupFullName && signupFullName.trim().length < 2 && "border-rose-500 focus-visible:ring-rose-500/30")}
                     />
+                    {signupFullName && signupFullName.trim().length < 2 && (
+                      <p className="text-xs text-rose-500">Please enter your full name (at least 2 characters).</p>
+                    )}
                   </div>
+
+                  {/* Phone Number — controlled, digits only, max 10 */}
                   <div className="space-y-1.5">
                     <Label htmlFor="phone">Phone Number</Label>
                     <Input
-                      id="phone" type="tel" required
-                      pattern="[6-9][0-9]{9}"
+                      id="phone"
+                      type="tel"
+                      inputMode="numeric"
                       placeholder="e.g. 9876543210"
-                      value={signupPhone} onChange={(e) => setSignupPhone(e.target.value)}
-                      className="rounded-xl"
+                      maxLength={10}
+                      value={signupPhone}
+                      onChange={(e) => {
+                        // Strip non-digits, cap at 10
+                        const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                        setSignupPhone(digits);
+                      }}
+                      className={cn(
+                        "rounded-xl font-mono tracking-wider",
+                        signupPhone.length > 0 && signupPhone.length < 10 && "border-amber-500 focus-visible:ring-amber-500/30",
+                        signupPhone.length === 10 && !/^[6-9]/.test(signupPhone) && "border-rose-500 focus-visible:ring-rose-500/30",
+                        signupPhone.length === 10 && /^[6-9]/.test(signupPhone) && "border-emerald-500 focus-visible:ring-emerald-500/30",
+                      )}
                     />
+                    {/* Inline error messages */}
+                    {signupPhone.length > 0 && signupPhone.length < 10 && (
+                      <p className="text-xs text-amber-600">Enter all 10 digits ({10 - signupPhone.length} more needed).</p>
+                    )}
+                    {signupPhone.length === 10 && !/^[6-9]/.test(signupPhone) && (
+                      <p className="text-xs text-rose-500">Mobile number must start with 6, 7, 8 or 9.</p>
+                    )}
+                    {signupPhone.length === 10 && /^[6-9]/.test(signupPhone) && (
+                      <p className="text-xs text-emerald-600">✓ Valid mobile number</p>
+                    )}
                   </div>
+
+                  {/* Email */}
                   <div className="space-y-1.5">
                     <Label htmlFor="signup-email">Email Address</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                       <Input
-                        id="signup-email" type="email" required
+                        id="signup-email"
+                        type="email"
+                        inputMode="email"
                         placeholder="you@example.com"
-                        value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)}
-                        className="rounded-xl pl-10"
+                        value={signupEmail}
+                        onChange={(e) => setSignupEmail(e.target.value)}
+                        className={cn(
+                          "rounded-xl pl-10",
+                          signupEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signupEmail) && "border-rose-500 focus-visible:ring-rose-500/30"
+                        )}
                       />
                     </div>
+                    {signupEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signupEmail) && (
+                      <p className="text-xs text-rose-500">Please enter a valid email address (e.g. name@gmail.com).</p>
+                    )}
                   </div>
-                  <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading || signupLockout > 0}>
+
+                  <Button
+                    type="submit"
+                    className="w-full rounded-xl font-bold"
+                    disabled={
+                      loading ||
+                      signupLockout > 0 ||
+                      signupFullName.trim().length < 2 ||
+                      signupPhone.length !== 10 ||
+                      !/^[6-9]/.test(signupPhone) ||
+                      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signupEmail)
+                    }
+                  >
                     {loading ? "Sending Code..." : <><Send className="mr-2 size-4" /> Send Verification Code</>}
                   </Button>
-                  <p className="text-center text-xs text-muted-foreground">
-                    The first account created becomes the store admin.
-                  </p>
                 </form>
               )}
 
