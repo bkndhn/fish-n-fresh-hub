@@ -32,6 +32,7 @@ export function MultiImageUpload({
       const newUrls = [...urls];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
+        if (!file) continue;
         const compressedFile = await compressImageFile(file, 0.1, 1200);
 
         const fileExt = file.name.split(".").pop() || "jpg";
@@ -69,6 +70,7 @@ export function MultiImageUpload({
     if (!result.destination) return;
     const items = Array.from(urls);
     const [reorderedItem] = items.splice(result.source.index, 1);
+    if (!reorderedItem) return;
     items.splice(result.destination.index, 0, reorderedItem);
     onChange(items);
   };

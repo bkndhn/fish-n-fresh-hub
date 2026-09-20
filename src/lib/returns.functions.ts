@@ -15,13 +15,13 @@ export async function requestReturn(orderId: string, reason: string) {
 }
 
 export async function updateReturnStatus(orderId: string, status: "approved" | "rejected" | "returned") {
-  const updateData: any = { return_status: status };
-  if (status === "returned") {
-    updateData.returned_at = new Date().toISOString();
-  }
   const { error } = await supabase
     .from("orders")
-    .update(updateData)
+    .update(
+      status === "returned"
+        ? { return_status: status, returned_at: new Date().toISOString() }
+        : { return_status: status },
+    )
     .eq("id", orderId);
 
   if (error) throw error;
@@ -29,38 +29,37 @@ export async function updateReturnStatus(orderId: string, status: "approved" | "
 }
 
 export async function processRefundToWallet(orderId: string, customerId: string, amount: number) {
-  // Use a transaction or edge function in production, but here we'll do sequential updates.
   // 1. Get current wallet
   const { data: wallet, error: walletErr } = await supabase
-    .from("wallets")
-    .select("*")
+    .from("customer_wallets")
+    .select("user_id, balance")
     .eq("user_id", customerId)
-    .single();
-    
-  if (walletErr && walletErr.code !== 'PGRST116') throw walletErr;
+    .maybeSingle();
+
+  if (walletErr && walletErr.code !== "PGRST116") throw walletErr;
 
   if (!wallet) {
-    // Create wallet
-    const { error: createErr } = await supabase.from("wallets").insert({
+    const { error: createErr } = await supabase.from("customer_wallets").insert({
       user_id: customerId,
       balance: amount,
+      referral_code: `FNF-${customerId.slice(0, 5).toUpperCase()}`,
     });
     if (createErr) throw createErr;
   } else {
     const { error: updateWalletErr } = await supabase
-      .from("wallets")
-      .update({ balance: Number(wallet.balance) + amount })
+      .from("customer_wallets")
+      .update({ balance: Number(wallet.balance ?? 0) + amount })
       .eq("user_id", customerId);
     if (updateWalletErr) throw updateWalletErr;
   }
 
   // Log transaction
   await supabase.from("wallet_transactions").insert({
-    user_id: customerId,
-    amount: amount,
+    wallet_id: customerId,
+    amount,
     type: "credit",
     description: `Refund for order #${orderId}`,
-    metadata: { order_id: orderId },
+    order_id: orderId,
   });
 
   // 2. Mark order as refunded

@@ -36,11 +36,13 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminBadgesRouteImport } from './routes/_authenticated/admin/badges'
 import { Route as AuthenticatedAdminBannersRouteImport } from './routes/_authenticated/admin/banners'
 import { Route as AuthenticatedAdminBroadcastsRouteImport } from './routes/_authenticated/admin/broadcasts'
+import { Route as AuthenticatedAdminCollectionsRouteImport } from './routes/_authenticated/admin/collections'
 import { Route as AuthenticatedAdminComplaintsRouteImport } from './routes/_authenticated/admin/complaints'
 import { Route as AuthenticatedAdminCustomersRouteImport } from './routes/_authenticated/admin/customers'
 import { Route as AuthenticatedAdminDeliveryRouteImport } from './routes/_authenticated/admin/delivery'
 import { Route as AuthenticatedAdminDriverRouteImport } from './routes/_authenticated/admin/driver'
 import { Route as AuthenticatedAdminExpensesRouteImport } from './routes/_authenticated/admin/expenses'
+import { Route as AuthenticatedAdminGstReportsRouteImport } from './routes/_authenticated/admin/gst-reports'
 import { Route as AuthenticatedAdminOnboardingRouteImport } from './routes/_authenticated/admin/onboarding'
 import { Route as AuthenticatedAdminOrdersRouteImport } from './routes/_authenticated/admin/orders'
 import { Route as AuthenticatedAdminPaymentsRouteImport } from './routes/_authenticated/admin/payments'
@@ -49,6 +51,7 @@ import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminPromotionsRouteImport } from './routes/_authenticated/admin/promotions'
 import { Route as AuthenticatedAdminPurchasesRouteImport } from './routes/_authenticated/admin/purchases'
 import { Route as AuthenticatedAdminReportsRouteImport } from './routes/_authenticated/admin/reports'
+import { Route as AuthenticatedAdminReturnsRouteImport } from './routes/_authenticated/admin/returns'
 import { Route as AuthenticatedAdminScheduleRouteImport } from './routes/_authenticated/admin/schedule'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin/settings'
 import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authenticated/admin/staff'
@@ -196,6 +199,12 @@ const AuthenticatedAdminBroadcastsRoute =
     path: '/admin/broadcasts',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminCollectionsRoute =
+  AuthenticatedAdminCollectionsRouteImport.update({
+    id: '/admin/collections',
+    path: '/admin/collections',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminComplaintsRoute =
   AuthenticatedAdminComplaintsRouteImport.update({
     id: '/admin/complaints',
@@ -224,6 +233,12 @@ const AuthenticatedAdminExpensesRoute =
   AuthenticatedAdminExpensesRouteImport.update({
     id: '/admin/expenses',
     path: '/admin/expenses',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminGstReportsRoute =
+  AuthenticatedAdminGstReportsRouteImport.update({
+    id: '/admin/gst-reports',
+    path: '/admin/gst-reports',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAdminOnboardingRoute =
@@ -271,6 +286,12 @@ const AuthenticatedAdminReportsRoute =
   AuthenticatedAdminReportsRouteImport.update({
     id: '/admin/reports',
     path: '/admin/reports',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminReturnsRoute =
+  AuthenticatedAdminReturnsRouteImport.update({
+    id: '/admin/returns',
+    path: '/admin/returns',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAdminScheduleRoute =
@@ -345,11 +366,13 @@ export interface FileRoutesByFullPath {
   '/admin/badges': typeof AuthenticatedAdminBadgesRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/broadcasts': typeof AuthenticatedAdminBroadcastsRoute
+  '/admin/collections': typeof AuthenticatedAdminCollectionsRoute
   '/admin/complaints': typeof AuthenticatedAdminComplaintsRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/admin/delivery': typeof AuthenticatedAdminDeliveryRoute
   '/admin/driver': typeof AuthenticatedAdminDriverRoute
   '/admin/expenses': typeof AuthenticatedAdminExpensesRoute
+  '/admin/gst-reports': typeof AuthenticatedAdminGstReportsRoute
   '/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
@@ -358,6 +381,7 @@ export interface FileRoutesByFullPath {
   '/admin/promotions': typeof AuthenticatedAdminPromotionsRoute
   '/admin/purchases': typeof AuthenticatedAdminPurchasesRoute
   '/admin/reports': typeof AuthenticatedAdminReportsRoute
+  '/admin/returns': typeof AuthenticatedAdminReturnsRoute
   '/admin/schedule': typeof AuthenticatedAdminScheduleRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/staff': typeof AuthenticatedAdminStaffRoute
@@ -394,11 +418,13 @@ export interface FileRoutesByTo {
   '/admin/badges': typeof AuthenticatedAdminBadgesRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/broadcasts': typeof AuthenticatedAdminBroadcastsRoute
+  '/admin/collections': typeof AuthenticatedAdminCollectionsRoute
   '/admin/complaints': typeof AuthenticatedAdminComplaintsRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/admin/delivery': typeof AuthenticatedAdminDeliveryRoute
   '/admin/driver': typeof AuthenticatedAdminDriverRoute
   '/admin/expenses': typeof AuthenticatedAdminExpensesRoute
+  '/admin/gst-reports': typeof AuthenticatedAdminGstReportsRoute
   '/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
@@ -407,6 +433,7 @@ export interface FileRoutesByTo {
   '/admin/promotions': typeof AuthenticatedAdminPromotionsRoute
   '/admin/purchases': typeof AuthenticatedAdminPurchasesRoute
   '/admin/reports': typeof AuthenticatedAdminReportsRoute
+  '/admin/returns': typeof AuthenticatedAdminReturnsRoute
   '/admin/schedule': typeof AuthenticatedAdminScheduleRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/staff': typeof AuthenticatedAdminStaffRoute
@@ -445,11 +472,13 @@ export interface FileRoutesById {
   '/_authenticated/admin/badges': typeof AuthenticatedAdminBadgesRoute
   '/_authenticated/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/_authenticated/admin/broadcasts': typeof AuthenticatedAdminBroadcastsRoute
+  '/_authenticated/admin/collections': typeof AuthenticatedAdminCollectionsRoute
   '/_authenticated/admin/complaints': typeof AuthenticatedAdminComplaintsRoute
   '/_authenticated/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/_authenticated/admin/delivery': typeof AuthenticatedAdminDeliveryRoute
   '/_authenticated/admin/driver': typeof AuthenticatedAdminDriverRoute
   '/_authenticated/admin/expenses': typeof AuthenticatedAdminExpensesRoute
+  '/_authenticated/admin/gst-reports': typeof AuthenticatedAdminGstReportsRoute
   '/_authenticated/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/_authenticated/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/_authenticated/admin/payments': typeof AuthenticatedAdminPaymentsRoute
@@ -458,6 +487,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/promotions': typeof AuthenticatedAdminPromotionsRoute
   '/_authenticated/admin/purchases': typeof AuthenticatedAdminPurchasesRoute
   '/_authenticated/admin/reports': typeof AuthenticatedAdminReportsRoute
+  '/_authenticated/admin/returns': typeof AuthenticatedAdminReturnsRoute
   '/_authenticated/admin/schedule': typeof AuthenticatedAdminScheduleRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/admin/staff': typeof AuthenticatedAdminStaffRoute
@@ -496,11 +526,13 @@ export interface FileRouteTypes {
     | '/admin/badges'
     | '/admin/banners'
     | '/admin/broadcasts'
+    | '/admin/collections'
     | '/admin/complaints'
     | '/admin/customers'
     | '/admin/delivery'
     | '/admin/driver'
     | '/admin/expenses'
+    | '/admin/gst-reports'
     | '/admin/onboarding'
     | '/admin/orders'
     | '/admin/payments'
@@ -509,6 +541,7 @@ export interface FileRouteTypes {
     | '/admin/promotions'
     | '/admin/purchases'
     | '/admin/reports'
+    | '/admin/returns'
     | '/admin/schedule'
     | '/admin/settings'
     | '/admin/staff'
@@ -545,11 +578,13 @@ export interface FileRouteTypes {
     | '/admin/badges'
     | '/admin/banners'
     | '/admin/broadcasts'
+    | '/admin/collections'
     | '/admin/complaints'
     | '/admin/customers'
     | '/admin/delivery'
     | '/admin/driver'
     | '/admin/expenses'
+    | '/admin/gst-reports'
     | '/admin/onboarding'
     | '/admin/orders'
     | '/admin/payments'
@@ -558,6 +593,7 @@ export interface FileRouteTypes {
     | '/admin/promotions'
     | '/admin/purchases'
     | '/admin/reports'
+    | '/admin/returns'
     | '/admin/schedule'
     | '/admin/settings'
     | '/admin/staff'
@@ -595,11 +631,13 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/badges'
     | '/_authenticated/admin/banners'
     | '/_authenticated/admin/broadcasts'
+    | '/_authenticated/admin/collections'
     | '/_authenticated/admin/complaints'
     | '/_authenticated/admin/customers'
     | '/_authenticated/admin/delivery'
     | '/_authenticated/admin/driver'
     | '/_authenticated/admin/expenses'
+    | '/_authenticated/admin/gst-reports'
     | '/_authenticated/admin/onboarding'
     | '/_authenticated/admin/orders'
     | '/_authenticated/admin/payments'
@@ -608,6 +646,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/promotions'
     | '/_authenticated/admin/purchases'
     | '/_authenticated/admin/reports'
+    | '/_authenticated/admin/returns'
     | '/_authenticated/admin/schedule'
     | '/_authenticated/admin/settings'
     | '/_authenticated/admin/staff'
@@ -835,6 +874,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminBroadcastsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/collections': {
+      id: '/_authenticated/admin/collections'
+      path: '/admin/collections'
+      fullPath: '/admin/collections'
+      preLoaderRoute: typeof AuthenticatedAdminCollectionsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/complaints': {
       id: '/_authenticated/admin/complaints'
       path: '/admin/complaints'
@@ -868,6 +914,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/expenses'
       fullPath: '/admin/expenses'
       preLoaderRoute: typeof AuthenticatedAdminExpensesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/gst-reports': {
+      id: '/_authenticated/admin/gst-reports'
+      path: '/admin/gst-reports'
+      fullPath: '/admin/gst-reports'
+      preLoaderRoute: typeof AuthenticatedAdminGstReportsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin/onboarding': {
@@ -924,6 +977,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/reports'
       fullPath: '/admin/reports'
       preLoaderRoute: typeof AuthenticatedAdminReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/returns': {
+      id: '/_authenticated/admin/returns'
+      path: '/admin/returns'
+      fullPath: '/admin/returns'
+      preLoaderRoute: typeof AuthenticatedAdminReturnsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin/schedule': {
@@ -991,11 +1051,13 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminBadgesRoute: typeof AuthenticatedAdminBadgesRoute
   AuthenticatedAdminBannersRoute: typeof AuthenticatedAdminBannersRoute
   AuthenticatedAdminBroadcastsRoute: typeof AuthenticatedAdminBroadcastsRoute
+  AuthenticatedAdminCollectionsRoute: typeof AuthenticatedAdminCollectionsRoute
   AuthenticatedAdminComplaintsRoute: typeof AuthenticatedAdminComplaintsRoute
   AuthenticatedAdminCustomersRoute: typeof AuthenticatedAdminCustomersRoute
   AuthenticatedAdminDeliveryRoute: typeof AuthenticatedAdminDeliveryRoute
   AuthenticatedAdminDriverRoute: typeof AuthenticatedAdminDriverRoute
   AuthenticatedAdminExpensesRoute: typeof AuthenticatedAdminExpensesRoute
+  AuthenticatedAdminGstReportsRoute: typeof AuthenticatedAdminGstReportsRoute
   AuthenticatedAdminOnboardingRoute: typeof AuthenticatedAdminOnboardingRoute
   AuthenticatedAdminOrdersRoute: typeof AuthenticatedAdminOrdersRoute
   AuthenticatedAdminPaymentsRoute: typeof AuthenticatedAdminPaymentsRoute
@@ -1004,6 +1066,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminPromotionsRoute: typeof AuthenticatedAdminPromotionsRoute
   AuthenticatedAdminPurchasesRoute: typeof AuthenticatedAdminPurchasesRoute
   AuthenticatedAdminReportsRoute: typeof AuthenticatedAdminReportsRoute
+  AuthenticatedAdminReturnsRoute: typeof AuthenticatedAdminReturnsRoute
   AuthenticatedAdminScheduleRoute: typeof AuthenticatedAdminScheduleRoute
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminStaffRoute: typeof AuthenticatedAdminStaffRoute
@@ -1020,11 +1083,13 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminBadgesRoute: AuthenticatedAdminBadgesRoute,
   AuthenticatedAdminBannersRoute: AuthenticatedAdminBannersRoute,
   AuthenticatedAdminBroadcastsRoute: AuthenticatedAdminBroadcastsRoute,
+  AuthenticatedAdminCollectionsRoute: AuthenticatedAdminCollectionsRoute,
   AuthenticatedAdminComplaintsRoute: AuthenticatedAdminComplaintsRoute,
   AuthenticatedAdminCustomersRoute: AuthenticatedAdminCustomersRoute,
   AuthenticatedAdminDeliveryRoute: AuthenticatedAdminDeliveryRoute,
   AuthenticatedAdminDriverRoute: AuthenticatedAdminDriverRoute,
   AuthenticatedAdminExpensesRoute: AuthenticatedAdminExpensesRoute,
+  AuthenticatedAdminGstReportsRoute: AuthenticatedAdminGstReportsRoute,
   AuthenticatedAdminOnboardingRoute: AuthenticatedAdminOnboardingRoute,
   AuthenticatedAdminOrdersRoute: AuthenticatedAdminOrdersRoute,
   AuthenticatedAdminPaymentsRoute: AuthenticatedAdminPaymentsRoute,
@@ -1033,6 +1098,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminPromotionsRoute: AuthenticatedAdminPromotionsRoute,
   AuthenticatedAdminPurchasesRoute: AuthenticatedAdminPurchasesRoute,
   AuthenticatedAdminReportsRoute: AuthenticatedAdminReportsRoute,
+  AuthenticatedAdminReturnsRoute: AuthenticatedAdminReturnsRoute,
   AuthenticatedAdminScheduleRoute: AuthenticatedAdminScheduleRoute,
   AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
   AuthenticatedAdminStaffRoute: AuthenticatedAdminStaffRoute,

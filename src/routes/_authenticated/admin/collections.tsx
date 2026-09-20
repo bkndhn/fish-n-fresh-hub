@@ -104,6 +104,7 @@ function CollectionsAdmin() {
     if (!result.destination || !collections) return;
     const items = Array.from(collections);
     const [reorderedItem] = items.splice(result.source.index, 1);
+    if (!reorderedItem) return;
     items.splice(result.destination.index, 0, reorderedItem);
 
     const updates = items.map((item, index) => ({ id: item.id, sort_order: index + 1 }));
@@ -113,7 +114,7 @@ function CollectionsAdmin() {
   };
 
   return (
-    <AdminShell>
+    <AdminShell title="Home Collections">
       <div className="mx-auto max-w-4xl space-y-6">
         <div className="flex items-center justify-between">
           <div>

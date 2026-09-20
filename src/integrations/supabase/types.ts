@@ -197,6 +197,74 @@ export type Database = {
         }
         Relationships: []
       }
+      collection_products: {
+        Row: {
+          collection_id: string
+          product_id: string
+          sort_order: number | null
+        }
+        Insert: {
+          collection_id: string
+          product_id: string
+          sort_order?: number | null
+        }
+        Update: {
+          collection_id?: string
+          product_id?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_products_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collections: {
+        Row: {
+          active: boolean | null
+          branch_id: string | null
+          created_at: string
+          id: string
+          name: string
+          sort_order: number | null
+        }
+        Insert: {
+          active?: boolean | null
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number | null
+        }
+        Update: {
+          active?: boolean | null
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collections_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_addresses: {
         Row: {
           address: string
@@ -885,8 +953,8 @@ export type Database = {
           cancelled_by: string | null
           cod_settled: boolean
           complaint: string | null
-          courier_partner: string | null
           coupon_code: string | null
+          courier_partner: string | null
           created_at: string
           created_by: string | null
           customer_address: string | null
@@ -963,8 +1031,8 @@ export type Database = {
           cancelled_by?: string | null
           cod_settled?: boolean
           complaint?: string | null
-          courier_partner?: string | null
           coupon_code?: string | null
+          courier_partner?: string | null
           created_at?: string
           created_by?: string | null
           customer_address?: string | null
@@ -1041,8 +1109,8 @@ export type Database = {
           cancelled_by?: string | null
           cod_settled?: boolean
           complaint?: string | null
-          courier_partner?: string | null
           coupon_code?: string | null
+          courier_partner?: string | null
           created_at?: string
           created_by?: string | null
           customer_address?: string | null
@@ -1315,8 +1383,6 @@ export type Database = {
           is_available: boolean
           is_bestseller: boolean
           is_featured: boolean
-          gst_percentage: number | null
-          hsn_code: string | null
           is_returnable: boolean
           lab_tested: boolean
           low_stock_threshold: number | null
@@ -1368,9 +1434,7 @@ export type Database = {
           is_available?: boolean
           is_bestseller?: boolean
           is_featured?: boolean
-          gst_percentage?: number | null
-          hsn_code?: string | null
-          is_returnable?: boolean | null
+          is_returnable?: boolean
           lab_tested?: boolean
           low_stock_threshold?: number | null
           model_number?: string | null
@@ -1385,7 +1449,7 @@ export type Database = {
           recipe_steps?: string | null
           recipe_title?: string | null
           requires_serial?: boolean | null
-          return_window_days?: number | null
+          return_window_days?: number
           source_origin?: string | null
           specifications?: Json | null
           stock?: number
@@ -1421,9 +1485,7 @@ export type Database = {
           is_available?: boolean
           is_bestseller?: boolean
           is_featured?: boolean
-          gst_percentage?: number | null
-          hsn_code?: string | null
-          is_returnable?: boolean | null
+          is_returnable?: boolean
           lab_tested?: boolean
           low_stock_threshold?: number | null
           model_number?: string | null
@@ -1438,7 +1500,7 @@ export type Database = {
           recipe_steps?: string | null
           recipe_title?: string | null
           requires_serial?: boolean | null
-          return_window_days?: number | null
+          return_window_days?: number
           source_origin?: string | null
           specifications?: Json | null
           stock?: number
@@ -1803,7 +1865,6 @@ export type Database = {
           id: string
           instagram_url: string | null
           is_open: boolean
-          returns_enabled: boolean
           live_alerts_enabled: boolean
           logo_url: string | null
           low_stock_threshold: number
@@ -1956,7 +2017,6 @@ export type Database = {
           id?: string
           instagram_url?: string | null
           is_open?: boolean
-          returns_enabled?: boolean
           live_alerts_enabled?: boolean
           logo_url?: string | null
           low_stock_threshold?: number
@@ -1997,7 +2057,7 @@ export type Database = {
           referral_reward_referrer?: number
           refund_content?: string | null
           require_online_payment?: boolean | null
-          returns_enabled?: boolean | null
+          returns_enabled?: boolean
           sender_email?: string | null
           sender_name?: string | null
           seo_default_description?: string | null
@@ -2109,7 +2169,6 @@ export type Database = {
           id?: string
           instagram_url?: string | null
           is_open?: boolean
-          returns_enabled?: boolean
           live_alerts_enabled?: boolean
           logo_url?: string | null
           low_stock_threshold?: number
@@ -2150,7 +2209,7 @@ export type Database = {
           referral_reward_referrer?: number
           refund_content?: string | null
           require_online_payment?: boolean | null
-          returns_enabled?: boolean | null
+          returns_enabled?: boolean
           sender_email?: string | null
           sender_name?: string | null
           seo_default_description?: string | null
@@ -2686,6 +2745,16 @@ export type Database = {
       }
     }
     Views: {
+      courier_performance_stats: {
+        Row: {
+          avg_delivery_hours: number | null
+          courier_partner: string | null
+          rto_count: number | null
+          successful_deliveries: number | null
+          total_shipments: number | null
+        }
+        Relationships: []
+      }
       store_settings_public: {
         Row: {
           accent_color: string | null
@@ -2747,7 +2816,6 @@ export type Database = {
           id: string | null
           instagram_url: string | null
           is_open: boolean | null
-          returns_enabled: boolean
           live_alerts_enabled: boolean | null
           logo_url: string | null
           low_stock_threshold: number | null
@@ -2787,7 +2855,6 @@ export type Database = {
           referral_reward_referrer: number | null
           refund_content: string | null
           require_online_payment: boolean | null
-          returns_enabled: boolean
           sender_name: string | null
           seo_default_description: string | null
           seo_keywords: string | null
@@ -2887,7 +2954,6 @@ export type Database = {
           id?: string | null
           instagram_url?: string | null
           is_open?: boolean | null
-          returns_enabled?: boolean
           live_alerts_enabled?: boolean | null
           logo_url?: string | null
           low_stock_threshold?: number | null
@@ -2927,7 +2993,6 @@ export type Database = {
           referral_reward_referrer?: number | null
           refund_content?: string | null
           require_online_payment?: boolean | null
-          returns_enabled?: boolean | null
           sender_name?: string | null
           seo_default_description?: string | null
           seo_keywords?: string | null
@@ -3027,7 +3092,6 @@ export type Database = {
           id?: string | null
           instagram_url?: string | null
           is_open?: boolean | null
-          returns_enabled?: boolean
           live_alerts_enabled?: boolean | null
           logo_url?: string | null
           low_stock_threshold?: number | null
@@ -3067,7 +3131,6 @@ export type Database = {
           referral_reward_referrer?: number | null
           refund_content?: string | null
           require_online_payment?: boolean | null
-          returns_enabled?: boolean | null
           sender_name?: string | null
           seo_default_description?: string | null
           seo_keywords?: string | null

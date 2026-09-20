@@ -125,7 +125,7 @@ export const updateOrderStatusWithEmail = createServerFn({ method: "POST" })
         } else if (data.status === "out_for_delivery") {
           await sendOutForDeliveryEmail(data.orderId, data.driverInfo);
         } else if (data.status === "shipped") {
-          await sendOrderShippedNotification(data.orderId, orderData.customer_phone, orderData.customer_name, orderData.tracking_url);
+          await sendOrderShippedNotification(data.orderId, orderData.customer_phone, orderData.customer_name, orderData.tracking_url ?? undefined);
         }
       }
     } catch (e) {
