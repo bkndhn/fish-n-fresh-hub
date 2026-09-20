@@ -195,6 +195,8 @@ function ProductsAdmin() {
     is_bestseller: false,
     allow_custom_qty: true,
     image_url: "",
+    gallery_urls: [] as string[],
+    rich_description: "",
     description: "",
     brand: "",
     model_number: "",
