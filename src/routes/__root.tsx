@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, Suspense, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { CartProvider } from "@/lib/cart";
@@ -349,7 +349,9 @@ function RootComponent() {
               <AnalyticsTracker />
               <RealtimeSubscriber queryClient={queryClient} />
               {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-              <Outlet />
+              <Suspense fallback={<div className="flex items-center justify-center min-h-screen text-muted-foreground"><span className="animate-pulse">Loading App...</span></div>}>
+                <Outlet />
+              </Suspense>
               <BranchPickerModal />
               <Toaster position="top-center" />
             </CustomerBranchProvider>

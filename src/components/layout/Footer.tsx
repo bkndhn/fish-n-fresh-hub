@@ -97,8 +97,8 @@ export function Footer() {
               {settings.store_name || "Fish N Fresh"}
             </p>
           </div>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Chennai's premier dock-to-door fresh seafood marketplace. Sourced directly from local harbour boats every morning.
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Your premier marketplace for premium fresh seafood, meat, and daily farm-fresh groceries. Sourced directly every morning for maximum quality and hygiene.
           </p>
           {settings.fssai_number && (
             <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] text-emerald-800 dark:text-emerald-300 font-medium">
@@ -108,10 +108,10 @@ export function Footer() {
           )}
         </div>
 
-        {/* Column 2: Seafood Categories */}
+        {/* Column 2: Store Categories */}
         <div>
           <h3 className="text-xs font-bold uppercase tracking-wider text-foreground mb-3">
-            Seafood Catalog
+            Store Catalog
           </h3>
           <ul className="space-y-2 text-xs">
             <li>
@@ -135,8 +135,18 @@ export function Footer() {
               </Link>
             </li>
             <li>
-              <Link to="/catalog" className="hover:text-primary transition-colors flex items-center gap-1 font-semibold text-primary pt-1">
-                <Sparkles className="size-3 text-primary" /> View All Catches &rarr;
+              <Link to="/catalog" search={{ category: "Vegetables" }} className="hover:text-primary transition-colors flex items-center gap-1.5">
+                <ChevronRight className="size-3" /> Vegetables & Fruits
+              </Link>
+            </li>
+            <li>
+              <Link to="/catalog" search={{ category: "Groceries" }} className="hover:text-primary transition-colors flex items-center gap-1.5">
+                <ChevronRight className="size-3" /> Daily Groceries
+              </Link>
+            </li>
+            <li className="pt-1.5">
+              <Link to="/catalog" className="text-primary font-medium hover:underline flex items-center gap-1">
+                <Sparkles className="size-3" /> View All Categories &rarr;
               </Link>
             </li>
           </ul>
@@ -386,7 +396,7 @@ export function Footer() {
       <div className="mt-8 border-t border-border/60 pt-6 px-3 sm:px-4 w-full max-w-full overflow-hidden">
         <div className="mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left text-xs text-muted-foreground w-full">
           <p className="break-words">
-            &copy; {new Date().getFullYear()} {settings.store_name || "Fish N Fresh"}. All rights reserved. 100% Certified Chemical-Free Seafood Delivery.
+            &copy; {new Date().getFullYear()} {settings.store_name || "Fish N Fresh"}. All rights reserved. 100% Certified Chemical-Free Daily Deliveries.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
             <Link to="/terms" className="hover:text-primary transition-colors">

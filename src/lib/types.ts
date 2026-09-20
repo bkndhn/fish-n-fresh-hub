@@ -273,6 +273,9 @@ export type CartItem = {
   wholesale_price?: number | null;
   wholesale_min_qty?: number | null;
   wholesale_tiers?: unknown;
+  // Tax compliance
+  gst_percentage?: number | null;
+  hsn_code?: string | null;
 };
 
 /**

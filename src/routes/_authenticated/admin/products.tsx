@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { Database } from "@/integrations/supabase/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Plus, Trash2, Search, Edit, AlertTriangle, Zap, PackagePlus, CheckCircle2, X, CheckSquare, Square, Layers, ArrowUpCircle, Eye, EyeOff, Sparkles, Star, Flame, Camera, RefreshCw, Copy, Check, Printer, Hash, FileUp, FileDown, Download, ShieldCheck } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
@@ -17,6 +17,7 @@ import { applyRealProductsCatalog } from "@/lib/products.functions";
 import { CategoryManagement } from "@/components/admin/CategoryManagement";
 import { SmartCatalogSeedModal } from "@/components/admin/SmartCatalogSeedModal";
 import { ProductAiBenefitsCard } from "@/components/ProductAiBenefitsCard";
+import { InventoryLedgerModal } from "@/components/admin/InventoryLedgerModal";
 import {
   matchSpeciesVisualProfile,
   buildSpeciesAiPrompt,
@@ -114,6 +115,7 @@ function ProductsAdmin() {
   const [showEditRetailSpecs, setShowEditRetailSpecs] = useState(false);
   const [search, setSearch] = useState("");
   const [openAdd, setOpenAdd] = useState(false);
+  const [ledgerProduct, setLedgerProduct] = useState<any | null>(null);
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [confirmEditProductOpen, setConfirmEditProductOpen] = useState(false);
   const [refillProduct, setRefillProduct] = useState<Product | null>(null);
@@ -163,6 +165,8 @@ function ProductsAdmin() {
     cost_price: "",
     is_returnable: false,
     return_window_days: "0",
+    gst_percentage: "0",
+    hsn_code: "",
   });
 
   const update = useMutation({
@@ -337,6 +341,7 @@ function ProductsAdmin() {
         stock: Number(editingProduct.stock) || 0,
         low_stock_threshold: Number(editingProduct.low_stock_threshold) || 5,
         gst_percent: Number(editingProduct.gst_percent) || 0,
+        hsn_code: editingProduct.hsn_code?.trim() || null,
         gst_included: editingProduct.gst_included ?? false,
         is_available: editingProduct.is_available ?? true,
         allow_custom_qty: editingProduct.allow_custom_qty ?? true,
@@ -410,6 +415,34 @@ function ProductsAdmin() {
       (p.category && p.category.toLowerCase().includes(term))
     );
   });
+
+  const PAGE_SIZE = 15;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const observerTarget = useRef<HTMLDivElement>(null);
+  
+  const visibleList = list.slice(0, visibleCount);
+  const hasMore = visibleCount < list.length;
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [search, filterType, selectedCategory]);
+
+  useEffect(() => {
+    if (!hasMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, list.length));
+        }
+      },
+      { rootMargin: "250px" }
+    );
+    const target = observerTarget.current;
+    if (target) observer.observe(target);
+    return () => {
+      if (target) observer.unobserve(target);
+    };
+  }, [hasMore, list.length]);
 
   // Bulk Actions
   const toggleSelectAll = () => {
@@ -1108,6 +1141,15 @@ function ProductsAdmin() {
                     onChange={(e) => setNewProduct({ ...newProduct, gst_percent: e.target.value })}
                   />
                 </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="prod-hsn">HSN Code</Label>
+                  <Input
+                    id="prod-hsn"
+                    placeholder="e.g., 0301"
+                    value={newProduct.hsn_code}
+                    onChange={(e) => setNewProduct({ ...newProduct, hsn_code: e.target.value })}
+                  />
+                </div>
               </div>
 
               {Number(newProduct.cost_price) > 0 && Number(newProduct.price) > 0 && (
@@ -1443,7 +1485,7 @@ function ProductsAdmin() {
       </div>
 
       <div className="space-y-3">
-        {list.map((p) => {
+        {visibleList.map((p) => {
           const threshold = getThreshold(p);
           const isLow = (p.stock ?? 0) <= threshold;
           const isOut = (p.stock ?? 0) <= 0;
@@ -1643,8 +1685,9 @@ function ProductsAdmin() {
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Stock ({formatStockUnitLabel(p.unit)})
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex justify-between items-center">
+                      <span>Stock ({formatStockUnitLabel(p.unit)})</span>
+                      <button onClick={() => setLedgerProduct(p)} className="text-primary hover:underline text-[9px]">Ledger</button>
                     </Label>
                     <Input
                       type="number"
@@ -1796,6 +1839,15 @@ function ProductsAdmin() {
               ? `No ${storeVertical.shortName} products match your search "${search}".`
               : `No ${storeVertical.name} items yet. Click 'Add Product' or 'Apply Real ${storeVertical.shortName} Catalog' above to get started.`}
           </p>
+        )}
+        
+        {/* Infinite Scroll Sentry */}
+        {hasMore && (
+          <div ref={observerTarget} className="flex justify-center p-4">
+            <span className="text-muted-foreground text-sm flex items-center gap-2">
+              <RefreshCw className="size-4 animate-spin" /> Loading more...
+            </span>
+          </div>
         )}
       </div>
       </>
@@ -1952,12 +2004,19 @@ function ProductsAdmin() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="edit-gst">GST %</Label>
+                  <Label>GST %</Label>
                   <Input
-                    id="edit-gst"
                     type="number"
                     value={editingProduct.gst_percent ?? 0}
                     onChange={(e) => setEditingProduct({ ...editingProduct, gst_percent: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>HSN Code</Label>
+                  <Input
+                    placeholder="e.g., 0301"
+                    value={editingProduct.hsn_code ?? ""}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, hsn_code: e.target.value })}
                   />
                 </div>
               </div>
@@ -2643,6 +2702,14 @@ function ProductsAdmin() {
           })()}
         </DialogContent>
       </Dialog>
+
+      {/* Inventory Ledger Modal */}
+      <InventoryLedgerModal 
+        product={ledgerProduct} 
+        open={!!ledgerProduct} 
+        onOpenChange={(open) => !open && setLedgerProduct(null)} 
+        branchId={selectedBranchId}
+      />
     </AdminShell>
     </>
   );

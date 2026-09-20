@@ -1315,6 +1315,8 @@ export type Database = {
           is_available: boolean
           is_bestseller: boolean
           is_featured: boolean
+          gst_percentage: number | null
+          hsn_code: string | null
           is_returnable: boolean
           lab_tested: boolean
           low_stock_threshold: number | null
@@ -1366,6 +1368,8 @@ export type Database = {
           is_available?: boolean
           is_bestseller?: boolean
           is_featured?: boolean
+          gst_percentage?: number | null
+          hsn_code?: string | null
           is_returnable?: boolean | null
           lab_tested?: boolean
           low_stock_threshold?: number | null
@@ -1417,6 +1421,8 @@ export type Database = {
           is_available?: boolean
           is_bestseller?: boolean
           is_featured?: boolean
+          gst_percentage?: number | null
+          hsn_code?: string | null
           is_returnable?: boolean | null
           lab_tested?: boolean
           low_stock_threshold?: number | null

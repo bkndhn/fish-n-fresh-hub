@@ -200,6 +200,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
             wholesale_price: product.wholesale_price ?? null,
             wholesale_min_qty: product.wholesale_min_qty ?? 0,
             wholesale_tiers: product.wholesale_tiers ?? [],
+            gst_percentage: product.gst_percent ?? 0,
+            hsn_code: product.hsn_code ?? null,
           },
         ];
       });
@@ -230,6 +232,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
           wholesale_price: product.wholesale_price ?? null,
           wholesale_min_qty: product.wholesale_min_qty ?? 0,
           wholesale_tiers: product.wholesale_tiers ?? [],
+          gst_percentage: product.gst_percent ?? 0,
+          hsn_code: product.hsn_code ?? null,
         },
       ]);
     },

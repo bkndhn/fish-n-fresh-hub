@@ -612,7 +612,7 @@ function Catalog() {
       )}
 
       {/* Product Cards Grid */}
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+      <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
         {visibleProducts.map((p) => (
           <ProductCard key={p.id} product={p} />
         ))}

@@ -61,7 +61,7 @@ export function ProductCard({ product }: { product: Product }) {
           to="/product/$id"
           params={{ id: product.id }}
           preload="intent"
-          className="block aspect-[4/3] overflow-hidden bg-muted"
+          className="block aspect-square overflow-hidden bg-muted"
         >
           {product.image_url ? (
             <img

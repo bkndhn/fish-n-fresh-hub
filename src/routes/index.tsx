@@ -12,6 +12,7 @@ import { useTranslation } from "@/lib/i18n";
 import { getStoreStatus } from "@/lib/storeSchedule";
 import { SeoStructuredData } from "@/components/SeoStructuredData";
 import { useCustomerBranch } from "@/lib/customerBranchContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -40,6 +41,27 @@ function Home() {
   const { data: badges } = useQuery(trustBadgesQuery);
   const { data: settings } = useQuery(settingsQuery);
   const { t } = useTranslation();
+
+  const { data: customCollections } = useQuery({
+    queryKey: ["home_collections", activeBranch?.id],
+    queryFn: async () => {
+      let q = supabase
+        .from("collections")
+        .select(`
+          id, name, sort_order,
+          collection_products ( product_id, sort_order )
+        `)
+        .eq("active", true)
+        .order("sort_order");
+        
+      if (activeBranch?.id) {
+        q = q.or(`branch_id.eq.${activeBranch.id},branch_id.is.null`);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      return data;
+    }
+  });
 
   const storeStatus = settings ? getStoreStatus(settings) : null;
 
@@ -183,6 +205,34 @@ function Home() {
         </div>
       </section>
 
+      {/* Dynamic Custom Collections */}
+      {customCollections?.map(col => {
+        // Map junction rows to actual product objects, sorted correctly
+        const colProductRefs = col.collection_products || [];
+        const colProducts = colProductRefs
+          .sort((a: any, b: any) => a.sort_order - b.sort_order)
+          .map((ref: any) => (products ?? []).find(p => p.id === ref.product_id))
+          .filter(Boolean);
+          
+        if (colProducts.length === 0) return null;
+        
+        return (
+          <section key={col.id} className="mt-8">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-bold">{col.name}</h2>
+              <Link to="/catalog" className="text-sm font-semibold text-primary">
+                {t("home.view_all")} &rarr;
+              </Link>
+            </div>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+              {colProducts.map((p: any) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          </section>
+        );
+      })}
+
       <section className="mt-8">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-bold">{t("home.featured")}</h2>
@@ -190,7 +240,7 @@ function Home() {
             {t("home.view_all")} &rarr;
           </Link>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
           {featured.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
@@ -204,7 +254,7 @@ function Home() {
             {t("home.view_all")} &rarr;
           </Link>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
           {bestsellers.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}

@@ -106,16 +106,30 @@ export const updateOrderStatusWithEmail = createServerFn({ method: "POST" })
       if (rpcErr) console.warn("[Orders] Stock restoral notice:", rpcErr.message);
     }
 
-    // Trigger transactional email
+    // Trigger transactional notifications (FCM, WhatsApp, Email)
     try {
       const { sendOrderDeliveredEmail, sendOutForDeliveryEmail } = await import("@/lib/emails.server");
-      if (data.status === "delivered") {
-        await sendOrderDeliveredEmail(data.orderId);
-      } else if (data.status === "out_for_delivery") {
-        await sendOutForDeliveryEmail(data.orderId, data.driverInfo);
+      const { sendOrderShippedNotification, sendOrderDeliveredNotification } = await import("@/lib/notifications.functions");
+      
+      // We need the order details to send the notification
+      const { data: orderData } = await supabaseAdmin
+        .from("orders")
+        .select("customer_name, customer_phone, tracking_url")
+        .eq("id", data.orderId)
+        .single();
+        
+      if (orderData && orderData.customer_phone) {
+        if (data.status === "delivered") {
+          await sendOrderDeliveredEmail(data.orderId);
+          await sendOrderDeliveredNotification(data.orderId, orderData.customer_phone, orderData.customer_name);
+        } else if (data.status === "out_for_delivery") {
+          await sendOutForDeliveryEmail(data.orderId, data.driverInfo);
+        } else if (data.status === "shipped") {
+          await sendOrderShippedNotification(data.orderId, orderData.customer_phone, orderData.customer_name, orderData.tracking_url);
+        }
       }
     } catch (e) {
-      console.warn("[Orders] Transactional email notice:", e);
+      console.warn("[Orders] Transactional notification notice:", e);
     }
 
     return { success: true };
