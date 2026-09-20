@@ -144,6 +144,14 @@ function Checkout() {
   
   const [fulfillment, setFulfillment] = useState<"delivery" | "pickup">("delivery");
   const [payment, setPayment] = useState<"cod" | "upi" | "card">("cod");
+  // Card payments only appear when a card provider is actually connected.
+  const [cardPaymentAvailable, setCardPaymentAvailable] = useState(false);
+  useEffect(() => {
+    const available = isPaymentsConfigured();
+    setCardPaymentAvailable(available);
+    if (!available) setPayment((p) => (p === "card" ? "cod" : p));
+  }, []);
+
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [checkoutOrderId, setCheckoutOrderId] = useState<string | null>(null);
