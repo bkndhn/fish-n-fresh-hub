@@ -2629,11 +2629,447 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      store_settings_public: {
+        Row: {
+          accent_color: string | null
+          additional_charge_label: string | null
+          additional_charge_value: number | null
+          address_line: string | null
+          allow_preorders_when_closed: boolean | null
+          announcement: string | null
+          base_delivery_fee: number | null
+          block_during_lunch: boolean | null
+          block_on_holidays: boolean | null
+          business_vertical: string | null
+          cashback_percent: number | null
+          close_time: string | null
+          closed_message: string | null
+          cod_enabled: boolean | null
+          complaint_window_hours: number | null
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string | null
+          custom_holidays: Json | null
+          daily_atmosphere_enabled: boolean | null
+          default_gst_percent: number | null
+          default_language: string | null
+          delivery_enabled: boolean | null
+          delivery_fee: number | null
+          delivery_radius_km: number | null
+          email_notifications_enabled: boolean | null
+          express_delivery_enabled: boolean | null
+          express_delivery_fee: number | null
+          express_sla_mins: number | null
+          facebook_url: string | null
+          feature_ai_benefits_enabled: boolean | null
+          feature_fcm_enabled: boolean | null
+          feature_live_chat_enabled: boolean | null
+          feature_pos_enabled: boolean | null
+          feature_route_optimization_enabled: boolean | null
+          feature_wallet_enabled: boolean | null
+          firm_name: string | null
+          footer_about: string | null
+          free_delivery_over: number | null
+          free_delivery_threshold: number | null
+          ga4_measurement_id: string | null
+          google_review_link: string | null
+          gst_enabled: boolean | null
+          gst_percent: number | null
+          harbour_alert_message: string | null
+          harbour_alert_title: string | null
+          harbour_source_name: string | null
+          holiday_dates: string[] | null
+          holidays: string | null
+          home_show_allproducts: boolean | null
+          home_show_banner: boolean | null
+          home_show_bestsellers: boolean | null
+          home_show_categories: boolean | null
+          home_show_featured: boolean | null
+          home_show_hero: boolean | null
+          home_show_trust: boolean | null
+          id: string | null
+          instagram_url: string | null
+          is_open: boolean | null
+          live_alerts_enabled: boolean | null
+          logo_url: string | null
+          low_stock_threshold: number | null
+          lunch_end: string | null
+          lunch_start: string | null
+          max_delivery_radius_km: number | null
+          max_wallet_burn_percent: number | null
+          meta_pixel_id: string | null
+          min_order_value: number | null
+          notification_sound_enabled: boolean | null
+          online_enabled: boolean | null
+          open_time: string | null
+          ordering_mode: string | null
+          per_km_charge: number | null
+          pickup_enabled: boolean | null
+          primary_color: string | null
+          printer_auto_cut: boolean | null
+          printer_custom_footer_message: string | null
+          printer_footer_text: string | null
+          printer_header_line1: string | null
+          printer_header_line2: string | null
+          printer_open_drawer: boolean | null
+          printer_paper_width: string | null
+          printer_show_address: boolean | null
+          printer_show_fssai: boolean | null
+          printer_show_gstin: boolean | null
+          printer_show_phone: boolean | null
+          printer_show_return_policy: boolean | null
+          printer_show_social: boolean | null
+          printer_show_support: boolean | null
+          printer_show_whatsapp: boolean | null
+          printer_social_handle: string | null
+          printer_whatsapp_number: string | null
+          privacy_content: string | null
+          referral_program_enabled: boolean | null
+          referral_reward_referee: number | null
+          referral_reward_referrer: number | null
+          refund_content: string | null
+          require_online_payment: boolean | null
+          sender_name: string | null
+          seo_default_description: string | null
+          seo_keywords: string | null
+          seo_og_image: string | null
+          seo_title_template: string | null
+          serviceable_pincodes: string[] | null
+          shop_lat: number | null
+          shop_lng: number | null
+          shop_logo: string | null
+          show_stock_to_customers: boolean | null
+          social_facebook: string | null
+          social_instagram: string | null
+          social_whatsapp: string | null
+          social_x: string | null
+          stock_urgency_threshold: number | null
+          store_address: string | null
+          store_lat: number | null
+          store_lng: number | null
+          store_name: string | null
+          support_email: string | null
+          support_phone: string | null
+          support_whatsapp: string | null
+          tagline: string | null
+          terms_and_conditions: string | null
+          terms_content: string | null
+          theme_color: string | null
+          twitter_url: string | null
+          updated_at: string | null
+          upi_name: string | null
+          vertical_badge_text: string | null
+          vertical_banner_url: string | null
+          vertical_tagline: string | null
+          wallet_enabled: boolean | null
+          weekly_holidays: string[] | null
+          whatsapp_number: string | null
+          whatsapp_order_phone: string | null
+          wholesale_min_order_value: number | null
+          working_days: Json | null
+        }
+        Insert: {
+          accent_color?: string | null
+          additional_charge_label?: string | null
+          additional_charge_value?: number | null
+          address_line?: string | null
+          allow_preorders_when_closed?: boolean | null
+          announcement?: string | null
+          base_delivery_fee?: number | null
+          block_during_lunch?: boolean | null
+          block_on_holidays?: boolean | null
+          business_vertical?: string | null
+          cashback_percent?: number | null
+          close_time?: string | null
+          closed_message?: string | null
+          cod_enabled?: boolean | null
+          complaint_window_hours?: number | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          custom_holidays?: Json | null
+          daily_atmosphere_enabled?: boolean | null
+          default_gst_percent?: number | null
+          default_language?: string | null
+          delivery_enabled?: boolean | null
+          delivery_fee?: number | null
+          delivery_radius_km?: number | null
+          email_notifications_enabled?: boolean | null
+          express_delivery_enabled?: boolean | null
+          express_delivery_fee?: number | null
+          express_sla_mins?: number | null
+          facebook_url?: string | null
+          feature_ai_benefits_enabled?: boolean | null
+          feature_fcm_enabled?: boolean | null
+          feature_live_chat_enabled?: boolean | null
+          feature_pos_enabled?: boolean | null
+          feature_route_optimization_enabled?: boolean | null
+          feature_wallet_enabled?: boolean | null
+          firm_name?: string | null
+          footer_about?: string | null
+          free_delivery_over?: number | null
+          free_delivery_threshold?: number | null
+          ga4_measurement_id?: string | null
+          google_review_link?: string | null
+          gst_enabled?: boolean | null
+          gst_percent?: number | null
+          harbour_alert_message?: string | null
+          harbour_alert_title?: string | null
+          harbour_source_name?: string | null
+          holiday_dates?: string[] | null
+          holidays?: string | null
+          home_show_allproducts?: boolean | null
+          home_show_banner?: boolean | null
+          home_show_bestsellers?: boolean | null
+          home_show_categories?: boolean | null
+          home_show_featured?: boolean | null
+          home_show_hero?: boolean | null
+          home_show_trust?: boolean | null
+          id?: string | null
+          instagram_url?: string | null
+          is_open?: boolean | null
+          live_alerts_enabled?: boolean | null
+          logo_url?: string | null
+          low_stock_threshold?: number | null
+          lunch_end?: string | null
+          lunch_start?: string | null
+          max_delivery_radius_km?: number | null
+          max_wallet_burn_percent?: number | null
+          meta_pixel_id?: string | null
+          min_order_value?: number | null
+          notification_sound_enabled?: boolean | null
+          online_enabled?: boolean | null
+          open_time?: string | null
+          ordering_mode?: string | null
+          per_km_charge?: number | null
+          pickup_enabled?: boolean | null
+          primary_color?: string | null
+          printer_auto_cut?: boolean | null
+          printer_custom_footer_message?: string | null
+          printer_footer_text?: string | null
+          printer_header_line1?: string | null
+          printer_header_line2?: string | null
+          printer_open_drawer?: boolean | null
+          printer_paper_width?: string | null
+          printer_show_address?: boolean | null
+          printer_show_fssai?: boolean | null
+          printer_show_gstin?: boolean | null
+          printer_show_phone?: boolean | null
+          printer_show_return_policy?: boolean | null
+          printer_show_social?: boolean | null
+          printer_show_support?: boolean | null
+          printer_show_whatsapp?: boolean | null
+          printer_social_handle?: string | null
+          printer_whatsapp_number?: string | null
+          privacy_content?: string | null
+          referral_program_enabled?: boolean | null
+          referral_reward_referee?: number | null
+          referral_reward_referrer?: number | null
+          refund_content?: string | null
+          require_online_payment?: boolean | null
+          sender_name?: string | null
+          seo_default_description?: string | null
+          seo_keywords?: string | null
+          seo_og_image?: string | null
+          seo_title_template?: string | null
+          serviceable_pincodes?: string[] | null
+          shop_lat?: number | null
+          shop_lng?: number | null
+          shop_logo?: string | null
+          show_stock_to_customers?: boolean | null
+          social_facebook?: string | null
+          social_instagram?: string | null
+          social_whatsapp?: string | null
+          social_x?: string | null
+          stock_urgency_threshold?: number | null
+          store_address?: string | null
+          store_lat?: number | null
+          store_lng?: number | null
+          store_name?: string | null
+          support_email?: string | null
+          support_phone?: string | null
+          support_whatsapp?: string | null
+          tagline?: string | null
+          terms_and_conditions?: string | null
+          terms_content?: string | null
+          theme_color?: string | null
+          twitter_url?: string | null
+          updated_at?: string | null
+          upi_name?: string | null
+          vertical_badge_text?: string | null
+          vertical_banner_url?: string | null
+          vertical_tagline?: string | null
+          wallet_enabled?: boolean | null
+          weekly_holidays?: string[] | null
+          whatsapp_number?: string | null
+          whatsapp_order_phone?: string | null
+          wholesale_min_order_value?: number | null
+          working_days?: Json | null
+        }
+        Update: {
+          accent_color?: string | null
+          additional_charge_label?: string | null
+          additional_charge_value?: number | null
+          address_line?: string | null
+          allow_preorders_when_closed?: boolean | null
+          announcement?: string | null
+          base_delivery_fee?: number | null
+          block_during_lunch?: boolean | null
+          block_on_holidays?: boolean | null
+          business_vertical?: string | null
+          cashback_percent?: number | null
+          close_time?: string | null
+          closed_message?: string | null
+          cod_enabled?: boolean | null
+          complaint_window_hours?: number | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          custom_holidays?: Json | null
+          daily_atmosphere_enabled?: boolean | null
+          default_gst_percent?: number | null
+          default_language?: string | null
+          delivery_enabled?: boolean | null
+          delivery_fee?: number | null
+          delivery_radius_km?: number | null
+          email_notifications_enabled?: boolean | null
+          express_delivery_enabled?: boolean | null
+          express_delivery_fee?: number | null
+          express_sla_mins?: number | null
+          facebook_url?: string | null
+          feature_ai_benefits_enabled?: boolean | null
+          feature_fcm_enabled?: boolean | null
+          feature_live_chat_enabled?: boolean | null
+          feature_pos_enabled?: boolean | null
+          feature_route_optimization_enabled?: boolean | null
+          feature_wallet_enabled?: boolean | null
+          firm_name?: string | null
+          footer_about?: string | null
+          free_delivery_over?: number | null
+          free_delivery_threshold?: number | null
+          ga4_measurement_id?: string | null
+          google_review_link?: string | null
+          gst_enabled?: boolean | null
+          gst_percent?: number | null
+          harbour_alert_message?: string | null
+          harbour_alert_title?: string | null
+          harbour_source_name?: string | null
+          holiday_dates?: string[] | null
+          holidays?: string | null
+          home_show_allproducts?: boolean | null
+          home_show_banner?: boolean | null
+          home_show_bestsellers?: boolean | null
+          home_show_categories?: boolean | null
+          home_show_featured?: boolean | null
+          home_show_hero?: boolean | null
+          home_show_trust?: boolean | null
+          id?: string | null
+          instagram_url?: string | null
+          is_open?: boolean | null
+          live_alerts_enabled?: boolean | null
+          logo_url?: string | null
+          low_stock_threshold?: number | null
+          lunch_end?: string | null
+          lunch_start?: string | null
+          max_delivery_radius_km?: number | null
+          max_wallet_burn_percent?: number | null
+          meta_pixel_id?: string | null
+          min_order_value?: number | null
+          notification_sound_enabled?: boolean | null
+          online_enabled?: boolean | null
+          open_time?: string | null
+          ordering_mode?: string | null
+          per_km_charge?: number | null
+          pickup_enabled?: boolean | null
+          primary_color?: string | null
+          printer_auto_cut?: boolean | null
+          printer_custom_footer_message?: string | null
+          printer_footer_text?: string | null
+          printer_header_line1?: string | null
+          printer_header_line2?: string | null
+          printer_open_drawer?: boolean | null
+          printer_paper_width?: string | null
+          printer_show_address?: boolean | null
+          printer_show_fssai?: boolean | null
+          printer_show_gstin?: boolean | null
+          printer_show_phone?: boolean | null
+          printer_show_return_policy?: boolean | null
+          printer_show_social?: boolean | null
+          printer_show_support?: boolean | null
+          printer_show_whatsapp?: boolean | null
+          printer_social_handle?: string | null
+          printer_whatsapp_number?: string | null
+          privacy_content?: string | null
+          referral_program_enabled?: boolean | null
+          referral_reward_referee?: number | null
+          referral_reward_referrer?: number | null
+          refund_content?: string | null
+          require_online_payment?: boolean | null
+          sender_name?: string | null
+          seo_default_description?: string | null
+          seo_keywords?: string | null
+          seo_og_image?: string | null
+          seo_title_template?: string | null
+          serviceable_pincodes?: string[] | null
+          shop_lat?: number | null
+          shop_lng?: number | null
+          shop_logo?: string | null
+          show_stock_to_customers?: boolean | null
+          social_facebook?: string | null
+          social_instagram?: string | null
+          social_whatsapp?: string | null
+          social_x?: string | null
+          stock_urgency_threshold?: number | null
+          store_address?: string | null
+          store_lat?: number | null
+          store_lng?: number | null
+          store_name?: string | null
+          support_email?: string | null
+          support_phone?: string | null
+          support_whatsapp?: string | null
+          tagline?: string | null
+          terms_and_conditions?: string | null
+          terms_content?: string | null
+          theme_color?: string | null
+          twitter_url?: string | null
+          updated_at?: string | null
+          upi_name?: string | null
+          vertical_badge_text?: string | null
+          vertical_banner_url?: string | null
+          vertical_tagline?: string | null
+          wallet_enabled?: boolean | null
+          weekly_holidays?: string[] | null
+          whatsapp_number?: string | null
+          whatsapp_order_phone?: string | null
+          wholesale_min_order_value?: number | null
+          working_days?: Json | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       claim_super_admin_role: { Args: never; Returns: Json }
+      credit_wallet_cashback: { Args: { p_order_id: string }; Returns: Json }
       deduct_order_stock_atomic: { Args: { p_order_id: string }; Returns: Json }
+      ensure_my_wallet: {
+        Args: never
+        Returns: {
+          balance: number
+          created_at: string
+          referral_code: string
+          referred_by: string | null
+          total_earned: number
+          total_redeemed: number
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "customer_wallets"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_auth_branch_id: { Args: never; Returns: string }
       has_role: {
         Args: {
@@ -2648,6 +3084,10 @@ export type Database = {
       is_super_admin: { Args: never; Returns: boolean }
       is_team_member: { Args: never; Returns: boolean }
       is_wholesale_buyer: { Args: { _user_id: string }; Returns: boolean }
+      redeem_wallet_balance: {
+        Args: { p_amount: number; p_order_id?: string }
+        Returns: Json
+      }
       restore_order_stock_atomic: {
         Args: { p_order_id: string }
         Returns: Json
