@@ -196,6 +196,9 @@ function AuthPage() {
   const [signinLockout, setSigninLockout] = useState(0);
   const [signupLockout, setSignupLockout] = useState(0);
   const [resetLockout, setResetLockout] = useState(0);
+  const [otpVerifyLockout, setOtpVerifyLockout] = useState(0);       // signup OTP guess lockout
+  const [resetVerifyLockout, setResetVerifyLockout] = useState(0);   // reset OTP guess lockout
+  const [otpSendLockout, setOtpSendLockout] = useState(0);           // send OTP lockout (resend abuse)
 
   // Global countdown timer
   useEffect(() => {
@@ -205,6 +208,9 @@ function AuthPage() {
       setSigninLockout((p) => (p > 0 ? p - 1 : 0));
       setSignupLockout((p) => (p > 0 ? p - 1 : 0));
       setResetLockout((p) => (p > 0 ? p - 1 : 0));
+      setOtpVerifyLockout((p) => (p > 0 ? p - 1 : 0));
+      setResetVerifyLockout((p) => (p > 0 ? p - 1 : 0));
+      setOtpSendLockout((p) => (p > 0 ? p - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
   }, []);
@@ -295,10 +301,21 @@ function AuthPage() {
   // ─── SIGN UP — Step 1→2: Send OTP ─────────────────────────────────────────
   async function sendSignupOtp(e: React.FormEvent) {
     e.preventDefault();
+    // Check both registration limit and OTP send spam limit
     const rlCheck = checkRateLimit("auth_signup", signupEmail || "guest");
     if (!rlCheck.allowed) {
       setSignupLockout(rlCheck.retryAfterSeconds);
       toast.error(rlCheck.errorMessage || "Too many registration attempts. Please wait.");
+      return;
+    }
+    const sendCheck = checkRateLimit("auth_otp_send", signupEmail || "guest");
+    if (!sendCheck.allowed) {
+      setOtpSendLockout(sendCheck.retryAfterSeconds);
+      toast.error(sendCheck.errorMessage || "Too many code requests. Please wait.");
+      return;
+    }
+    if (otpSendLockout > 0) {
+      toast.info(`Please wait ${otpSendLockout}s before requesting another code.`);
       return;
     }
     if (!/^[6-9]\d{9}$/.test(signupPhone)) {
@@ -310,12 +327,14 @@ function AuthPage() {
       return;
     }
     setLoading(true);
-    // signInWithOtp with shouldCreateUser creates/sends OTP — no redirect link
     const { error } = await supabase.auth.signInWithOtp({
       email: signupEmail,
       options: { shouldCreateUser: true },
     });
     setLoading(false);
+    // Always record the send attempt (even on success) to cap resends
+    const sendRes = recordRateLimitAttempt("auth_otp_send", signupEmail || "guest");
+    if (!sendRes.allowed && sendRes.retryAfterSeconds > 0) setOtpSendLockout(sendRes.retryAfterSeconds);
     if (error) {
       recordRateLimitAttempt("auth_signup", signupEmail || "guest");
       toast.error(error.message);
@@ -329,6 +348,16 @@ function AuthPage() {
   // ─── SIGN UP — Step 2→3: Verify OTP ───────────────────────────────────────
   async function verifySignupOtp(e: React.FormEvent) {
     e.preventDefault();
+    if (otpVerifyLockout > 0) {
+      toast.error(`Too many wrong attempts. Wait ${otpVerifyLockout}s before trying again.`);
+      return;
+    }
+    const rlCheck = checkRateLimit("auth_otp_verify", signupEmail || "guest");
+    if (!rlCheck.allowed) {
+      setOtpVerifyLockout(rlCheck.retryAfterSeconds);
+      toast.error(rlCheck.errorMessage || "Too many verification attempts. Please wait.");
+      return;
+    }
     if (signupOtp.length < 6) {
       toast.error("Please enter the complete 6-digit code.");
       return;
@@ -341,11 +370,15 @@ function AuthPage() {
     });
     setLoading(false);
     if (error) {
+      // Record failed attempt — locks out after 5 wrong guesses
+      const res = recordRateLimitAttempt("auth_otp_verify", signupEmail || "guest");
+      if (!res.allowed && res.retryAfterSeconds > 0) setOtpVerifyLockout(res.retryAfterSeconds);
       toast.error("Invalid or expired code. Please try again.");
       setSignupOtp("");
       return;
     }
-    // OTP verified — now set password & profile
+    // Success — clear OTP verify counter for this email
+    resetRateLimit("auth_otp_verify", signupEmail || "guest");
     setSignupStep(3);
   }
 
@@ -389,6 +422,12 @@ function AuthPage() {
       toast.error(rlCheck.errorMessage || "Too many reset attempts. Please wait.");
       return;
     }
+    const sendCheck = checkRateLimit("auth_otp_send", forgotEmail.trim());
+    if (!sendCheck.allowed) {
+      setOtpSendLockout(sendCheck.retryAfterSeconds);
+      toast.error(sendCheck.errorMessage || "Too many code requests. Please wait.");
+      return;
+    }
     if (resetCooldown > 0) {
       toast.info(`Please wait ${resetCooldown}s before requesting another code.`);
       return;
@@ -399,6 +438,9 @@ function AuthPage() {
       options: { shouldCreateUser: false },
     });
     setLoading(false);
+    // Always record the send attempt (even on success) to cap resends
+    const sendRes = recordRateLimitAttempt("auth_otp_send", forgotEmail.trim());
+    if (!sendRes.allowed && sendRes.retryAfterSeconds > 0) setOtpSendLockout(sendRes.retryAfterSeconds);
     const res = recordRateLimitAttempt("auth_reset", forgotEmail.trim());
     if (!res.allowed && res.retryAfterSeconds > 0) setResetLockout(res.retryAfterSeconds);
     if (error) {
@@ -413,6 +455,16 @@ function AuthPage() {
   // ─── RESET — Step 2→3: Verify OTP ─────────────────────────────────────────
   async function verifyResetOtp(e: React.FormEvent) {
     e.preventDefault();
+    if (resetVerifyLockout > 0) {
+      toast.error(`Too many wrong attempts. Wait ${resetVerifyLockout}s before trying again.`);
+      return;
+    }
+    const rlCheck = checkRateLimit("auth_otp_verify", forgotEmail.trim());
+    if (!rlCheck.allowed) {
+      setResetVerifyLockout(rlCheck.retryAfterSeconds);
+      toast.error(rlCheck.errorMessage || "Too many verification attempts. Please wait.");
+      return;
+    }
     if (resetOtp.length < 6) {
       toast.error("Please enter the complete 6-digit code.");
       return;
@@ -425,10 +477,13 @@ function AuthPage() {
     });
     setLoading(false);
     if (error) {
+      const res = recordRateLimitAttempt("auth_otp_verify", forgotEmail.trim());
+      if (!res.allowed && res.retryAfterSeconds > 0) setResetVerifyLockout(res.retryAfterSeconds);
       toast.error("Invalid or expired code. Please try again.");
       setResetOtp("");
       return;
     }
+    resetRateLimit("auth_otp_verify", forgotEmail.trim());
     setResetStep(3);
   }
 
@@ -527,15 +582,21 @@ function AuthPage() {
             {/* Step 2: OTP verification */}
             {resetStep === 2 && (
               <form onSubmit={verifyResetOtp} className="space-y-5 pt-2">
+                {resetVerifyLockout > 0 && (
+                  <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2.5">
+                    <ShieldCheck className="size-4 shrink-0 text-rose-500" />
+                    <span>Too many wrong attempts. Try again in <strong className="font-mono text-foreground">{resetVerifyLockout}s</strong>.</span>
+                  </div>
+                )}
                 <div className="space-y-3">
                   <Label className="text-center block">Enter Verification Code</Label>
-                  <OtpInput value={resetOtp} onChange={setResetOtp} disabled={loading} />
+                  <OtpInput value={resetOtp} onChange={setResetOtp} disabled={loading || resetVerifyLockout > 0} />
                   <p className="text-center text-xs text-muted-foreground">
                     Sent to <span className="font-semibold text-foreground">{forgotEmail}</span>
                   </p>
                 </div>
-                <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading || resetOtp.length < 6}>
-                  {loading ? "Verifying..." : "Verify Code →"}
+                <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading || resetOtp.length < 6 || resetVerifyLockout > 0}>
+                  {loading ? "Verifying..." : resetVerifyLockout > 0 ? `Locked (${resetVerifyLockout}s)` : "Verify Code →"}
                 </Button>
                 <div className="text-center">
                   {resetCooldown > 0 ? (
@@ -789,12 +850,18 @@ function AuthPage() {
                       We sent a 6-digit code to <span className="font-semibold text-foreground">{signupEmail}</span>
                     </p>
                   </div>
+                  {otpVerifyLockout > 0 && (
+                    <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2.5">
+                      <ShieldCheck className="size-4 shrink-0 text-rose-500" />
+                      <span>Too many wrong attempts. Try again in <strong className="font-mono text-foreground">{otpVerifyLockout}s</strong>.</span>
+                    </div>
+                  )}
                   <div className="space-y-3">
                     <Label className="text-center block">Verification Code</Label>
-                    <OtpInput value={signupOtp} onChange={setSignupOtp} disabled={loading} />
+                    <OtpInput value={signupOtp} onChange={setSignupOtp} disabled={loading || otpVerifyLockout > 0} />
                   </div>
-                  <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading || signupOtp.length < 6}>
-                    {loading ? "Verifying..." : "Verify & Continue →"}
+                  <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading || signupOtp.length < 6 || otpVerifyLockout > 0}>
+                    {loading ? "Verifying..." : otpVerifyLockout > 0 ? `Locked (${otpVerifyLockout}s)` : "Verify & Continue →"}
                   </Button>
                   <div className="flex items-center justify-between text-xs">
                     <button type="button" className="text-muted-foreground hover:text-foreground gap-1 flex items-center" onClick={() => setSignupStep(1)}>
