@@ -23,3 +23,7 @@
 - [x] Bulk price list with quantity slabs + per-account extra discount (admin)
 - [x] Trade buyer applications with approve/suspend (admin)
 - [x] Public bulk-order page for shops to apply and see their status
+
+## Printer & bulk display
+- [x] Bluetooth printer: wider service discovery, safe 20-byte writes, auto-reconnect, disconnect detection, clear failure messages
+- [x] Cart shows bulk discount, next discount band and minimum bulk order hints
