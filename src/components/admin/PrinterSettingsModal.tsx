@@ -109,13 +109,15 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
           toast.success(`Test ${format.toUpperCase()} invoice rendered!`);
         }
       } else {
-        await sendEscPosToPrinter(
+        const ok = await sendEscPosToPrinter(
           testArtifacts.bytes || new Uint8Array(),
           config,
           testArtifacts.html
         );
-        toast.success(`Test ${format.toUpperCase()} sent to printer!`);
+        if (ok) toast.success(`Test ${format.toUpperCase()} sent to printer!`);
+        else toast.error("No printer is connected yet. Connect a Bluetooth or USB printer first.");
       }
+
     } catch (err: any) {
       toast.error(`Test Print Error: ${err.message}`);
     } finally {
