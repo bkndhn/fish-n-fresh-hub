@@ -42,7 +42,20 @@ export const Route = createFileRoute("/cart")({
 });
 
 function CartPage() {
-  const { items, subtotal, setQty, setCutPreference, remove, clear } = useCart();
+  const {
+    items,
+    subtotal,
+    setQty,
+    setCutPreference,
+    remove,
+    clear,
+    isWholesale,
+    bulkDiscountPercent,
+    bulkDiscountAmount,
+    wholesaleMinOrderValue,
+    nextBulkBand,
+  } = useCart();
+
   const { data: settings } = useQuery(settingsQuery);
   const { data: products = [] } = useQuery(productsQuery());
   const vertical = getStoreVertical(settings);
@@ -289,10 +302,29 @@ function CartPage() {
           </li>
         ))}
       </ul>
-      <div className="mt-5 flex items-center justify-between rounded-2xl border border-border bg-card p-4">
-        <span className="text-muted-foreground">Subtotal</span>
-        <span className="font-display text-xl font-bold">{inr(subtotal)}</span>
+      <div className="mt-5 space-y-2 rounded-2xl border border-border bg-card p-4">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-muted-foreground">Subtotal</span>
+          <span className="font-display text-xl font-bold">{inr(subtotal)}</span>
+        </div>
+        {isWholesale && bulkDiscountAmount > 0 && (
+          <div className="flex items-center justify-between gap-2 text-sm text-primary">
+            <span className="min-w-0 break-words">Bulk discount ({bulkDiscountPercent}%)</span>
+            <span className="font-semibold">-{inr(bulkDiscountAmount)}</span>
+          </div>
+        )}
+        {isWholesale && nextBulkBand && (
+          <p className="text-xs text-muted-foreground break-words">
+            Add {inr(Math.max(0, nextBulkBand.min_order_value - subtotal))} more to get {nextBulkBand.discount_percent}% off this order.
+          </p>
+        )}
+        {isWholesale && wholesaleMinOrderValue > subtotal && (
+          <p className="text-xs text-destructive break-words">
+            Bulk orders start at {inr(wholesaleMinOrderValue)}. Add {inr(wholesaleMinOrderValue - subtotal)} more to place this order.
+          </p>
+        )}
       </div>
+
 
       {storeStatus && !storeStatus.canAcceptOrder && (
         <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-destructive/40 bg-destructive/10 p-3.5 text-xs text-destructive">

@@ -249,58 +249,119 @@ let activeBluetoothCharacteristic: any = null;
 let activeSerialPort: any = null;
 let activeSerialWriter: any = null;
 
+// Common ESC/POS BLE serial services (checked first, then every other service)
+const BT_PRINTER_SERVICES = [
+  "000018f0-0000-1000-8000-00805f9b34fb",
+  "49535343-fe7d-4ae5-8fa9-9fafd205e455",
+  "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
+  "0000af30-0000-1000-8000-00805f9b34fb",
+  "0000ff00-0000-1000-8000-00805f9b34fb",
+  "0000ffe0-0000-1000-8000-00805f9b34fb",
+  "0000fee7-0000-1000-8000-00805f9b34fb",
+  "18f0",
+  "ffe0",
+  "ff00",
+];
+
+/** Why Bluetooth printing is unavailable on this device, or null when it should work. */
+export function getBluetoothUnavailableReason(): string | null {
+  if (typeof navigator === "undefined" || typeof window === "undefined") return "Bluetooth is only available in the browser.";
+  if (!window.isSecureContext) return "Bluetooth needs a secure (https) page. Open the published site link instead of an embedded preview.";
+  if (!("bluetooth" in navigator)) {
+    return "This browser cannot talk to Bluetooth printers. Use Chrome or Edge on Android, Windows, Mac or Linux (iPhone/iPad and Firefox are not supported).";
+  }
+  return null;
+}
+
+async function findWritableCharacteristic(server: any): Promise<any> {
+  const seen = new Set<string>();
+  const services: any[] = [];
+  for (const uuid of BT_PRINTER_SERVICES) {
+    try {
+      const s = await server.getPrimaryService(uuid);
+      if (s && !seen.has(s.uuid)) {
+        seen.add(s.uuid);
+        services.push(s);
+      }
+    } catch {}
+  }
+  try {
+    for (const s of await server.getPrimaryServices()) {
+      if (!seen.has(s.uuid)) {
+        seen.add(s.uuid);
+        services.push(s);
+      }
+    }
+  } catch {}
+
+  for (const service of services) {
+    let chars: any[] = [];
+    try {
+      chars = await service.getCharacteristics();
+    } catch {
+      continue;
+    }
+    const writable = chars.find((c) => c.properties?.writeWithoutResponse) || chars.find((c) => c.properties?.write);
+    if (writable) return writable;
+  }
+  return null;
+}
+
+function watchBluetoothDisconnect(device: any) {
+  try {
+    device.removeEventListener?.("gattserverdisconnected", onBluetoothDisconnected);
+    device.addEventListener?.("gattserverdisconnected", onBluetoothDisconnected);
+  } catch {}
+}
+
+function onBluetoothDisconnected() {
+  activeBluetoothCharacteristic = null;
+  console.info("[ThermalPrinter] Bluetooth printer disconnected");
+}
+
 /**
  * Connect to a Bluetooth thermal printer via Web Bluetooth API.
  */
 export async function connectBluetoothPrinter(): Promise<string> {
-  if (typeof navigator === "undefined" || !(navigator as unknown as { bluetooth: { requestDevice: (opts: unknown) => Promise<unknown> } }).bluetooth) {
-    throw new Error("Web Bluetooth API is not supported in this browser. Please use Chrome on Android/Desktop or Edge.");
+  const unavailable = getBluetoothUnavailableReason();
+  if (unavailable) throw new Error(unavailable);
+
+  let device: any;
+  try {
+    device = await (navigator as any).bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: BT_PRINTER_SERVICES,
+    });
+  } catch (err: any) {
+    if (err?.name === "NotFoundError") throw new Error("No printer was picked. Switch the printer on, keep it close, then try again.");
+    throw new Error(`Could not open the Bluetooth picker: ${err?.message || err}`);
   }
 
   try {
-    const device: any = await (navigator as unknown as { bluetooth: { requestDevice: (opts: unknown) => Promise<unknown> } }).bluetooth.requestDevice({
-      acceptAllDevices: true,
-      optionalServices: [
-        "000018f0-0000-1000-8000-00805f9b34fb",
-        "49535343-fe7d-4ae5-8fa9-9fafd205e455",
-        "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
-        "0000af30-0000-1000-8000-00805f9b34fb",
-      ],
-    });
-
     const server = await device.gatt?.connect();
-    if (!server) throw new Error("Could not connect to GATT Server on printer.");
+    if (!server) throw new Error("The printer refused the connection. Turn it off and on, then pair again.");
 
-    // Find writable serial service
-    const services = await server.getPrimaryServices();
-    let charFound = null;
-
-    for (const service of services) {
-      const chars = await service.getCharacteristics();
-      for (const char of chars) {
-        if (char.properties.write || char.properties.writeWithoutResponse) {
-          charFound = char;
-          break;
-        }
-      }
-      if (charFound) break;
-    }
-
-    if (!charFound) throw new Error("Connected to printer, but no writable serial characteristic found.");
-
-    if (device?.id) {
+    const charFound = await findWritableCharacteristic(server);
+    if (!charFound) {
       try {
-        localStorage.setItem("fnf_paired_bt_device_id", device.id);
+        device.gatt?.disconnect();
       } catch {}
+      throw new Error("Connected, but this device does not accept print data. Make sure you picked the printer and not a phone or speaker.");
     }
 
+    try {
+      localStorage.setItem("fnf_paired_bt_device_id", device.id || "");
+    } catch {}
+
+    watchBluetoothDisconnect(device);
     activeBluetoothDevice = device;
     activeBluetoothCharacteristic = charFound;
     return device.name || "Bluetooth Thermal Printer";
   } catch (err: any) {
-    throw new Error(`Bluetooth Connection Failed: ${err.message}`);
+    throw new Error(err?.message ? `Bluetooth: ${err.message}` : "Bluetooth connection failed.");
   }
 }
+
 
 /**
  * Connect to a USB / Serial thermal printer via Web Serial API.
@@ -355,34 +416,25 @@ export async function autoReconnectSavedPrinters(): Promise<boolean> {
   // 2. Auto-reconnect Web Bluetooth printer
   if (config.type === "bluetooth" && typeof navigator !== "undefined" && "bluetooth" in navigator) {
     try {
-      if (!activeBluetoothDevice || !activeBluetoothCharacteristic) {
+      if (!activeBluetoothCharacteristic) {
         const bt = (navigator as any).bluetooth;
-        if (typeof bt.getDevices === "function") {
+        let targetDevice = activeBluetoothDevice;
+        if (!targetDevice && typeof bt.getDevices === "function") {
           const devices = await bt.getDevices();
           if (devices && devices.length > 0) {
             const savedId = typeof window !== "undefined" ? localStorage.getItem("fnf_paired_bt_device_id") : null;
-            const targetDevice = savedId ? (devices.find((d: any) => d.id === savedId) || devices[0]) : devices[0];
-            const server = await targetDevice.gatt?.connect();
-            if (server) {
-              const services = await server.getPrimaryServices();
-              let charFound = null;
-              for (const service of services) {
-                const chars = await service.getCharacteristics();
-                for (const char of chars) {
-                  if (char.properties.write || char.properties.writeWithoutResponse) {
-                    charFound = char;
-                    break;
-                  }
-                }
-                if (charFound) break;
-              }
-              if (charFound) {
-                activeBluetoothDevice = targetDevice;
-                activeBluetoothCharacteristic = charFound;
-                console.info("[ThermalPrinter] Auto-reconnected to paired Bluetooth printer:", targetDevice.name);
-                return true;
-              }
-            }
+            targetDevice = (savedId && devices.find((d: any) => d.id === savedId)) || devices[0];
+          }
+        }
+        if (targetDevice) {
+          const server = await targetDevice.gatt?.connect();
+          const charFound = server ? await findWritableCharacteristic(server) : null;
+          if (charFound) {
+            watchBluetoothDisconnect(targetDevice);
+            activeBluetoothDevice = targetDevice;
+            activeBluetoothCharacteristic = charFound;
+            console.info("[ThermalPrinter] Auto-reconnected to paired Bluetooth printer:", targetDevice.name);
+            return true;
           }
         }
       }
@@ -390,6 +442,7 @@ export async function autoReconnectSavedPrinters(): Promise<boolean> {
       console.debug("[ThermalPrinter] Bluetooth auto-reconnect notice:", err);
     }
   }
+
 
   return false;
 }
@@ -424,19 +477,38 @@ export async function sendEscPosToPrinter(
   fallbackPrintHtml?: string
 ): Promise<boolean> {
   // 1. Try Web Bluetooth if configured
-  if (config.type === "bluetooth" && activeBluetoothCharacteristic) {
+  if (config.type === "bluetooth") {
+    if (!activeBluetoothCharacteristic) await autoReconnectSavedPrinters();
+    if (!activeBluetoothCharacteristic) {
+      throw new Error(
+        getBluetoothUnavailableReason() ||
+          "The Bluetooth printer is not connected. Open Printer settings and tap Connect Bluetooth printer."
+      );
+    }
     try {
-      // Chunk into 512-byte packets for BLE MTU
-      const CHUNK_SIZE = 100;
+      // BLE packets must stay small; 20 bytes is safe on every printer
+      const CHUNK_SIZE = 20;
+      const char = activeBluetoothCharacteristic;
+      const useNoResponse = Boolean(char.properties?.writeWithoutResponse);
       for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
         const chunk = bytes.slice(i, i + CHUNK_SIZE);
-        await activeBluetoothCharacteristic.writeValue(chunk);
+        if (useNoResponse && typeof char.writeValueWithoutResponse === "function") {
+          await char.writeValueWithoutResponse(chunk);
+        } else if (typeof char.writeValueWithResponse === "function") {
+          await char.writeValueWithResponse(chunk);
+        } else {
+          await char.writeValue(chunk);
+        }
+        await new Promise((r) => setTimeout(r, 12));
       }
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Bluetooth raw send failed:", err);
+      activeBluetoothCharacteristic = null;
+      throw new Error(`Printing failed: ${err?.message || err}. Check the printer is on, has paper and is in range.`);
     }
   }
+
 
   // 2. Try Web Serial/USB if configured
   if (config.type === "serial_usb" && activeSerialWriter) {

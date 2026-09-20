@@ -31,6 +31,8 @@ import {
   getSavedPrinterConfig,
   savePrinterConfig,
   connectBluetoothPrinter,
+  getBluetoothUnavailableReason,
+
   connectSerialUsbPrinter,
   sendEscPosToPrinter,
   buildTestPrintForFormat,
@@ -50,14 +52,18 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
   const [isConnecting, setIsConnecting] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testFormat, setTestFormat] = useState<PrintFormat>(config.defaultFormat || "58mm");
+  const [btReason, setBtReason] = useState<string | null>(null);
+
 
   useEffect(() => {
     if (open) {
       const saved = getSavedPrinterConfig();
       setConfig(saved);
       setTestFormat(saved.defaultFormat || "58mm");
+      setBtReason(getBluetoothUnavailableReason());
     }
   }, [open]);
+
 
   const handleSave = () => {
     const updated = { ...config, defaultFormat: testFormat };
@@ -109,13 +115,15 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
           toast.success(`Test ${format.toUpperCase()} invoice rendered!`);
         }
       } else {
-        await sendEscPosToPrinter(
+        const ok = await sendEscPosToPrinter(
           testArtifacts.bytes || new Uint8Array(),
           config,
           testArtifacts.html
         );
-        toast.success(`Test ${format.toUpperCase()} sent to printer!`);
+        if (ok) toast.success(`Test ${format.toUpperCase()} sent to printer!`);
+        else toast.error("No printer is connected yet. Connect a Bluetooth or USB printer first.");
       }
+
     } catch (err: any) {
       toast.error(`Test Print Error: ${err.message}`);
     } finally {
@@ -177,6 +185,11 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
                 <Usb className="size-3.5" /> Connect USB
               </Button>
             </div>
+
+            {btReason ? (
+              <p className="text-[11px] text-destructive break-words">{btReason}</p>
+            ) : null}
+
 
             <p className="text-[11px] text-muted-foreground">
               If no direct hardware printer is connected, the app uses tailored high-contrast thermal browser printing.
