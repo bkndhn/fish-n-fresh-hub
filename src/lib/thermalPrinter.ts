@@ -477,19 +477,38 @@ export async function sendEscPosToPrinter(
   fallbackPrintHtml?: string
 ): Promise<boolean> {
   // 1. Try Web Bluetooth if configured
-  if (config.type === "bluetooth" && activeBluetoothCharacteristic) {
+  if (config.type === "bluetooth") {
+    if (!activeBluetoothCharacteristic) await autoReconnectSavedPrinters();
+    if (!activeBluetoothCharacteristic) {
+      throw new Error(
+        getBluetoothUnavailableReason() ||
+          "The Bluetooth printer is not connected. Open Printer settings and tap Connect Bluetooth printer."
+      );
+    }
     try {
-      // Chunk into 512-byte packets for BLE MTU
-      const CHUNK_SIZE = 100;
+      // BLE packets must stay small; 20 bytes is safe on every printer
+      const CHUNK_SIZE = 20;
+      const char = activeBluetoothCharacteristic;
+      const useNoResponse = Boolean(char.properties?.writeWithoutResponse);
       for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
         const chunk = bytes.slice(i, i + CHUNK_SIZE);
-        await activeBluetoothCharacteristic.writeValue(chunk);
+        if (useNoResponse && typeof char.writeValueWithoutResponse === "function") {
+          await char.writeValueWithoutResponse(chunk);
+        } else if (typeof char.writeValueWithResponse === "function") {
+          await char.writeValueWithResponse(chunk);
+        } else {
+          await char.writeValue(chunk);
+        }
+        await new Promise((r) => setTimeout(r, 12));
       }
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Bluetooth raw send failed:", err);
+      activeBluetoothCharacteristic = null;
+      throw new Error(`Printing failed: ${err?.message || err}. Check the printer is on, has paper and is in range.`);
     }
   }
+
 
   // 2. Try Web Serial/USB if configured
   if (config.type === "serial_usb" && activeSerialWriter) {
