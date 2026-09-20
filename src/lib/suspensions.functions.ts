@@ -1,6 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
+import { isStaffCaller } from "@/lib/authz.server";
 
-/** Server-side suspension check: the table itself is staff-only. */
+/**
+ * Server-side suspension check: the table itself is staff-only.
+ * The free-text reason is only returned to signed-in staff — public callers
+ * receive nothing more than a blocked/not-blocked flag.
+ */
 export const checkSuspension = createServerFn({ method: "POST" })
   .inputValidator((input: { phone: string }) => {
     const phone = String(input?.phone ?? "").replace(/\D/g, "");
@@ -14,5 +19,10 @@ export const checkSuspension = createServerFn({ method: "POST" })
       .select("reason")
       .eq("phone", data.phone)
       .maybeSingle();
-    return { suspended: Boolean(row), reason: row?.reason ?? null };
+
+    const suspended = Boolean(row);
+    if (!suspended) return { suspended: false, reason: null };
+
+    const staff = await isStaffCaller();
+    return { suspended: true, reason: staff ? (row?.reason ?? null) : null };
   });
