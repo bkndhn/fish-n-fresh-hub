@@ -110,6 +110,7 @@ function ProductPage() {
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<any | null>(null);
   const [sizeChartOpen, setSizeChartOpen] = useState(false);
+  const [activeImage, setActiveImage] = useState<string | null>(null);
 
   // Deep Layout & Section Visibility Configuration
   const [layoutConfig, setLayoutConfig] = useState<ProductLayoutConfig>(() =>
@@ -147,7 +148,7 @@ function ProductPage() {
 
   const effectivePrice = selectedVariant ? Number(selectedVariant.price) : Number(product.price);
   const effectiveStock = selectedVariant ? Number(selectedVariant.stock ?? 0) : (product.stock !== null ? Number(product.stock) : 0);
-  const related = (all ?? []).filter((p) => p.category === product.category && p.id !== product.id).slice(0, 3);
+  const related = (all ?? []).filter((p) => p.category === product.category && p.id !== product.id).slice(0, 5);
 
   const isOutOfStock = (product.stock !== null && effectiveStock <= 0) || product.is_available === false;
   const showStockToCustomer = (settings as SiteSettings)?.show_stock_to_customers ?? true;

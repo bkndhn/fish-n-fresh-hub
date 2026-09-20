@@ -20,7 +20,7 @@ export function ImageUpload({
   onRemove,
   currentImage,
   compact = false,
-  maxSizeMB = 0.2, // Default 200KB limit for products & banners
+  maxSizeMB = 0.1, // Default 100KB limit for products & banners
   label,
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);

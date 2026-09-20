@@ -60,12 +60,12 @@ export function optimizeImageUrl(
 
 /**
  * Compresses an image file before upload to meet strict size limits:
- * - Products and Banners: <= 200KB (maxSizeMB: 0.2)
+ * - Products and Banners: <= 100KB (maxSizeMB: 0.1)
  * - Brand Logo: <= 500KB (maxSizeMB: 0.5)
  */
 export async function compressImageFile(
   file: File,
-  maxSizeMB = 0.2,
+  maxSizeMB = 0.1,
   maxWidthOrHeight = 1200
 ): Promise<File> {
   // If file is already smaller than requested target, keep as is
