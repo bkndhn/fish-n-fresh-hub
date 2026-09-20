@@ -416,34 +416,25 @@ export async function autoReconnectSavedPrinters(): Promise<boolean> {
   // 2. Auto-reconnect Web Bluetooth printer
   if (config.type === "bluetooth" && typeof navigator !== "undefined" && "bluetooth" in navigator) {
     try {
-      if (!activeBluetoothDevice || !activeBluetoothCharacteristic) {
+      if (!activeBluetoothCharacteristic) {
         const bt = (navigator as any).bluetooth;
-        if (typeof bt.getDevices === "function") {
+        let targetDevice = activeBluetoothDevice;
+        if (!targetDevice && typeof bt.getDevices === "function") {
           const devices = await bt.getDevices();
           if (devices && devices.length > 0) {
             const savedId = typeof window !== "undefined" ? localStorage.getItem("fnf_paired_bt_device_id") : null;
-            const targetDevice = savedId ? (devices.find((d: any) => d.id === savedId) || devices[0]) : devices[0];
-            const server = await targetDevice.gatt?.connect();
-            if (server) {
-              const services = await server.getPrimaryServices();
-              let charFound = null;
-              for (const service of services) {
-                const chars = await service.getCharacteristics();
-                for (const char of chars) {
-                  if (char.properties.write || char.properties.writeWithoutResponse) {
-                    charFound = char;
-                    break;
-                  }
-                }
-                if (charFound) break;
-              }
-              if (charFound) {
-                activeBluetoothDevice = targetDevice;
-                activeBluetoothCharacteristic = charFound;
-                console.info("[ThermalPrinter] Auto-reconnected to paired Bluetooth printer:", targetDevice.name);
-                return true;
-              }
-            }
+            targetDevice = (savedId && devices.find((d: any) => d.id === savedId)) || devices[0];
+          }
+        }
+        if (targetDevice) {
+          const server = await targetDevice.gatt?.connect();
+          const charFound = server ? await findWritableCharacteristic(server) : null;
+          if (charFound) {
+            watchBluetoothDisconnect(targetDevice);
+            activeBluetoothDevice = targetDevice;
+            activeBluetoothCharacteristic = charFound;
+            console.info("[ThermalPrinter] Auto-reconnected to paired Bluetooth printer:", targetDevice.name);
+            return true;
           }
         }
       }
@@ -451,6 +442,7 @@ export async function autoReconnectSavedPrinters(): Promise<boolean> {
       console.debug("[ThermalPrinter] Bluetooth auto-reconnect notice:", err);
     }
   }
+
 
   return false;
 }
