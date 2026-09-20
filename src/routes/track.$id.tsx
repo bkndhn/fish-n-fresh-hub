@@ -37,7 +37,16 @@ import { CustomerDeliveryPinCard } from "@/components/CustomerDeliveryPinCard";
 import { InlineDeliveryRouteMap } from "@/components/InlineDeliveryRouteMap";
 import { NotificationPromptCard } from "@/components/NotificationPromptCard";
 import { getVerticalConfig } from "@/lib/verticals";
-
+import { requestReturn } from "@/lib/returns.functions";
+import { useMutation } from "@tanstack/react-query";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/track/$id")({
   head: () => ({
     meta: [
@@ -63,6 +72,7 @@ const TRACK_STEPS = [
   { key: "confirmed", label: "Confirmed", desc: "Order approved by shop manager", icon: CheckCircle2 },
   { key: "cleaning", label: "Cleaning & Cutting", desc: "Fresh catch scaled, descaled & cut", icon: Fish },
   { key: "packed", label: "Iced & Packed", desc: "Sealed in insulated temperature pack", icon: PackageCheck },
+  { key: "shipped", label: "Shipped", desc: "Handed over to courier partner", icon: Truck },
   { key: "out_for_delivery", label: "Out for Delivery", desc: "Partner on the way to your doorstep", icon: Truck },
   { key: "delivered", label: "Delivered", desc: "Enjoy your fresh seafood feast!", icon: Home },
 ] as const;
@@ -157,7 +167,20 @@ function TrackPage() {
   const progressPct = isCancelled ? 0 : Math.round((currentStepIndex / (TRACK_STEPS.length - 1)) * 100);
 
   const [routeModalOpen, setRouteModalOpen] = useState(false);
+  const [returnModalOpen, setReturnModalOpen] = useState(false);
+  const [returnReason, setReturnReason] = useState("");
 
+  const submitReturn = useMutation({
+    mutationFn: async () => {
+      await requestReturn(order.id, returnReason);
+    },
+    onSuccess: () => {
+      toast.success("Return Request Submitted");
+      setReturnModalOpen(false);
+      qc.invalidateQueries({ queryKey: ["track", id] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const supportPhone = settings?.support_phone || settings?.whatsapp_number || "919999999999";
   const storeWhatsAppUrl = getWhatsAppUrl(
     settings?.whatsapp_number || settings?.support_phone || "",
@@ -380,6 +403,47 @@ function TrackPage() {
           </Card>
         )}
 
+        {/* Third Party Courier Tracking Block */}
+        {!isCancelled && (order.courier_partner || order.awb_number) && (
+          <Card className="border-indigo-500/30 bg-indigo-50/50 shadow-sm overflow-hidden">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3 border-b border-indigo-200/50 pb-4">
+                <Truck className="size-6 text-indigo-600" />
+                <div>
+                  <h3 className="font-bold text-indigo-900">Shipped via {order.courier_partner}</h3>
+                  <p className="text-sm font-mono text-indigo-700">AWB: {order.awb_number}</p>
+                </div>
+                {order.tracking_url && (
+                  <Button asChild size="sm" className="ml-auto rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs">
+                    <a href={order.tracking_url} target="_blank" rel="noreferrer">
+                      Track Live <ExternalLink className="ml-1 size-3" />
+                    </a>
+                  </Button>
+                )}
+              </div>
+              
+              {/* Transit Log (free milestone single line) */}
+              {Array.isArray(order.transit_log) && order.transit_log.length > 0 && (
+                <div className="pt-4 space-y-4">
+                  {order.transit_log.map((log: any, i: number) => (
+                    <div key={i} className="flex gap-3">
+                      <div className="flex flex-col items-center">
+                        <div className="size-3 rounded-full bg-indigo-500 mt-1" />
+                        {i < (order.transit_log as any[]).length - 1 && <div className="w-px h-full bg-indigo-200 my-1" />}
+                      </div>
+                      <div className="pb-2">
+                        <p className="text-sm font-semibold text-indigo-900">{log.status}</p>
+                        <p className="text-xs text-indigo-600 font-medium">{log.location}</p>
+                        <p className="text-[10px] text-indigo-400">{formatIST(log.timestamp)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Live Interactive Delivery GPS Route Map (Swiggy / Zomato standard) */}
         {!isCancelled && order.fulfillment_type !== "pickup" && (
           <InlineDeliveryRouteMap
@@ -564,6 +628,66 @@ function TrackPage() {
           </CardContent>
         </Card>
       </div>
+
+      {isDelivered && settings?.returns_enabled && !order.return_status && (
+        <div className="max-w-3xl mx-auto mt-4 px-4 sm:px-0">
+          <Button 
+            variant="outline" 
+            className="w-full text-rose-600 border-rose-200 hover:bg-rose-50 rounded-xl"
+            onClick={() => setReturnModalOpen(true)}
+          >
+            <RotateCcw className="size-4 mr-2" /> Request Return / Report Issue
+          </Button>
+        </div>
+      )}
+
+      {order.return_status && (
+        <div className="max-w-3xl mx-auto mt-4 px-4 sm:px-0">
+          <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+            <h4 className="font-bold text-indigo-900">Return Status: <span className="capitalize">{order.return_status}</span></h4>
+            <p className="text-sm text-indigo-700 mt-1">
+              {order.return_status === "requested" && "Your return request is being reviewed by our team."}
+              {order.return_status === "approved" && "Your return has been approved. A pickup will be arranged."}
+              {order.return_status === "returned" && `Return completed. Refund Status: ${order.refund_status || "Pending"}`}
+              {order.return_status === "rejected" && "Your return request was rejected."}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Return Request Modal */}
+      <Dialog open={returnModalOpen} onOpenChange={setReturnModalOpen}>
+        <DialogContent className="rounded-3xl p-6 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Request Return or Report Issue</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Please describe the issue with your order (e.g., damaged items, quality issues). Our team will review your request.
+            </p>
+            <div className="space-y-2">
+              <Label>Reason for Return</Label>
+              <Textarea 
+                placeholder="Describe the issue..." 
+                value={returnReason}
+                onChange={(e) => setReturnReason(e.target.value)}
+                rows={4}
+                className="rounded-xl resize-none"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setReturnModalOpen(false)} className="rounded-xl">Cancel</Button>
+              <Button 
+                onClick={() => submitReturn.mutate()} 
+                disabled={!returnReason.trim() || submitReturn.isPending}
+                className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white"
+              >
+                {submitReturn.isPending ? "Submitting..." : "Submit Request"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Interactive Delivery Route Modal */}
       <DeliveryRouteModal

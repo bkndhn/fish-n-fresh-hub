@@ -59,6 +59,7 @@ export const ORDER_STATUSES = [
   "pending",
   "confirmed",
   "packed",
+  "shipped",
   "out_for_delivery",
   "delivered",
   "cancelled",

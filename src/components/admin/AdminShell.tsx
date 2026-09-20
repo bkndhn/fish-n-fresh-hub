@@ -78,6 +78,7 @@ const NAV = [
   { to: "/admin/reports", label: "Reports", icon: BarChart3, roles: ["admin", "manager"] },
   { to: "/admin/payments", label: "Payments", icon: ReceiptText, roles: ["admin", "manager"] },
   { to: "/admin/delivery", label: "Delivery", icon: Truck, roles: ["admin", "manager", "driver", "staff"] },
+  { to: "/admin/returns", label: "Logistics & Returns", icon: Truck, roles: ["admin", "manager"] },
   { to: "/admin/support", label: "Live Support", icon: MessageCircle, roles: ["admin", "manager", "support_staff", "staff"] },
   { to: "/admin/complaints", label: "Complaints", icon: MessageSquareWarning, roles: ["admin", "manager", "support_staff", "staff"] },
   { to: "/admin/schedule", label: "Schedule", icon: CalendarClock, roles: ["admin", "manager", "staff"] },

@@ -878,12 +878,14 @@ export type Database = {
           actual_payment_ref: string | null
           additional_charge_label: string | null
           additional_charges: number
+          awb_number: string | null
           branch_id: string | null
           branch_name: string | null
           cancel_reason: string | null
           cancelled_by: string | null
           cod_settled: boolean
           complaint: string | null
+          courier_partner: string | null
           coupon_code: string | null
           created_at: string
           created_by: string | null
@@ -904,6 +906,7 @@ export type Database = {
           gst_amount: number
           gst_percent: number | null
           id: string
+          is_rto: boolean
           items: Json
           location_lat: number | null
           location_lng: number | null
@@ -922,10 +925,18 @@ export type Database = {
           promotion_id: string | null
           referral_code: string | null
           refund_amount: number
+          refund_processed_at: string | null
+          refund_status: string | null
           refunded_at: string | null
           reprint_count: number
+          return_reason: string | null
+          return_requested_at: string | null
+          return_status: string | null
+          returned_at: string | null
+          rto_reason: string | null
           settled_at: string | null
           settlement_id: string | null
+          shipped_at: string | null
           status: string
           status_history: Json
           stock_deducted: boolean
@@ -933,6 +944,8 @@ export type Database = {
           stripe_session_id: string | null
           subtotal: number
           total: number
+          tracking_url: string | null
+          transit_log: Json | null
           updated_at: string
           upi_paid: boolean
           user_id: string | null
@@ -943,12 +956,14 @@ export type Database = {
           actual_payment_ref?: string | null
           additional_charge_label?: string | null
           additional_charges?: number
+          awb_number?: string | null
           branch_id?: string | null
           branch_name?: string | null
           cancel_reason?: string | null
           cancelled_by?: string | null
           cod_settled?: boolean
           complaint?: string | null
+          courier_partner?: string | null
           coupon_code?: string | null
           created_at?: string
           created_by?: string | null
@@ -969,6 +984,7 @@ export type Database = {
           gst_amount?: number
           gst_percent?: number | null
           id?: string
+          is_rto?: boolean
           items?: Json
           location_lat?: number | null
           location_lng?: number | null
@@ -987,10 +1003,18 @@ export type Database = {
           promotion_id?: string | null
           referral_code?: string | null
           refund_amount?: number
+          refund_processed_at?: string | null
+          refund_status?: string | null
           refunded_at?: string | null
           reprint_count?: number
+          return_reason?: string | null
+          return_requested_at?: string | null
+          return_status?: string | null
+          returned_at?: string | null
+          rto_reason?: string | null
           settled_at?: string | null
           settlement_id?: string | null
+          shipped_at?: string | null
           status?: string
           status_history?: Json
           stock_deducted?: boolean
@@ -998,6 +1022,8 @@ export type Database = {
           stripe_session_id?: string | null
           subtotal?: number
           total?: number
+          tracking_url?: string | null
+          transit_log?: Json | null
           updated_at?: string
           upi_paid?: boolean
           user_id?: string | null
@@ -1008,12 +1034,14 @@ export type Database = {
           actual_payment_ref?: string | null
           additional_charge_label?: string | null
           additional_charges?: number
+          awb_number?: string | null
           branch_id?: string | null
           branch_name?: string | null
           cancel_reason?: string | null
           cancelled_by?: string | null
           cod_settled?: boolean
           complaint?: string | null
+          courier_partner?: string | null
           coupon_code?: string | null
           created_at?: string
           created_by?: string | null
@@ -1034,6 +1062,7 @@ export type Database = {
           gst_amount?: number
           gst_percent?: number | null
           id?: string
+          is_rto?: boolean
           items?: Json
           location_lat?: number | null
           location_lng?: number | null
@@ -1052,10 +1081,18 @@ export type Database = {
           promotion_id?: string | null
           referral_code?: string | null
           refund_amount?: number
+          refund_processed_at?: string | null
+          refund_status?: string | null
           refunded_at?: string | null
           reprint_count?: number
+          return_reason?: string | null
+          return_requested_at?: string | null
+          return_status?: string | null
+          returned_at?: string | null
+          rto_reason?: string | null
           settled_at?: string | null
           settlement_id?: string | null
+          shipped_at?: string | null
           status?: string
           status_history?: Json
           stock_deducted?: boolean
@@ -1063,6 +1100,8 @@ export type Database = {
           stripe_session_id?: string | null
           subtotal?: number
           total?: number
+          tracking_url?: string | null
+          transit_log?: Json | null
           updated_at?: string
           upi_paid?: boolean
           user_id?: string | null
@@ -1276,6 +1315,7 @@ export type Database = {
           is_available: boolean
           is_bestseller: boolean
           is_featured: boolean
+          is_returnable: boolean
           lab_tested: boolean
           low_stock_threshold: number | null
           model_number: string | null
@@ -1290,6 +1330,7 @@ export type Database = {
           recipe_steps: string | null
           recipe_title: string | null
           requires_serial: boolean | null
+          return_window_days: number
           source_origin: string | null
           specifications: Json | null
           stock: number
@@ -1325,6 +1366,7 @@ export type Database = {
           is_available?: boolean
           is_bestseller?: boolean
           is_featured?: boolean
+          is_returnable?: boolean | null
           lab_tested?: boolean
           low_stock_threshold?: number | null
           model_number?: string | null
@@ -1339,6 +1381,7 @@ export type Database = {
           recipe_steps?: string | null
           recipe_title?: string | null
           requires_serial?: boolean | null
+          return_window_days?: number | null
           source_origin?: string | null
           specifications?: Json | null
           stock?: number
@@ -1374,6 +1417,7 @@ export type Database = {
           is_available?: boolean
           is_bestseller?: boolean
           is_featured?: boolean
+          is_returnable?: boolean | null
           lab_tested?: boolean
           low_stock_threshold?: number | null
           model_number?: string | null
@@ -1388,6 +1432,7 @@ export type Database = {
           recipe_steps?: string | null
           recipe_title?: string | null
           requires_serial?: boolean | null
+          return_window_days?: number | null
           source_origin?: string | null
           specifications?: Json | null
           stock?: number
@@ -1752,6 +1797,7 @@ export type Database = {
           id: string
           instagram_url: string | null
           is_open: boolean
+          returns_enabled: boolean
           live_alerts_enabled: boolean
           logo_url: string | null
           low_stock_threshold: number
@@ -1792,6 +1838,7 @@ export type Database = {
           referral_reward_referrer: number
           refund_content: string | null
           require_online_payment: boolean | null
+          returns_enabled: boolean
           sender_email: string | null
           sender_name: string | null
           seo_default_description: string | null
@@ -1903,6 +1950,7 @@ export type Database = {
           id?: string
           instagram_url?: string | null
           is_open?: boolean
+          returns_enabled?: boolean
           live_alerts_enabled?: boolean
           logo_url?: string | null
           low_stock_threshold?: number
@@ -1943,6 +1991,7 @@ export type Database = {
           referral_reward_referrer?: number
           refund_content?: string | null
           require_online_payment?: boolean | null
+          returns_enabled?: boolean | null
           sender_email?: string | null
           sender_name?: string | null
           seo_default_description?: string | null
@@ -2054,6 +2103,7 @@ export type Database = {
           id?: string
           instagram_url?: string | null
           is_open?: boolean
+          returns_enabled?: boolean
           live_alerts_enabled?: boolean
           logo_url?: string | null
           low_stock_threshold?: number
@@ -2094,6 +2144,7 @@ export type Database = {
           referral_reward_referrer?: number
           refund_content?: string | null
           require_online_payment?: boolean | null
+          returns_enabled?: boolean | null
           sender_email?: string | null
           sender_name?: string | null
           seo_default_description?: string | null
@@ -2690,6 +2741,7 @@ export type Database = {
           id: string | null
           instagram_url: string | null
           is_open: boolean | null
+          returns_enabled: boolean
           live_alerts_enabled: boolean | null
           logo_url: string | null
           low_stock_threshold: number | null
@@ -2729,6 +2781,7 @@ export type Database = {
           referral_reward_referrer: number | null
           refund_content: string | null
           require_online_payment: boolean | null
+          returns_enabled: boolean
           sender_name: string | null
           seo_default_description: string | null
           seo_keywords: string | null
@@ -2828,6 +2881,7 @@ export type Database = {
           id?: string | null
           instagram_url?: string | null
           is_open?: boolean | null
+          returns_enabled?: boolean
           live_alerts_enabled?: boolean | null
           logo_url?: string | null
           low_stock_threshold?: number | null
@@ -2867,6 +2921,7 @@ export type Database = {
           referral_reward_referrer?: number | null
           refund_content?: string | null
           require_online_payment?: boolean | null
+          returns_enabled?: boolean | null
           sender_name?: string | null
           seo_default_description?: string | null
           seo_keywords?: string | null
@@ -2966,6 +3021,7 @@ export type Database = {
           id?: string | null
           instagram_url?: string | null
           is_open?: boolean | null
+          returns_enabled?: boolean
           live_alerts_enabled?: boolean | null
           logo_url?: string | null
           low_stock_threshold?: number | null
@@ -3005,6 +3061,7 @@ export type Database = {
           referral_reward_referrer?: number | null
           refund_content?: string | null
           require_online_payment?: boolean | null
+          returns_enabled?: boolean | null
           sender_name?: string | null
           seo_default_description?: string | null
           seo_keywords?: string | null

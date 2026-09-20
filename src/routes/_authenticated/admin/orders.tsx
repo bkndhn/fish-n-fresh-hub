@@ -14,6 +14,7 @@ import {
   RefreshCw,
   ExternalLink,
   MapPin,
+  Wallet,
   CheckSquare,
   Square,
   Truck,
@@ -42,6 +43,8 @@ import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { restoreOrderStock } from "@/lib/inventorySync";
 import { updateOrderStatusWithEmail } from "@/lib/orders.functions";
+import { updateCourierDetails } from "@/lib/tracking.functions";
+import { updateReturnStatus, processRefundToWallet } from "@/lib/returns.functions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -95,6 +98,8 @@ function OrdersAdmin() {
   const [routeModalOrder, setRouteModalOrder] = useState<OrderRow | null>(null);
   const [pinModalOrder, setPinModalOrder] = useState<OrderRow | null>(null);
   const [invoiceOrder, setInvoiceOrder] = useState<OrderRow | null>(null);
+  const [shippingModalOrder, setShippingModalOrder] = useState<OrderRow | null>(null);
+  const [shippingForm, setShippingForm] = useState({ partner: "", awb: "", url: "" });
 
   // Subscriptions & MRR Pipeline State
   const { data: adminSubscriptions = [], refetch: refetchAdminSubs } = useQuery({
@@ -170,6 +175,46 @@ function OrdersAdmin() {
     },
     onSuccess: () => {
       toast.success("Order status updated!");
+      qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const saveShippingDetails = useMutation({
+    mutationFn: async () => {
+      if (!shippingModalOrder) return;
+      await updateCourierDetails(
+        shippingModalOrder.id,
+        shippingForm.partner,
+        shippingForm.awb,
+        shippingForm.url
+      );
+    },
+    onSuccess: () => {
+      toast.success("Shipping details saved!");
+      setShippingModalOrder(null);
+      qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const handleReturnAction = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "approved" | "rejected" | "returned" }) => {
+      await updateReturnStatus(id, status);
+    },
+    onSuccess: () => {
+      toast.success("Return status updated");
+      qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const handleRefund = useMutation({
+    mutationFn: async ({ id, customerId, amount }: { id: string; customerId: string; amount: number }) => {
+      await processRefundToWallet(id, customerId, amount);
+    },
+    onSuccess: () => {
+      toast.success("Refund processed to customer wallet");
       qc.invalidateQueries({ queryKey: ["admin", "orders"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -923,6 +968,9 @@ function OrdersAdmin() {
                           onValueChange={(status) => {
                             if (status === "delivered") {
                               setPinModalOrder(o);
+                            } else if (status === "shipped") {
+                              setShippingForm({ partner: "", awb: "", url: "" });
+                              setShippingModalOrder(o);
                             } else {
                               update.mutate({ id: o.id, status });
                             }
@@ -966,6 +1014,85 @@ function OrdersAdmin() {
                   <div className="rounded-xl bg-destructive/10 p-2.5 text-xs border border-destructive/20">
                     <p className="font-bold text-destructive">Customer Complaint:</p>
                     <p className="text-destructive/90 mt-0.5">{o.complaint}</p>
+                  </div>
+                )}
+
+                {/* Returns Management Block */}
+                {o.return_status && (
+                  <div className="rounded-xl bg-indigo-50/50 dark:bg-indigo-900/10 p-3 text-xs border border-indigo-200 dark:border-indigo-800">
+                    <div className="flex flex-wrap gap-4 justify-between items-start">
+                      <div>
+                        <p className="font-bold text-indigo-900 dark:text-indigo-100 flex items-center gap-1.5">
+                          <RefreshCw className="size-3.5" />
+                          Return Status: <span className="uppercase tracking-wider">{o.return_status}</span>
+                        </p>
+                        <p className="text-indigo-700 dark:text-indigo-300 mt-1">
+                          <strong>Reason:</strong> {o.return_reason || "N/A"}
+                        </p>
+                        {o.return_requested_at && (
+                          <p className="text-[10px] text-indigo-500 mt-0.5">
+                            Requested at {formatIST(o.return_requested_at)}
+                          </p>
+                        )}
+                        {o.refund_status === "processed" && (
+                          <p className="font-bold text-emerald-600 mt-1 flex items-center gap-1">
+                            <CheckCircle2 className="size-3" />
+                            Refunded ₹{o.refund_amount} to Wallet
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="flex flex-col gap-2 shrink-0">
+                        {o.return_status === "requested" && (
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="h-7 text-[10px] border-emerald-500 text-emerald-700 hover:bg-emerald-50"
+                              onClick={() => handleReturnAction.mutate({ id: o.id, status: "approved" })}
+                              disabled={handleReturnAction.isPending}
+                            >
+                              Approve
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="h-7 text-[10px] border-rose-500 text-rose-700 hover:bg-rose-50"
+                              onClick={() => handleReturnAction.mutate({ id: o.id, status: "rejected" })}
+                              disabled={handleReturnAction.isPending}
+                            >
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                        {o.return_status === "approved" && (
+                          <Button 
+                            size="sm" 
+                            variant="default"
+                            className="h-7 text-[10px] bg-indigo-600 hover:bg-indigo-700 text-white"
+                            onClick={() => handleReturnAction.mutate({ id: o.id, status: "returned" })}
+                            disabled={handleReturnAction.isPending}
+                          >
+                            Mark Item as Returned
+                          </Button>
+                        )}
+                        {(o.return_status === "returned" || o.return_status === "approved") && o.refund_status !== "processed" && (
+                          <Button 
+                            size="sm" 
+                            variant="default"
+                            className="h-7 text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white"
+                            onClick={() => {
+                              if (confirm(`Issue full refund of ₹${o.total} to customer wallet?`)) {
+                                handleRefund.mutate({ id: o.id, customerId: o.user_id as string, amount: Number(o.total) });
+                              }
+                            }}
+                            disabled={handleRefund.isPending || !o.user_id}
+                          >
+                            <Wallet className="size-3 mr-1" /> Refund to Wallet
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -1175,6 +1302,59 @@ function OrdersAdmin() {
           settings={settings}
         />
       )}
+      {/* Shipping / Courier Modal */}
+      <Dialog open={!!shippingModalOrder} onOpenChange={(open) => !open && setShippingModalOrder(null)}>
+        <DialogContent className="sm:max-w-md rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Mark as Shipped</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Courier Partner</Label>
+              <Input
+                placeholder="e.g. Delhivery, BlueDart, Shiprocket"
+                value={shippingForm.partner}
+                onChange={(e) => setShippingForm({ ...shippingForm, partner: e.target.value })}
+                className="h-9 rounded-xl text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">AWB / Tracking Number</Label>
+              <Input
+                placeholder="e.g. 1Z9999999999999999"
+                value={shippingForm.awb}
+                onChange={(e) => setShippingForm({ ...shippingForm, awb: e.target.value })}
+                className="h-9 rounded-xl text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Tracking URL (Optional)</Label>
+              <Input
+                placeholder="https://..."
+                value={shippingForm.url}
+                onChange={(e) => setShippingForm({ ...shippingForm, url: e.target.value })}
+                className="h-9 rounded-xl text-sm"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShippingModalOrder(null)}
+              className="rounded-xl h-9 text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => saveShippingDetails.mutate()}
+              disabled={saveShippingDetails.isPending}
+              className="rounded-xl h-9 text-xs font-bold shadow-xs px-6"
+            >
+              {saveShippingDetails.isPending ? "Saving..." : "Confirm Shipment"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AdminShell>
   );
 }

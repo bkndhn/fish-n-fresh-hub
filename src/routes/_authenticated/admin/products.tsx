@@ -161,6 +161,8 @@ function ProductsAdmin() {
     aisle_location: "",
     specifications_text: "",
     cost_price: "",
+    is_returnable: false,
+    return_window_days: "0",
   });
 
   const update = useMutation({
@@ -254,6 +256,8 @@ function ProductsAdmin() {
         aisle_location: newProduct.aisle_location?.trim() || null,
         specifications: parseSpecsText(newProduct.specifications_text),
         cost_price: newProduct.cost_price ? Number(newProduct.cost_price) : null,
+        is_returnable: newProduct.is_returnable,
+        return_window_days: Number(newProduct.return_window_days) || 0,
       });
       if (error) throw error;
     },
@@ -287,6 +291,8 @@ function ProductsAdmin() {
         aisle_location: "",
         specifications_text: "",
         cost_price: "",
+        is_returnable: false,
+        return_window_days: "0",
       });
       qc.invalidateQueries({ queryKey: ["admin", "products"] });
       qc.invalidateQueries({ queryKey: ["products"] });
@@ -347,6 +353,8 @@ function ProductsAdmin() {
         cost_price: editingProduct.cost_price !== undefined && editingProduct.cost_price !== "" && editingProduct.cost_price !== null
           ? Number(editingProduct.cost_price)
           : null,
+        is_returnable: editingProduct.is_returnable ?? false,
+        return_window_days: Number(editingProduct.return_window_days) || 0,
       }).eq("id", editingProduct.id);
       if (error) throw error;
     },
@@ -1235,6 +1243,28 @@ function ProductsAdmin() {
                 )}
               </div>
 
+              <div className="grid grid-cols-2 gap-3 p-3 rounded-2xl border border-border/80 bg-blue-50/50 dark:bg-blue-900/10">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={newProduct.is_returnable}
+                    onCheckedChange={(is_returnable) => setNewProduct({ ...newProduct, is_returnable })}
+                  />
+                  <Label className="text-xs font-semibold">Is Returnable?</Label>
+                </div>
+                {newProduct.is_returnable && (
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] text-muted-foreground uppercase">Return Window (Days)</Label>
+                    <Input
+                      type="number"
+                      value={newProduct.return_window_days}
+                      onChange={(e) => setNewProduct({ ...newProduct, return_window_days: e.target.value })}
+                      className="h-8 text-xs"
+                      placeholder="e.g. 7"
+                    />
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 rounded-2xl border border-border/80 bg-muted/20 p-3">
                 <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
                   <Switch
@@ -2061,6 +2091,27 @@ function ProductsAdmin() {
                         className="rounded-xl text-xs"
                       />
                     </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 p-3 rounded-2xl border border-border/80 bg-blue-50/50 dark:bg-blue-900/10">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={editingProduct.is_returnable ?? false}
+                    onCheckedChange={(is_returnable) => setEditingProduct({ ...editingProduct, is_returnable })}
+                  />
+                  <Label className="text-xs font-semibold">Is Returnable?</Label>
+                </div>
+                {(editingProduct.is_returnable ?? false) && (
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] text-muted-foreground uppercase">Return Window (Days)</Label>
+                    <Input
+                      type="number"
+                      value={editingProduct.return_window_days ?? 0}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, return_window_days: e.target.value })}
+                      className="h-8 text-xs"
+                    />
                   </div>
                 )}
               </div>

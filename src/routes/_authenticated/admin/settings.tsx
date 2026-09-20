@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { 
   RotateCcw, 
+  RefreshCw,
   MapPin, 
   Compass, 
   Zap, 
@@ -2903,6 +2904,43 @@ If you need any cut modifications, please reply here. Thank you!`}
           </div>
         </CardContent>
       </Card>
+      )
+    },
+    {
+      id: "returns_policy",
+      tab: "delivery" as const,
+      tabLabel: "Delivery & Logistics",
+      title: "Returns & Refund Policy",
+      description: "Enable or disable customer ability to request returns. Requires product-level return window setup.",
+      keywords: ["return", "refund", "policy", "window", "returns_enabled"],
+      content: (
+        <Card className="mb-6 border-border/80 shadow-xs">
+          <CardHeader className="pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <RefreshCw className="size-5 text-indigo-500" />
+                  Global Returns & Refund Policy
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Allow customers to request returns on eligible items after delivery.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={form.returns_enabled ?? false}
+                  onCheckedChange={(val) => setForm({ ...form, returns_enabled: val })}
+                />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              When enabled, customers can request returns for items that have a defined <strong>Return Window (Days)</strong> set in the Catalog. 
+              Refunds will need to be processed manually by staff via the Orders panel.
+            </p>
+          </CardContent>
+        </Card>
       )
     },
     {
