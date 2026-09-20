@@ -58,8 +58,10 @@ export function PrinterSettingsModal({ open, onOpenChange }: PrinterSettingsModa
       const saved = getSavedPrinterConfig();
       setConfig(saved);
       setTestFormat(saved.defaultFormat || "58mm");
+      setBtReason(getBluetoothUnavailableReason());
     }
   }, [open]);
+
 
   const handleSave = () => {
     const updated = { ...config, defaultFormat: testFormat };
