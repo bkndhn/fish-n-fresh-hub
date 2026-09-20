@@ -591,18 +591,19 @@ function Checkout() {
       }
     }
 
-    // Deduct redeemed FreshCash from customer wallet
+    // Deduct redeemed FreshCash from customer wallet (atomic, server-enforced).
     if (walletDiscount > 0 && userId) {
-      try {
-        await redeemWalletBalance({
-          userId,
-          amount: walletDiscount,
-          orderId: data.id,
-        });
-      } catch (wErr) {
-        console.warn("Wallet deduction notice:", wErr);
+      const redeemed = await redeemWalletBalance({
+        userId,
+        amount: walletDiscount,
+        orderId: data.id,
+      });
+      if (!redeemed) {
+        toast.error("FreshCash could not be applied to this order — your balance was not enough.");
       }
+      void qc.invalidateQueries({ queryKey: ["wallet"] });
     }
+
 
     // Trigger FCM instant push confirmation
     try {
