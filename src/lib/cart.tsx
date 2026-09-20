@@ -1,7 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { CartItem, Product } from "./types";
 import { supabase } from "@/integrations/supabase/client";
-import { applyAccountDiscount, resolveWholesaleUnitPrice } from "./wholesale";
+import {
+  applyAccountDiscount,
+  resolveWholesaleUnitPrice,
+  resolveBandPercent,
+  nextBand,
+  type WholesaleBand,
+} from "./wholesale";
+
 
 const KEY = "fnf_cart_v1";
 
