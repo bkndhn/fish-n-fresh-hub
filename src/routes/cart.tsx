@@ -42,7 +42,20 @@ export const Route = createFileRoute("/cart")({
 });
 
 function CartPage() {
-  const { items, subtotal, setQty, setCutPreference, remove, clear } = useCart();
+  const {
+    items,
+    subtotal,
+    setQty,
+    setCutPreference,
+    remove,
+    clear,
+    isWholesale,
+    bulkDiscountPercent,
+    bulkDiscountAmount,
+    wholesaleMinOrderValue,
+    nextBulkBand,
+  } = useCart();
+
   const { data: settings } = useQuery(settingsQuery);
   const { data: products = [] } = useQuery(productsQuery());
   const vertical = getStoreVertical(settings);
