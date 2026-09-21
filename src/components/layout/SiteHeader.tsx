@@ -74,7 +74,9 @@ export function SiteHeader() {
       )
     : null;
 
-  
+  // Feature visibility guards from store settings
+  const referralEnabled = (settings as any)?.referral_program_enabled ?? true;
+
   const vertical = getVerticalConfig(settings?.business_vertical);
 
   return (
@@ -227,10 +229,12 @@ export function SiteHeader() {
               <User className="size-4 sm:size-5" />
             </Link>
 
-            {/* Referral Modal on tablet/desktop */}
-            <div className="hidden sm:flex items-center">
-              <ReferralModal />
-            </div>
+            {/* Referral Modal on tablet/desktop — only shown when referral program is enabled */}
+            {referralEnabled && (
+              <div className="hidden sm:flex items-center">
+                <ReferralModal />
+              </div>
+            )}
 
             {/* Install PWA button on tablet/desktop */}
             {!isStandalone && (

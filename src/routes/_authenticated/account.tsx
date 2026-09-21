@@ -253,13 +253,13 @@ function AccountPage() {
               ["subscriptions", "Fresh Subscriptions"],
               ["payments", "Past Payments"],
               ["addresses", "Saved Addresses"],
-              ["wallet", "FreshCash Wallet"],
+              ...((settings as any)?.wallet_enabled !== false ? [["wallet", "FreshCash Wallet"] as const] : []),
             ] as const
           ).map(([key, label]) => (
             <button
               key={key}
               type="button"
-              onClick={() => setTab(key)}
+              onClick={() => setTab(key as typeof tab)}
               className={`flex-1 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
                 tab === key ? "bg-card text-foreground shadow-2xs" : "text-muted-foreground"
               }`}
@@ -292,7 +292,7 @@ function AccountPage() {
                 onRefresh={() => addressesQ.refetch()}
               />
             )}
-            {tab === "wallet" && (
+            {tab === "wallet" && (settings as any)?.wallet_enabled !== false && (
               <WalletTab
                 wallet={walletQ.data?.wallet as unknown as CustomerWallet}
                 txns={walletQ.data?.txns ?? []}

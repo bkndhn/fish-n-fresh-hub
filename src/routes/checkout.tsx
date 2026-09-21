@@ -300,11 +300,12 @@ function Checkout() {
 
   // FreshCash Wallet calculations
   const walletEnabled = (settings as SiteSettings)?.wallet_enabled ?? true;
+  const referralProgramEnabled = (settings as any)?.referral_program_enabled ?? true;
   const maxBurnPercent = Number((settings as SiteSettings)?.max_wallet_burn_percent ?? 50);
   const availableWalletBal = Number(userWallet?.balance || 0);
   const maxRedeemableFreshCash = calculateMaxRedeemable(availableWalletBal, subtotal, maxBurnPercent);
   const walletDiscount = useWalletBalance && walletEnabled ? maxRedeemableFreshCash : 0;
-  const referralDiscount = appliedReferral ? appliedReferral.bonus : 0;
+  const referralDiscount = appliedReferral && referralProgramEnabled ? appliedReferral.bonus : 0;
 
   const discount = (appliedPromo?.discount ?? 0) + autoRewardDiscount + referralDiscount;
   const total = Math.max(0, subtotal - discount - walletDiscount + deliveryFee + gstAmount);
@@ -1535,7 +1536,8 @@ function Checkout() {
           </div>
         )}
 
-        {/* Friend Referral Code Box */}
+        {/* Friend Referral Code Box — only shown when referral program is enabled */}
+        {referralProgramEnabled && (
         <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
           <Label className="text-xs font-semibold flex items-center gap-1.5">
             <Gift className="size-3.5 text-primary" /> Have a Friend's Referral / Invite Code?
@@ -1575,6 +1577,7 @@ function Checkout() {
             </div>
           )}
         </div>
+        )}
 
         {/* Promo Code Box */}
         <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
