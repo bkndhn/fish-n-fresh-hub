@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { BannerCarousel } from "@/components/BannerCarousel";
 import { TrustBadges } from "@/components/TrustBadges";
 import { ProductCard } from "@/components/ProductCard";
+import { AiPicksDialog } from "@/components/AiPicksDialog";
+
 import { getStoreVertical, getVerticalFaqs } from "@/lib/verticals";
 import { bannersQuery, categoriesQuery, productsQuery, trustBadgesQuery, settingsQuery } from "@/lib/queries";
 import { useTranslation } from "@/lib/i18n";
