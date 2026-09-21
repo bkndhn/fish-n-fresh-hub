@@ -18,6 +18,7 @@ import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { ReferralModal } from "@/components/ReferralModal";
 import { getVerticalConfig } from "@/lib/verticals";
 import { getDailyAtmosphere, isDailyAtmosphereEnabled } from "@/lib/dailyAtmosphere";
+import { isReferralProgramActive } from "@/lib/types";
 
 declare global {
   interface Navigator {
@@ -75,7 +76,7 @@ export function SiteHeader() {
     : null;
 
   // Feature visibility guards from store settings
-  const referralEnabled = (settings as any)?.referral_program_enabled ?? true;
+  const referralEnabled = isReferralProgramActive(settings);
 
   const vertical = getVerticalConfig(settings?.business_vertical);
 

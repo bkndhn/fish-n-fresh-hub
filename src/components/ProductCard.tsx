@@ -45,6 +45,9 @@ export function ProductCard({ product }: { product: Product }) {
     product.stock !== null &&
     Number(product.stock) <= urgencyThreshold;
 
+  // Admin toggle: if product detail pages are disabled, image + title become non-navigable
+  const detailsEnabled = (s as any)?.enable_product_details !== false;
+
   return (
     <div
       className={cn(
@@ -57,33 +60,57 @@ export function ProductCard({ product }: { product: Product }) {
       )}
     >
       <div className="block relative">
-        <Link
-          to="/product/$id"
-          params={{ id: product.id }}
-          preload="intent"
-          className="block aspect-square overflow-hidden bg-muted"
-        >
-          {product.image_url ? (
-            <img
-              src={optimizeImageUrl(product.image_url, { width: 500, quality: 75 })}
-              alt={product.name}
-              loading="lazy"
-              decoding="async"
-              className={cn(
-                "size-full object-cover transition-transform duration-300",
-                !isOutOfStock && "group-hover:scale-105",
-                isOutOfStock && "grayscale-30"
-              )}
-              onError={(e) => {
-                e.currentTarget.src = "https://images.unsplash.com/photo-1509722747041-616f39b57569?w=800";
-              }}
-            />
-          ) : (
-            <div className="flex size-full items-center justify-center bg-muted/50 text-muted-foreground">
-              <Fish className="size-8 opacity-30" />
-            </div>
-          )}
-        </Link>
+        {detailsEnabled ? (
+          <Link
+            to="/product/$id"
+            params={{ id: product.id }}
+            preload="intent"
+            className="block aspect-square overflow-hidden bg-muted"
+          >
+            {product.image_url ? (
+              <img
+                src={optimizeImageUrl(product.image_url, { width: 500, quality: 75 })}
+                alt={product.name}
+                loading="lazy"
+                decoding="async"
+                className={cn(
+                  "size-full object-cover transition-transform duration-300",
+                  !isOutOfStock && "group-hover:scale-105",
+                  isOutOfStock && "grayscale-30"
+                )}
+                onError={(e) => {
+                  e.currentTarget.src = "https://images.unsplash.com/photo-1509722747041-616f39b57569?w=800";
+                }}
+              />
+            ) : (
+              <div className="flex size-full items-center justify-center bg-muted/50 text-muted-foreground">
+                <Fish className="size-8 opacity-30" />
+              </div>
+            )}
+          </Link>
+        ) : (
+          <div className="block aspect-square overflow-hidden bg-muted">
+            {product.image_url ? (
+              <img
+                src={optimizeImageUrl(product.image_url, { width: 500, quality: 75 })}
+                alt={product.name}
+                loading="lazy"
+                decoding="async"
+                className={cn(
+                  "size-full object-cover",
+                  isOutOfStock && "grayscale-30"
+                )}
+                onError={(e) => {
+                  e.currentTarget.src = "https://images.unsplash.com/photo-1509722747041-616f39b57569?w=800";
+                }}
+              />
+            ) : (
+              <div className="flex size-full items-center justify-center bg-muted/50 text-muted-foreground">
+                <Fish className="size-8 opacity-30" />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Status / Discount Badges */}
         <div className="absolute top-2 left-2 flex flex-col gap-1 pointer-events-none">
@@ -155,17 +182,26 @@ export function ProductCard({ product }: { product: Product }) {
         </div>
       </div>
       <div className="space-y-1 p-2.5 sm:p-3">
-        <Link
-          to="/product/$id"
-          params={{ id: product.id }}
-          preload="intent"
-          className="block group/title"
-        >
-          <h3 className="line-clamp-1 text-sm font-semibold group-hover/title:text-primary transition-colors">{product.name}</h3>
-          {product.name_tamil && (
-            <p className="line-clamp-1 text-xs text-muted-foreground">{product.name_tamil}</p>
-          )}
-        </Link>
+        {detailsEnabled ? (
+          <Link
+            to="/product/$id"
+            params={{ id: product.id }}
+            preload="intent"
+            className="block group/title"
+          >
+            <h3 className="line-clamp-1 text-sm font-semibold group-hover/title:text-primary transition-colors">{product.name}</h3>
+            {product.name_tamil && (
+              <p className="line-clamp-1 text-xs text-muted-foreground">{product.name_tamil}</p>
+            )}
+          </Link>
+        ) : (
+          <div>
+            <h3 className="line-clamp-1 text-sm font-semibold">{product.name}</h3>
+            {product.name_tamil && (
+              <p className="line-clamp-1 text-xs text-muted-foreground">{product.name_tamil}</p>
+            )}
+          </div>
+        )}
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <Star className="size-3 fill-current text-accent" />
           {Number(product.rating).toFixed(1)}

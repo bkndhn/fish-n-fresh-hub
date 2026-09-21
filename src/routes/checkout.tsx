@@ -44,7 +44,7 @@ import { notifyOrderStatusChange } from "@/lib/fcm";
 import { checkCartStockAvailability, deductOrderStock } from "@/lib/inventorySync";
 import { sendOrderConfirmedEmailServer } from "@/lib/emails.functions";
 import { evaluateCartRewardRule, recordCampaignConversion, type MarketingCampaign } from "@/lib/campaigns";
-import { isGstEnabled, getStoreOrderingMode, type SiteSettings } from '@/lib/types';
+import { isGstEnabled, getStoreOrderingMode, isReferralProgramActive, type SiteSettings } from '@/lib/types';
 import {
   buildWhatsAppOrderMessage,
   getWhatsAppOrderDeepLink,
@@ -300,7 +300,7 @@ function Checkout() {
 
   // FreshCash Wallet calculations
   const walletEnabled = (settings as SiteSettings)?.wallet_enabled ?? true;
-  const referralProgramEnabled = (settings as any)?.referral_program_enabled ?? true;
+  const referralProgramEnabled = isReferralProgramActive(settings);
   const maxBurnPercent = Number((settings as SiteSettings)?.max_wallet_burn_percent ?? 50);
   const availableWalletBal = Number(userWallet?.balance || 0);
   const maxRedeemableFreshCash = calculateMaxRedeemable(availableWalletBal, subtotal, maxBurnPercent);

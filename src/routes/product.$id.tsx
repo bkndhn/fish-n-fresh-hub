@@ -763,7 +763,7 @@ function ProductPage() {
       </Dialog>
 
       {/* AI Multi-Language Health & Culinary Intelligence */}
-      {layoutConfig.showAiBenefits && (
+      {layoutConfig.showAiBenefits && (settings as any)?.feature_ai_benefits_enabled !== false && (
         <div className="mt-8">
           <ProductAiBenefitsCard product={product} />
         </div>

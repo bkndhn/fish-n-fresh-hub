@@ -121,7 +121,13 @@ export function AdminShell({
   const allowed = isDirectlyAllowed || isSuperAdmin;
   const qc = useQueryClient();
 
-  const nav = NAV.filter((item) => isSuperAdmin || (item.roles as readonly AppRole[]).some((r) => myRoles.includes(r)));
+  const nav = NAV.filter((item) => {
+    // Filter by role first
+    if (!isSuperAdmin && !(item.roles as readonly AppRole[]).some((r) => myRoles.includes(r))) return false;
+    // Hide POS Counter if feature disabled in settings
+    if (item.to === "/admin/pos" && (settings as any)?.feature_pos_enabled === false) return false;
+    return true;
+  });
 
   // Automatic seamless routing to permitted workspace based on role
   useEffect(() => {
