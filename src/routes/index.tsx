@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { BannerCarousel } from "@/components/BannerCarousel";
 import { TrustBadges } from "@/components/TrustBadges";
 import { ProductCard } from "@/components/ProductCard";
+import { AiPicksDialog } from "@/components/AiPicksDialog";
+
 import { getStoreVertical, getVerticalFaqs } from "@/lib/verticals";
 import { bannersQuery, categoriesQuery, productsQuery, trustBadgesQuery, settingsQuery } from "@/lib/queries";
 import { useTranslation } from "@/lib/i18n";
@@ -137,9 +139,18 @@ function Home() {
 
       <BannerCarousel banners={banners ?? []} />
 
+      <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-3.5 py-3">
+        <div className="min-w-0">
+          <p className="text-sm font-bold">Not sure what to buy?</p>
+          <p className="text-xs text-muted-foreground truncate">Tell us your taste and we&apos;ll pick from today&apos;s stock.</p>
+        </div>
+        <AiPicksDialog products={products ?? []} branchId={activeBranch?.id ?? null} />
+      </div>
+
       <div className="mt-4">
         <TrustBadges badges={badges ?? []} />
       </div>
+
 
       {/* Category Showcase with Horizontal Smooth Scrolling */}
       <section className="mt-6">
