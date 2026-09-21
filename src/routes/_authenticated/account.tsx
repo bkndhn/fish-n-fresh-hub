@@ -253,7 +253,7 @@ function AccountPage() {
               ["subscriptions", "Fresh Subscriptions"],
               ["payments", "Past Payments"],
               ["addresses", "Saved Addresses"],
-              ...((settings as any)?.wallet_enabled !== false ? [["wallet", "FreshCash Wallet"] as const] : []),
+              ...((settings as any)?.wallet_enabled !== false && (settings as any)?.feature_wallet_enabled !== false ? [["wallet", "FreshCash Wallet"] as const] : []),
             ] as const
           ).map(([key, label]) => (
             <button
@@ -292,7 +292,7 @@ function AccountPage() {
                 onRefresh={() => addressesQ.refetch()}
               />
             )}
-            {tab === "wallet" && (settings as any)?.wallet_enabled !== false && (
+            {tab === "wallet" && (settings as any)?.wallet_enabled !== false && (settings as any)?.feature_wallet_enabled !== false && (
               <WalletTab
                 wallet={walletQ.data?.wallet as unknown as CustomerWallet}
                 txns={walletQ.data?.txns ?? []}

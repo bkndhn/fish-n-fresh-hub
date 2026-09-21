@@ -299,7 +299,7 @@ function Checkout() {
   const autoRewardDiscount = autoCartReward.eligible ? autoCartReward.discountAmount : 0;
 
   // FreshCash Wallet calculations
-  const walletEnabled = (settings as SiteSettings)?.wallet_enabled ?? true;
+  const walletEnabled = (settings as SiteSettings)?.wallet_enabled !== false && (settings as any)?.feature_wallet_enabled !== false;
   const referralProgramEnabled = isReferralProgramActive(settings);
   const maxBurnPercent = Number((settings as SiteSettings)?.max_wallet_burn_percent ?? 50);
   const availableWalletBal = Number(userWallet?.balance || 0);
