@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { applyForWholesale, getMyWholesaleAccount } from "@/lib/wholesale.functions";
+import { useCart } from "@/lib/cart";
 
 export const Route = createFileRoute("/wholesale")({
   head: () => ({
@@ -59,6 +60,22 @@ function WholesalePage() {
 
   const account = status.data?.account ?? null;
 
+  if (salesMode === "retail") {
+    return (
+      <AppShell>
+        <div className="mx-auto w-full max-w-2xl space-y-4 px-4 py-10 text-center">
+          <h1 className="text-2xl font-semibold">Bulk orders are not open right now</h1>
+          <p className="text-sm text-muted-foreground">
+            This shop is currently selling to customers only. Browse the catalogue to place a regular order.
+          </p>
+          <Button asChild className="rounded-xl">
+            <Link to="/catalog">Browse catalogue</Link>
+          </Button>
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell>
       <div className="mx-auto w-full max-w-2xl space-y-5 px-4 py-6">
@@ -71,6 +88,7 @@ function WholesalePage() {
         </div>
 
         {status.isLoading ? (
+
           <p className="text-sm text-muted-foreground">Checking your account…</p>
         ) : account ? (
           <Card>
