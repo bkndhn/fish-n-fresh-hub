@@ -136,3 +136,18 @@ export const updateOrderStatusWithEmail = createServerFn({ method: "POST" })
   });
 
 
+export const updateOrderWeightAndPrice = createServerFn({ method: "POST" })
+  .inputValidator((input: { orderId: string; total: number; weight: number }) => input)
+  .handler(async ({ data }) => {
+    await requireStaff();
+    const { error } = await supabaseAdmin
+      .from("orders")
+      .update({
+        total: data.total,
+        pos_scale_weight_kg: data.weight,
+        updated_at: new Date().toISOString()
+      } as never)
+      .eq("id", data.orderId);
+    if (error) throw new Error(error.message);
+    return true;
+  });

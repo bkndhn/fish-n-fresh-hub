@@ -25,7 +25,10 @@ import {
   Compass,
   Route as RouteIcon,
   KeyRound,
+  Download,
+  Receipt,
   FileText,
+  Scale,
   Repeat,
   Copy,
   Share2,
@@ -44,7 +47,7 @@ import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { restoreOrderStock } from "@/lib/inventorySync";
-import { updateOrderStatusWithEmail } from "@/lib/orders.functions";
+import { updateOrderStatusWithEmail, updateOrderWeightAndPrice } from "@/lib/orders.functions";
 import { updateCourierDetails } from "@/lib/tracking.functions";
 import { updateReturnStatus, processRefundToWallet } from "@/lib/returns.functions";
 import { Card, CardContent } from "@/components/ui/card";
@@ -101,6 +104,8 @@ function OrdersAdmin() {
   const [pinModalOrder, setPinModalOrder] = useState<OrderRow | null>(null);
   const [invoiceOrder, setInvoiceOrder] = useState<OrderRow | null>(null);
   const [shippingModalOrder, setShippingModalOrder] = useState<OrderRow | null>(null);
+  const [weightModalOrder, setWeightModalOrder] = useState<OrderRow | null>(null);
+  const [weightForm, setWeightForm] = useState({ weight: "", price: "" });
   const [shippingForm, setShippingForm] = useState({ partner: "", awb: "", url: "" });
   const [shippedOrderData, setShippedOrderData] = useState<{ order: OrderRow; partner: string; awb: string; url: string } | null>(null);
 
@@ -181,6 +186,23 @@ function OrdersAdmin() {
       qc.invalidateQueries({ queryKey: ["admin", "orders"] });
     },
     onError: (e: Error) => toast.error(e.message),
+  });
+
+  const saveWeightAndPrice = useMutation({
+    mutationFn: async () => {
+      if (!weightModalOrder) return;
+      await updateOrderWeightAndPrice({
+        orderId: weightModalOrder.id,
+        total: Number(weightForm.price),
+        weight: Number(weightForm.weight),
+      });
+    },
+    onSuccess: () => {
+      toast.success("Weight and final price updated successfully!");
+      setWeightModalOrder(null);
+      qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+    },
+    onError: (err: any) => toast.error(err.message),
   });
 
   const saveShippingDetails = useMutation({
@@ -967,6 +989,20 @@ function OrdersAdmin() {
                       >
                         <FileText className="mr-1.5 size-3.5 text-sky-600" /> Invoice
                       </Button>
+
+                      {o.status === "processing" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 sm:flex-initial rounded-xl h-8.5 text-xs font-semibold border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                          onClick={() => {
+                            setWeightForm({ weight: o.pos_scale_weight_kg?.toString() || "", price: o.total?.toString() || "" });
+                            setWeightModalOrder(o);
+                          }}
+                        >
+                          <Scale className="mr-1.5 size-3.5 text-amber-600" /> Scale
+                        </Button>
+                      )}
                     </div>
 
                     {/* Status dropdown and Deliver button */}
@@ -1484,6 +1520,62 @@ function OrdersAdmin() {
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Weight & Price Adjustment Modal */}
+      <Dialog open={!!weightModalOrder} onOpenChange={(open) => !open && setWeightModalOrder(null)}>
+        <DialogContent className="max-w-sm rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <Scale className="size-5 text-amber-500" />
+              Scale Verification
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Adjust the final weight and price for order #{weightModalOrder?.order_number ?? weightModalOrder?.id.slice(0, 8)}.
+              This is usually done after packing fresh cuts.
+            </p>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Actual Scaled Weight (kg)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="e.g. 1.25"
+                  value={weightForm.weight}
+                  onChange={(e) => setWeightForm({ ...weightForm, weight: e.target.value })}
+                  className="rounded-xl h-10"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Final Bill Total (₹)</Label>
+                <Input
+                  type="number"
+                  placeholder="e.g. 450"
+                  value={weightForm.price}
+                  onChange={(e) => setWeightForm({ ...weightForm, price: e.target.value })}
+                  className="rounded-xl h-10 font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" className="rounded-xl" onClick={() => setWeightModalOrder(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="rounded-xl font-bold bg-amber-500 hover:bg-amber-600 text-white"
+                onClick={() => saveWeightAndPrice.mutate()}
+                disabled={saveWeightAndPrice.isPending || !weightForm.price}
+              >
+                {saveWeightAndPrice.isPending ? "Saving..." : "Update Total"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </AdminShell>
