@@ -1,12 +1,14 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Clock, Store } from "lucide-react";
+import { useState } from "react";
+import { Clock, Store, MessageSquare } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { BannerCarousel } from "@/components/BannerCarousel";
 import { TrustBadges } from "@/components/TrustBadges";
 import { ProductCard } from "@/components/ProductCard";
 import { AiPicksDialog } from "@/components/AiPicksDialog";
+import { WhatsAppOrderDialog } from "@/components/WhatsAppOrderDialog";
 
 import { getStoreVertical, getVerticalFaqs } from "@/lib/verticals";
 import { bannersQuery, categoriesQuery, productsQuery, trustBadgesQuery, settingsQuery } from "@/lib/queries";
@@ -14,6 +16,8 @@ import { useTranslation } from "@/lib/i18n";
 import { getStoreStatus } from "@/lib/storeSchedule";
 import { SeoStructuredData } from "@/components/SeoStructuredData";
 import { useCustomerBranch } from "@/lib/customerBranchContext";
+import { useCart } from "@/lib/cart";
+import type { SiteSettings } from "@/lib/types";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
