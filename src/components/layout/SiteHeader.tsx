@@ -308,7 +308,7 @@ export function SiteHeader() {
         }))}
         subtotal={subtotal}
         deliveryFee={settings?.delivery_fee ?? 40}
-        storePhone={settings?.whatsapp_order_phone ?? settings?.whatsapp_number ?? settings?.support_phone ?? ""}
+        settings={settings}
       />
     </header>
   );
