@@ -913,8 +913,8 @@ export function buildPosReceiptHtml(
     const qtyStr = it.weightKg
       ? `${it.weightKg.toFixed(3)} kg`
       : `${it.qty || 1} pcs`;
-    const rate = `&#8377;${(it.unitPrice || 0).toFixed(2)}`;
-    const amount = `&#8377;${(it.totalPrice ?? (it.unitPrice * (it.qty || 1))).toFixed(2)}`;
+    const rate = `₹${(it.unitPrice || 0).toFixed(2)}`;
+    const amount = `₹${(it.totalPrice ?? (it.unitPrice * (it.qty || 1))).toFixed(2)}`;
     const nameLine = `${it.brand ? `[${escapeHtml(it.brand)}] ` : ""}${escapeHtml(it.name)}${it.cuttingStyle ? ` [${escapeHtml(it.cuttingStyle)}]` : ""}`;
     const extras = [
       it.variant ? `Variant: ${escapeHtml(it.variant)}` : "",
@@ -936,9 +936,9 @@ export function buildPosReceiptHtml(
   // Split payment rows
   const splitRows = data.splitPayments
     ? [
-        data.splitPayments.cash ? `<tr><td>Cash</td><td style="text-align:right;">&#8377;${data.splitPayments.cash}</td></tr>` : "",
-        data.splitPayments.upi ? `<tr><td>UPI</td><td style="text-align:right;">&#8377;${data.splitPayments.upi}</td></tr>` : "",
-        data.splitPayments.card ? `<tr><td>Card</td><td style="text-align:right;">&#8377;${data.splitPayments.card}</td></tr>` : "",
+        data.splitPayments.cash ? `<tr><td>Cash</td><td style="text-align:right;">₹${data.splitPayments.cash}</td></tr>` : "",
+        data.splitPayments.upi ? `<tr><td>UPI</td><td style="text-align:right;">₹${data.splitPayments.upi}</td></tr>` : "",
+        data.splitPayments.card ? `<tr><td>Card</td><td style="text-align:right;">₹${data.splitPayments.card}</td></tr>` : "",
       ].filter(Boolean).join("")
     : "";
 
@@ -989,12 +989,12 @@ export function buildPosReceiptHtml(
     <!-- TOTALS -->
     <table style="width:100%;border-collapse:collapse;font-size:0.9em;">
       <tr style="border-top:1px solid #000;"><td>&nbsp;</td><td></td></tr>
-      <tr><td>Subtotal</td><td style="text-align:right;">&#8377;${(data.subtotal || 0).toFixed(2)}</td></tr>
-      ${(data.discount || 0) > 0 ? `<tr><td>${data.discountPercent && data.discountPercent > 0 ? `Discount (${escapeHtml(data.discountPercent)}%):` : "Discount"}</td><td style="text-align:right;color:#c00;">-&#8377;${data.discount.toFixed(2)}</td></tr>` : ""}
-      ${(data.gstAmount || 0) > 0 ? `<tr><td>GST</td><td style="text-align:right;">&#8377;${data.gstAmount.toFixed(2)}</td></tr>` : ""}
+      <tr><td>Subtotal</td><td style="text-align:right;">₹${(data.subtotal || 0).toFixed(2)}</td></tr>
+      ${(data.discount || 0) > 0 ? `<tr><td>${data.discountPercent && data.discountPercent > 0 ? `Discount (${escapeHtml(data.discountPercent)}%):` : "Discount:"}</td><td style="text-align:right;color:#c00;">-₹${data.discount.toFixed(2)}</td></tr>` : ""}
+      ${(data.gstAmount || 0) > 0 ? `<tr><td>GST</td><td style="text-align:right;">₹${data.gstAmount.toFixed(2)}</td></tr>` : ""}
       <tr style="border-top:2px solid #000;border-bottom:2px solid #000;">
         <td style="font-weight:900;font-size:1.1em;padding:3px 0;text-transform:uppercase;">TOTAL PAYABLE</td>
-        <td style="text-align:right;font-weight:900;font-size:1.1em;">&#8377;${(data.total || 0).toFixed(2)}</td>
+        <td style="text-align:right;font-weight:900;font-size:1.1em;">₹${(data.total || 0).toFixed(2)}</td>
       </tr>
       ${data.splitPayments ? `
         <tr><td colspan="2" style="padding-top:3px;font-weight:bold;">Split Payment:</td></tr>
@@ -1002,16 +1002,16 @@ export function buildPosReceiptHtml(
       ` : `
         <tr><td>Payment</td><td style="text-align:right;font-weight:bold;">${escapeHtml((data.paymentMethod || "CASH").toUpperCase())}</td></tr>
       `}
-      ${data.amountTendered ? `<tr><td>Cash Tendered</td><td style="text-align:right;">&#8377;${data.amountTendered.toFixed(2)}</td></tr>` : ""}
-      ${typeof data.changeDue === "number" ? `<tr><td>Change Returned</td><td style="text-align:right;">&#8377;${data.changeDue.toFixed(2)}</td></tr>` : ""}
+      ${data.amountTendered ? `<tr><td>Cash Tendered</td><td style="text-align:right;">₹${data.amountTendered.toFixed(2)}</td></tr>` : ""}
+      ${typeof data.changeDue === "number" ? `<tr><td>Change Returned</td><td style="text-align:right;">₹${data.changeDue.toFixed(2)}</td></tr>` : ""}
       ${data.upiRef ? `<tr><td colspan="2" style="font-size:0.8em;color:#555;">UPI Ref: ${escapeHtml(data.upiRef)}</td></tr>` : ""}
     </table>
 
     <!-- FOOTER -->
     <div style="border-top:1px dashed #000;margin-top:6px;padding-top:5px;text-align:center;font-size:0.82em;">
       ${config.showFooterWhatsapp !== false && config.whatsappNumber ? `<div>💬 WhatsApp: ${escapeHtml(config.whatsappNumber)}</div>` : ""}
-      ${config.showFooterSupport !== false && (config.supportPhone || data.storePhone) ? `<div>&#128222; Support: ${escapeHtml(config.supportPhone || data.storePhone)}</div>` : ""}
-      ${config.showFooterSocial !== false && config.socialHandle ? `<div>&#127760; Follow: ${escapeHtml(config.socialHandle)}</div>` : ""}
+      ${config.showFooterSupport !== false && (config.supportPhone || data.storePhone) ? `<div>📞 Support: ${escapeHtml(config.supportPhone || data.storePhone)}</div>` : ""}
+      ${config.showFooterSocial !== false && config.socialHandle ? `<div>🌐 Follow: ${escapeHtml(config.socialHandle)}</div>` : ""}
       ${config.showFooterGstin && data.storeGstin ? `<div>GSTIN: ${escapeHtml(data.storeGstin)}</div>` : ""}
       ${config.showFooterReturnPolicy !== false && (config.returnPolicyText || config.footerText) ? `<div style="margin-top:3px;color:#555;">${escapeHtml(config.returnPolicyText || config.footerText)}</div>` : ""}
       ${config.customFooterNote ? `<div style="margin-top:2px;font-style:italic;">${escapeHtml(config.customFooterNote)}</div>` : ""}
