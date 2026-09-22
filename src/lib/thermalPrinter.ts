@@ -250,6 +250,8 @@ let activeSerialPort: any = null;
 let activeSerialWriter: any = null;
 
 // Common ESC/POS BLE serial services (checked first, then every other service)
+// NOTE: Web Bluetooth on Android Chrome only accepts full 128-bit lowercase UUID strings
+// in optionalServices. Short aliases like 0x18f0 throw "Invalid Service name" at runtime.
 const BT_PRINTER_SERVICES = [
   "000018f0-0000-1000-8000-00805f9b34fb",
   "49535343-fe7d-4ae5-8fa9-9fafd205e455",
@@ -258,10 +260,8 @@ const BT_PRINTER_SERVICES = [
   "0000ff00-0000-1000-8000-00805f9b34fb",
   "0000ffe0-0000-1000-8000-00805f9b34fb",
   "0000fee7-0000-1000-8000-00805f9b34fb",
-  0x18f0,
-  0xffe0,
-  0xff00,
-];
+  "0000e0ff-0000-1000-8000-00805f9b34fb",
+] as const;
 
 /** Why Bluetooth printing is unavailable on this device, or null when it should work. */
 export function getBluetoothUnavailableReason(): string | null {
