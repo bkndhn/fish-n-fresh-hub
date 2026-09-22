@@ -2069,7 +2069,7 @@ export function RetailPosCounterPage() {
 
                         {/* Sold Out Overlay */}
                         {isOutOfStock && (
-                          <div className="absolute inset-0 bg-background/80 backdrop-blur-[1px] flex items-center justify-center p-1">
+                          <div className="absolute inset-0 bg-background/90 flex items-center justify-center p-1">
                             <span className="text-[10px] font-black uppercase text-destructive tracking-wider border border-destructive/40 bg-destructive/10 px-2 py-0.5 rounded-md shadow-xs">
                               SOLD OUT
                             </span>

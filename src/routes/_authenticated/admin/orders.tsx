@@ -1136,7 +1136,7 @@ function OrdersAdmin() {
 
       {/* Printable Thermal Receipt Modal */}
       <Dialog open={Boolean(printOrder)} onOpenChange={(open) => !open && setPrintOrder(null)}>
-        <DialogContent className="max-w-md rounded-2xl p-6">
+        <DialogContent className="w-[calc(100vw-1.5rem)] sm:max-w-md rounded-2xl p-4 sm:p-6 max-h-[88vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <span>Packing Slip / Receipt</span>
@@ -1223,7 +1223,7 @@ function OrdersAdmin() {
 
       {/* Bulk Assign Driver Dialog */}
       <Dialog open={openBulkDriver} onOpenChange={setOpenBulkDriver}>
-        <DialogContent className="max-w-md rounded-3xl p-5">
+        <DialogContent className="w-[calc(100vw-1.5rem)] sm:max-w-md rounded-3xl p-4 sm:p-5 max-h-[88vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle className="text-base font-bold flex items-center gap-2">
               <Truck className="size-5 text-primary" /> Assign Driver to {selectedOrderIds.length} Orders
@@ -1321,7 +1321,7 @@ function OrdersAdmin() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-md rounded-3xl p-6">
+        <DialogContent className="w-[calc(100vw-1.5rem)] sm:max-w-md rounded-3xl p-4 sm:p-6 max-h-[88vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle className="text-xl flex items-center gap-2">
               <Truck className="size-5 text-primary" />
