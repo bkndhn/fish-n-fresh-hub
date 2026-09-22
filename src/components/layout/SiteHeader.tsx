@@ -298,16 +298,17 @@ export function SiteHeader() {
         open={waOpen}
         onOpenChange={setWaOpen}
         items={items.map((i) => ({
-          productId: i.productId,
+          productId: i.product_id,
           name: i.name,
+          cutPreference: i.cut_preference || undefined,
           qty: i.qty,
-          weightKg: i.weightKg,
-          price: i.price,
           unit: i.unit,
+          price: i.price,
+          totalPrice: i.price * i.qty,
         }))}
         subtotal={subtotal}
         deliveryFee={settings?.delivery_fee ?? 40}
-        storePhone={settings?.store_phone ?? ""}
+        storePhone={settings?.whatsapp_order_phone ?? settings?.whatsapp_number ?? settings?.support_phone ?? ""}
       />
     </header>
   );
