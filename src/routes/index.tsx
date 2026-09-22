@@ -47,6 +47,12 @@ function Home() {
   const { data: badges } = useQuery(trustBadgesQuery);
   const { data: settings } = useQuery(settingsQuery);
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { items: cartItems, subtotal: cartSubtotal, salesMode, isWholesale: isWholesaleBuyer } = useCart();
+  const [whatsAppOpen, setWhatsAppOpen] = useState(false);
+  const whatsAppNumber =
+    settings?.whatsapp_order_phone || settings?.contact_phone || settings?.whatsapp_number || null;
+
 
   const { data: customCollections } = useQuery({
     queryKey: ["home_collections", activeBranch?.id],
