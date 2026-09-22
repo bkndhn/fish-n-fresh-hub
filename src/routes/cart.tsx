@@ -54,6 +54,9 @@ function CartPage() {
     bulkDiscountAmount,
     wholesaleMinOrderValue,
     nextBulkBand,
+    canOrder,
+    salesMode,
+
   } = useCart();
 
   const { data: settings } = useQuery(settingsQuery);
@@ -323,7 +326,17 @@ function CartPage() {
             Bulk orders start at {inr(wholesaleMinOrderValue)}. Add {inr(wholesaleMinOrderValue - subtotal)} more to place this order.
           </p>
         )}
+        {salesMode === "wholesale" && !canOrder && (
+          <p className="text-xs text-muted-foreground break-words">
+            This shop sells in bulk to registered shops and caterers.{" "}
+            <Link to="/wholesale" className="font-semibold text-primary hover:underline">
+              Apply for a trade account
+            </Link>{" "}
+            to place this order.
+          </p>
+        )}
       </div>
+
 
 
       {storeStatus && !storeStatus.canAcceptOrder && (
@@ -399,6 +412,14 @@ function CartPage() {
                 <Button disabled className="flex-1 rounded-xl opacity-60 h-11 text-xs sm:text-sm w-full">
                   Orders Paused · {storeStatus.statusTitle}
                 </Button>
+              ) : !canOrder ? (
+                <Button asChild className="flex-1 rounded-xl h-11 text-xs sm:text-sm w-full">
+                  <Link to="/wholesale">Trade account needed to order</Link>
+                </Button>
+              ) : isWholesale && wholesaleMinOrderValue > subtotal ? (
+                <Button disabled className="flex-1 rounded-xl opacity-60 h-11 text-xs sm:text-sm w-full">
+                  Minimum bulk order {inr(wholesaleMinOrderValue)}
+                </Button>
               ) : (
                 <Button asChild className="flex-1 rounded-xl h-11 text-xs sm:text-sm shadow-xs font-semibold w-full">
                   <Link to="/checkout">
@@ -406,6 +427,7 @@ function CartPage() {
                   </Link>
                 </Button>
               )}
+
               <Button
                 type="button"
                 disabled={availableWhatsAppItems.length === 0}

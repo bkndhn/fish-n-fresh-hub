@@ -106,7 +106,7 @@ export const Route = createFileRoute("/checkout")({
 });
 
 function Checkout() {
-  const { items, subtotal, clear } = useCart();
+  const { items, subtotal, clear, canOrder, isWholesale, wholesaleMinOrderValue } = useCart();
   const { data: settings } = useQuery(settingsQuery);
   const { data: upiTarget } = useQuery({
     queryKey: ["store-upi-target"],
@@ -418,10 +418,19 @@ function Checkout() {
   }
 
   async function placeOrder() {
+    if (!canOrder) {
+      toast.error("This shop sells in bulk only. Apply for a trade account to place an order.");
+      return;
+    }
+    if (isWholesale && wholesaleMinOrderValue > subtotal) {
+      toast.error(`Bulk orders start at ${inr(wholesaleMinOrderValue)}.`);
+      return;
+    }
     if (!storeStatus.canAcceptOrder) {
       toast.error(storeStatus.statusDescription || "Store is closed and not accepting orders right now.");
       return;
     }
+
     if (selectedHoliday.isHoliday) {
       toast.error(`Store is closed on ${deliveryDate} (${selectedHoliday.reason}). Please select an open date.`);
       return;
@@ -1977,7 +1986,7 @@ function Checkout() {
         <>
           <Button
             className="mt-4 w-full rounded-xl text-sm font-semibold"
-            disabled={saving || !storeStatus.canAcceptOrder || selectedHoliday.isHoliday || (fulfillment === "delivery" && !shippingEval.isServiceable)}
+            disabled={saving || !canOrder || (isWholesale && wholesaleMinOrderValue > subtotal) || !storeStatus.canAcceptOrder || selectedHoliday.isHoliday || (fulfillment === "delivery" && !shippingEval.isServiceable)}
             onClick={placeOrder}
           >
             {saving

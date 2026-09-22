@@ -20,8 +20,11 @@ import {
   saveWholesaleBand,
   deleteWholesaleBand,
   saveWholesaleMinOrderValue,
+  getStoreSalesMode,
+  saveStoreSalesMode,
   type WholesalePriceRow,
 } from "@/lib/wholesale.functions";
+import { SALES_MODES, salesModeLabel, type SalesMode } from "@/lib/salesMode";
 
 import { parseTiers, type WholesaleTier } from "@/lib/wholesale";
 import { formatINR } from "@/lib/format";
@@ -49,6 +52,7 @@ export const Route = createFileRoute("/_authenticated/admin/wholesale")({
 function AdminWholesale() {
   return (
     <AdminShell title="Wholesale rates" allow={["admin", "manager"]}>
+      <SalesModeCard />
       <Tabs defaultValue="prices">
         <TabsList className="mb-4 flex w-full min-w-0 flex-wrap gap-1 h-auto">
           <TabsTrigger value="prices">Bulk price list</TabsTrigger>
@@ -68,6 +72,56 @@ function AdminWholesale() {
     </AdminShell>
   );
 }
+
+/** Switch the shop between selling to retail customers, trade buyers, or both. */
+function SalesModeCard() {
+  const qc = useQueryClient();
+  const fetchMode = useServerFn(getStoreSalesMode);
+  const saveMode = useServerFn(saveStoreSalesMode);
+  const query = useQuery({ queryKey: ["admin", "sales_mode"], queryFn: () => fetchMode() });
+  const current = (query.data?.mode ?? "retail") as SalesMode;
+
+  const save = useMutation({
+    mutationFn: async (mode: SalesMode) => saveMode({ data: { mode } }),
+    onSuccess: (res) => {
+      toast.success(`Now selling: ${salesModeLabel(res.mode as SalesMode)}`);
+      qc.invalidateQueries({ queryKey: ["admin", "sales_mode"] });
+      qc.invalidateQueries({ queryKey: ["store_settings"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Card className="mb-4">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Who this shop sells to</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-2 sm:grid-cols-3">
+        {SALES_MODES.map((m) => {
+          const selected = current === m.id;
+          return (
+            <button
+              key={m.id}
+              type="button"
+              disabled={save.isPending || query.isLoading}
+              onClick={() => save.mutate(m.id)}
+              className={`min-w-0 rounded-xl border p-3 text-left transition ${
+                selected ? "border-primary bg-primary/10" : "border-border hover:border-primary/40"
+              }`}
+            >
+              <span className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                {m.label}
+                {selected && <Badge className="text-[10px]">Active</Badge>}
+              </span>
+              <span className="mt-1 block text-xs text-muted-foreground">{m.description}</span>
+            </button>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
+
 
 function DiscountBands() {
   const qc = useQueryClient();

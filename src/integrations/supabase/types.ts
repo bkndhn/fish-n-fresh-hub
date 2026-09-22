@@ -1906,6 +1906,7 @@ export type Database = {
           refund_content: string | null
           require_online_payment: boolean | null
           returns_enabled: boolean
+          sales_mode: string
           sender_email: string | null
           sender_name: string | null
           seo_default_description: string | null
@@ -2058,6 +2059,7 @@ export type Database = {
           refund_content?: string | null
           require_online_payment?: boolean | null
           returns_enabled?: boolean
+          sales_mode?: string
           sender_email?: string | null
           sender_name?: string | null
           seo_default_description?: string | null
@@ -2210,6 +2212,7 @@ export type Database = {
           refund_content?: string | null
           require_online_payment?: boolean | null
           returns_enabled?: boolean
+          sales_mode?: string
           sender_email?: string | null
           sender_name?: string | null
           seo_default_description?: string | null
@@ -2855,6 +2858,7 @@ export type Database = {
           referral_reward_referrer: number | null
           refund_content: string | null
           require_online_payment: boolean | null
+          sales_mode: string | null
           sender_name: string | null
           seo_default_description: string | null
           seo_keywords: string | null
@@ -2993,6 +2997,7 @@ export type Database = {
           referral_reward_referrer?: number | null
           refund_content?: string | null
           require_online_payment?: boolean | null
+          sales_mode?: string | null
           sender_name?: string | null
           seo_default_description?: string | null
           seo_keywords?: string | null
@@ -3131,6 +3136,7 @@ export type Database = {
           referral_reward_referrer?: number | null
           refund_content?: string | null
           require_online_payment?: boolean | null
+          sales_mode?: string | null
           sender_name?: string | null
           seo_default_description?: string | null
           seo_keywords?: string | null

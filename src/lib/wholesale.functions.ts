@@ -250,7 +250,38 @@ export const deleteWholesaleBand = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+/** The store's sales mode: retail only, wholesale only, or both. */
+export const getStoreSalesMode = createServerFn({ method: "GET" }).handler(
+  async (): Promise<{ mode: "retail" | "wholesale" | "both" }> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin.from("store_settings").select("sales_mode").limit(1).maybeSingle();
+    const raw = String((data as { sales_mode?: string } | null)?.sales_mode ?? "retail");
+    return { mode: raw === "wholesale" || raw === "both" ? raw : "retail" };
+  },
+);
+
+/** Admin: switch the store between retail, wholesale and hybrid selling. */
+export const saveStoreSalesMode = createServerFn({ method: "POST" })
+  .inputValidator((input: { mode: string }) => {
+    const mode = String(input?.mode ?? "");
+    if (!["retail", "wholesale", "both"].includes(mode)) throw new Error("Invalid sales mode");
+    return { mode };
+  })
+  .handler(async ({ data }) => {
+    await requireAdmin();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row } = await supabaseAdmin.from("store_settings").select("id").limit(1).maybeSingle();
+    if (!row) throw new Error("Store settings not found");
+    const { error } = await supabaseAdmin
+      .from("store_settings")
+      .update({ sales_mode: data.mode } as never)
+      .eq("id", (row as { id: string }).id);
+    if (error) throw new Error(error.message);
+    return { success: true, mode: data.mode };
+  });
+
 /** Admin: set the minimum order value trade buyers must reach. */
+
 export const saveWholesaleMinOrderValue = createServerFn({ method: "POST" })
   .inputValidator((input: { value: number }) => ({ value: Math.max(0, Number(input?.value) || 0) }))
   .handler(async ({ data }) => {

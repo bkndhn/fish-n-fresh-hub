@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { CartItem, Product } from "./types";
+import { getSalesMode, isWholesaleEnabled, canPlaceOrder, type SalesMode } from "./salesMode";
 import { supabase } from "@/integrations/supabase/client";
 import {
   applyAccountDiscount,
@@ -44,6 +45,11 @@ type CartContextValue = {
   wholesaleMinOrderValue: number;
   /** Next band the buyer can unlock, for "spend N more" hints. */
   nextBulkBand: { min_order_value: number; discount_percent: number } | null;
+  /** Who the store sells to: retail only, wholesale only, or both. */
+  salesMode: SalesMode;
+  /** False when the store is wholesale-only and this shopper has no approved trade account. */
+  canOrder: boolean;
+
 
   add: (product: Product, qty?: number, cut_preference?: string, branch?: CartBranchInfo) => { added: boolean; mismatch: boolean };
   clearAndAdd: (product: Product, qty?: number, cut_preference?: string, branch?: CartBranchInfo) => void;
@@ -65,17 +71,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
   });
   const [bands, setBands] = useState<WholesaleBand[]>([]);
   const [minOrderValue, setMinOrderValue] = useState(0);
+  const [salesMode, setSalesMode] = useState<SalesMode>("retail");
 
 
-  // Load the signed-in buyer's trade account, if they have an approved one.
+  // Load the store's sales mode and the signed-in buyer's trade account.
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       try {
+        const { data: modeRow } = await supabase
+          .from("store_settings_public" as "store_settings")
+          .select("sales_mode, wholesale_min_order_value")
+          .limit(1)
+          .maybeSingle();
+        const mode = getSalesMode(modeRow as { sales_mode?: string | null } | null);
+        if (!cancelled) setSalesMode(mode);
+
         const { data: auth } = await supabase.auth.getUser();
         const uid = auth?.user?.id;
-        if (!uid) {
-          if (!cancelled) setWholesale({ active: false, discount: 0, name: null });
+        if (!uid || !isWholesaleEnabled(mode)) {
+          if (!cancelled) {
+            setWholesale({ active: false, discount: 0, name: null });
+            setBands([]);
+            setMinOrderValue(0);
+          }
           return;
         }
         const { data } = await supabase
@@ -92,17 +111,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
         });
 
         if (approved) {
-          const [bandRes, settingsRes] = await Promise.all([
-            supabase
-              .from("wholesale_discount_bands")
-              .select("id, label, min_order_value, discount_percent, active")
-              .eq("active", true)
-              .order("min_order_value", { ascending: true }),
-            supabase.from("store_settings").select("wholesale_min_order_value").limit(1).maybeSingle(),
-          ]);
+          const { data: bandRows } = await supabase
+            .from("wholesale_discount_bands")
+            .select("id, label, min_order_value, discount_percent, active")
+            .eq("active", true)
+            .order("min_order_value", { ascending: true });
           if (cancelled) return;
           setBands(
-            ((bandRes.data ?? []) as unknown as WholesaleBand[]).map((b) => ({
+            ((bandRows ?? []) as unknown as WholesaleBand[]).map((b) => ({
               id: b.id,
               label: b.label ?? null,
               min_order_value: Number(b.min_order_value) || 0,
@@ -111,9 +127,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             })),
           );
           setMinOrderValue(
-            Number(
-              (settingsRes.data as { wholesale_min_order_value?: number } | null)?.wholesale_min_order_value ?? 0,
-            ) || 0,
+            Number((modeRow as { wholesale_min_order_value?: number } | null)?.wholesale_min_order_value ?? 0) || 0,
           );
         } else {
           setBands([]);
@@ -123,6 +137,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         /* ignore */
       }
     };
+
 
     void load();
     const { data: sub } = supabase.auth.onAuthStateChange(() => {
@@ -311,6 +326,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       nextBulkBand: upcoming
         ? { min_order_value: upcoming.min_order_value, discount_percent: upcoming.discount_percent }
         : null,
+      salesMode,
+      canOrder: canPlaceOrder(salesMode, wholesale.active),
+
       subtotal,
       count,
       cartBranchId,
@@ -328,6 +346,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [
     pricedItems,
     wholesale,
+    salesMode,
+
     bands,
     minOrderValue,
     cartBranchId,
@@ -359,6 +379,9 @@ const FALLBACK: CartContextValue = {
   bulkDiscountAmount: 0,
   wholesaleMinOrderValue: 0,
   nextBulkBand: null,
+  salesMode: "retail",
+  canOrder: true,
+
 
   cartBranchId: null,
   cartBranchName: null,
