@@ -36,6 +36,8 @@ export const Route = createFileRoute("/wholesale")({
 
 function WholesalePage() {
   const qc = useQueryClient();
+  const { salesMode } = useCart();
+
   const fetchStatus = useServerFn(getMyWholesaleAccount);
   const apply = useServerFn(applyForWholesale);
   const status = useQuery({ queryKey: ["wholesale", "me"], queryFn: () => fetchStatus() });
