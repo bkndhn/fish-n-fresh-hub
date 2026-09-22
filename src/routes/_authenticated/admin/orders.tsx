@@ -1527,7 +1527,7 @@ function OrdersAdmin() {
 
       {/* Weight & Price Adjustment Modal */}
       <Dialog open={!!weightModalOrder} onOpenChange={(open) => !open && setWeightModalOrder(null)}>
-        <DialogContent className="max-w-sm rounded-3xl p-6">
+        <DialogContent className="w-[calc(100vw-1.5rem)] max-w-sm rounded-3xl p-4 sm:p-6 max-h-[88vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle className="text-xl flex items-center gap-2">
               <Scale className="size-5 text-amber-500" />

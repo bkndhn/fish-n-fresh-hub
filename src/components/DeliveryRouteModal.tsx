@@ -317,7 +317,7 @@ export function DeliveryRouteModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl w-[95vw] h-[90vh] sm:h-[85vh] p-0 overflow-hidden flex flex-col rounded-3xl border-border/70 shadow-2xl">
+      <DialogContent className="max-w-2xl w-[calc(100vw-1.5rem)] h-[88vh] p-0 overflow-hidden flex flex-col rounded-3xl border-border/70 shadow-2xl">
         {/* Header */}
         <div className="p-4 border-b border-border/60 bg-card z-20 space-y-2">
           <div className="flex items-center justify-between">

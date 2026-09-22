@@ -1595,9 +1595,9 @@ export function RetailPosCounterPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 w-full max-w-full touch-pan-x">
             {/* Daily POS Stats */}
-            <div className="hidden md:flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-xl border border-border/60 text-xs">
+            <div className="hidden md:flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-xl border border-border/60 text-xs shrink-0">
               <span className="text-muted-foreground font-medium">Today's Shift:</span>
               <span className="font-bold text-foreground">{posStats.count} Bills</span>
               <span className="text-border">|</span>
@@ -1614,7 +1614,7 @@ export function RetailPosCounterPage() {
             <Button
               variant="outline"
               size="sm"
-              className="rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-border/80 relative"
+              className="rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-border/80 relative shrink-0"
               onClick={() => setParkedModalOpen(true)}
               title="View held bills [F4]"
             >
@@ -1631,7 +1631,7 @@ export function RetailPosCounterPage() {
             <Button
               variant="outline"
               size="sm"
-              className="rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-border/80"
+              className="rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-border/80 shrink-0"
               onClick={() => {
                 refreshGlobalChips();
                 setGlobalChipModalOpen(true);
@@ -1646,7 +1646,7 @@ export function RetailPosCounterPage() {
             <Button
               variant="outline"
               size="sm"
-              className="rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-border/80"
+              className="rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-border/80 shrink-0"
               onClick={() => setPastBillsModalOpen(true)}
               title="Sales Register & Past Bills [F5]"
             >
@@ -1659,7 +1659,7 @@ export function RetailPosCounterPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="rounded-xl h-8.5 text-xs font-semibold gap-1.5"
+                className="rounded-xl h-8.5 text-xs font-semibold gap-1.5 shrink-0"
                 onClick={reprintLastBill}
                 title="Reprint last completed receipt"
               >
@@ -1672,7 +1672,7 @@ export function RetailPosCounterPage() {
             <Button
               variant="outline"
               size="sm"
-              className="rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-border/80"
+              className="rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-border/80 shrink-0"
               onClick={() => setPrinterModalOpen(true)}
             >
               <Printer className="size-3.5 text-primary" />
@@ -1683,7 +1683,7 @@ export function RetailPosCounterPage() {
             <Button
               variant="outline"
               size="sm"
-              className={`rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-border/80 ${
+              className={`rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-border/80 shrink-0 ${
                 scaleStatus === "streaming"
                   ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
                   : scaleStatus === "connected"
@@ -3173,14 +3173,14 @@ export function RetailPosCounterPage() {
                   )}
 
                   {/* Render Quick Chips */}
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="grid grid-cols-2 xs:grid-cols-4 gap-1.5 max-w-[calc(100vw-1.5rem)]">
                     {activeChips.map((chip) => (
-                      <div key={`${chip.val}-${chip.label}`} className="inline-flex items-center">
+                      <div key={`${chip.val}-${chip.label}`} className="inline-flex items-center min-w-0">
                         <button
                           type="button"
                           tabIndex={-1}
                           onClick={() => setModalWeightInput(chip.val.toString())}
-                          className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold transition-all ${
+                          className={`flex-1 min-w-0 truncate px-2.5 py-1 rounded-xl text-xs font-mono font-bold transition-all ${
                             modalWeight === chip.val
                               ? "bg-primary text-primary-foreground shadow-2xs"
                               : "bg-muted/50 hover:bg-muted text-foreground border border-border/60"
@@ -3192,7 +3192,7 @@ export function RetailPosCounterPage() {
                           <button
                             type="button"
                             onClick={() => handleDeleteCustomChip(chip.val)}
-                            className="h-[27px] px-1 bg-destructive/10 text-destructive hover:bg-destructive hover:text-white rounded-r-xl border border-l-0 border-border/60 text-xs transition-colors flex items-center justify-center"
+                            className="h-[27px] shrink-0 px-1 bg-destructive/10 text-destructive hover:bg-destructive hover:text-white rounded-r-xl border border-l-0 border-border/60 text-xs transition-colors flex items-center justify-center"
                             title="Remove chip"
                           >
                             <X className="size-3" />

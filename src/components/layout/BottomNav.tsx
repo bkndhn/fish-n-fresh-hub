@@ -24,7 +24,7 @@ export function BottomNav() {
       aria-label="Mobile Navigation"
       className="fixed bottom-3 inset-x-0 mx-auto z-50 flex justify-center px-2 xs:px-3.5 md:hidden pointer-events-none safe-bottom"
     >
-      <div className="pointer-events-auto flex items-center justify-between w-full max-w-[390px] rounded-3xl bg-card/90 dark:bg-card/95 backdrop-blur-2xl border border-border/80 shadow-[0_10px_35px_rgba(0,0,0,0.14)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.5)] p-1 xs:p-1.5 ring-1 ring-black/5 dark:ring-white/10 transition-all duration-300">
+      <div className="pointer-events-auto flex items-center justify-between w-full max-w-[390px] rounded-3xl bg-card border border-border/80 shadow-[0_10px_35px_rgba(0,0,0,0.14)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.5)] p-1 xs:p-1.5 ring-1 ring-black/5 dark:ring-white/10 transition-all duration-300">
         <ul className="flex items-center justify-around w-full gap-0.5 xs:gap-1 m-0 p-0 list-none">
           {items.map(({ to, label, icon: Icon, ...rest }) => (
             <li key={to} className="flex-1 flex justify-center">

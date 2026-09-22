@@ -71,7 +71,7 @@ export function TaxInvoiceModal({ isOpen, onClose, order, settings }: TaxInvoice
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-3xl max-h-[92vh] overflow-y-auto overflow-x-hidden p-0 sm:p-0 bg-card">
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full max-w-3xl max-h-[88vh] overflow-y-auto overflow-x-hidden p-0 sm:p-0 bg-card rounded-2xl">
         {/* Header — stacks vertically on mobile, side-by-side on sm+ */}
         <DialogHeader className="flex flex-col gap-2 p-3 sm:p-5 pb-2 sm:pb-3 border-b border-border pr-10 sm:pr-12">
           <div className="flex items-center gap-2 min-w-0">

@@ -89,6 +89,11 @@ function WholesalePage() {
           </p>
         </div>
 
+        {/* Live Bulk Savings Preview */}
+        {!account && (
+          <WholesalePreview />
+        )}
+
         {status.isLoading ? (
 
           <p className="text-sm text-muted-foreground">Checking your account…</p>
@@ -178,5 +183,54 @@ function WholesalePage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+function WholesalePreview() {
+  const { data: previewItems } = useQuery({
+    queryKey: ["wholesale-preview"],
+    queryFn: async () => {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data } = await supabase
+        .from("products")
+        .select("name, price, wholesale_price, wholesale_min_qty, unit")
+        .eq("is_available", true)
+        .not("wholesale_price", "is", null)
+        .limit(3);
+      return data || [];
+    }
+  });
+
+  if (!previewItems || previewItems.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl bg-amber-500/10 border border-amber-500/20 p-4 mb-4">
+      <h3 className="text-sm font-bold text-amber-700 dark:text-amber-400 mb-2">Live Trade Savings Preview</h3>
+      <div className="space-y-2">
+        {previewItems.map((item, idx) => {
+          const retailPrice = Number(item.price);
+          const wholesalePrice = Number(item.wholesale_price);
+          const savings = Math.round(((retailPrice - wholesalePrice) / retailPrice) * 100);
+          
+          return (
+            <div key={idx} className="flex items-center justify-between bg-card p-2 rounded-xl border shadow-xs text-xs">
+              <div className="font-semibold">{item.name}</div>
+              <div className="flex items-center gap-3">
+                <div className="flex flex-col items-end">
+                  <span className="text-muted-foreground line-through text-[10px]">₹{retailPrice}/{item.unit}</span>
+                  <span className="font-bold text-emerald-600">₹{wholesalePrice}/{item.unit}</span>
+                </div>
+                <Badge variant="secondary" className="bg-amber-100 text-amber-800 shrink-0">
+                  Save {savings}%
+                </Badge>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-muted-foreground mt-3 text-center">
+        * Example rates shown. Actual discounts vary by volume slab and business profile.
+      </p>
+    </div>
   );
 }

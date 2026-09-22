@@ -26,8 +26,10 @@ declare global {
   }
 }
 
+import { WhatsAppOrderDialog } from "@/components/WhatsAppOrderDialog";
+
 export function SiteHeader() {
-  const { count } = useCart();
+  const { count, items, subtotal } = useCart();
   const { count: wishlistCount } = useWishlist();
   const { data: settings } = useQuery(settingsQuery);
   const { data: myRoles } = useQuery(myRolesQuery);
@@ -35,6 +37,7 @@ export function SiteHeader() {
   const { activeBranch, setIsLocationModalOpen } = useCustomerBranch();
   const [isStandalone, setIsStandalone] = useState(false);
   const [atmosphereActive, setAtmosphereActive] = useState(() => settings ? isDailyAtmosphereEnabled(settings) : false);
+  const [waOpen, setWaOpen] = useState(false);
   const todayMood = getDailyAtmosphere();
 
   useEffect(() => {
@@ -188,16 +191,22 @@ export function SiteHeader() {
           <nav className="flex items-center gap-0.5 sm:gap-1 shrink-0">
             {/* WhatsApp on desktop (mobile uses bottom floating speed dial) */}
             {waUrl && (
-              <a
-                href={waUrl}
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Chat on WhatsApp"
-                title="Chat on WhatsApp"
-                className="hidden sm:flex rounded-xl p-2 text-[#25D366] hover:bg-[#25D366]/15 transition-colors"
+              <button
+                type="button"
+                onClick={(e) => {
+                  if (items.length > 0) {
+                    e.preventDefault();
+                    setWaOpen(true);
+                  } else {
+                    window.open(waUrl, "_blank", "noreferrer");
+                  }
+                }}
+                aria-label="Order on WhatsApp"
+                title="Order on WhatsApp"
+                className="hidden sm:flex rounded-xl p-2 text-[#25D366] hover:bg-[#25D366]/15 transition-colors cursor-pointer"
               >
                 <WhatsAppIcon className="size-5" />
-              </a>
+              </button>
             )}
 
             {/* Search on desktop (mobile bottom nav has Catalog) */}
@@ -284,6 +293,22 @@ export function SiteHeader() {
           </nav>
         </div>
       </div>
+
+      <WhatsAppOrderDialog
+        open={waOpen}
+        onOpenChange={setWaOpen}
+        items={items.map((i) => ({
+          productId: i.productId,
+          name: i.name,
+          qty: i.qty,
+          weightKg: i.weightKg,
+          price: i.price,
+          unit: i.unit,
+        }))}
+        subtotal={subtotal}
+        deliveryFee={settings?.delivery_fee ?? 40}
+        storePhone={settings?.store_phone ?? ""}
+      />
     </header>
   );
 }

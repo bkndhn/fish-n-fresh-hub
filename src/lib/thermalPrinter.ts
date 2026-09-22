@@ -258,9 +258,9 @@ const BT_PRINTER_SERVICES = [
   "0000ff00-0000-1000-8000-00805f9b34fb",
   "0000ffe0-0000-1000-8000-00805f9b34fb",
   "0000fee7-0000-1000-8000-00805f9b34fb",
-  "18f0",
-  "ffe0",
-  "ff00",
+  0x18f0,
+  0xffe0,
+  0xff00,
 ];
 
 /** Why Bluetooth printing is unavailable on this device, or null when it should work. */

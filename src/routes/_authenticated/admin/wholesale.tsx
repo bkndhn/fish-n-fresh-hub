@@ -406,16 +406,45 @@ function PriceRow({ row }: { row: WholesalePriceRow }) {
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <Label className="text-xs">Quantity slabs</Label>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setTiers((prev) => [...prev, { min_qty: 0, price: Number(row.price) }].slice(0, 6))}
-            >
-              <Plus className="mr-1 h-4 w-4" /> Add slab
-            </Button>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 text-[10px] px-2"
+                onClick={() => setTiers((prev) => [...prev, { min_qty: 10, price: Number(row.price) * 0.95 }].sort((a,b)=>a.min_qty - b.min_qty).slice(0, 6))}
+              >
+                + 10 {row.unit}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 text-[10px] px-2"
+                onClick={() => setTiers((prev) => [...prev, { min_qty: 25, price: Number(row.price) * 0.90 }].sort((a,b)=>a.min_qty - b.min_qty).slice(0, 6))}
+              >
+                + 25 {row.unit}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 text-[10px] px-2"
+                onClick={() => setTiers((prev) => [...prev, { min_qty: 50, price: Number(row.price) * 0.85 }].sort((a,b)=>a.min_qty - b.min_qty).slice(0, 6))}
+              >
+                + 50 {row.unit}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setTiers((prev) => [...prev, { min_qty: 0, price: Number(row.price) }].slice(0, 6))}
+              >
+                <Plus className="mr-1 h-4 w-4" /> Custom slab
+              </Button>
+            </div>
           </div>
           {tiers.length === 0 ? (
             <p className="text-xs text-muted-foreground">No slabs yet — bulk rate above applies.</p>
@@ -461,7 +490,7 @@ function Accounts() {
   const accounts = useQuery({ queryKey: ["admin", "wholesale", "accounts"], queryFn: () => fetchAccounts() });
 
   const mutation = useMutation({
-    mutationFn: async (input: { id: string; status?: string; extra_discount_percent?: number }) =>
+    mutationFn: async (input: { id: string; status?: string; extra_discount_percent?: number; credit_limit?: number }) =>
       update({ data: input }),
     onSuccess: () => {
       toast.success("Trade account updated");
@@ -501,6 +530,17 @@ function Accounts() {
                   defaultValue={String(a.extra_discount_percent ?? 0)}
                   onBlur={(e) =>
                     mutation.mutate({ id: a.id, extra_discount_percent: Number(e.target.value) || 0 })
+                  }
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Credit Limit (₹)</Label>
+                <Input
+                  className="w-28"
+                  inputMode="decimal"
+                  defaultValue={String(a.credit_limit ?? 0)}
+                  onBlur={(e) =>
+                    mutation.mutate({ id: a.id, credit_limit: Number(e.target.value) || 0 })
                   }
                 />
               </div>
