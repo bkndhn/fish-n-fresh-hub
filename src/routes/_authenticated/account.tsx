@@ -23,6 +23,7 @@ import {
   Pause,
   Play,
   RefreshCw,
+  Star,
 } from "lucide-react";
 import { updateSubscriptionStatus } from "@/lib/subscriptions.functions";
 import { toast } from "sonner";
@@ -428,6 +429,13 @@ function OrdersTab({
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
+                {o.status === "delivered" && (o.items as any[])?.[0]?.product_id && (
+                  <Button asChild variant="outline" size="sm" className="rounded-xl h-8 text-xs font-semibold">
+                    <Link to="/product/$id" params={{ id: (o.items as any[])[0].product_id }}>
+                      <Star className="mr-1 size-3.5 fill-amber-500 text-amber-500" /> Review
+                    </Link>
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"

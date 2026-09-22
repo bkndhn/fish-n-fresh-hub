@@ -139,6 +139,12 @@ function AuthPage() {
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [signupLockout, setSignupLockout] = useState(0);
 
+  // ── OTP state ─────────────────────────────────────────────────────────────
+  const [useOtp, setUseOtp] = useState(false);
+  const [otpPhone, setOtpPhone] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+
   // ── Forgot / reset state ──────────────────────────────────────────────────
   // forgotStep: 1=email entry, 2=check email waiting, 3=set new password (after clicking link)
   const [viewMode, setViewMode] = useState<"auth" | "forgot">("auth");
@@ -242,10 +248,67 @@ function AuthPage() {
       toast.error(error.message);
       return;
     }
-    resetRateLimit("auth_signin", email || "guest");
     setSigninLockout(0);
     toast.success("Welcome back!");
     await routeAfterLogin();
+  }
+
+  // ─── GOOGLE LOGIN ──────────────────────────────────────────────────────────
+  async function signInWithGoogle() {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/orders`
+        }
+      });
+      if (error) toast.error(error.message);
+    } catch (error) {
+      toast.error("Failed to initialize Google login.");
+    }
+  }
+
+  // ─── OTP LOGIN ─────────────────────────────────────────────────────────────
+  async function sendOtp(e: React.FormEvent) {
+    e.preventDefault();
+    if (!otpPhone || otpPhone.length < 10) {
+      toast.error("Please enter a valid phone number with country code (e.g., +919876543210)");
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOtp({
+      phone: otpPhone.startsWith("+") ? otpPhone : `+91${otpPhone}`,
+    });
+    setLoading(false);
+    
+    if (error) {
+      toast.error(error.message);
+    } else {
+      setOtpSent(true);
+      toast.success("OTP sent successfully to " + otpPhone);
+    }
+  }
+
+  async function verifyOtp(e: React.FormEvent) {
+    e.preventDefault();
+    if (!otpCode || otpCode.length < 6) {
+      toast.error("Please enter a valid 6-digit OTP");
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.verifyOtp({
+      phone: otpPhone.startsWith("+") ? otpPhone : `+91${otpPhone}`,
+      token: otpCode,
+      type: 'sms',
+    });
+    setLoading(false);
+    
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Welcome back!");
+      await routeAfterLogin();
+    }
   }
 
   // ─── SIGN UP ───────────────────────────────────────────────────────────────
@@ -517,59 +580,142 @@ function AuthPage() {
             </TabsList>
 
             {/* ── Sign In Tab ── */}
-            <TabsContent value="signin">
-              <form onSubmit={signIn} className="space-y-4 pt-4" noValidate>
-                {signinLockout > 0 && (
-                  <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2.5">
-                    <ShieldCheck className="size-4 shrink-0 text-amber-500" />
-                    <span>Locked out. Try again in <strong className="font-mono">{signinLockout}s</strong>.</span>
+            <TabsContent value="signin" className="space-y-4 pt-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full rounded-xl flex items-center justify-center gap-2 h-11 hover:bg-muted/50"
+                onClick={signInWithGoogle}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="size-5">
+                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                </svg>
+                Continue with Google
+              </Button>
+              
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+                <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or continue with</span></div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Button type="button" variant={!useOtp ? "default" : "outline"} onClick={() => setUseOtp(false)} className="rounded-xl h-10">Email</Button>
+                <Button type="button" variant={useOtp ? "default" : "outline"} onClick={() => setUseOtp(true)} className="rounded-xl h-10">Phone OTP</Button>
+              </div>
+
+              {!useOtp ? (
+                <form onSubmit={signIn} className="space-y-4" noValidate>
+                  {signinLockout > 0 && (
+                    <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2.5">
+                      <ShieldCheck className="size-4 shrink-0 text-amber-500" />
+                      <span>Locked out. Try again in <strong className="font-mono">{signinLockout}s</strong>.</span>
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                      <Input id="email" type="email" placeholder="you@example.com"
+                        value={email} onChange={(e) => setEmail(e.target.value)}
+                        className="rounded-xl pl-10" />
+                    </div>
                   </div>
-                )}
-                <div className="space-y-1.5">
-                  <Label htmlFor="email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                    <Input id="email" type="email" placeholder="you@example.com"
-                      value={email} onChange={(e) => setEmail(e.target.value)}
-                      className="rounded-xl pl-10" />
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">Password</Label>
+                      <button type="button"
+                        onClick={() => { setForgotEmail(email); setViewMode("forgot"); }}
+                        className="text-xs font-semibold text-primary hover:underline">
+                        Forgot password?
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                      <Input id="password" type={showPassword ? "text" : "password"}
+                        placeholder="Enter your password"
+                        value={password} onChange={(e) => setPassword(e.target.value)}
+                        className="rounded-xl pl-10 pr-10" />
+                      <Button type="button" variant="ghost" size="icon"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}>
+                        {showPassword ? <EyeOff className="size-4 text-muted-foreground" /> : <Eye className="size-4 text-muted-foreground" />}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Password</Label>
-                    <button type="button"
-                      onClick={() => { setForgotEmail(email); setViewMode("forgot"); }}
-                      className="text-xs font-semibold text-primary hover:underline">
-                      Forgot password?
-                    </button>
+                  <Button type="submit" className="w-full rounded-xl font-bold"
+                    disabled={loading || signinLockout > 0}>
+                    {loading ? "Signing in..." : signinLockout > 0 ? `Locked (${signinLockout}s)` : "Sign In"}
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={otpSent ? verifyOtp : sendOtp} className="space-y-4" noValidate>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="otpPhone">Phone Number</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">+91</span>
+                      <Input id="otpPhone" type="tel" placeholder="98765 43210"
+                        value={otpPhone} onChange={(e) => setOtpPhone(e.target.value.replace(/\D/g, ''))}
+                        disabled={otpSent}
+                        className="rounded-xl pl-10" />
+                    </div>
                   </div>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                    <Input id="password" type={showPassword ? "text" : "password"}
-                      placeholder="Enter your password"
-                      value={password} onChange={(e) => setPassword(e.target.value)}
-                      className="rounded-xl pl-10 pr-10" />
-                    <Button type="button" variant="ghost" size="icon"
-                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                      onClick={() => setShowPassword(!showPassword)}>
-                      {showPassword ? <EyeOff className="size-4 text-muted-foreground" /> : <Eye className="size-4 text-muted-foreground" />}
-                    </Button>
-                  </div>
-                </div>
-                <Button type="submit" className="w-full rounded-xl font-bold"
-                  disabled={loading || signinLockout > 0}>
-                  {loading ? "Signing in..." : signinLockout > 0 ? `Locked (${signinLockout}s)` : "Sign In"}
-                </Button>
-              </form>
+                  
+                  {otpSent && (
+                    <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
+                      <Label htmlFor="otpCode">6-Digit OTP</Label>
+                      <div className="relative">
+                        <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                        <Input id="otpCode" type="text" placeholder="------"
+                          maxLength={6}
+                          value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                          className="rounded-xl pl-10 tracking-widest font-mono" />
+                      </div>
+                    </div>
+                  )}
+                  
+                  <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading}>
+                    {loading ? (otpSent ? "Verifying..." : "Sending...") : (otpSent ? "Verify & Sign In" : "Send OTP")}
+                  </Button>
+                  
+                  {otpSent && (
+                    <p className="text-center text-xs text-muted-foreground mt-2">
+                      Didn't receive it? <button type="button" onClick={() => { setOtpSent(false); setOtpCode(""); }} className="text-primary hover:underline font-semibold">Change number or try again</button>
+                    </p>
+                  )}
+                </form>
+              )}
             </TabsContent>
 
             {/* ── Sign Up Tab ── */}
             <TabsContent value="signup">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full rounded-xl flex items-center justify-center gap-2 h-11 mt-4 hover:bg-muted/50"
+                onClick={signInWithGoogle}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="size-5">
+                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                </svg>
+                Sign up with Google
+              </Button>
+              
+              <div className="relative mt-4">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+                <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or sign up with email</span></div>
+              </div>
+
               {/* Step 1 — Registration form */}
               {signupStep === 1 && (
                 <>
                   {/* Step indicator */}
-                  <div className="flex items-center justify-center gap-2 pt-4 pb-3">
+                  <div className="flex items-center justify-center gap-2 pt-2 pb-3">
                     {[1, 2].map((s) => (
                       <div key={s} className="flex items-center gap-2">
                         <div className={cn(
