@@ -308,7 +308,7 @@ export function SiteHeader() {
         }))}
         subtotal={subtotal}
         deliveryFee={settings?.delivery_fee ?? 40}
-        settings={settings}
+        settings={settings ?? null}
       />
     </header>
   );
