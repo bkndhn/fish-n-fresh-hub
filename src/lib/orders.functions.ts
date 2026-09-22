@@ -140,6 +140,7 @@ export const updateOrderWeightAndPrice = createServerFn({ method: "POST" })
   .inputValidator((input: { orderId: string; total: number; weight: number }) => input)
   .handler(async ({ data }) => {
     await requireStaff();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("orders")
       .update({

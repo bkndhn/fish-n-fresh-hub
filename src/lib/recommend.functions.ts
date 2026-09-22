@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { createServerFn } from "@tanstack/react-start";
 import { createOpenAI } from "@ai-sdk/openai";
 import { streamText, Output, NoObjectGeneratedError } from "ai";

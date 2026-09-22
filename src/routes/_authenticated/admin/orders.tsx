@@ -192,9 +192,11 @@ function OrdersAdmin() {
     mutationFn: async () => {
       if (!weightModalOrder) return;
       await updateOrderWeightAndPrice({
-        orderId: weightModalOrder.id,
-        total: Number(weightForm.price),
-        weight: Number(weightForm.weight),
+        data: {
+          orderId: weightModalOrder.id,
+          total: Number(weightForm.price),
+          weight: Number(weightForm.weight),
+        }
       });
     },
     onSuccess: () => {

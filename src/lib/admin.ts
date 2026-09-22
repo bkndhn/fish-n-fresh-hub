@@ -13,6 +13,7 @@ export type OrderRow = {
   delivery_fee: number;
   discount: number;
   total: number;
+  pos_scale_weight_kg: number | null;
   status: string;
   payment_method: string;
   fulfillment_type: string;
