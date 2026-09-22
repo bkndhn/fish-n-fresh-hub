@@ -192,7 +192,15 @@ function Home() {
         <WhatsAppOrderDialog
           open={whatsAppOpen}
           onOpenChange={setWhatsAppOpen}
-          items={cartItems}
+          items={cartItems.map((i) => ({
+            productId: i.product_id,
+            name: i.name,
+            cutPreference: i.cut_preference || undefined,
+            qty: i.qty,
+            unit: i.unit || "unit",
+            price: i.price,
+            totalPrice: i.price * i.qty,
+          }))}
           subtotal={cartSubtotal}
           deliveryFee={Number(settings?.delivery_fee ?? 0)}
           settings={(settings ?? null) as SiteSettings | null}
