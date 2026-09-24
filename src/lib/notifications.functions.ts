@@ -40,7 +40,7 @@ export async function sendOrderPlacedNotification(orderId: string, customerPhone
 
 export async function sendOrderShippedNotification(orderId: string, customerPhone: string, customerName: string, trackingUrl?: string) {
   // 1. Push Notification
-  await triggerOrderAlertBackend(orderId, 'UPDATE').catch(console.error);
+  await triggerOrderAlertBackend(orderId, 'UPDATE', 'packed').catch(console.error);
 
   // 2. WhatsApp Notification
   await sendWhatsAppTemplateMessage(
@@ -52,7 +52,7 @@ export async function sendOrderShippedNotification(orderId: string, customerPhon
 
 export async function sendOrderDeliveredNotification(orderId: string, customerPhone: string, customerName: string) {
   // 1. Push Notification
-  await triggerOrderAlertBackend(orderId, 'UPDATE').catch(console.error);
+  await triggerOrderAlertBackend(orderId, 'UPDATE', 'out_for_delivery').catch(console.error);
 
   // 2. WhatsApp Notification
   await sendWhatsAppTemplateMessage(

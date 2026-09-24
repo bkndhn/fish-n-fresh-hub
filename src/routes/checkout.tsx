@@ -41,6 +41,7 @@ import { registerOrderDeliveryPin } from "@/lib/deliveryPin";
 import { CustomerDeliveryPinCard } from "@/components/CustomerDeliveryPinCard";
 import { getOrCreateUserWallet, calculateMaxRedeemable, redeemWalletBalance, validateReferralCode } from "@/lib/wallet";
 import { notifyOrderStatusChange } from "@/lib/fcm";
+import { triggerOrderAlert } from "@/lib/notifications.functions";
 import { checkCartStockAvailability, deductOrderStock } from "@/lib/inventorySync";
 import { sendOrderConfirmedEmailServer } from "@/lib/emails.functions";
 import { evaluateCartRewardRule, recordCampaignConversion, type MarketingCampaign } from "@/lib/campaigns";
@@ -639,6 +640,8 @@ function Checkout() {
         newStatus: "confirmed",
         customerName: cleanName,
       });
+      // Trigger Admin/Staff push on order placement
+      void triggerOrderAlert({ data: { orderId: data.id, eventType: 'INSERT' } });
     } catch (fcmErr) {
       console.warn("FCM push notice:", fcmErr);
     }
@@ -2049,3 +2052,4 @@ function Row({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+

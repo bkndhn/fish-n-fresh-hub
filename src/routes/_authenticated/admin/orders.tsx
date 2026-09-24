@@ -174,6 +174,8 @@ function OrdersAdmin() {
 
   const update = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { data: currentOrder } = await supabase.from("orders").select("status").eq("id", id).single();
+      const oldStatus = currentOrder?.status;
       const patch: Database["public"]["Tables"]["orders"]["Update"] = {
         status,
         updated_at: new Date().toISOString(),
@@ -201,6 +203,14 @@ function OrdersAdmin() {
         await updateOrderStatusWithEmail({ data: { orderId: id, status } });
       } catch (err) {
         console.warn("[OrdersAdmin] Email trigger notice:", err);
+      }
+      // 4. Trigger native background push notification
+      try {
+        if (status === "packed" || status === "ready" || status === "out_for_delivery") {
+          void triggerOrderAlert({ data: { orderId: id, eventType: "UPDATE", ...(oldStatus ? { oldStatus } : {}) } });
+        }
+      } catch (err) {
+        console.warn("[OrdersAdmin] Push trigger notice:", err);
       }
     },
     onSuccess: () => {
@@ -1636,4 +1646,8 @@ function OrdersAdmin() {
     </AdminShell>
   );
 }
+
+
+
+
 
