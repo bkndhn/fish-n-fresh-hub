@@ -443,7 +443,7 @@ export function MapPinPickerModal({
     const door = customDoorNo.trim();
     const pin = customPincode.trim();
     const baseStreet = geocoded?.street || initialAddress || "Pinned Delivery Location";
-    const baseCity = geocoded?.city || "Tiruppur";
+    const baseCity = geocoded?.city || activeBranch?.name || "";
 
     const fullFormatted = [
       door ? `Door ${door}` : "",
