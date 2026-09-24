@@ -35,6 +35,9 @@ interface InlineDeliveryRouteMapProps {
   orderNumber?: string | null | undefined;
   etaMinutes?: number | null | undefined;
   driverName?: string | null | undefined;
+  driverLat?: number | null | undefined;
+  driverLng?: number | null | undefined;
+  driverHeading?: number | null | undefined;
   verticalEmoji?: string | null | undefined;
   onExpand?: (() => void) | undefined;
   className?: string | undefined;
@@ -55,6 +58,8 @@ export function InlineDeliveryRouteMap({
   orderNumber,
   etaMinutes: propEta,
   driverName,
+  driverLat,
+  driverLng,
   verticalEmoji = "🐟",
   onExpand,
   className = "",

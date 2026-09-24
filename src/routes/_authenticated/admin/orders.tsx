@@ -131,8 +131,29 @@ function OrdersAdmin() {
   // Bulk Actions State
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [openBulkDriver, setOpenBulkDriver] = useState(false);
-  const [bulkDriverName, setBulkDriverName] = useState("Murugan (Express Delivery)");
+  const [bulkDriverName, setBulkDriverName] = useState("");
   const [bulkProcessing, setBulkProcessing] = useState(false);
+
+  // Live Drivers Query
+  const { data: liveDrivers } = useQuery({
+    queryKey: ['live_drivers'],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('driver_locations')
+        .select('user_id, lat, lng, is_online, updated_at')
+        .eq('is_online', true);
+      
+      return (data as any[] || []).map((d: any) => ({
+        user_id: d.user_id as string,
+        lat: d.lat as number,
+        lng: d.lng as number,
+        is_online: d.is_online as boolean,
+        updated_at: d.updated_at as string,
+        driver_name: `Driver (${(d.user_id as string).slice(0, 6)})`,
+      }));
+    },
+    refetchInterval: 10000,
+  });
 
   // Helper to strip automated tracking URLs and display only customer notes
   const cleanOrderNotes = (rawNotes: string | null | undefined): string | null => {
@@ -1036,6 +1057,32 @@ function OrdersAdmin() {
                         </Select>
                       </div>
 
+                      {/* Auto-Assign Driver Action */}
+                      {(o.status === "packed" || o.status === "processing") && (
+                        <Button
+                          size="sm"
+                          className="rounded-xl h-8.5 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shrink-0 gap-1 shadow-xs px-3"
+                          onClick={async () => {
+                            const toastId = toast.loading("Assigning nearest driver...");
+                            try {
+                              const { data, error } = await supabase.rpc("auto_assign_nearest_driver" as any, { p_order_id: o.id });
+                              if (error) throw error;
+                              if (data && (data as any).success) {
+                                toast.success(`Assigned to ${(data as any).driver_name}`, { id: toastId });
+                                qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+                              } else {
+                                toast.error((data as any)?.error || "No available drivers online", { id: toastId });
+                              }
+                            } catch (e: any) {
+                              toast.error(e.message, { id: toastId });
+                            }
+                          }}
+                          title="Auto-Assign Nearest Driver"
+                        >
+                          <Compass className="size-3" /> Auto-Assign
+                        </Button>
+                      )}
+
                       {/* Fast Delivery PIN Verification Action */}
                       {o.status !== "delivered" && o.status !== "cancelled" && (
                         <Button
@@ -1276,9 +1323,14 @@ function OrdersAdmin() {
                 onChange={(e) => setBulkDriverName(e.target.value)}
                 className="flex h-9 w-full rounded-xl border border-input bg-background px-3 py-1 text-xs shadow-xs"
               >
+                {/* Live drivers query handles options */}
+                <option value="">-- Select Driver --</option>
+                {liveDrivers?.map((driver) => (
+                  <option key={driver.user_id} value={driver.driver_name || `Driver ${driver.user_id.slice(0, 4)}`}>
+                    {driver.driver_name || `Driver ${driver.user_id.slice(0, 4)}`}
+                  </option>
+                ))}
                 <option value="Murugan (Express Delivery)">Murugan (Express Delivery)</option>
-                <option value="Rajesh K (South Route)">Rajesh K (South Route)</option>
-                <option value="Venkatesh S (Central)">Venkatesh S (Central)</option>
                 <option value="Auto Smart Workload Balancing">Auto Smart Workload Balancing</option>
               </select>
             </div>

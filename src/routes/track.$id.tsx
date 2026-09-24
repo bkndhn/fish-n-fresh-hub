@@ -145,6 +145,52 @@ function TrackPage() {
     }
   }, [order]);
 
+  // Live driver location from driver_locations table
+  const [driverLiveCoords, setDriverLiveCoords] = useState<{ lat: number; lng: number; heading: number | null } | null>(null);
+
+  useEffect(() => {
+    if (!order?.driver_id || order.status !== "out_for_delivery") {
+      setDriverLiveCoords(null);
+      return;
+    }
+
+    // Subscribe to live driver location updates
+    const channel = supabase
+      .channel(`driver-loc-${order.driver_id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "driver_locations",
+          filter: `user_id=eq.${order.driver_id}`,
+        },
+        (payload) => {
+          const row = payload.new as { lat?: number; lng?: number; heading?: number | null };
+          if (row?.lat && row?.lng) {
+            setDriverLiveCoords({ lat: row.lat, lng: row.lng, heading: row.heading ?? null });
+          }
+        }
+      )
+      .subscribe();
+
+    // Also fetch the current location immediately
+    void (supabase as any)
+      .from("driver_locations")
+      .select("lat, lng, heading")
+      .eq("user_id", order.driver_id)
+      .maybeSingle()
+      .then(({ data }: { data: { lat: number; lng: number; heading: number | null } | null }) => {
+        if (data?.lat && data?.lng) {
+          setDriverLiveCoords({ lat: data.lat, lng: data.lng, heading: data.heading ?? null });
+        }
+      });
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [order?.driver_id, order?.status]);
+
   const [routeModalOpen, setRouteModalOpen] = useState(false);
   const [returnModalOpen, setReturnModalOpen] = useState(false);
   const [returnReason, setReturnReason] = useState("");
@@ -425,6 +471,8 @@ function TrackPage() {
             orderNumber={order.order_number ?? order.id.slice(0, 8)}
             etaMinutes={order.eta_minutes ?? null}
             driverName={order.driver_name}
+            driverLat={driverLiveCoords?.lat ?? null}
+            driverLng={driverLiveCoords?.lng ?? null}
             verticalEmoji={getVerticalConfig(settings?.business_vertical).emoji}
             onExpand={() => setRouteModalOpen(true)}
           />
