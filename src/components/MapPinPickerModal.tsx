@@ -53,6 +53,31 @@ interface MapPinPickerModalProps {
 // Default to Chennai Central coordinates if no initial coordinates are given
 const DEFAULT_LAT = 13.0827;
 const DEFAULT_LNG = 80.2707;
+const LAST_GPS_KEY = "fnf_user_last_gps";
+
+function readCachedGps(): { lat: number; lng: number } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(LAST_GPS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.lat === "number" && typeof parsed?.lng === "number") {
+      return { lat: parsed.lat, lng: parsed.lng };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function cacheGps(lat: number, lng: number) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(LAST_GPS_KEY, JSON.stringify({ lat, lng, at: Date.now() }));
+  } catch {
+    /* storage unavailable */
+  }
+}
 
 export function MapPinPickerModal({
   open,
@@ -120,6 +145,13 @@ export function MapPinPickerModal({
           markerRef.current.setLatLng([initialLat, initialLng]);
         }
       } else if (!initialLat && !initialLng) {
+        // Start from the last confirmed doorstep while GPS locks on
+        const cached = readCachedGps();
+        if (cached) {
+          setCurrentCoords(cached);
+          if (markerRef.current) markerRef.current.setLatLng([cached.lat, cached.lng]);
+          if (leafletMapRef.current) leafletMapRef.current.setView([cached.lat, cached.lng], 17);
+        }
         // Auto-GPS Acquisition if no initial location passed
         if ("geolocation" in navigator) {
           navigator.geolocation.getCurrentPosition(
@@ -127,6 +159,7 @@ export function MapPinPickerModal({
               const { latitude: lat, longitude: lng, accuracy } = pos.coords;
               setCurrentCoords({ lat, lng });
               setGpsAccuracy(accuracy);
+              cacheGps(lat, lng);
               if (markerRef.current) markerRef.current.setLatLng([lat, lng]);
               if (leafletMapRef.current) leafletMapRef.current.flyTo([lat, lng], 18);
               fetchAddressForCoords(lat, lng);
@@ -351,26 +384,32 @@ export function MapPinPickerModal({
     setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const { latitude, longitude } = pos.coords;
+        const { latitude, longitude, accuracy } = pos.coords;
         setCurrentCoords({ lat: latitude, lng: longitude });
+        setGpsAccuracy(accuracy);
+        cacheGps(latitude, longitude);
 
         if (markerRef.current) {
           markerRef.current.setLatLng([latitude, longitude]);
         }
         if (leafletMapRef.current) {
-          leafletMapRef.current.flyTo([latitude, longitude], 17, {
+          leafletMapRef.current.flyTo([latitude, longitude], accuracy && accuracy > 100 ? 17 : 18, {
             duration: 1.2,
           });
         }
         fetchAddressForCoords(latitude, longitude);
         setIsLocating(false);
-        toast.success("Locked to your current GPS position!");
+        toast.success(
+          accuracy && accuracy > 50
+            ? `Located within ~${Math.round(accuracy)} m — drag the pin to your exact gate.`
+            : "Locked to your current GPS position!"
+        );
       },
-      (err) => {
+      () => {
         setIsLocating(false);
         toast.error("Unable to get GPS location. Please check browser permissions.");
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
 
@@ -404,7 +443,7 @@ export function MapPinPickerModal({
     const door = customDoorNo.trim();
     const pin = customPincode.trim();
     const baseStreet = geocoded?.street || initialAddress || "Pinned Delivery Location";
-    const baseCity = geocoded?.city || "Tiruppur";
+    const baseCity = geocoded?.city || activeBranch?.name || "";
 
     const fullFormatted = [
       door ? `Door ${door}` : "",
@@ -424,6 +463,7 @@ export function MapPinPickerModal({
       lat: currentCoords.lat,
       lng: currentCoords.lng,
     });
+    cacheGps(currentCoords.lat, currentCoords.lng);
     onOpenChange(false);
     toast.success("Exact doorstep location confirmed!");
   };

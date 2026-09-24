@@ -70,9 +70,9 @@ export const Route = createFileRoute("/track/$id")({
 const TRACK_STEPS = [
   { key: "pending", label: "Order Placed", desc: "Received at store", icon: ShoppingBag },
   { key: "confirmed", label: "Confirmed", desc: "Payment & stock verified", icon: CheckCircle2 },
-  { key: "packed", label: "Packed & Ready", desc: "Freshly cleaned, cut & chilled", icon: PackageCheck },
-  { key: "out_for_delivery", label: "Driver Out for Delivery", desc: "Rider assigned & heading to doorstep", icon: RouteIcon },
-  { key: "nearby", label: "Nearby", desc: "Within 1 km of doorstep", icon: Compass },
+  { key: "packed", label: "Packed", desc: "Freshly cleaned, cut & chilled", icon: PackageCheck },
+  { key: "assigned", label: "Driver Assigned", desc: "Delivery partner picked it up", icon: Compass },
+  { key: "out_for_delivery", label: "On the Way", desc: "Rider heading to your doorstep", icon: RouteIcon },
   { key: "delivered", label: "Delivered", desc: "Handover complete", icon: Home },
 ] as const;
 
@@ -135,15 +135,32 @@ function TrackPage() {
       case "confirmed":
       case "processing": return 1;
       case "packed":
+      case "ready": return 2;
       case "assigned":
-      case "picked_up": return 2;
+      case "picked_up": return 3;
       case "out_for_delivery":
-        if (distanceKm !== null && distanceKm <= 1.0) return 4;
-        return 3;
+      case "nearby": return 4;
       case "delivered": return 5;
       default: return 1;
     }
-  }, [order, distanceKm]);
+  }, [order]);
+
+  const [routeModalOpen, setRouteModalOpen] = useState(false);
+  const [returnModalOpen, setReturnModalOpen] = useState(false);
+  const [returnReason, setReturnReason] = useState("");
+
+  const submitReturn = useMutation({
+    mutationFn: async () => {
+      if (!order) return;
+      await requestReturn(order.id, returnReason);
+    },
+    onSuccess: () => {
+      toast.success("Return Request Submitted");
+      setReturnModalOpen(false);
+      qc.invalidateQueries({ queryKey: ["track", id] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   if (isLoading) {
     return (
@@ -176,21 +193,6 @@ function TrackPage() {
   const isDelivered = order.status === "delivered";
   const isOutForDelivery = order.status === "out_for_delivery";
 
-  const [routeModalOpen, setRouteModalOpen] = useState(false);
-  const [returnModalOpen, setReturnModalOpen] = useState(false);
-  const [returnReason, setReturnReason] = useState("");
-
-  const submitReturn = useMutation({
-    mutationFn: async () => {
-      await requestReturn(order.id, returnReason);
-    },
-    onSuccess: () => {
-      toast.success("Return Request Submitted");
-      setReturnModalOpen(false);
-      qc.invalidateQueries({ queryKey: ["track", id] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
   const supportPhone = settings?.support_phone || settings?.whatsapp_number || "919999999999";
   const storeWhatsAppUrl = getWhatsAppUrl(
     settings?.whatsapp_number || settings?.support_phone || "",
@@ -351,6 +353,18 @@ function TrackPage() {
                     );
                   })}
                 </div>
+              </div>
+
+              {/* Single-line plain status summary */}
+              <div className="mt-6 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-center">
+                <p className="text-xs font-semibold text-foreground">
+                  {TRACK_STEPS[Math.max(0, currentStepIndex)]?.label}
+                  <span className="font-normal text-muted-foreground">
+                    {" — "}
+                    {TRACK_STEPS[Math.max(0, currentStepIndex)]?.desc}
+                    {distanceKm !== null && !isDelivered ? ` · ${distanceKm.toFixed(1)} km away` : ""}
+                  </span>
+                </p>
               </div>
             </CardContent>
           </Card>
