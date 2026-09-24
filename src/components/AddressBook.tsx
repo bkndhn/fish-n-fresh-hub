@@ -207,7 +207,11 @@ export function AddressBook({ selectedAddress, onSelect }: AddressBookProps) {
             if (geocoded.doorNo && !doorNo) setDoorNo(geocoded.doorNo);
             if (geocoded.landmark && !landmark) setLandmark(geocoded.landmark);
 
-            toast.success(`GPS Location detected! ${geocoded.pincode ? `PIN: ${geocoded.pincode}` : ""}`);
+            toast.success(
+              pos.coords.accuracy > 50
+                ? `Located within ~${Math.round(pos.coords.accuracy)} m — pin it on the map for the exact gate.`
+                : `GPS Location detected! ${geocoded.pincode ? `PIN: ${geocoded.pincode}` : ""}`
+            );
           } else {
             toast.success("GPS coordinates detected!");
           }
@@ -217,11 +221,11 @@ export function AddressBook({ selectedAddress, onSelect }: AddressBookProps) {
           setDetectingGps(false);
         }
       },
-      (err) => {
+      () => {
         setDetectingGps(false);
         toast.error("Unable to access GPS location. Please allow location permissions in your browser.");
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
 
