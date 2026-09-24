@@ -145,6 +145,13 @@ export function MapPinPickerModal({
           markerRef.current.setLatLng([initialLat, initialLng]);
         }
       } else if (!initialLat && !initialLng) {
+        // Start from the last confirmed doorstep while GPS locks on
+        const cached = readCachedGps();
+        if (cached) {
+          setCurrentCoords(cached);
+          if (markerRef.current) markerRef.current.setLatLng([cached.lat, cached.lng]);
+          if (leafletMapRef.current) leafletMapRef.current.setView([cached.lat, cached.lng], 17);
+        }
         // Auto-GPS Acquisition if no initial location passed
         if ("geolocation" in navigator) {
           navigator.geolocation.getCurrentPosition(
@@ -152,6 +159,7 @@ export function MapPinPickerModal({
               const { latitude: lat, longitude: lng, accuracy } = pos.coords;
               setCurrentCoords({ lat, lng });
               setGpsAccuracy(accuracy);
+              cacheGps(lat, lng);
               if (markerRef.current) markerRef.current.setLatLng([lat, lng]);
               if (leafletMapRef.current) leafletMapRef.current.flyTo([lat, lng], 18);
               fetchAddressForCoords(lat, lng);
