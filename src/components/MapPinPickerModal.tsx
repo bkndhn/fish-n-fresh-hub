@@ -463,6 +463,7 @@ export function MapPinPickerModal({
       lat: currentCoords.lat,
       lng: currentCoords.lng,
     });
+    cacheGps(currentCoords.lat, currentCoords.lng);
     onOpenChange(false);
     toast.success("Exact doorstep location confirmed!");
   };
