@@ -1,4 +1,4 @@
-import { createAPIFileRoute } from '@tanstack/react-start/api'
+import { createFileRoute } from '@tanstack/react-router'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/integrations/supabase/types'
 import webpush from 'web-push'
@@ -141,11 +141,11 @@ async function dispatchNotifications(
   }
 }
 
-export const Route = createAPIFileRoute('/api/public/order-alerts')({
-  methods: ['POST'],
-  handlers: {
-    POST: async ({ request }) => {
-      // Validate webhook secret
+export const Route = createFileRoute('/api/public/order-alerts')({
+  server: {
+    handlers: {
+      POST: async ({ request }: { request: Request }) => {
+        // Validate webhook secret
       const secret = process.env['SUPABASE_WEBHOOK_SECRET'] || ''
       const incomingSecret = request.headers.get('x-webhook-secret') ||
         request.headers.get('authorization')?.replace('Bearer ', '') || ''

@@ -21,6 +21,7 @@ import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { getGoogleMapsDirUrl } from "@/lib/maps";
 import { formatINR } from "@/lib/format";
+import { registerDriverToken } from "@/lib/fcm";
 import { 
   Phone, MapPin, Navigation, PackageCheck, Truck, CheckCircle2, 
   AlertTriangle, Power, Satellite, Check
@@ -129,6 +130,8 @@ function DriverPanel() {
     if (isOnline && session?.user?.id) {
       startKeepAliveAudioBeacon();
       requestScreenWakeLock();
+      // Register as driver for push notifications (packed order alerts)
+      void registerDriverToken(session.user.id);
       
       stopWatcher = startDriverLocationWatcher(async (coord: DriverGeoCoordinate) => {
         setGpsAccuracy(coord.accuracy);
