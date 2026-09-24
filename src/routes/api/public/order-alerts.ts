@@ -242,4 +242,5 @@ export const Route = createFileRoute('/api/public/order-alerts')({
       })
     },
   },
+  },
 })

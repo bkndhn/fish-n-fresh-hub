@@ -109,7 +109,7 @@ export async function registerPushNotification(
     }
 
     await supabase.from("fcm_tokens").upsert(
-      upsertData as any //[0] extends never ? never : any,
+      upsertData as any,
       { onConflict: "token" }
     );
 

@@ -347,6 +347,13 @@ const ApiPublicPaymentsWebhookRoute =
     getParentRoute: () => rootRouteImport,
   } as any)
 
+const ApiPublicOrderAlertsRoute =
+  ApiPublicOrderAlertsRouteImport.update({
+    id: '/api/public/order-alerts',
+    path: '/api/public/order-alerts',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
@@ -399,6 +406,7 @@ export interface FileRoutesByFullPath {
   '/admin/wholesale': typeof AuthenticatedAdminWholesaleRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/order-alerts': typeof ApiPublicOrderAlertsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -452,6 +460,7 @@ export interface FileRoutesByTo {
   '/admin/wholesale': typeof AuthenticatedAdminWholesaleRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/order-alerts': typeof ApiPublicOrderAlertsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -507,6 +516,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/wholesale': typeof AuthenticatedAdminWholesaleRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/order-alerts': typeof ApiPublicOrderAlertsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -562,6 +572,7 @@ export interface FileRouteTypes {
     | '/admin/wholesale'
     | '/admin/'
     | '/api/public/payments/webhook'
+    | '/api/public/order-alerts'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -615,6 +626,7 @@ export interface FileRouteTypes {
     | '/admin/wholesale'
     | '/admin'
     | '/api/public/payments/webhook'
+    | '/api/public/order-alerts'
   id:
     | '__root__'
     | '/'
@@ -669,6 +681,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/wholesale'
     | '/_authenticated/admin/'
     | '/api/public/payments/webhook'
+    | '/api/public/order-alerts'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -695,6 +708,7 @@ export interface RootRouteChildren {
   TrackIdRoute: typeof TrackIdRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
+  ApiPublicOrderAlertsRoute: typeof ApiPublicOrderAlertsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1063,6 +1077,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/order-alerts': {
+      id: '/api/public/order-alerts'
+      path: '/api/public/order-alerts'
+      fullPath: '/api/public/order-alerts'
+      preLoaderRoute: typeof ApiPublicOrderAlertsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1158,6 +1179,7 @@ const rootRouteChildren: RootRouteChildren = {
   TrackIdRoute: TrackIdRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
+  ApiPublicOrderAlertsRoute: ApiPublicOrderAlertsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
@@ -1172,3 +1194,4 @@ declare module '@tanstack/react-start' {
     config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }
+
