@@ -1,8 +1,8 @@
 -- 1. Add driver_lat/driver_lng to orders for live driver location
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS driver_lat double precision;
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS driver_lng double precision;
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS driver_vehicle text;
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS driver_phone text;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS driver_lat double precision;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS driver_lng double precision;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS driver_vehicle text;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS driver_phone text;
 
 -- 2. Create driver_locations table for live GPS tracking
 CREATE TABLE IF NOT EXISTS public.driver_locations (
@@ -26,7 +26,7 @@ CREATE POLICY "driver_locations_own" ON public.driver_locations
 CREATE POLICY "driver_locations_staff_read" ON public.driver_locations
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM user_roles
+      SELECT 1 FROM public.user_roles
       WHERE user_id = auth.uid()
       AND role IN ('admin','manager','staff','driver')
     )
@@ -43,14 +43,14 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  v_order orders%ROWTYPE;
+  v_order public.orders%ROWTYPE;
   v_driver_id uuid;
   v_driver_name text;
   v_driver_phone text;
   v_result jsonb;
 BEGIN
   -- Get the order
-  SELECT * INTO v_order FROM orders WHERE id = p_order_id;
+  SELECT * INTO v_order FROM public.orders WHERE id = p_order_id;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Order not found');
   END IF;
@@ -68,7 +68,7 @@ BEGIN
     AND v_order.location_lng IS NOT NULL
     -- Driver not already assigned to an active delivery
     AND NOT EXISTS (
-      SELECT 1 FROM orders o2
+      SELECT 1 FROM public.orders o2
       WHERE o2.driver_id = dl.user_id
         AND o2.status = 'out_for_delivery'
     )
@@ -85,7 +85,7 @@ BEGIN
   END IF;
 
   -- Assign the driver
-  UPDATE orders
+  UPDATE public.orders
   SET
     driver_id = v_driver_id,
     driver_name = COALESCE(v_driver_name, 'Driver'),
