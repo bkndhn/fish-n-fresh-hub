@@ -354,6 +354,18 @@ function TrackPage() {
                   })}
                 </div>
               </div>
+
+              {/* Single-line plain status summary */}
+              <div className="mt-6 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-center">
+                <p className="text-xs font-semibold text-foreground">
+                  {TRACK_STEPS[Math.max(0, currentStepIndex)]?.label}
+                  <span className="font-normal text-muted-foreground">
+                    {" — "}
+                    {TRACK_STEPS[Math.max(0, currentStepIndex)]?.desc}
+                    {distanceKm !== null && !isDelivered ? ` · ${distanceKm.toFixed(1)} km away` : ""}
+                  </span>
+                </p>
+              </div>
             </CardContent>
           </Card>
         )}
