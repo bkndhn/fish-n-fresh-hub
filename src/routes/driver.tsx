@@ -181,7 +181,7 @@ function DriverPanel() {
     } else {
       toast.success(`Order marked as ${status.replace(/_/g, " ")}`);
       // Trigger background push alert via Server Action
-      void triggerOrderAlert({ data: { orderId, eventType: 'UPDATE', oldStatus } });
+      void triggerOrderAlert({ data: { orderId, eventType: 'UPDATE', ...(oldStatus ? { oldStatus } : {}) } });
     }
   };
 
@@ -408,3 +408,5 @@ function DriverPanel() {
 }
 
 export default DriverPanel;
+
+

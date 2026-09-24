@@ -253,7 +253,7 @@ export const Route = createFileRoute('/api/public/order-alerts')({
         
         const result = await triggerOrderAlert(
           payload.record.id,
-          payload.type,
+          payload.type as 'INSERT' | 'UPDATE',
           payload.old_record?.status
         )
 
