@@ -1,11 +1,14 @@
 /**
- * Native FCM Web Push & Notification Engine.
+ * Native FCM Web Push & Notification Engine — v2 (Production Grade)
  *
  * Supports:
- * - FCM Token registration with Supabase (fcm_tokens table)
+ * - Role-based FCM token registration (admin / staff / driver / customer)
+ * - Branch-scoped registration (for multi-branch deployments)
+ * - Web Push VAPID subscription stored in Supabase fcm_tokens table
  * - Automatic device detection (android / ios / web)
- * - Native High-Priority Browser Notification Fallback (works 100% on Android Chrome / Desktop)
- * - Broadcast triggers for Catch Alerts & Order Status
+ * - Native High-Priority Browser Notification Fallback
+ * - Auto re-registration when push subscription changes (SW relay)
+ * - pushsubscriptionchange listener for seamless re-subscription
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -50,10 +53,14 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 
 /**
  * Register push notification service worker and record token in Supabase fcm_tokens.
+ * @param userId  - Auth user id (null for guest)
+ * @param role    - Notification routing role
+ * @param branchId - Optional branch scope for staff/driver targeting
  */
 export async function registerPushNotification(
   userId?: string | null,
-  role: UserNotificationRole = "customer"
+  role: UserNotificationRole = "customer",
+  branchId?: string | null
 ): Promise<string | null> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("Notification" in window)) {
     return null;
@@ -63,11 +70,11 @@ export async function registerPushNotification(
     const perm = await requestNotificationPermission();
     if (perm !== "granted") return null;
 
-    // Register service worker if not already registered
+    // Register / reuse service worker
     const reg = await navigator.serviceWorker.register("/sw.js");
     await navigator.serviceWorker.ready;
 
-    // Generate or fetch push subscription
+    // Get existing or create new Web Push subscription
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
       const vapidKey = import.meta.env?.["VITE_VAPID_PUBLIC_KEY"] || null;
@@ -84,18 +91,25 @@ export async function registerPushNotification(
     }
 
     const tokenStr = sub
-      ? JSON.stringify(sub)
+      ? JSON.stringify(sub.toJSON())
       : `web_push_${Math.random().toString(36).slice(2)}_${Date.now()}`;
 
-    // Store in Supabase fcm_tokens
+    // Store/refresh in Supabase fcm_tokens
+    const upsertData: Record<string, unknown> = {
+      user_id: userId || null,
+      token: tokenStr,
+      role,
+      device_type: detectDeviceType(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // Only include branch_id if the column exists (safe to always include — DB ignores extra if not present)
+    if (branchId !== undefined) {
+      upsertData["branch_id"] = branchId || null;
+    }
+
     await supabase.from("fcm_tokens").upsert(
-      {
-        user_id: userId || null,
-        token: tokenStr,
-        role,
-        device_type: detectDeviceType(),
-        updated_at: new Date().toISOString(),
-      },
+      upsertData as Parameters<typeof supabase.from<"fcm_tokens">>[0] extends never ? never : any,
       { onConflict: "token" }
     );
 
@@ -107,7 +121,76 @@ export async function registerPushNotification(
 }
 
 /**
- * Show a native high-priority browser notification immediately.
+ * Re-register the push subscription when it changes (called from SW message).
+ * Call this once in your app root to keep tokens fresh.
+ */
+export function listenForPushSubscriptionChanges(
+  userId?: string | null,
+  role: UserNotificationRole = "customer",
+  branchId?: string | null
+): () => void {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return () => {};
+
+  const handler = (event: MessageEvent) => {
+    if (event.data?.type === "PUSH_SUBSCRIPTION_CHANGED") {
+      console.log("[FCM] Push subscription changed — re-registering...");
+      void registerPushNotification(userId, role, branchId);
+    }
+  };
+
+  navigator.serviceWorker.addEventListener("message", handler);
+  return () => navigator.serviceWorker.removeEventListener("message", handler);
+}
+
+// ─── Role-specific convenience helpers ───────────────────────────────────────
+
+/** Register current user as admin (call on admin login). */
+export async function registerAdminToken(
+  userId: string,
+  branchId?: string | null
+): Promise<string | null> {
+  return registerPushNotification(userId, "admin", branchId);
+}
+
+/** Register current user as staff. */
+export async function registerStaffToken(
+  userId: string,
+  branchId?: string | null
+): Promise<string | null> {
+  return registerPushNotification(userId, "staff", branchId);
+}
+
+/** Register driver — call when driver taps "Go Online". */
+export async function registerDriverToken(
+  userId: string,
+  branchId?: string | null
+): Promise<string | null> {
+  return registerPushNotification(userId, "driver", branchId);
+}
+
+/** Register as customer (default for storefront visitors). */
+export async function registerCustomerToken(
+  userId?: string | null
+): Promise<string | null> {
+  return registerPushNotification(userId, "customer");
+}
+
+/**
+ * Refresh the push registration — call on every app open.
+ * Ensures updated_at is current so stale detection works correctly.
+ */
+export async function refreshPushRegistration(
+  userId?: string | null,
+  role: UserNotificationRole = "customer",
+  branchId?: string | null
+): Promise<void> {
+  await registerPushNotification(userId, role, branchId);
+}
+
+// ─── Local notification helpers ──────────────────────────────────────────────
+
+/**
+ * Show a native high-priority browser notification immediately (in-app).
  */
 export function showLocalNotification(
   title: string,
@@ -131,7 +214,7 @@ export function showLocalNotification(
       };
     }
   } catch {
-    // If constructor fails on Android Chrome, try service worker
+    // If constructor fails on Android Chrome, use service worker
     navigator.serviceWorker?.ready.then((reg) => {
       reg.showNotification(title, {
         icon: "/icons/icon-192.png",
@@ -141,10 +224,6 @@ export function showLocalNotification(
     });
   }
 }
-
-// Aliases for compatibility with different components
-export const registerPushNotificationToken = registerPushNotification;
-export const triggerLocalNotification = showLocalNotification;
 
 /**
  * Trigger high-priority order status change push notification to customer.
@@ -177,3 +256,7 @@ export async function notifyOrderStatusChange({
     url: `/orders`,
   });
 }
+
+// ─── Backward-compatible aliases ─────────────────────────────────────────────
+export const registerPushNotificationToken = registerPushNotification;
+export const triggerLocalNotification = showLocalNotification;

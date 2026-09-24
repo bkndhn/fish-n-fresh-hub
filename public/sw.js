@@ -1,5 +1,5 @@
-// Fish N Fresh Hub — PWA Service Worker v5 (Native App Grade)
-const CACHE_NAME = 'fnf-pwa-v5';
+// Fish N Fresh Hub — PWA Service Worker v6 (Role-Based Push Notifications)
+const CACHE_NAME = 'fnf-pwa-v6';
 const IMAGE_CACHE_NAME = 'fnf-images-v2';
 const STATIC_ASSETS = [
   '/',
@@ -164,52 +164,86 @@ async function refreshCatalogCache() {
   } catch (_) {}
 }
 
-// Push Notifications
+// Push Notifications — production-grade handler
 self.addEventListener('push', (e) => {
   let data = {
     title: 'Fish N Fresh Hub',
     body: 'Fresh coastal catch updates and order delivery alerts.',
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-maskable-192.png',
+    tag: 'fnf-default',
     data: { url: '/' },
   };
 
   if (e.data) {
-    try { data = { ...data, ...e.data.json() }; }
-    catch { data.body = e.data.text(); }
+    try {
+      const parsed = e.data.json();
+      data = { ...data, ...parsed };
+      if (parsed.data) data.data = { ...data.data, ...parsed.data };
+    } catch {
+      data.body = e.data.text();
+    }
   }
+
+  const url = data.data?.url || '/';
+  const isAdminAlert = url.includes('/admin') || url.includes('/_authenticated');
+  const isDriverAlert = url.includes('/driver');
+  const isDeliveryAlert = url.includes('/track/');
+
+  const actions = isAdminAlert
+    ? [{ action: 'view', title: '📋 Open Orders' }, { action: 'dismiss', title: 'Dismiss' }]
+    : isDriverAlert
+    ? [{ action: 'view', title: '🚗 Open Driver App' }, { action: 'dismiss', title: 'Dismiss' }]
+    : isDeliveryAlert
+    ? [{ action: 'view', title: '📍 Track Order' }, { action: 'dismiss', title: 'Dismiss' }]
+    : [{ action: 'view', title: 'View' }, { action: 'dismiss', title: 'Dismiss' }];
+
+  const isHighPriority = isAdminAlert || isDriverAlert;
 
   e.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: data.icon || '/icons/icon-192.png',
       badge: data.badge || '/icons/icon-maskable-192.png',
-      vibrate: [200, 100, 200],
+      vibrate: isHighPriority ? [300, 100, 300, 100, 300] : [200, 100, 200],
+      tag: data.tag || 'fnf-default',
+      renotify: true,
+      requireInteraction: isHighPriority,
       data: data.data || { url: '/' },
-      actions: [
-        { action: 'view', title: 'View Order' },
-        { action: 'dismiss', title: 'Dismiss' },
-      ],
+      actions,
     })
   );
 });
 
-// Notification Click
+// Notification Click — focus existing window or open new tab
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
   if (e.action === 'dismiss') return;
 
   const targetUrl = e.notification.data?.url || '/';
+  const absoluteUrl = targetUrl.startsWith('http')
+    ? targetUrl
+    : self.location.origin + targetUrl;
+
   e.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      // Reuse existing open window — native app behavior
       for (const client of clients) {
         if (client.url.startsWith(self.location.origin) && 'focus' in client) {
-          client.navigate(targetUrl);
+          client.navigate(absoluteUrl);
           return client.focus();
         }
       }
-      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+      if (self.clients.openWindow) return self.clients.openWindow(absoluteUrl);
     })
   );
 });
+
+// Push subscription change — re-register automatically
+self.addEventListener('pushsubscriptionchange', (e) => {
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window' }).then((clients) => {
+      clients.forEach((c) => c.postMessage({ type: 'PUSH_SUBSCRIPTION_CHANGED' }));
+    })
+  );
+});
+
