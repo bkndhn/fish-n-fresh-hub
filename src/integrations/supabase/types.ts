@@ -552,6 +552,39 @@ export type Database = {
           },
         ]
       }
+      driver_locations: {
+        Row: {
+          accuracy: number | null
+          heading: number | null
+          is_online: boolean | null
+          lat: number
+          lng: number
+          speed: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          accuracy?: number | null
+          heading?: number | null
+          is_online?: boolean | null
+          lat: number
+          lng: number
+          speed?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          accuracy?: number | null
+          heading?: number | null
+          is_online?: boolean | null
+          lat?: number
+          lng?: number
+          speed?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           amount: number
@@ -968,7 +1001,11 @@ export type Database = {
           delivery_slot: string | null
           discount: number
           driver_id: string | null
+          driver_lat: number | null
+          driver_lng: number | null
           driver_name: string | null
+          driver_phone: string | null
+          driver_vehicle: string | null
           eta_minutes: number | null
           fulfillment_type: string
           gst_amount: number
@@ -1046,7 +1083,11 @@ export type Database = {
           delivery_slot?: string | null
           discount?: number
           driver_id?: string | null
+          driver_lat?: number | null
+          driver_lng?: number | null
           driver_name?: string | null
+          driver_phone?: string | null
+          driver_vehicle?: string | null
           eta_minutes?: number | null
           fulfillment_type?: string
           gst_amount?: number
@@ -1124,7 +1165,11 @@ export type Database = {
           delivery_slot?: string | null
           discount?: number
           driver_id?: string | null
+          driver_lat?: number | null
+          driver_lng?: number | null
           driver_name?: string | null
+          driver_phone?: string | null
+          driver_vehicle?: string | null
           eta_minutes?: number | null
           fulfillment_type?: string
           gst_amount?: number
@@ -3180,6 +3225,10 @@ export type Database = {
       }
     }
     Functions: {
+      auto_assign_nearest_driver: {
+        Args: { p_order_id: string }
+        Returns: Json
+      }
       claim_super_admin_role: { Args: never; Returns: Json }
       credit_wallet_cashback: { Args: { p_order_id: string }; Returns: Json }
       deduct_order_stock_atomic: { Args: { p_order_id: string }; Returns: Json }
