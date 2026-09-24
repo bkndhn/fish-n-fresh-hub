@@ -135,15 +135,32 @@ function TrackPage() {
       case "confirmed":
       case "processing": return 1;
       case "packed":
+      case "ready": return 2;
       case "assigned":
-      case "picked_up": return 2;
+      case "picked_up": return 3;
       case "out_for_delivery":
-        if (distanceKm !== null && distanceKm <= 1.0) return 4;
-        return 3;
+      case "nearby": return 4;
       case "delivered": return 5;
       default: return 1;
     }
-  }, [order, distanceKm]);
+  }, [order]);
+
+  const [routeModalOpen, setRouteModalOpen] = useState(false);
+  const [returnModalOpen, setReturnModalOpen] = useState(false);
+  const [returnReason, setReturnReason] = useState("");
+
+  const submitReturn = useMutation({
+    mutationFn: async () => {
+      if (!order) return;
+      await requestReturn(order.id, returnReason);
+    },
+    onSuccess: () => {
+      toast.success("Return Request Submitted");
+      setReturnModalOpen(false);
+      qc.invalidateQueries({ queryKey: ["track", id] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   if (isLoading) {
     return (
@@ -176,21 +193,6 @@ function TrackPage() {
   const isDelivered = order.status === "delivered";
   const isOutForDelivery = order.status === "out_for_delivery";
 
-  const [routeModalOpen, setRouteModalOpen] = useState(false);
-  const [returnModalOpen, setReturnModalOpen] = useState(false);
-  const [returnReason, setReturnReason] = useState("");
-
-  const submitReturn = useMutation({
-    mutationFn: async () => {
-      await requestReturn(order.id, returnReason);
-    },
-    onSuccess: () => {
-      toast.success("Return Request Submitted");
-      setReturnModalOpen(false);
-      qc.invalidateQueries({ queryKey: ["track", id] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
   const supportPhone = settings?.support_phone || settings?.whatsapp_number || "919999999999";
   const storeWhatsAppUrl = getWhatsAppUrl(
     settings?.whatsapp_number || settings?.support_phone || "",
