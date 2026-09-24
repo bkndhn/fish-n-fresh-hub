@@ -116,12 +116,9 @@ export function DeliveryRouteModal({
         }
       }
 
-      // Safe city fallback
+      // No fallback coordinates
       if (!cancelled) {
-        setResolvedCoords({
-          lat: effectiveStoreLat + 0.025,
-          lng: effectiveStoreLng + 0.02,
-        });
+        setResolvedCoords(null);
         setIsResolvingRoute(false);
       }
     }
@@ -160,30 +157,31 @@ export function DeliveryRouteModal({
     };
   }, [open, resolvedCoords, effectiveStoreLat, effectiveStoreLng]);
 
-  const targetLat = resolvedCoords?.lat ?? (effectiveStoreLat + 0.025);
-  const targetLng = resolvedCoords?.lng ?? (effectiveStoreLng + 0.02);
+  const targetLat = resolvedCoords?.lat ?? null;
+  const targetLng = resolvedCoords?.lng ?? null;
 
-  const distanceKm = roadRoute?.distanceKm ?? calculateDistanceKm(
+  const distanceKm = (targetLat && targetLng) ? (roadRoute?.distanceKm ?? calculateDistanceKm(
     effectiveStoreLat,
     effectiveStoreLng,
     targetLat,
     targetLng
-  );
-  const etaMinutes = roadRoute?.durationMinutes ?? estimateBikeMinutes(distanceKm);
+  )) : null;
+  
+  const etaMinutes = distanceKm !== null ? (roadRoute?.durationMinutes ?? estimateBikeMinutes(distanceKm)) : null;
 
-  const googleMapsUrl = getGoogleMapsDirUrl(
+  const googleMapsUrl = (targetLat && targetLng) ? getGoogleMapsDirUrl(
     targetLat,
     targetLng,
     customerAddress,
     effectiveStoreLat,
     effectiveStoreLng
-  );
-  const appleMapsUrl = getAppleMapsDirUrl(targetLat, targetLng, customerAddress);
-  const wazeUrl = getWazeDirUrl(targetLat, targetLng);
+  ) : "#";
+  const appleMapsUrl = (targetLat && targetLng) ? getAppleMapsDirUrl(targetLat, targetLng, customerAddress) : "#";
+  const wazeUrl = (targetLat && targetLng) ? getWazeDirUrl(targetLat, targetLng) : "#";
 
   // Initialize Route Map with true road geometry
   useEffect(() => {
-    if (!open || typeof window === "undefined" || !roadRoute) return;
+    if (!open || typeof window === "undefined" || !roadRoute || !targetLat || !targetLng) return;
 
     let isMounted = true;
 
@@ -233,14 +231,14 @@ export function DeliveryRouteModal({
           .addTo(map)
           .bindPopup(`<strong>${verticalEmoji || "🐟"} Store Hub</strong><br/>${storeAddress}`);
 
-        L.marker([targetLat, targetLng], { icon: customerIcon })
+        L.marker([targetLat!, targetLng!], { icon: customerIcon })
           .addTo(map)
           .bindPopup(`<strong>🏡 Customer Doorstep</strong><br/>${customerName || "Customer"}<br/>${customerAddress || ""}`);
 
         // Polyline connecting store to customer: dual-layer road polyline
         const coords = (roadRoute ? roadRoute.coordinates : [
           [effectiveStoreLat, effectiveStoreLng],
-          [targetLat, targetLng],
+          [targetLat!, targetLng!],
         ]) as import("leaflet").LatLngExpression[];
 
         // Outer glow/casing for contrast
@@ -351,26 +349,45 @@ export function DeliveryRouteModal({
         </div>
 
         {/* Route Map */}
-        <div className="relative flex-1 bg-muted/40 w-full overflow-hidden">
-          <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
+        <div className="relative flex-1 bg-muted/40 w-full overflow-hidden flex flex-col">
+          {targetLat && targetLng ? (
+            <>
+              <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
 
-          {/* Floating Origin & Destination Overlay */}
-          <div className="absolute top-3 left-3 right-3 sm:right-auto z-30 max-w-sm space-y-1.5 pointer-events-none">
-            <div className="rounded-2xl bg-background/95 backdrop-blur-md p-2.5 shadow-md border border-border/60 space-y-1.5 pointer-events-auto">
-              <div className="flex items-center gap-2 text-xs">
-                <span className="size-2 rounded-full bg-sky-500 shrink-0" />
-                <span className="text-muted-foreground shrink-0 font-medium">From:</span>
-                <span className="font-bold text-foreground truncate">{storeAddress}</span>
+              {/* Floating Origin & Destination Overlay */}
+              <div className="absolute top-3 left-3 right-3 sm:right-auto z-30 max-w-sm space-y-1.5 pointer-events-none">
+                <div className="rounded-2xl bg-background/95 backdrop-blur-md p-2.5 shadow-md border border-border/60 space-y-1.5 pointer-events-auto">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="size-2 rounded-full bg-sky-500 shrink-0" />
+                    <span className="text-muted-foreground shrink-0 font-medium">From:</span>
+                    <span className="font-bold text-foreground truncate">{storeAddress}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="size-2 rounded-full bg-emerald-500 shrink-0" />
+                    <span className="text-muted-foreground shrink-0 font-medium">To:</span>
+                    <span className="font-bold text-foreground truncate">
+                      {customerAddress || "Pinned Customer Doorstep"}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-xs">
-                <span className="size-2 rounded-full bg-emerald-500 shrink-0" />
-                <span className="text-muted-foreground shrink-0 font-medium">To:</span>
-                <span className="font-bold text-foreground truncate">
-                  {customerAddress || "Pinned Customer Doorstep"}
-                </span>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
+              <div className="size-12 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                <MapPin className="size-6" />
               </div>
+              <div>
+                <h3 className="font-bold text-foreground">Doorstep pin not confirmed</h3>
+                <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
+                  Doorstep pin not confirmed by customer — staff will verify location via call.
+                </p>
+              </div>
+              <Button variant="secondary" className="gap-2 font-bold mt-2 rounded-xl">
+                📍 Pin Customer Location Manually
+              </Button>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Action Panel */}

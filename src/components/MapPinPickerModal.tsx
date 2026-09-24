@@ -37,6 +37,7 @@ import {
   type GeocodedAddress,
   type NominatimSearchResult,
 } from "@/lib/maps";
+import { useCustomerBranch } from "@/lib/customerBranchContext";
 
 interface MapPinPickerModalProps {
   open: boolean;
@@ -63,16 +64,21 @@ export function MapPinPickerModal({
   confirmLabel = "Confirm Pin",
   onConfirm,
 }: MapPinPickerModalProps) {
+  const { activeBranch } = useCustomerBranch();
+
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const leafletMapRef = useRef<any>(null);
   const leafletModuleRef = useRef<any>(null);
   const currentTileLayerRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
+  const accuracyCircleRef = useRef<any>(null);
 
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number }>({
-    lat: initialLat || DEFAULT_LAT,
-    lng: initialLng || DEFAULT_LNG,
+    lat: initialLat ?? activeBranch?.lat ?? DEFAULT_LAT,
+    lng: initialLng ?? activeBranch?.lng ?? DEFAULT_LNG,
   });
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  const [linkInput, setLinkInput] = useState("");
 
   const [geocoded, setGeocoded] = useState<GeocodedAddress | null>(null);
   const [customDoorNo, setCustomDoorNo] = useState("");
@@ -113,7 +119,26 @@ export function MapPinPickerModal({
         if (markerRef.current) {
           markerRef.current.setLatLng([initialLat, initialLng]);
         }
+      } else if (!initialLat && !initialLng) {
+        // Auto-GPS Acquisition if no initial location passed
+        if ("geolocation" in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+              setCurrentCoords({ lat, lng });
+              setGpsAccuracy(accuracy);
+              if (markerRef.current) markerRef.current.setLatLng([lat, lng]);
+              if (leafletMapRef.current) leafletMapRef.current.flyTo([lat, lng], 18);
+              fetchAddressForCoords(lat, lng);
+            },
+            (err) => {
+              console.warn("GPS Acquisition failed:", err);
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+          );
+        }
       }
+      
       if (initialAddress) {
         const pinMatch = initialAddress.match(/\b\d{6}\b/);
         if (pinMatch && pinMatch[0]) {
@@ -143,6 +168,28 @@ export function MapPinPickerModal({
     const newLayer = createResilientTileLayer(L, map, nextMode).addTo(map);
     currentTileLayerRef.current = newLayer;
   };
+
+  // Sync GPS Accuracy Circle
+  useEffect(() => {
+    if (!leafletMapRef.current || !leafletModuleRef.current) return;
+    const map = leafletMapRef.current;
+    const L = leafletModuleRef.current;
+
+    if (accuracyCircleRef.current) {
+      accuracyCircleRef.current.remove();
+      accuracyCircleRef.current = null;
+    }
+
+    if (gpsAccuracy && gpsAccuracy > 50) {
+      accuracyCircleRef.current = L.circle([currentCoords.lat, currentCoords.lng], {
+        radius: gpsAccuracy,
+        color: '#eab308',
+        fillColor: '#fef08a',
+        fillOpacity: 0.2,
+        weight: 2
+      }).addTo(map);
+    }
+  }, [gpsAccuracy, currentCoords.lat, currentCoords.lng]);
 
   // Parse Google Maps Link or Coordinates
   const handleParseGoogleMaps = () => {
@@ -331,7 +378,7 @@ export function MapPinPickerModal({
   const handleSearch = async () => {
     if (!searchQuery.trim() || searchQuery.length < 2) return;
     setIsSearching(true);
-    const results = await searchNominatim(searchQuery);
+    const results = await searchNominatim(searchQuery, activeBranch?.lat ?? undefined, activeBranch?.lng ?? undefined);
     setSearchResults(results);
     setShowSearchResults(true);
     setIsSearching(false);
@@ -402,6 +449,28 @@ export function MapPinPickerModal({
             </div>
           </div>
 
+          {/* Quick Paste Bar */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <LinkIcon className="absolute left-3 top-2.5 size-3.5 text-muted-foreground" />
+              <Input 
+                placeholder="📋 Paste Google Maps or WhatsApp location link" 
+                value={googleMapsInput}
+                onChange={(e) => setGoogleMapsInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleParseGoogleMaps()}
+                className="pl-8.5 h-9 text-xs rounded-xl bg-muted/30"
+              />
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              className="h-9 px-3 text-xs rounded-xl font-bold shrink-0 bg-primary/10 text-primary hover:bg-primary/20"
+              onClick={handleParseGoogleMaps}
+            >
+              Extract Pin
+            </Button>
+          </div>
+
           {/* Search bar */}
           <div className="relative">
             <div className="flex items-center gap-2">
@@ -441,18 +510,6 @@ export function MapPinPickerModal({
               <Button
                 type="button"
                 size="sm"
-                variant={showGoogleMapsInput ? "default" : "outline"}
-                className="h-9 px-2.5 text-xs rounded-xl gap-1 shrink-0 font-medium"
-                onClick={() => setShowGoogleMapsInput(!showGoogleMapsInput)}
-                title="Paste location shared from Google Maps"
-              >
-                <LinkIcon className="size-3.5" />
-                <span className="hidden sm:inline">Google Maps Link</span>
-              </Button>
-
-              <Button
-                type="button"
-                size="sm"
                 variant="outline"
                 className="h-9 px-3 text-xs rounded-xl gap-1 shrink-0 font-medium"
                 onClick={handleLocateMe}
@@ -466,27 +523,6 @@ export function MapPinPickerModal({
                 <span className="hidden sm:inline">Use GPS</span>
               </Button>
             </div>
-
-            {/* Google Maps Link Paste Box */}
-            {showGoogleMapsInput && (
-              <div className="mt-2 flex items-center gap-1.5 p-2 rounded-xl bg-muted/50 border border-border animate-in fade-in duration-200">
-                <Input
-                  placeholder="Paste Google Maps URL (e.g. https://maps.app.goo.gl/... or 13.0827,80.2707)"
-                  value={googleMapsInput}
-                  onChange={(e) => setGoogleMapsInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleParseGoogleMaps()}
-                  className="h-8 text-xs rounded-lg bg-background"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-8 px-3 text-xs rounded-lg shrink-0 font-bold"
-                  onClick={handleParseGoogleMaps}
-                >
-                  Apply Pin
-                </Button>
-              </div>
-            )}
 
             {/* Autocomplete Results Dropdown */}
             {showSearchResults && searchResults.length > 0 && (
@@ -545,10 +581,24 @@ export function MapPinPickerModal({
 
           {/* Floating Live Guidance Badge */}
           <div className="absolute top-3 left-3 z-30 pointer-events-none max-w-[60%] sm:max-w-none">
-            <div className="flex items-center gap-1.5 rounded-full bg-background/95 backdrop-blur-md px-3 py-1 shadow-md border border-border/60 text-[11px] font-semibold text-foreground">
-              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Tap map or drag pin to gate</span>
-            </div>
+            {gpsAccuracy != null ? (
+              gpsAccuracy <= 25 ? (
+                <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 backdrop-blur-md px-3 py-1 shadow-md border border-emerald-500/20 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>📍 High Precision GPS (±{Math.round(gpsAccuracy)}m)</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 rounded-full bg-amber-500/10 backdrop-blur-md px-3 py-1 shadow-md border border-amber-500/20 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                  <span className="size-2 rounded-full bg-amber-500 animate-pulse" />
+                  <span>⚠️ Approximate GPS (±{Math.round(gpsAccuracy)}m) — Drag pin onto your gate</span>
+                </div>
+              )
+            ) : (
+              <div className="flex items-center gap-1.5 rounded-full bg-background/95 backdrop-blur-md px-3 py-1 shadow-md border border-border/60 text-[11px] font-semibold text-foreground">
+                <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Tap map or drag pin to gate</span>
+              </div>
+            )}
           </div>
 
           {/* Floating 4-way Nudge D-pad Controller for micro-adjustment (~10m) */}

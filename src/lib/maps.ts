@@ -166,18 +166,27 @@ export async function reverseGeocodeNominatim(
 /**
  * Search places/landmarks via OpenStreetMap Nominatim.
  */
-export async function searchNominatim(query: string): Promise<NominatimSearchResult[]> {
+export async function searchNominatim(query: string, branchLat?: number, branchLng?: number, radiusKm = 15): Promise<NominatimSearchResult[]> {
   if (!query || query.trim().length < 2) return [];
   try {
     const encoded = encodeURIComponent(query.trim());
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encoded}&countrycodes=in&limit=5`,
-      {
-        headers: {
-          "Accept-Language": "en-IN,en;q=0.9",
-        },
-      }
-    );
+    let url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encoded}&countrycodes=in&limit=5`;
+    
+    if (branchLat != null && branchLng != null) {
+      const latDelta = radiusKm / 111;
+      const lngDelta = radiusKm / (111 * Math.cos((branchLat * Math.PI) / 180));
+      const minLat = branchLat - latDelta;
+      const maxLat = branchLat + latDelta;
+      const minLng = branchLng - lngDelta;
+      const maxLng = branchLng + lngDelta;
+      url += `&viewbox=${minLng},${maxLat},${maxLng},${minLat}&bounded=1`;
+    }
+
+    const res = await fetch(url, {
+      headers: {
+        "Accept-Language": "en-IN,en;q=0.9",
+      },
+    });
     if (!res.ok) return [];
     const data = await res.json();
     return (data || []).map((item: any) => ({

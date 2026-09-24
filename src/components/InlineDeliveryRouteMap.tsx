@@ -113,10 +113,7 @@ export function InlineDeliveryRouteMap({
       }
 
       if (!cancelled) {
-        setResolvedCoords({
-          lat: effectiveStoreLat + 0.022,
-          lng: effectiveStoreLng + 0.018,
-        });
+        setResolvedCoords(null);
       }
     }
 
@@ -152,29 +149,29 @@ export function InlineDeliveryRouteMap({
     };
   }, [resolvedCoords, effectiveStoreLat, effectiveStoreLng]);
 
-  const targetLat = resolvedCoords?.lat ?? (effectiveStoreLat + 0.022);
-  const targetLng = resolvedCoords?.lng ?? (effectiveStoreLng + 0.018);
+  const targetLat = resolvedCoords?.lat ?? null;
+  const targetLng = resolvedCoords?.lng ?? null;
 
-  const distanceKm = roadRoute?.distanceKm ?? calculateDistanceKm(
+  const distanceKm = (targetLat && targetLng) ? (roadRoute?.distanceKm ?? calculateDistanceKm(
     effectiveStoreLat,
     effectiveStoreLng,
     targetLat,
     targetLng
-  );
-  const calculatedEta = roadRoute?.durationMinutes ?? estimateBikeMinutes(distanceKm);
+  )) : null;
+  const calculatedEta = distanceKm !== null ? (roadRoute?.durationMinutes ?? estimateBikeMinutes(distanceKm)) : null;
   const displayEta = propEta ?? calculatedEta;
 
-  const googleMapsUrl = getGoogleMapsDirUrl(
+  const googleMapsUrl = (targetLat && targetLng) ? getGoogleMapsDirUrl(
     targetLat,
     targetLng,
     destAddress,
     effectiveStoreLat,
     effectiveStoreLng
-  );
-  const appleMapsUrl = getAppleMapsDirUrl(targetLat, targetLng, destAddress);
+  ) : "#";
+  const appleMapsUrl = (targetLat && targetLng) ? getAppleMapsDirUrl(targetLat, targetLng, destAddress) : "#";
 
   useEffect(() => {
-    if (typeof window === "undefined" || !roadRoute) return;
+    if (typeof window === "undefined" || !roadRoute || !targetLat || !targetLng) return;
 
     let isMounted = true;
 
@@ -229,14 +226,14 @@ export function InlineDeliveryRouteMap({
           .addTo(map)
           .bindPopup(`<strong>${verticalEmoji} Store Origin</strong><br/>${storeAddress}`);
 
-        L.marker([targetLat, targetLng], { icon: customerIcon })
+        L.marker([targetLat!, targetLng!], { icon: customerIcon })
           .addTo(map)
           .bindPopup(`<strong>🏡 Delivery Destination</strong><br/>${customerName || "Customer"}<br/>${destAddress || ""}`);
 
         // Route Polyline: dual-layer road route
         const coords = (roadRoute ? roadRoute.coordinates : [
           [effectiveStoreLat, effectiveStoreLng],
-          [targetLat, targetLng],
+          [targetLat!, targetLng!],
         ]) as import("leaflet").LatLngExpression[];
 
         // Outer glow/casing
@@ -293,6 +290,27 @@ export function InlineDeliveryRouteMap({
     destAddress,
     verticalEmoji,
   ]);
+
+  if (!targetLat || !targetLng) {
+    return (
+      <div
+        className={`relative w-full max-w-full overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-muted/30 to-card p-6 shadow-xs ${className} flex flex-col items-center justify-center text-center gap-3`}
+      >
+        <div className="size-10 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center">
+          <MapPin className="size-5" />
+        </div>
+        <div>
+          <h3 className="font-bold text-foreground text-sm">Doorstep pin not confirmed</h3>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            Staff will verify location via call.
+          </p>
+        </div>
+        <Button variant="secondary" size="sm" className="gap-2 font-bold mt-1 rounded-xl text-[11px] h-8">
+          <MapPin className="size-3" /> Pin Customer Location Manually
+        </Button>
+      </div>
+    );
+  }
 
   if (mapError) {
     return (

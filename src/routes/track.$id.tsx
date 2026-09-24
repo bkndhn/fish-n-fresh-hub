@@ -68,13 +68,12 @@ export const Route = createFileRoute("/track/$id")({
 });
 
 const TRACK_STEPS = [
-  { key: "pending", label: "Order Placed", desc: "Received at our fish counter", icon: ShoppingBag },
-  { key: "confirmed", label: "Confirmed", desc: "Order approved by shop manager", icon: CheckCircle2 },
-  { key: "cleaning", label: "Cleaning & Cutting", desc: "Fresh catch scaled, descaled & cut", icon: Fish },
-  { key: "packed", label: "Iced & Packed", desc: "Sealed in insulated temperature pack", icon: PackageCheck },
-  { key: "shipped", label: "Shipped", desc: "Handed over to courier partner", icon: Truck },
-  { key: "out_for_delivery", label: "Out for Delivery", desc: "Partner on the way to your doorstep", icon: Truck },
-  { key: "delivered", label: "Delivered", desc: "Enjoy your fresh seafood feast!", icon: Home },
+  { key: "pending", label: "Order Placed", desc: "Received at store", icon: ShoppingBag },
+  { key: "confirmed", label: "Confirmed", desc: "Payment & stock verified", icon: CheckCircle2 },
+  { key: "packed", label: "Packed & Ready", desc: "Freshly cleaned, cut & chilled", icon: PackageCheck },
+  { key: "out_for_delivery", label: "Driver Out for Delivery", desc: "Rider assigned & heading to doorstep", icon: RouteIcon },
+  { key: "nearby", label: "Nearby", desc: "Within 1 km of doorstep", icon: Compass },
+  { key: "delivered", label: "Delivered", desc: "Handover complete", icon: Home },
 ] as const;
 
 function TrackPage() {
@@ -115,24 +114,36 @@ function TrackPage() {
     };
   }, [id, qc]);
 
+  // Calculate distance dynamically if coords exist
+  const distanceKm = useMemo(() => {
+    if (!order?.location_lat || !order?.location_lng || !settings?.shop_lat || !settings?.shop_lng) return null;
+    // Uses fallback distance calculation
+    const R = 6371; // Earth radius km
+    const dLat = (order.location_lat - settings.shop_lat) * Math.PI / 180;
+    const dLng = (order.location_lng - settings.shop_lng) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(settings.shop_lat * Math.PI / 180) * Math.cos(order.location_lat * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }, [order, settings]);
+
   const currentStepIndex = useMemo(() => {
     if (!order) return 0;
     if (order.status === "cancelled") return -1;
     switch (order.status) {
-      case "pending":
-        return 0;
+      case "pending": return 0;
       case "confirmed":
-        return 1;
+      case "processing": return 1;
       case "packed":
-        return 3;
+      case "assigned":
+      case "picked_up": return 2;
       case "out_for_delivery":
-        return 4;
-      case "delivered":
-        return 5;
-      default:
-        return 1;
+        if (distanceKm !== null && distanceKm <= 1.0) return 4;
+        return 3;
+      case "delivered": return 5;
+      default: return 1;
     }
-  }, [order]);
+  }, [order, distanceKm]);
 
   if (isLoading) {
     return (
@@ -164,7 +175,6 @@ function TrackPage() {
   const isCancelled = order.status === "cancelled";
   const isDelivered = order.status === "delivered";
   const isOutForDelivery = order.status === "out_for_delivery";
-  const progressPct = isCancelled ? 0 : Math.round((currentStepIndex / (TRACK_STEPS.length - 1)) * 100);
 
   const [routeModalOpen, setRouteModalOpen] = useState(false);
   const [returnModalOpen, setReturnModalOpen] = useState(false);
@@ -307,93 +317,36 @@ function TrackPage() {
                 )}
               </div>
 
-              {/* Step Progress Tracker */}
-              <div className="pt-6">
-                {/* Horizontal Progress Bar for Desktop */}
-                <div className="relative hidden sm:block">
-                  <div className="absolute top-5 left-6 right-6 h-1 bg-muted rounded-full">
-                    <div
-                      className="h-full bg-primary rounded-full transition-all duration-700 ease-out"
-                      style={{ width: `${progressPct}%` }}
-                    />
-                  </div>
-
-                  <div className="relative flex justify-between">
-                    {TRACK_STEPS.map((s, idx) => {
-                      const isDone = idx <= currentStepIndex;
-                      const isCurrent = idx === currentStepIndex;
-                      const StepIcon = s.icon;
-                      return (
-                        <div key={s.key} className="flex flex-col items-center text-center max-w-[100px]">
-                          <div
-                            className={`flex size-10 items-center justify-center rounded-full border-2 transition-all duration-300 ${
-                              isDone
-                                ? "border-primary bg-primary text-primary-foreground shadow-xs"
-                                : "border-border bg-card text-muted-foreground"
-                            } ${isCurrent ? "ring-4 ring-primary/20 scale-110" : ""}`}
-                          >
-                            <StepIcon className="size-4.5" />
-                          </div>
-                          <p
-                            className={`mt-2 text-xs font-semibold ${
-                              isDone ? "text-foreground" : "text-muted-foreground"
-                            }`}
-                          >
-                            {s.label}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground hidden md:block leading-tight mt-0.5">
-                            {s.desc}
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
+              {/* Clean Horizontal Stepper (Mobile & Desktop) */}
+              <div className="relative pt-2 pb-6 mt-6">
+                {/* Progress Track Background */}
+                <div className="absolute top-6 left-2 right-2 h-1 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-primary transition-all duration-1000 ease-in-out" 
+                    style={{ width: `${(currentStepIndex / (TRACK_STEPS.length - 1)) * 100}%` }}
+                  />
                 </div>
 
-                {/* Vertical Stepper for Mobile with Connected Lines */}
-                <div className="sm:hidden space-y-0 relative pl-1">
+                <div className="relative flex justify-between px-1">
                   {TRACK_STEPS.map((s, idx) => {
                     const isDone = idx <= currentStepIndex;
                     const isCurrent = idx === currentStepIndex;
-                    const isLast = idx === TRACK_STEPS.length - 1;
-                    const StepIcon = s.icon;
+                    const StepIcon = isDone && !isCurrent ? Check : s.icon;
+                    
                     return (
-                      <div key={s.key} className="flex items-start gap-3 relative pb-5 last:pb-1">
-                        {/* Connecting vertical line */}
-                        {!isLast && (
-                          <div
-                            className={`absolute left-4 top-8 bottom-0 w-0.5 -translate-x-1/2 transition-colors duration-500 ${
-                              idx < currentStepIndex ? "bg-primary" : "bg-muted"
-                            }`}
-                          />
-                        )}
-
-                        {/* Step Icon Badge */}
+                      <div key={s.key} className="flex flex-col items-center relative z-10 w-12 sm:w-16">
                         <div
-                          className={`relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300 ${
+                          className={`flex size-9 sm:size-10 shrink-0 items-center justify-center rounded-full border-[3px] border-card transition-all duration-500 shadow-sm ${
                             isDone
-                              ? "border-primary bg-primary text-primary-foreground shadow-xs"
-                              : "border-border bg-card text-muted-foreground"
-                          } ${isCurrent ? "ring-4 ring-primary/25 scale-110" : ""}`}
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground"
+                          } ${isCurrent ? "ring-4 ring-primary/20 scale-110 shadow-md animate-in zoom-in" : ""}`}
                         >
-                          <StepIcon className="size-4" />
+                          <StepIcon className="size-4 sm:size-4.5" />
                         </div>
-
-                        {/* Step Label & Subtext */}
-                        <div className="min-w-0 flex-1 pt-0.5">
-                          <div className="flex items-center gap-2">
-                            <p className={`text-xs font-bold ${isDone ? "text-foreground" : "text-muted-foreground"}`}>
-                              {s.label}
-                            </p>
-                            {isCurrent && !isDelivered && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.2 text-[10px] font-extrabold text-primary">
-                                <span className="size-1.5 rounded-full bg-primary animate-ping" />
-                                In Progress
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{s.desc}</p>
-                        </div>
+                        <p className={`absolute -bottom-7 text-center text-[9px] sm:text-[11px] font-bold leading-tight w-20 sm:w-24 ${isDone ? "text-foreground" : "text-muted-foreground opacity-50"}`}>
+                          {s.label}
+                        </p>
                       </div>
                     );
                   })}
@@ -464,18 +417,18 @@ function TrackPage() {
         )}
 
         {/* Assigned Driver / Delivery Partner Card */}
-        {order.driver_name && (
+        {order.driver_name && order.status === "out_for_delivery" && (
           <Card className="border-border/70 shadow-xs overflow-hidden">
             <CardContent className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary font-bold text-base">
-                  {order.driver_name.slice(0, 2).toUpperCase()}
+                  <Truck className="size-5" />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-bold text-sm text-foreground">{order.driver_name}</p>
                     <span className="rounded-full bg-emerald-500/10 px-2 py-0.2 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                      Rider Partner
+                      Driver Partner
                     </span>
                   </div>
                   <p className="text-[11px] text-muted-foreground">
@@ -486,8 +439,8 @@ function TrackPage() {
 
               <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
                 <Button size="sm" variant="outline" className="rounded-xl h-8.5 text-xs font-semibold" asChild>
-                  <a href={`tel:${supportPhone}`} className="flex items-center justify-center">
-                    <Phone className="mr-1.5 size-3.5 text-primary" /> Call Rider
+                  <a href={`tel:${(order as any).driver_phone || supportPhone}`} className="flex items-center justify-center">
+                    <Phone className="mr-1.5 size-3.5 text-primary" /> Call Driver
                   </a>
                 </Button>
                 <Button
@@ -497,14 +450,14 @@ function TrackPage() {
                 >
                   <a
                     href={getWhatsAppUrl(
-                      supportPhone,
-                      `Hi, I am customer of order #${order.order_number ?? order.id.slice(0, 8)}. Calling regarding delivery status.`
+                      (order as any).driver_phone || supportPhone,
+                      `Hi ${order.driver_name}, I am customer of order #${order.order_number ?? order.id.slice(0, 8)}. Calling regarding delivery status.`
                     )}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center justify-center"
                   >
-                    <WhatsAppIcon className="mr-1.5 size-4" /> WhatsApp
+                    <WhatsAppIcon className="mr-1.5 size-4" /> WhatsApp Driver
                   </a>
                 </Button>
               </div>
