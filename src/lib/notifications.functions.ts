@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { CartItem } from "./types";
-import { triggerOrderAlert as triggerOrderAlertBackend } from "@/routes/api/public/order-alerts";
 
 /**
  * Core Notifications Engine
@@ -18,6 +17,7 @@ export const triggerOrderAlert = createServerFn({ method: "POST" })
   .validator((data: { orderId: string; eventType: 'INSERT' | 'UPDATE'; oldStatus?: string }) => data)
   .handler(async ({ data }) => {
     try {
+      const { triggerOrderAlert: triggerOrderAlertBackend } = await import("./order-alerts.server");
       await triggerOrderAlertBackend(data.orderId, data.eventType, data.oldStatus);
     } catch (err) {
       console.error("[triggerOrderAlert] Failed:", err);
@@ -28,7 +28,12 @@ export async function sendOrderPlacedNotification(orderId: string, customerPhone
   const itemSummary = items.map(i => `${i.qty}x ${i.name}`).join(", ");
   
   // 1. Send Push Notification 
-  await triggerOrderAlertBackend(orderId, 'INSERT').catch(console.error);
+  try {
+    const { triggerOrderAlert: triggerBackend } = await import("./order-alerts.server");
+    await triggerBackend(orderId, 'INSERT').catch(console.error);
+  } catch (err) {
+    console.error("[sendOrderPlacedNotification] Push trigger error:", err);
+  }
 
   // 2. Send WhatsApp Notification
   await sendWhatsAppTemplateMessage(
@@ -40,7 +45,12 @@ export async function sendOrderPlacedNotification(orderId: string, customerPhone
 
 export async function sendOrderShippedNotification(orderId: string, customerPhone: string, customerName: string, trackingUrl?: string) {
   // 1. Push Notification
-  await triggerOrderAlertBackend(orderId, 'UPDATE', 'packed').catch(console.error);
+  try {
+    const { triggerOrderAlert: triggerBackend } = await import("./order-alerts.server");
+    await triggerBackend(orderId, 'UPDATE', 'packed').catch(console.error);
+  } catch (err) {
+    console.error("[sendOrderShippedNotification] Push trigger error:", err);
+  }
 
   // 2. WhatsApp Notification
   await sendWhatsAppTemplateMessage(
@@ -52,7 +62,12 @@ export async function sendOrderShippedNotification(orderId: string, customerPhon
 
 export async function sendOrderDeliveredNotification(orderId: string, customerPhone: string, customerName: string) {
   // 1. Push Notification
-  await triggerOrderAlertBackend(orderId, 'UPDATE', 'out_for_delivery').catch(console.error);
+  try {
+    const { triggerOrderAlert: triggerBackend } = await import("./order-alerts.server");
+    await triggerBackend(orderId, 'UPDATE', 'out_for_delivery').catch(console.error);
+  } catch (err) {
+    console.error("[sendOrderDeliveredNotification] Push trigger error:", err);
+  }
 
   // 2. WhatsApp Notification
   await sendWhatsAppTemplateMessage(
