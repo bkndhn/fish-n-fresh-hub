@@ -70,9 +70,9 @@ export const Route = createFileRoute("/track/$id")({
 const TRACK_STEPS = [
   { key: "pending", label: "Order Placed", desc: "Received at store", icon: ShoppingBag },
   { key: "confirmed", label: "Confirmed", desc: "Payment & stock verified", icon: CheckCircle2 },
-  { key: "packed", label: "Packed & Ready", desc: "Freshly cleaned, cut & chilled", icon: PackageCheck },
-  { key: "out_for_delivery", label: "Driver Out for Delivery", desc: "Rider assigned & heading to doorstep", icon: RouteIcon },
-  { key: "nearby", label: "Nearby", desc: "Within 1 km of doorstep", icon: Compass },
+  { key: "packed", label: "Packed", desc: "Freshly cleaned, cut & chilled", icon: PackageCheck },
+  { key: "assigned", label: "Driver Assigned", desc: "Delivery partner picked it up", icon: Compass },
+  { key: "out_for_delivery", label: "On the Way", desc: "Rider heading to your doorstep", icon: RouteIcon },
   { key: "delivered", label: "Delivered", desc: "Handover complete", icon: Home },
 ] as const;
 
