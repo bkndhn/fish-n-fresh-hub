@@ -384,26 +384,32 @@ export function MapPinPickerModal({
     setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const { latitude, longitude } = pos.coords;
+        const { latitude, longitude, accuracy } = pos.coords;
         setCurrentCoords({ lat: latitude, lng: longitude });
+        setGpsAccuracy(accuracy);
+        cacheGps(latitude, longitude);
 
         if (markerRef.current) {
           markerRef.current.setLatLng([latitude, longitude]);
         }
         if (leafletMapRef.current) {
-          leafletMapRef.current.flyTo([latitude, longitude], 17, {
+          leafletMapRef.current.flyTo([latitude, longitude], accuracy && accuracy > 100 ? 17 : 18, {
             duration: 1.2,
           });
         }
         fetchAddressForCoords(latitude, longitude);
         setIsLocating(false);
-        toast.success("Locked to your current GPS position!");
+        toast.success(
+          accuracy && accuracy > 50
+            ? `Located within ~${Math.round(accuracy)} m — drag the pin to your exact gate.`
+            : "Locked to your current GPS position!"
+        );
       },
-      (err) => {
+      () => {
         setIsLocating(false);
         toast.error("Unable to get GPS location. Please check browser permissions.");
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
 
