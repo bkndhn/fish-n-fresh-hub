@@ -53,6 +53,31 @@ interface MapPinPickerModalProps {
 // Default to Chennai Central coordinates if no initial coordinates are given
 const DEFAULT_LAT = 13.0827;
 const DEFAULT_LNG = 80.2707;
+const LAST_GPS_KEY = "fnf_user_last_gps";
+
+function readCachedGps(): { lat: number; lng: number } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(LAST_GPS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.lat === "number" && typeof parsed?.lng === "number") {
+      return { lat: parsed.lat, lng: parsed.lng };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function cacheGps(lat: number, lng: number) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(LAST_GPS_KEY, JSON.stringify({ lat, lng, at: Date.now() }));
+  } catch {
+    /* storage unavailable */
+  }
+}
 
 export function MapPinPickerModal({
   open,
