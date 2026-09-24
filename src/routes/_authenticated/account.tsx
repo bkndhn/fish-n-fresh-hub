@@ -24,6 +24,8 @@ import {
   Play,
   RefreshCw,
   Star,
+  LogOut,
+  User,
 } from "lucide-react";
 import { updateSubscriptionStatus } from "@/lib/subscriptions.functions";
 import { toast } from "sonner";
@@ -39,6 +41,17 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { TaxInvoiceModal } from "@/components/TaxInvoiceModal";
 import { NotificationPromptCard } from "@/components/NotificationPromptCard";
 import { supabase } from "@/integrations/supabase/client";
@@ -107,7 +120,7 @@ function AccountPage() {
   const { user } = useSessionUser();
   const qc = useQueryClient();
   const { data: settings } = useQuery(settingsQuery);
-  const [tab, setTab] = useState<"orders" | "subscriptions" | "payments" | "addresses" | "wallet">("orders");
+  const [tab, setTab] = useState<"profile" | "orders" | "subscriptions" | "payments" | "addresses" | "wallet">("profile");
   const [invoiceOrder, setInvoiceOrder] = useState<AccountOrder | null>(null);
 
   // 1. Strict Customer-Scoped Orders Query
@@ -250,6 +263,7 @@ function AccountPage() {
         <nav className="mt-5 flex gap-1 overflow-x-auto rounded-2xl bg-muted/60 p-1">
           {(
             [
+              ["profile", "Profile Overview"],
               ["orders", "Orders & Delivery"],
               ["subscriptions", "Fresh Subscriptions"],
               ["payments", "Past Payments"],
@@ -274,6 +288,9 @@ function AccountPage() {
           <p className="mt-6 text-sm text-muted-foreground">Loading your account…</p>
         ) : (
           <div className="mt-4">
+            {tab === "profile" && (
+              <ProfileTab user={user} />
+            )}
             {tab === "orders" && (
               <OrdersTab orders={orders} onOpenInvoice={(o) => setInvoiceOrder(o)} />
             )}
@@ -1003,6 +1020,60 @@ function SubscriptionsTab({
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+function ProfileTab({ user }: { user: any }) {
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast.success("Logged out successfully");
+    navigate({ to: "/" });
+  };
+
+  const phone = (user?.user_metadata as Record<string, any>)?.phone || "Not provided";
+  const name = (user?.user_metadata as Record<string, any>)?.full_name || "Customer";
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-border bg-card p-6 text-center sm:text-left flex flex-col sm:flex-row items-center gap-5">
+        <div className="flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <User className="size-8" />
+        </div>
+        <div className="flex-1 space-y-1">
+          <h2 className="text-xl font-bold">{name}</h2>
+          <p className="text-sm text-muted-foreground">{user?.email}</p>
+          <p className="text-sm text-muted-foreground">Phone: {phone}</p>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <h3 className="text-lg font-bold mb-4">Account Settings</h3>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" className="w-full sm:w-auto gap-2">
+              <LogOut className="size-4" />
+              Log Out
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent className="rounded-2xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure you want to log out?</AlertDialogTitle>
+              <AlertDialogDescription>
+                You will need to sign in again to view your orders, track deliveries, or access your wallet balance.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleLogout} className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Yes, log out
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </div>
   );
 }
