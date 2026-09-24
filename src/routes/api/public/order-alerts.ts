@@ -1,6 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from '@/integrations/supabase/types'
+import { supabaseAdmin } from '@/integrations/supabase/client.server'
 import webpush from 'web-push'
 
 interface WebhookPayload {
@@ -33,15 +32,8 @@ type NotificationPayload = {
   tag: string
 }
 
-function getSupabase() {
-  return createClient<Database>(
-    process.env['SUPABASE_URL']!,
-    process.env['SUPABASE_SERVICE_ROLE_KEY']!
-  )
-}
-
 async function getTargetTokens(
-  supabase: ReturnType<typeof getSupabase>,
+  supabase: typeof supabaseAdmin,
   target: 'admin_staff' | 'driver' | 'customer',
   orderId: string,
   userId: string | null,
@@ -76,7 +68,7 @@ async function sendWebPushNotification(
   try {
     let subscription: webpush.PushSubscription
     try {
-      subscription = JSON.parse(token) as webpush.PushSubscription
+      subscription = JSON.parse(token)
     } catch {
       // Not a JSON subscription — skip (might be a placeholder token)
       return { success: false, stale: true }
@@ -103,7 +95,7 @@ async function sendWebPushNotification(
 async function dispatchNotifications(
   tokens: Array<{ id: string; token: string }>,
   payload: NotificationPayload,
-  supabase: ReturnType<typeof getSupabase>
+  supabase: typeof supabaseAdmin
 ): Promise<void> {
   const vapidPublicKey = process.env['VITE_VAPID_PUBLIC_KEY'] || process.env['VAPID_PUBLIC_KEY'] || ''
   const vapidPrivateKey = process.env['VAPID_PRIVATE_KEY'] || ''
@@ -141,106 +133,132 @@ async function dispatchNotifications(
   }
 }
 
+/**
+ * Server-side helper to manually trigger an order alert.
+ * Can be called from API routes, server actions, or checkout logic.
+ */
+export async function triggerOrderAlert(
+  orderId: string,
+  eventType: 'INSERT' | 'UPDATE',
+  oldStatus?: string
+) {
+  // Fetch order details
+  const { data: order, error } = await supabaseAdmin
+    .from('orders')
+    .select('*')
+    .eq('id', orderId)
+    .single()
+
+  if (error || !order) {
+    console.error('[triggerOrderAlert] Order not found:', orderId)
+    return { success: false, error: 'Order not found' }
+  }
+
+  const newStatus = order.status
+
+  if (eventType === 'UPDATE' && oldStatus === newStatus) {
+    return { success: false, message: 'Status unchanged' }
+  }
+
+  const orderNum = order.order_number || order.id.slice(0, 8)
+  
+  let notif: NotificationPayload | null = null
+  let target: 'admin_staff' | 'driver' | 'customer' | null = null
+  
+  if (eventType === 'INSERT' && newStatus === 'pending') {
+    target = 'admin_staff'
+    notif = {
+      title: '🔔 New Order Received!',
+      body: `Order #${orderNum} for ₹${order.total} (${order.payment_method || 'COD'}) is waiting for confirmation.`,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-maskable-192.png',
+      data: { url: '/admin/orders', order_id: order.id },
+      tag: `new_order_${order.id}`,
+    }
+  } else if (eventType === 'UPDATE' && (newStatus === 'ready' || newStatus === 'packed')) {
+    target = 'driver'
+    notif = {
+      title: '📦 Order Ready for Pickup!',
+      body: `Order #${orderNum} is packed on ice and ready for dispatch.`,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-maskable-192.png',
+      data: { url: '/driver', order_id: order.id },
+      tag: `packed_${order.id}`,
+    }
+  } else if (eventType === 'UPDATE' && newStatus === 'out_for_delivery') {
+    target = 'customer'
+    notif = {
+      title: '🚚 Fresh Catch On the Way!',
+      body: 'Your order is on the way with your delivery partner. Track live!',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-maskable-192.png',
+      data: { url: `/track/${order.id}`, order_id: order.id },
+      tag: `delivery_${order.id}`,
+    }
+  } else if (eventType === 'UPDATE' && newStatus === 'delivered') {
+    target = 'customer'
+    notif = {
+      title: '🎉 Order Delivered!',
+      body: `Your fresh seafood order #${orderNum} was safely delivered. Enjoy your meal!`,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-maskable-192.png',
+      data: { url: `/track/${order.id}`, order_id: order.id },
+      tag: `delivered_${order.id}`,
+    }
+  }
+  
+  if (!notif || !target) {
+    return { success: false, message: `Status '${newStatus}' not a notification trigger` }
+  }
+  
+  const tokens = await getTargetTokens(supabaseAdmin, target, order.id, order.user_id)
+  
+  if (tokens.length === 0) {
+    return { success: false, message: 'No registered tokens for target' }
+  }
+  
+  await dispatchNotifications(tokens, notif, supabaseAdmin)
+  
+  return {
+    success: true,
+    target,
+    status: newStatus,
+    tokens_attempted: tokens.length,
+  }
+}
+
 export const Route = createFileRoute('/api/public/order-alerts')({
   server: {
     handlers: {
       POST: async ({ request }: { request: Request }) => {
         // Validate webhook secret
-      const secret = process.env['SUPABASE_WEBHOOK_SECRET'] || ''
-      const incomingSecret = request.headers.get('x-webhook-secret') ||
-        request.headers.get('authorization')?.replace('Bearer ', '') || ''
-      
-      if (secret && incomingSecret !== secret) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-      
-      let payload: WebhookPayload
-      try {
-        payload = await request.json() as WebhookPayload
-      } catch {
-        return Response.json({ error: 'Invalid JSON' }, { status: 400 })
-      }
-      
-      if (payload.table !== 'orders') {
-        return Response.json({ message: 'Ignored — not orders table' })
-      }
-      
-      const order = payload.record
-      const oldStatus = payload.old_record?.status
-      const newStatus = order.status
-      
-      // Skip if status unchanged on UPDATE
-      if (payload.type === 'UPDATE' && oldStatus === newStatus) {
-        return Response.json({ message: 'Status unchanged' })
-      }
-      
-      const supabase = getSupabase()
-      const orderNum = order.order_number || order.id.slice(0, 8)
-      
-      let notif: NotificationPayload | null = null
-      let target: 'admin_staff' | 'driver' | 'customer' | null = null
-      
-      if (payload.type === 'INSERT' && newStatus === 'pending') {
-        target = 'admin_staff'
-        notif = {
-          title: '🔔 New Order Received!',
-          body: `Order #${orderNum} for ₹${order.total} (${order.payment_method || 'COD'}) is waiting for confirmation.`,
-          icon: '/icons/icon-192.png',
-          badge: '/icons/icon-maskable-192.png',
-          data: { url: '/_authenticated/admin/orders', order_id: order.id },
-          tag: `new_order_${order.id}`,
+        const secret = process.env['SUPABASE_WEBHOOK_SECRET'] || ''
+        const incomingSecret = request.headers.get('x-webhook-secret') ||
+          request.headers.get('authorization')?.replace('Bearer ', '') || ''
+        
+        if (secret && incomingSecret !== secret) {
+          return Response.json({ error: 'Unauthorized' }, { status: 401 })
         }
-      } else if (payload.type === 'UPDATE' && (newStatus === 'ready' || newStatus === 'packed')) {
-        target = 'driver'
-        notif = {
-          title: '📦 Delivery Ready for Pickup!',
-          body: `Order #${orderNum} is packed on ice and ready for dispatch.`,
-          icon: '/icons/icon-192.png',
-          badge: '/icons/icon-maskable-192.png',
-          data: { url: '/driver', order_id: order.id },
-          tag: `packed_${order.id}`,
+        
+        let payload: WebhookPayload
+        try {
+          payload = await request.json() as WebhookPayload
+        } catch {
+          return Response.json({ error: 'Invalid JSON' }, { status: 400 })
         }
-      } else if (payload.type === 'UPDATE' && newStatus === 'out_for_delivery') {
-        target = 'customer'
-        notif = {
-          title: '🚚 Fresh Catch Out for Delivery!',
-          body: 'Your order is on the way with your delivery partner. Track live!',
-          icon: '/icons/icon-192.png',
-          badge: '/icons/icon-maskable-192.png',
-          data: { url: `/track/${order.id}`, order_id: order.id },
-          tag: `delivery_${order.id}`,
+        
+        if (payload.table !== 'orders') {
+          return Response.json({ message: 'Ignored — not orders table' })
         }
-      } else if (payload.type === 'UPDATE' && newStatus === 'delivered') {
-        target = 'customer'
-        notif = {
-          title: '🎉 Order Delivered!',
-          body: `Your fresh seafood order #${orderNum} was safely delivered. Enjoy your meal!`,
-          icon: '/icons/icon-192.png',
-          badge: '/icons/icon-maskable-192.png',
-          data: { url: `/track/${order.id}`, order_id: order.id },
-          tag: `delivered_${order.id}`,
-        }
-      }
-      
-      if (!notif || !target) {
-        return Response.json({ message: `Status '${newStatus}' not a notification trigger` })
-      }
-      
-      const tokens = await getTargetTokens(supabase, target, order.id, order.user_id)
-      
-      if (tokens.length === 0) {
-        return Response.json({ message: 'No registered tokens for target' })
-      }
-      
-      await dispatchNotifications(tokens, notif, supabase)
-      
-      return Response.json({
-        success: true,
-        target,
-        status: newStatus,
-        tokens_attempted: tokens.length,
-      })
+        
+        const result = await triggerOrderAlert(
+          payload.record.id,
+          payload.type,
+          payload.old_record?.status
+        )
+
+        return Response.json(result)
+      },
     },
-  },
   },
 })

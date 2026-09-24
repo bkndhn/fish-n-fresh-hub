@@ -22,6 +22,7 @@ import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { getGoogleMapsDirUrl } from "@/lib/maps";
 import { formatINR } from "@/lib/format";
 import { registerDriverToken } from "@/lib/fcm";
+import { triggerOrderAlert } from "@/lib/notifications.functions";
 import { 
   Phone, MapPin, Navigation, PackageCheck, Truck, CheckCircle2, 
   AlertTriangle, Power, Satellite, Check
@@ -167,6 +168,9 @@ function DriverPanel() {
   }, [isOnline, session]);
 
   const updateOrderStatus = async (orderId: string, status: string) => {
+    const { data: order } = await supabase.from("orders").select("status").eq("id", orderId).single();
+    const oldStatus = order?.status;
+    
     const { error } = await supabase
       .from("orders")
       .update({ status })
@@ -176,6 +180,8 @@ function DriverPanel() {
       toast.error("Failed to update status");
     } else {
       toast.success(`Order marked as ${status.replace(/_/g, " ")}`);
+      // Trigger background push alert via Server Action
+      void triggerOrderAlert({ data: { orderId, eventType: 'UPDATE', oldStatus } });
     }
   };
 

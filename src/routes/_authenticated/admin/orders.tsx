@@ -48,6 +48,7 @@ import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { restoreOrderStock } from "@/lib/inventorySync";
 import { updateOrderStatusWithEmail, updateOrderWeightAndPrice } from "@/lib/orders.functions";
+import { triggerOrderAlert } from "@/lib/notifications.functions";
 import { updateCourierDetails } from "@/lib/tracking.functions";
 import { updateReturnStatus, processRefundToWallet } from "@/lib/returns.functions";
 import { Card, CardContent } from "@/components/ui/card";
@@ -1635,3 +1636,4 @@ function OrdersAdmin() {
     </AdminShell>
   );
 }
+

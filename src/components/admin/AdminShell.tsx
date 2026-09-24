@@ -42,6 +42,7 @@ import { AdminBranchProvider } from "@/lib/branchContext";
 import { AdminBranchSwitcher } from "@/components/admin/AdminBranchSwitcher";
 import { GoLiveChecklistModal } from "@/components/admin/GoLiveChecklistModal";
 import { supabase } from "@/integrations/supabase/client";
+import { registerPushNotification } from "@/lib/fcm";
 import { myRolesQuery, type AppRole } from "@/lib/admin";
 import { settingsQuery } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
@@ -142,6 +143,18 @@ export function AdminShell({
       }
     }
   }, [allowed, isLoading, roles, nav, navigate]);
+
+  // Register push notifications automatically for admin/staff
+  useEffect(() => {
+    if (!isLoading && roles && allowed) {
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session?.user?.id) {
+          const highestRole = roles.includes("admin") || roles.includes("super_admin") ? "admin" : "staff";
+          registerPushNotification(data.session.user.id, highestRole as any).catch(console.warn);
+        }
+      });
+    }
+  }, [allowed, isLoading, roles]);
 
   const primaryNav = nav.filter((item) => PRIMARY_MOBILE_PATHS.includes(item.to));
   const moreNav = nav.filter((item) => !PRIMARY_MOBILE_PATHS.includes(item.to));
@@ -389,3 +402,4 @@ export function AdminShell({
     </AdminBranchProvider>
   );
 }
+
