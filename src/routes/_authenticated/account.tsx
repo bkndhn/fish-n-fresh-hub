@@ -1033,8 +1033,8 @@ function ProfileTab({ user }: { user: any }) {
     navigate({ to: "/" });
   };
 
-  const phone = (user?.user_metadata as Record<string, any>)?.phone || "Not provided";
-  const name = (user?.user_metadata as Record<string, any>)?.full_name || "Customer";
+  const phone = (user?.user_metadata as Record<string, any>)?.[ 'phone' ] || "Not provided";
+  const name = (user?.user_metadata as Record<string, any>)?.[ 'full_name' ] || "Customer";
 
   return (
     <div className="space-y-4">
