@@ -243,11 +243,11 @@ export async function sendWebPush(
     }
 
     const stale = response.status === 404 || response.status === 410
-    let error: string | undefined
+    let error = ''
     try {
       error = (await response.text()).slice(0, 300)
     } catch {
-      error = undefined
+      error = `HTTP ${response.status}`
     }
     return { success: false, statusCode: response.status, stale, error }
   } catch (err) {
