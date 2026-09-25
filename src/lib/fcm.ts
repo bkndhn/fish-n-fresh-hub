@@ -13,6 +13,10 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
+/** Public VAPID application server key (public by design, safe in the client). */
+const VAPID_PUBLIC_KEY =
+  "BOSSk4Bd2OaAOKQ5DGwObUtPjpdv6awDdLgC__Fh32WnqvWVlDc1KO5zYBveo3Y2O72oIKo_kWRlcSlWb2m1NPg";
+
 export type DeviceType = "web" | "android" | "ios";
 export type UserNotificationRole = "customer" | "driver" | "staff" | "admin";
 
