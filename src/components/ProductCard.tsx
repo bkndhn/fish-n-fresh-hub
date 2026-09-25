@@ -209,7 +209,7 @@ export function ProductCard({ product }: { product: Product }) {
         </div>
         <div className="mt-auto pt-2 flex flex-col gap-2 w-full">
           {/* Price Block */}
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 min-h-[38px] sm:min-h-[42px]">
             <div className="flex items-baseline gap-1 flex-wrap">
               <span className="font-display text-sm sm:text-base font-bold text-foreground whitespace-nowrap">
                 {inr(Number(product.price))}
