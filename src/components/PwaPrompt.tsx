@@ -162,6 +162,40 @@ export function PwaPrompt() {
     };
   }, []);
 
+  // Auto-open the install card: soon on the very first visit, then on every
+  // later visit (~25s in) for as long as the app is still not installed.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const installed =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone === true ||
+      localStorage.getItem("fnf_pwa_installed") === "true";
+    if (installed) return;
+
+    let firstVisit = false;
+    try {
+      firstVisit = !localStorage.getItem("fnf_pwa_seen");
+      localStorage.setItem("fnf_pwa_seen", "1");
+    } catch (_) {}
+
+    const timer = window.setTimeout(
+      () => {
+        const stillInstalled =
+          window.matchMedia("(display-mode: standalone)").matches ||
+          localStorage.getItem("fnf_pwa_installed") === "true";
+        if (stillInstalled) return;
+        if (/iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase())) {
+          setShowIosGuide(true);
+        } else {
+          setShowDesktopGuide(true);
+        }
+      },
+      firstVisit ? 3000 : 25000,
+    );
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
   // Always pull the freshest prompt — avoids any residual stale-state issues
   const getActivePrompt = () =>
     (typeof window !== "undefined" && window.__pwaInstallPrompt) || deferredPrompt;
