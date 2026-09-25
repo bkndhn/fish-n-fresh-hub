@@ -77,7 +77,9 @@ export async function registerPushNotification(
     // Get existing or create new Web Push subscription
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
-      const vapidKey = import.meta.env?.["VITE_VAPID_PUBLIC_KEY"] || null;
+      // VAPID public keys are safe to ship to the browser by design.
+      const vapidKey =
+        import.meta.env?.["VITE_VAPID_PUBLIC_KEY"] || VAPID_PUBLIC_KEY;
       if (vapidKey) {
         try {
           sub = await reg.pushManager.subscribe({
