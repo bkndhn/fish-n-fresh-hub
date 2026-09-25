@@ -181,7 +181,7 @@ export function ProductCard({ product }: { product: Product }) {
           ) : null}
         </div>
       </div>
-      <div className="space-y-1 p-2.5 sm:p-3">
+      <div className="flex flex-1 flex-col space-y-1 p-2.5 sm:p-3">
         {detailsEnabled ? (
           <Link
             to="/product/$id"
