@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { triggerOrderAlert } from '@/lib/order-alerts.server'
 
 interface WebhookPayload {
   type: 'INSERT' | 'UPDATE' | 'DELETE'
@@ -46,13 +45,22 @@ export const Route = createFileRoute('/api/public/order-alerts')({
           return Response.json({ message: 'Ignored — not orders table' })
         }
         
-        const result = await triggerOrderAlert(
-          payload.record.id,
-          payload.type as 'INSERT' | 'UPDATE',
-          payload.old_record?.status
-        )
-
-        return Response.json(result)
+        // Loaded lazily so notification code can never affect page routing.
+        try {
+          const { triggerOrderAlert } = await import('@/lib/order-alerts.server')
+          const result = await triggerOrderAlert(
+            payload.record.id,
+            payload.type as 'INSERT' | 'UPDATE',
+            payload.old_record?.status
+          )
+          return Response.json(result)
+        } catch (err) {
+          console.error('[order-alerts] dispatch failed:', err)
+          return Response.json(
+            { success: false, error: err instanceof Error ? err.message : 'Dispatch failed' },
+            { status: 500 }
+          )
+        }
       },
     },
   },

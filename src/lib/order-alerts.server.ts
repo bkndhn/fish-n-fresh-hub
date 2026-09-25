@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/integrations/supabase/client.server'
-import webpush from 'web-push'
+import { sendWebPush, type PushSubscriptionJSON } from './webpush-edge.server'
 
 export type NotificationPayload = {
   title: string
@@ -41,33 +41,25 @@ export async function sendWebPushNotification(
   vapidPrivateKey: string,
   vapidSubject: string
 ): Promise<{ success: boolean; stale: boolean }> {
-  if (!webpush) return { success: false, stale: false }
-  
+  let subscription: PushSubscriptionJSON
   try {
-    let subscription: webpush.PushSubscription
-    try {
-      subscription = JSON.parse(token)
-    } catch {
-      // Not a JSON subscription — skip (might be a placeholder token)
-      return { success: false, stale: true }
-    }
-    
-    if (!subscription.endpoint) return { success: false, stale: true }
-    
-    webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey)
-    
-    await webpush.sendNotification(
-      subscription,
-      JSON.stringify(payload),
-      { TTL: 86400, urgency: 'high' }
-    )
-    return { success: true, stale: false }
-  } catch (err: any) {
-    const statusCode = err?.statusCode ?? err?.status ?? 0
-    // 404/410 = subscription expired/unregistered
-    const stale = statusCode === 404 || statusCode === 410
-    return { success: false, stale }
+    subscription = JSON.parse(token) as PushSubscriptionJSON
+  } catch {
+    // Not a JSON subscription — skip (might be a placeholder token)
+    return { success: false, stale: true }
   }
+
+  if (!subscription?.endpoint) return { success: false, stale: true }
+
+  const result = await sendWebPush(subscription, JSON.stringify(payload), {
+    vapidPublicKey,
+    vapidPrivateKey,
+    vapidSubject,
+    ttl: 86400,
+    urgency: 'high',
+  })
+
+  return { success: result.success, stale: result.stale }
 }
 
 export async function dispatchNotifications(
