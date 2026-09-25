@@ -110,7 +110,7 @@ async function createVapidAuthHeader(
     await crypto.subtle.sign(
       { name: 'ECDSA', hash: 'SHA-256' },
       signingKey,
-      utf8(`${header}.${payload}`),
+      utf8(`${header}.${payload}`) as unknown as BufferSource,
     ),
   )
 
