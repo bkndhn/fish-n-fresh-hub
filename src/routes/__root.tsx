@@ -354,6 +354,7 @@ function RootComponent() {
                 <Outlet />
               </Suspense>
               <BranchPickerModal />
+              <PwaPrompt />
               <Toaster position="top-center" />
             </CustomerBranchProvider>
           </CartProvider>
