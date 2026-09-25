@@ -318,6 +318,7 @@ import { SeoStructuredData } from "@/components/SeoStructuredData";
 import { AnalyticsTracker } from "@/components/AnalyticsTracker";
 import { CustomerBranchProvider } from "@/lib/customerBranchContext";
 import { BranchPickerModal } from "@/components/BranchPickerModal";
+import { PwaPrompt } from "@/components/PwaPrompt";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();

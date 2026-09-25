@@ -7,7 +7,6 @@ import { SiteHeader } from "./SiteHeader";
 import { CatchAlertBanner } from "../CatchAlertBanner";
 import { BottomNav } from "./BottomNav";
 import { FloatingCart } from "../FloatingCart";
-import { PwaPrompt } from "../PwaPrompt";
 import { CustomerSupportChatWidget } from "../CustomerSupportChatWidget";
 import { Footer } from "./Footer";
 import { useLocation } from "@tanstack/react-router";
@@ -37,7 +36,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       className="min-h-screen bg-background w-full max-w-full overflow-x-clip flex flex-col"
       style={{ backgroundImage: "var(--daily-glow)" }}
     >
-      <PwaPrompt />
       <CatchAlertBanner />
       <SiteHeader />
       <main className="mx-auto w-full max-w-5xl px-3 sm:px-4 pt-3 sm:pt-4 flex-1 overflow-x-clip">{children}</main>
