@@ -51,7 +51,7 @@ export function ProductCard({ product }: { product: Product }) {
   return (
     <div
       className={cn(
-        "group overflow-hidden rounded-2xl border shadow-sm transition-all duration-200 relative",
+        "group flex h-full flex-col overflow-hidden rounded-2xl border shadow-sm transition-all duration-200 relative",
         isOutOfStock
           ? "opacity-75 bg-muted/20 border-border"
           : cartItem
@@ -181,7 +181,7 @@ export function ProductCard({ product }: { product: Product }) {
           ) : null}
         </div>
       </div>
-      <div className="space-y-1 p-2.5 sm:p-3">
+      <div className="flex flex-1 flex-col space-y-1 p-2.5 sm:p-3">
         {detailsEnabled ? (
           <Link
             to="/product/$id"
@@ -209,7 +209,7 @@ export function ProductCard({ product }: { product: Product }) {
         </div>
         <div className="mt-auto pt-2 flex flex-col gap-2 w-full">
           {/* Price Block */}
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 min-h-[38px] sm:min-h-[42px]">
             <div className="flex items-baseline gap-1 flex-wrap">
               <span className="font-display text-sm sm:text-base font-bold text-foreground whitespace-nowrap">
                 {inr(Number(product.price))}

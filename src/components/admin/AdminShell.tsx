@@ -130,6 +130,33 @@ export function AdminShell({
     return true;
   });
 
+  // Register admins/staff for order alerts as soon as they are signed in,
+  // so new-order notifications actually reach a device.
+  useEffect(() => {
+    if (isLoading || myRoles.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      const { registerAdminToken, registerStaffToken } = await import("@/lib/fcm");
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data } = await supabase.auth.getUser();
+      const uid = data.user?.id;
+      if (!uid || cancelled) return;
+      const isAdminish = myRoles.some((r) =>
+        ["admin", "super_admin", "manager"].includes(r),
+      );
+      try {
+        if (isAdminish) await registerAdminToken(uid);
+        else await registerStaffToken(uid);
+      } catch (err) {
+        console.warn("[AdminShell] alert registration skipped:", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoading, myRoles.join(",")]);
+
+
   // Automatic seamless routing to permitted workspace based on role
   useEffect(() => {
     if (!isLoading && roles !== undefined && !allowed) {

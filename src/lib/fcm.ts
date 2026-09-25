@@ -13,6 +13,10 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
+/** Public VAPID application server key (public by design, safe in the client). */
+const VAPID_PUBLIC_KEY =
+  "BOSSk4Bd2OaAOKQ5DGwObUtPjpdv6awDdLgC__Fh32WnqvWVlDc1KO5zYBveo3Y2O72oIKo_kWRlcSlWb2m1NPg";
+
 export type DeviceType = "web" | "android" | "ios";
 export type UserNotificationRole = "customer" | "driver" | "staff" | "admin";
 
@@ -77,7 +81,9 @@ export async function registerPushNotification(
     // Get existing or create new Web Push subscription
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
-      const vapidKey = import.meta.env?.["VITE_VAPID_PUBLIC_KEY"] || null;
+      // VAPID public keys are safe to ship to the browser by design.
+      const vapidKey =
+        import.meta.env?.["VITE_VAPID_PUBLIC_KEY"] || VAPID_PUBLIC_KEY;
       if (vapidKey) {
         try {
           sub = await reg.pushManager.subscribe({
