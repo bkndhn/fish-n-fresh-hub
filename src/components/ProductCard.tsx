@@ -51,7 +51,7 @@ export function ProductCard({ product }: { product: Product }) {
   return (
     <div
       className={cn(
-        "group overflow-hidden rounded-2xl border shadow-sm transition-all duration-200 relative",
+        "group flex h-full flex-col overflow-hidden rounded-2xl border shadow-sm transition-all duration-200 relative",
         isOutOfStock
           ? "opacity-75 bg-muted/20 border-border"
           : cartItem
