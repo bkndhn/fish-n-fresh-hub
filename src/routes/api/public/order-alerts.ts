@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { triggerOrderAlert } from '@/lib/order-alerts.server'
 
 interface WebhookPayload {
   type: 'INSERT' | 'UPDATE' | 'DELETE'
