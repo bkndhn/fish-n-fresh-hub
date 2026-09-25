@@ -126,9 +126,9 @@ async function hkdf(
   info: Uint8Array,
   length: number,
 ): Promise<Uint8Array> {
-  const key = await crypto.subtle.importKey('raw', ikm as BufferSource, 'HKDF', false, ['deriveBits'])
+  const key = await crypto.subtle.importKey('raw', ikm as unknown as BufferSource, 'HKDF', false, ['deriveBits'])
   const bits = await crypto.subtle.deriveBits(
-    { name: 'HKDF', hash: 'SHA-256', salt: salt as BufferSource, info: info as BufferSource },
+    { name: 'HKDF', hash: 'SHA-256', salt: salt as unknown as BufferSource, info: info as unknown as BufferSource },
     key,
     length * 8,
   )
@@ -152,7 +152,7 @@ async function encryptPayload(
 
   const clientKey = await crypto.subtle.importKey(
     'raw',
-    clientPublic as BufferSource,
+    clientPublic as unknown as BufferSource,
     { name: 'ECDH', namedCurve: 'P-256' },
     false,
     [],
@@ -171,7 +171,7 @@ async function encryptPayload(
 
   const aesKey = await crypto.subtle.importKey(
     'raw',
-    contentEncryptionKey as BufferSource,
+    contentEncryptionKey as unknown as BufferSource,
     'AES-GCM',
     false,
     ['encrypt'],
@@ -181,9 +181,9 @@ async function encryptPayload(
   const plaintext = concat(utf8(payload), new Uint8Array([0x02]))
   const ciphertext = new Uint8Array(
     await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv: nonce as BufferSource, tagLength: 128 },
+      { name: 'AES-GCM', iv: nonce as unknown as BufferSource, tagLength: 128 },
       aesKey,
-      plaintext as BufferSource,
+      plaintext as unknown as BufferSource,
     ),
   )
 
