@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/integrations/supabase/client.server'
-import webpush from 'web-push'
+import { sendWebPush, type PushSubscriptionJSON } from './webpush-edge.server'
 
 export type NotificationPayload = {
   title: string
