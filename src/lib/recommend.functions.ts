@@ -10,7 +10,7 @@ import { createLovableAiGatewayRunIdFetch } from "./ai-gateway.server";
 
 const Input = z.object({
   preferences: z.string().min(3).max(600),
-  branchId: z.string().nullable(),
+  branchId: z.string().uuid().nullable(),
 });
 
 const Schema = z.object({
@@ -41,6 +41,10 @@ export type AiRecommendation = {
 export const recommendProducts = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => Input.parse(input))
   .handler(async ({ data }): Promise<AiRecommendation> => {
+    const { getCallerUserId } = await import("./authz.server");
+    if (!(await getCallerUserId())) {
+      return { intro: "", picks: [], error: "Please sign in to get AI picks." };
+    }
     const key = process.env["LOVABLE_API_KEY"];
     if (!key) return { intro: "", picks: [], error: "AI is not configured yet." };
 

@@ -641,7 +641,7 @@ function Checkout() {
         customerName: cleanName,
       });
       // Trigger Admin/Staff push on order placement
-      void triggerOrderAlert({ data: { orderId: data.id, eventType: 'INSERT' } });
+      void triggerOrderAlert({ data: { orderId: data.id, eventType: 'INSERT', guestPhone: cleanPhone } });
     } catch (fcmErr) {
       console.warn("FCM push notice:", fcmErr);
     }
