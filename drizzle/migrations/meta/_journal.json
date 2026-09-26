@@ -64,6 +64,13 @@
       "when": 1790399815121,
       "tag": "0008_tighten_public_read_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790399834466,
+      "tag": "0009_bookings_status_fix",
+      "breakpoints": true
     }
   ]
 }
