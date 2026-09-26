@@ -130,6 +130,9 @@ export type Product = {
   branch_id?: string | null;
   branch_name?: string | null;
   cost_price?: number | null;
+  min_order_qty?: number;
+  max_order_qty?: number | null;
+  step_qty?: number;
   // Universal Retail extensions
   brand?: string | null;
   model_number?: string | null;

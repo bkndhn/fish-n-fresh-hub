@@ -919,6 +919,7 @@ function Checkout() {
 
   return (
     <AppShell>
+      <div className="pb-36">
       {!storeStatus.canAcceptOrder ? (
         <div className="mb-4 flex items-start gap-3 rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-xs text-destructive dark:border-destructive/50">
           <AlertTriangle className="size-5 shrink-0 mt-0.5 text-destructive" />
@@ -1976,10 +1977,11 @@ function Checkout() {
         </div>
       </div>
 
+      <div className="sticky bottom-0 z-40 bg-background/95 backdrop-blur-sm p-4 -mx-4 border-t border-border mt-4 pb-safe" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 1rem)' }}>
       {orderingMode === "whatsapp_only" ? (
         <Button
           type="button"
-          className="mt-4 w-full rounded-xl text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white h-11 gap-2 shadow-xs"
+          className="w-full rounded-xl text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white h-11 gap-2 shadow-xs"
           onClick={handleWhatsAppOrderCheckout}
         >
           <WhatsAppIcon className="size-4 text-white" />
@@ -1988,7 +1990,7 @@ function Checkout() {
       ) : (
         <>
           <Button
-            className="mt-4 w-full rounded-xl text-sm font-semibold"
+            className="w-full rounded-xl text-sm font-semibold"
             disabled={saving || !canOrder || (isWholesale && wholesaleMinOrderValue > subtotal) || !storeStatus.canAcceptOrder || selectedHoliday.isHoliday || (fulfillment === "delivery" && !shippingEval.isServiceable)}
             onClick={placeOrder}
           >
@@ -2016,6 +2018,7 @@ function Checkout() {
           </Button>
         </>
       )}
+      </div>
 
       {/* Interactive Map Pin Picker Modal */}
       <MapPinPickerModal
@@ -2040,6 +2043,7 @@ function Checkout() {
           }
         }}
       />
+      </div>
     </AppShell>
   );
 }

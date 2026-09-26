@@ -138,6 +138,7 @@ function CartPage() {
 
   return (
     <AppShell>
+      <div className="pb-36">
       <h1 className="text-2xl font-bold">Your cart</h1>
       {subtotal < freeOver && (
         <div className="mt-4 rounded-2xl border border-border bg-card p-3">
@@ -377,7 +378,7 @@ function CartPage() {
         </div>
       )}
 
-      <div className="mt-4 flex flex-col sm:flex-row gap-3">
+      <div className="mt-4 flex flex-col sm:flex-row gap-3 sticky bottom-0 z-40 bg-background/95 backdrop-blur-sm p-4 -mx-4 border-t border-border pb-safe" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 1rem)' }}>
         <div className="flex flex-col sm:flex-row gap-2.5 flex-1 order-1 sm:order-2">
           {orderingMode === "whatsapp_only" ? (
             <Button
@@ -492,6 +493,7 @@ function CartPage() {
           clear();
         }}
       />
+      </div>
     </AppShell>
   );
 }

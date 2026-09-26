@@ -8,7 +8,12 @@ export type BusinessVertical =
   | "snacks_sweets"
   | "grocery_supermarket"
   | "departmental_store"
-  | "universal";
+  | "universal"
+  | "restaurant_cafe"
+  | "juice_shake_bar"
+  | "fruits_vegetables"
+  | "bakery_cake"
+  | "pharmacy_medical";
 
 export interface VerticalConfig {
   id: BusinessVertical;
@@ -42,6 +47,14 @@ export interface VerticalConfig {
   hasTechnicalSpecs: boolean;
   hasSizeChart: boolean;
   hasCutPreferences: boolean;
+  hasKotPrinting?: boolean;
+  hasCookingInstructions?: boolean;
+  hasPrescriptionUpload?: boolean;
+  hasSpiceLevelModifier?: boolean;
+  hasIceSugarLevel?: boolean;
+  hasRipenessBadge?: boolean;
+  hasEgglessBadge?: boolean;
+  hasCelebrationText?: boolean;
 }
 
 export const VERTICAL_CONFIGS: Record<BusinessVertical, VerticalConfig> = {
@@ -466,6 +479,117 @@ export const VERTICAL_CONFIGS: Record<BusinessVertical, VerticalConfig> = {
     hasSizeChart: true,
     hasCutPreferences: false,
   },
+  restaurant_cafe: {
+    id: "restaurant_cafe",
+    name: "Restaurant & Café",
+    shortName: "Restaurant",
+    emoji: "🍛",
+    tagline: "Freshly Cooked Meals & Beverages",
+    badgeText: "Hot & Fresh | Chef's Special",
+    recommendedThemeColor: "#ef4444",
+    defaultCategories: ["Biryani & Rice", "Curries & Gravies", "Starters & Snacks", "Breads & Rotis", "Beverages", "Desserts"],
+    motto: { en: "Home-Style Cooking, Restaurant Quality", ta: "இல்ல சமையல், உயர்ந்த ருசி", hi: "घर जैसा स्वाद, रेस्तरां की शान" },
+    subMotto: { en: "Every dish cooked fresh to order. No reheating. No compromise.", ta: "ஒவ்வொரு உணவும் நேரடியாக சமைக்கப்படுகிறது.", hi: "हर डिश ताज़ा बनाई जाती है, दोबारा गर्म नहीं।" },
+    features: [
+      { title: "Dum-Cooked Biryani", desc: "Slow-cooked in sealed handi for authentic flavour." },
+      { title: "Spice Level Choice", desc: "Mild, Medium, Spicy or Extra Hot as you like." },
+      { title: "KOT Kitchen Tickets", desc: "Digital kitchen order tickets for zero-error prep." },
+      { title: "Table & Takeaway", desc: "Dine-in table tagging or takeaway token system." },
+    ],
+    hasWeighingScale: false, hasImeiSerialTracking: false, hasSizeColorVariants: false,
+    hasAisleRackLocation: false, hasWarrantyManagement: false, hasTechnicalSpecs: false,
+    hasSizeChart: false, hasCutPreferences: false,
+    hasKotPrinting: true, hasCookingInstructions: true, hasSpiceLevelModifier: true,
+  },
+  juice_shake_bar: {
+    id: "juice_shake_bar",
+    name: "Juice & Shake Bar",
+    shortName: "Juice Bar",
+    emoji: "🥤",
+    tagline: "Cold-Pressed Juices, Shakes & Smoothies",
+    badgeText: "100% Natural | No Preservatives",
+    recommendedThemeColor: "#f97316",
+    defaultCategories: ["Fresh Juices", "Milkshakes", "Smoothies", "Cold Brew", "Health Shots", "Ice Creams"],
+    motto: { en: "Pure Fruits, Pure Energy", ta: "தூய பழம், தூய ஆற்றல்", hi: "शुद्ध फल, शुद्ध ऊर्जा" },
+    subMotto: { en: "Cold-pressed daily. No artificial colours, flavours or preservatives.", ta: "தினமும் பிழிந்தது. செயற்கை சேர்க்கை இல்லை.", hi: "रोज़ ताज़ा निकाला। कोई कृत्रिम रंग या संरक्षक नहीं।" },
+    features: [
+      { title: "Cold-Pressed Daily", desc: "Nutrients locked in every sip, pressed to order." },
+      { title: "Sugar & Ice Control", desc: "Choose sugar percentage and ice level to preference." },
+      { title: "Immunity Shots", desc: "Wheatgrass, ginger, turmeric, and amla shots." },
+      { title: "Combo Packs", desc: "Family combo packs with 4–6 assorted drinks." },
+    ],
+    hasWeighingScale: false, hasImeiSerialTracking: false, hasSizeColorVariants: false,
+    hasAisleRackLocation: false, hasWarrantyManagement: false, hasTechnicalSpecs: false,
+    hasSizeChart: false, hasCutPreferences: false,
+    hasCookingInstructions: true, hasIceSugarLevel: true,
+  },
+  fruits_vegetables: {
+    id: "fruits_vegetables",
+    name: "Fruits & Vegetables",
+    shortName: "Fruits & Veggies",
+    emoji: "🥦",
+    tagline: "Daily Mandi Fresh Harvest",
+    badgeText: "Farm Fresh | Daily Harvest",
+    recommendedThemeColor: "#22c55e",
+    defaultCategories: ["Leafy Greens", "Root Vegetables", "Seasonal Vegetables", "Tropical Fruits", "Citrus Fruits", "Exotic Fruits"],
+    motto: { en: "From Farm Gate to Your Plate", ta: "வயலிருந்து உணவுத் தட்டுக்கு", hi: "खेत से थाली तक" },
+    subMotto: { en: "Handpicked from local mandis every morning. No cold storage, no wax coating.", ta: "தினமும் காலை மண்டி இலிருந்து கையால் தேர்ந்தெடுக்கப்படுகிறது.", hi: "रोज़ सुबह मंडी से हाथ से चुना हुआ। कोई कोल्ड स्टोरेज नहीं।" },
+    features: [
+      { title: "Daily Mandi Harvest", desc: "Sourced from wholesale mandi before 6 AM." },
+      { title: "Ripeness Badges", desc: "Ripe, Semi-Ripe, or Raw badge on every product." },
+      { title: "Flexible Units", desc: "Order by kg, grams, bunch, piece, or dozen." },
+      { title: "Zero Wax Coating", desc: "No artificial shine wax or cold-storage chemicals." },
+    ],
+    hasWeighingScale: true, hasImeiSerialTracking: false, hasSizeColorVariants: false,
+    hasAisleRackLocation: false, hasWarrantyManagement: false, hasTechnicalSpecs: false,
+    hasSizeChart: false, hasCutPreferences: false,
+    hasRipenessBadge: true,
+  },
+  bakery_cake: {
+    id: "bakery_cake",
+    name: "Bakery & Cakes",
+    shortName: "Bakery",
+    emoji: "🎂",
+    tagline: "Freshly Baked Cakes, Bread & Pastries",
+    badgeText: "Freshly Baked | Egg & Eggless Options",
+    recommendedThemeColor: "#d97706",
+    defaultCategories: ["Birthday Cakes", "Celebration Cakes", "Breads & Loaves", "Cookies & Biscuits", "Pastries", "Savory Bakes"],
+    motto: { en: "Baked Fresh Every Morning", ta: "ஒவ்வொரு காலையும் புதிதாக சுட்டது", hi: "हर सुबह ताज़ा बेक किया" },
+    subMotto: { en: "Artisan bakes with no artificial preservatives. Egg and eggless options available.", ta: "செயற்கை பதப்படுத்திகள் இல்லா கலை சுட்டவை. முட்டை மற்றும் முட்டை-இல்லா விருப்பங்கள்.", hi: "कोई कृत्रिम संरक्षक नहीं। एग और एग-फ्री विकल्प उपलब्ध।" },
+    features: [
+      { title: "Custom Celebration Cakes", desc: "Photo and message cakes with personalized text." },
+      { title: "Egg & Eggless", desc: "Every bake available in egg and eggless variants." },
+      { title: "Artisan Breads", desc: "Sourdough, multigrain, and whole-wheat loaves baked daily." },
+      { title: "Same-Day Delivery", desc: "Order before noon for same-day birthday cake delivery." },
+    ],
+    hasWeighingScale: false, hasImeiSerialTracking: false, hasSizeColorVariants: false,
+    hasAisleRackLocation: false, hasWarrantyManagement: false, hasTechnicalSpecs: false,
+    hasSizeChart: false, hasCutPreferences: false,
+    hasEgglessBadge: true, hasCelebrationText: true,
+  },
+  pharmacy_medical: {
+    id: "pharmacy_medical",
+    name: "Pharmacy & Health",
+    shortName: "Pharmacy",
+    emoji: "💊",
+    tagline: "OTC Medicines, Health & Wellness Products",
+    badgeText: "Genuine | Licensed Pharmacy",
+    recommendedThemeColor: "#06b6d4",
+    defaultCategories: ["OTC Medicines", "Vitamins & Supplements", "Personal Care", "Baby & Child Care", "Medical Devices", "Ayurvedic & Herbal"],
+    motto: { en: "Your Health, Our Priority", ta: "உங்கள் ஆரோக்கியம், எங்கள் முன்னுரிமை", hi: "आपका स्वास्थ्य, हमारी प्राथमिकता" },
+    subMotto: { en: "Genuine medicines sourced directly from licensed distributors. Prescription upload available.", ta: "உரிம விநியோகஸ்தர்களிடமிருந்து நேரடியாக பெறப்பட்ட உண்மையான மருந்துகள்.", hi: "लाइसेंसी वितरकों से सीधे प्राप्त असली दवाएं। प्रिस्क्रिप्शन अपलोड उपलब्ध।" },
+    features: [
+      { title: "Prescription Upload", desc: "Upload doctor prescription for Schedule-H medicines." },
+      { title: "Genuine Only", desc: "All medicines sourced from licensed pharmaceutical distributors." },
+      { title: "Health Devices", desc: "BP monitors, glucometers, pulse oximeters and thermometers." },
+      { title: "Fast Delivery", desc: "Express home delivery for OTC items within 60 minutes." },
+    ],
+    hasWeighingScale: false, hasImeiSerialTracking: false, hasSizeColorVariants: false,
+    hasAisleRackLocation: true, hasWarrantyManagement: false, hasTechnicalSpecs: false,
+    hasSizeChart: false, hasCutPreferences: false,
+    hasPrescriptionUpload: true,
+  }
+
 };
 
 export function detectVerticalFromStoreName(storeName?: string | null): BusinessVertical {
@@ -1013,4 +1137,90 @@ export function getVerticalFaqs(vertical: BusinessVertical, storeName: string): 
   }
 }
 
+export interface VerticalStatusPhrases {
+  preparing: string;
+  packedReady: string;
+  outForDelivery: string;
+  pickupReady: (orderNumber: string) => string;
+  delivered: string;
+}
 
+export function getVerticalStatusPhrases(
+  verticalId: BusinessVertical,
+  fulfillmentType: 'delivery' | 'pickup'
+): VerticalStatusPhrases {
+  switch (verticalId) {
+    case 'restaurant_cafe':
+      return {
+        preparing: 'Cooking & simmering fresh in kitchen',
+        packedReady: fulfillmentType === 'pickup'
+          ? 'Freshly cooked, piping hot & sealed — ready at counter'
+          : 'Freshly cooked, piping hot & sealed in thermal bag',
+        outForDelivery: 'Rider rushing hot meal in insulated thermal bag',
+        pickupReady: (id) => `Order #${id} is freshly cooked and ready at counter`,
+        delivered: 'Hot meal delivered to your doorstep — enjoy!',
+      };
+    case 'juice_shake_bar':
+      return {
+        preparing: 'Blending & pressing fresh to order',
+        packedReady: fulfillmentType === 'pickup'
+          ? 'Freshly blended & chilled — ready at counter'
+          : 'Freshly blended & chilled, sealed for delivery',
+        outForDelivery: 'Rider carrying chilled drinks in cold bag',
+        pickupReady: (id) => `Order #${id} is freshly blended and ready at counter`,
+        delivered: 'Chilled drinks delivered fresh — stay refreshed!',
+      };
+    case 'fruits_vegetables':
+      return {
+        preparing: 'Picking & weighing fresh items from mandi harvest',
+        packedReady: fulfillmentType === 'pickup'
+          ? 'Freshly picked & weighed — bagged and ready'
+          : 'Freshly picked, weighed & packed — dispatching now',
+        outForDelivery: 'Rider delivering fresh farm harvest to your doorstep',
+        pickupReady: (id) => `Order #${id} is bagged and ready for pickup`,
+        delivered: 'Fresh farm produce delivered — enjoy the goodness!',
+      };
+    case 'bakery_cake':
+      return {
+        preparing: 'Freshly baking your order in the oven',
+        packedReady: fulfillmentType === 'pickup'
+          ? 'Freshly baked & boxed — ready for collection'
+          : 'Freshly baked & boxed — dispatching with care',
+        outForDelivery: 'Rider delivering freshly baked goods with care',
+        pickupReady: (id) => `Order #${id} is freshly baked and boxed for pickup`,
+        delivered: 'Freshly baked goods delivered — enjoy every bite!',
+      };
+    case 'pharmacy_medical':
+      return {
+        preparing: 'Verifying prescription & picking medicines',
+        packedReady: fulfillmentType === 'pickup'
+          ? 'Medicines verified & packed — ready for pickup'
+          : 'Medicines verified & packed — ready for dispatch',
+        outForDelivery: 'Rider delivering your health essentials safely',
+        pickupReady: (id) => `Order #${id} is packed and ready for pickup`,
+        delivered: 'Health essentials delivered safely to your doorstep',
+      };
+    case 'chicken_meat':
+    case 'all_meat':
+      return {
+        preparing: 'Cutting & cleaning fresh meat to order',
+        packedReady: fulfillmentType === 'pickup'
+          ? 'Cleaned & packed fresh — ready at counter'
+          : 'Cleaned & packed on ice for cold-chain delivery',
+        outForDelivery: 'Rider carrying cold-chain pack to your doorstep',
+        pickupReady: (id) => `Order #${id} is cut and packed — ready at counter`,
+        delivered: 'Fresh meat delivered cold-chain — refrigerate immediately!',
+      };
+    case 'seafood':
+    default:
+      return {
+        preparing: 'Cutting & cleaning fresh catch to order',
+        packedReady: fulfillmentType === 'pickup'
+          ? 'Cleaned & packed on ice — ready at counter'
+          : 'Cleaned & packed on ice for cold-chain delivery',
+        outForDelivery: 'Rider carrying cold-chain ice pack to your doorstep',
+        pickupReady: (id) => `Order #${id} is packed on ice — ready at counter`,
+        delivered: 'Fresh catch delivered cold-chain — refrigerate immediately!',
+      };
+  }
+}

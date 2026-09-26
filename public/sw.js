@@ -1,5 +1,5 @@
-// Fish N Fresh Hub — PWA Service Worker v7 (Role-Based Push Notifications)
-const CACHE_NAME = 'fnf-pwa-v7';
+// Fish N Fresh Hub — PWA Service Worker v8 (Role-Based Push Notifications)
+const CACHE_NAME = 'fnf-pwa-v8';
 const IMAGE_CACHE_NAME = 'fnf-images-v2';
 const STATIC_ASSETS = [
   '/',
@@ -76,13 +76,9 @@ self.addEventListener('fetch', (e) => {
   if (!url.startsWith(self.location.origin)) return;
 
   // 2. Page navigations — always network-first, cache only as an offline fallback.
-  // No artificial timeout: a slow network must never swap in stale HTML that
-  // points at build asset names which no longer exist (causes unstyled pages).
   if (e.request.mode === 'navigate') {
     e.respondWith(
-      fetch(e.request).catch(() =>
-        caches.match('/').then((c) => c || Response.error())
-      )
+      fetch(e.request).catch(() => caches.match('/') || caches.match(e.request))
     );
     return;
   }

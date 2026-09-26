@@ -324,6 +324,21 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   useEffect(() => {
+    // Purge stale caches if a stylesheet fails to load (FOUC recovery)
+    const handleError = (e: Event) => {
+      const target = e.target as HTMLLinkElement;
+      if (target && target.tagName === 'LINK' && target.rel === 'stylesheet') {
+        navigator.serviceWorker?.getRegistrations().then(regs => {
+          regs.forEach(r => r.unregister());
+        });
+        caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+      }
+    };
+    window.addEventListener('error', handleError, true);
+    return () => window.removeEventListener('error', handleError, true);
+  }, []);
+
+  useEffect(() => {
     // Initialize error monitoring
     initSentry();
 

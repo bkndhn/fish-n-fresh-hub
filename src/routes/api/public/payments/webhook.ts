@@ -30,7 +30,7 @@ async function markPaid(session: any) {
     updated_at: new Date().toISOString(),
   };
   // Auto-advance a freshly paid order so staff can start packing immediately.
-  if (!current?.status || current.status === "pending") update["status"] = "confirmed";
+  if (!current?.status || current.status === "pending" || current.status === "confirmed") update["status"] = "packed";
 
   await getSupabase()
     .from("orders")
@@ -41,6 +41,7 @@ async function markPaid(session: any) {
   try {
     const { triggerOrderAlert } = await import("@/lib/order-alerts.server");
     await triggerOrderAlert(orderId, "INSERT").catch(() => {});
+    await triggerOrderAlert(orderId, "UPDATE").catch(() => {});
   } catch (e) {
     console.error("[payments/webhook] push alert failed", e);
   }

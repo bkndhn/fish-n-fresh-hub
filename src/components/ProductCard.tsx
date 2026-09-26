@@ -241,8 +241,12 @@ export function ProductCard({ product }: { product: Product }) {
               <div className="flex w-full justify-between items-center gap-0.5 rounded-full border border-primary/40 bg-primary/10 dark:bg-primary/20 p-0.5 shadow-2xs">
                 {(() => {
                   const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
-                  const step = isWeighted ? (cartItem.qty <= 1 ? 0.25 : 0.5) : 1;
-                  const isAtMin = cartItem.qty <= step;
+                  const fallbackMin = isWeighted ? 0.25 : 1;
+                  const fallbackStep = isWeighted ? (cartItem.qty <= 1 ? 0.25 : 0.5) : 1;
+                  const step = product.step_qty ?? fallbackStep;
+                  const minQty = product.min_order_qty ?? fallbackMin;
+                  const nextQty = Math.round((cartItem.qty - step) * 100) / 100;
+                  const isAtMin = nextQty < minQty;
 
                   return (
                     <button
@@ -253,12 +257,11 @@ export function ProductCard({ product }: { product: Product }) {
                           : "bg-primary text-primary-foreground hover:bg-primary/90"
                       }`}
                       onClick={() => {
-                        const next = Math.max(0, Math.round((cartItem.qty - step) * 100) / 100);
-                        if (next <= 0) {
+                        if (isAtMin) {
                           remove(product.id);
                           toast.success(`Removed "${product.name}" from cart`);
                         } else {
-                          setQty(product.id, next);
+                          setQty(product.id, nextQty);
                         }
                       }}
                       title={isAtMin ? "Remove from cart" : "Decrease quantity"}
@@ -286,6 +289,10 @@ export function ProductCard({ product }: { product: Product }) {
                           toast.error(`Only ${product.stock} ${product.unit} available in stock`);
                           setQty(product.id, Number(product.stock));
                           setLocalQtyStr(String(product.stock));
+                        } else if (product.max_order_qty != null && val > product.max_order_qty) {
+                          toast.error(`Maximum allowed: ${product.max_order_qty}`);
+                          setQty(product.id, product.max_order_qty);
+                          setLocalQtyStr(String(product.max_order_qty));
                         } else {
                           setQty(product.id, val);
                         }
@@ -294,11 +301,18 @@ export function ProductCard({ product }: { product: Product }) {
                   }}
                   onBlur={() => {
                     const val = parseFloat(localQtyStr);
-                    if (isNaN(val) || val <= 0) {
+                    const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
+                    const fallbackMin = isWeighted ? 0.25 : 1;
+                    const minQty = product.min_order_qty ?? fallbackMin;
+
+                    if (isNaN(val) || val < minQty) {
                       setLocalQtyStr(String(cartItem.qty));
                     } else if (product.stock !== null && val > Number(product.stock)) {
                       setQty(product.id, Number(product.stock));
                       setLocalQtyStr(String(product.stock));
+                    } else if (product.max_order_qty != null && val > product.max_order_qty) {
+                      setQty(product.id, product.max_order_qty);
+                      setLocalQtyStr(String(product.max_order_qty));
                     }
                   }}
                   className="w-full min-w-0 flex-1 bg-transparent text-center text-[11px] sm:text-xs font-black font-mono outline-none text-primary dark:text-primary-foreground select-all p-0 leading-none"
@@ -307,17 +321,33 @@ export function ProductCard({ product }: { product: Product }) {
 
                 <button
                   type="button"
-                  className="size-5.5 sm:size-6 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center transition-all active:scale-85 shadow-2xs cursor-pointer"
+                  disabled={product.max_order_qty != null && cartItem.qty >= product.max_order_qty}
+                  className={cn(
+                    "size-5.5 sm:size-6 rounded-full flex items-center justify-center transition-all shadow-2xs",
+                    product.max_order_qty != null && cartItem.qty >= product.max_order_qty
+                      ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+                      : "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-85 cursor-pointer"
+                  )}
                   onClick={() => {
                     const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
-                    const step = isWeighted ? 0.5 : 1;
-                    if (product.stock !== null && cartItem.qty + step > Number(product.stock)) {
+                    const fallbackStep = isWeighted ? 0.5 : 1;
+                    const step = product.step_qty ?? fallbackStep;
+                    let nextQty = Math.round((cartItem.qty + step) * 100) / 100;
+                    
+                    if (product.max_order_qty != null && nextQty > product.max_order_qty) {
+                      nextQty = product.max_order_qty;
+                    }
+                    if (product.stock !== null && nextQty > Number(product.stock)) {
                       toast.error(`Only ${product.stock} ${product.unit} available in stock`);
                       return;
                     }
-                    setQty(product.id, Math.round((cartItem.qty + step) * 100) / 100);
+                    setQty(product.id, nextQty);
                   }}
-                  title="Increase quantity"
+                  title={
+                    product.max_order_qty != null && cartItem.qty >= product.max_order_qty
+                      ? `Maximum allowed: ${product.max_order_qty}`
+                      : "Increase quantity"
+                  }
                 >
                   <Plus className="size-3 stroke-[2.5]" />
                 </button>
@@ -331,9 +361,13 @@ export function ProductCard({ product }: { product: Product }) {
                     toast.error("This product is currently out of stock");
                     return;
                   }
+                  const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
+                  const fallbackMin = isWeighted ? 0.25 : 1;
+                  const startQty = product.min_order_qty ?? fallbackMin;
+                  
                   const res = add(
                     product,
-                    1,
+                    startQty,
                     undefined,
                     activeBranch ? { id: activeBranch.id, name: activeBranch.name } : undefined
                   );

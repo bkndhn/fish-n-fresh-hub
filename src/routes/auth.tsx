@@ -140,10 +140,7 @@ function AuthPage() {
   const [signupLockout, setSignupLockout] = useState(0);
 
   // ── OTP state ─────────────────────────────────────────────────────────────
-  const [useOtp, setUseOtp] = useState(false);
-  const [otpPhone, setOtpPhone] = useState("");
-  const [otpCode, setOtpCode] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
+
 
   // ── Forgot / reset state ──────────────────────────────────────────────────
   // forgotStep: 1=email entry, 2=check email waiting, 3=set new password (after clicking link)
@@ -269,47 +266,7 @@ function AuthPage() {
   }
 
   // ─── OTP LOGIN ─────────────────────────────────────────────────────────────
-  async function sendOtp(e: React.FormEvent) {
-    e.preventDefault();
-    if (!otpPhone || otpPhone.length < 10) {
-      toast.error("Please enter a valid phone number with country code (e.g., +919876543210)");
-      return;
-    }
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      phone: otpPhone.startsWith("+") ? otpPhone : `+91${otpPhone}`,
-    });
-    setLoading(false);
-    
-    if (error) {
-      toast.error(error.message);
-    } else {
-      setOtpSent(true);
-      toast.success("OTP sent successfully to " + otpPhone);
-    }
-  }
 
-  async function verifyOtp(e: React.FormEvent) {
-    e.preventDefault();
-    if (!otpCode || otpCode.length < 6) {
-      toast.error("Please enter a valid 6-digit OTP");
-      return;
-    }
-    setLoading(true);
-    const { error } = await supabase.auth.verifyOtp({
-      phone: otpPhone.startsWith("+") ? otpPhone : `+91${otpPhone}`,
-      token: otpCode,
-      type: 'sms',
-    });
-    setLoading(false);
-    
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Welcome back!");
-      await routeAfterLogin();
-    }
-  }
 
   // ─── SIGN UP ───────────────────────────────────────────────────────────────
   async function submitSignup(e: React.FormEvent) {
@@ -601,92 +558,49 @@ function AuthPage() {
                 <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or continue with</span></div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Button type="button" variant={!useOtp ? "default" : "outline"} onClick={() => setUseOtp(false)} className="rounded-xl h-10">Email</Button>
-                <Button type="button" variant={useOtp ? "default" : "outline"} onClick={() => setUseOtp(true)} className="rounded-xl h-10">Phone OTP</Button>
-              </div>
-
-              {!useOtp ? (
-                <form onSubmit={signIn} className="space-y-4" noValidate>
-                  {signinLockout > 0 && (
-                    <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2.5">
-                      <ShieldCheck className="size-4 shrink-0 text-amber-500" />
-                      <span>Locked out. Try again in <strong className="font-mono">{signinLockout}s</strong>.</span>
-                    </div>
-                  )}
-                  <div className="space-y-1.5">
-                    <Label htmlFor="email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                      <Input id="email" type="email" placeholder="you@example.com"
-                        value={email} onChange={(e) => setEmail(e.target.value)}
-                        className="rounded-xl pl-10" />
-                    </div>
+              <form onSubmit={signIn} className="space-y-4 mt-6" noValidate>
+                {signinLockout > 0 && (
+                  <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2.5">
+                    <ShieldCheck className="size-4 shrink-0 text-amber-500" />
+                    <span>Locked out. Try again in <strong className="font-mono">{signinLockout}s</strong>.</span>
                   </div>
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="password">Password</Label>
-                      <button type="button"
-                        onClick={() => { setForgotEmail(email); setViewMode("forgot"); }}
-                        className="text-xs font-semibold text-primary hover:underline">
-                        Forgot password?
-                      </button>
-                    </div>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                      <Input id="password" type={showPassword ? "text" : "password"}
-                        placeholder="Enter your password"
-                        value={password} onChange={(e) => setPassword(e.target.value)}
-                        className="rounded-xl pl-10 pr-10" />
-                      <Button type="button" variant="ghost" size="icon"
-                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                        onClick={() => setShowPassword(!showPassword)}>
-                        {showPassword ? <EyeOff className="size-4 text-muted-foreground" /> : <Eye className="size-4 text-muted-foreground" />}
-                      </Button>
-                    </div>
+                )}
+                <div className="space-y-1.5">
+                  <Label htmlFor="email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input id="email" type="email" placeholder="you@example.com"
+                      value={email} onChange={(e) => setEmail(e.target.value)}
+                      className="rounded-xl pl-10" />
                   </div>
-                  <Button type="submit" className="w-full rounded-xl font-bold"
-                    disabled={loading || signinLockout > 0}>
-                    {loading ? "Signing in..." : signinLockout > 0 ? `Locked (${signinLockout}s)` : "Sign In"}
-                  </Button>
-                </form>
-              ) : (
-                <form onSubmit={otpSent ? verifyOtp : sendOtp} className="space-y-4" noValidate>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="otpPhone">Phone Number</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">+91</span>
-                      <Input id="otpPhone" type="tel" placeholder="98765 43210"
-                        value={otpPhone} onChange={(e) => setOtpPhone(e.target.value.replace(/\D/g, ''))}
-                        disabled={otpSent}
-                        className="rounded-xl pl-10" />
-                    </div>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Password</Label>
+                    <button type="button"
+                      onClick={() => { setForgotEmail(email); setViewMode("forgot"); }}
+                      className="text-xs font-semibold text-primary hover:underline">
+                      Forgot password?
+                    </button>
                   </div>
-                  
-                  {otpSent && (
-                    <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
-                      <Label htmlFor="otpCode">6-Digit OTP</Label>
-                      <div className="relative">
-                        <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                        <Input id="otpCode" type="text" placeholder="------"
-                          maxLength={6}
-                          value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                          className="rounded-xl pl-10 tracking-widest font-mono" />
-                      </div>
-                    </div>
-                  )}
-                  
-                  <Button type="submit" className="w-full rounded-xl font-bold" disabled={loading}>
-                    {loading ? (otpSent ? "Verifying..." : "Sending...") : (otpSent ? "Verify & Sign In" : "Send OTP")}
-                  </Button>
-                  
-                  {otpSent && (
-                    <p className="text-center text-xs text-muted-foreground mt-2">
-                      Didn't receive it? <button type="button" onClick={() => { setOtpSent(false); setOtpCode(""); }} className="text-primary hover:underline font-semibold">Change number or try again</button>
-                    </p>
-                  )}
-                </form>
-              )}
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input id="password" type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      value={password} onChange={(e) => setPassword(e.target.value)}
+                      className="rounded-xl pl-10 pr-10" />
+                    <Button type="button" variant="ghost" size="icon"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}>
+                      {showPassword ? <EyeOff className="size-4 text-muted-foreground" /> : <Eye className="size-4 text-muted-foreground" />}
+                    </Button>
+                  </div>
+                </div>
+                <Button type="submit" className="w-full rounded-xl font-bold"
+                  disabled={loading || signinLockout > 0}>
+                  {loading ? "Signing in..." : signinLockout > 0 ? `Locked (${signinLockout}s)` : "Sign In"}
+                </Button>
+              </form>
             </TabsContent>
 
             {/* ── Sign Up Tab ── */}
