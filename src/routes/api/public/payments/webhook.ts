@@ -14,14 +14,47 @@ function getSupabase() {
 async function markPaid(session: any) {
   const orderId = session?.metadata?.order_id;
   if (!orderId) return;
+
+  const { data: current } = await getSupabase()
+    .from("orders")
+    .select("status, payment_status")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  // Already handled (e.g. by the customer-facing verification path) — don't re-fire.
+  if (current?.payment_status === "paid") return;
+
+  const update: Record<string, unknown> = {
+    payment_status: "paid",
+    stripe_session_id: session.id,
+    updated_at: new Date().toISOString(),
+  };
+  // Auto-advance a freshly paid order so staff can start packing immediately.
+  if (!current?.status || current.status === "pending") update["status"] = "confirmed";
+
   await getSupabase()
     .from("orders")
-    .update({
-      payment_status: "paid",
-      stripe_session_id: session.id,
-      updated_at: new Date().toISOString(),
-    } as Database["public"]["Tables"]["orders"]["Update"])
+    .update(update as Database["public"]["Tables"]["orders"]["Update"])
     .eq("id", orderId);
+
+  // Push alert to admins/staff + outbound webhooks. Never allowed to throw.
+  try {
+    const { triggerOrderAlert } = await import("@/lib/order-alerts.server");
+    await triggerOrderAlert(orderId, "INSERT").catch(() => {});
+  } catch (e) {
+    console.error("[payments/webhook] push alert failed", e);
+  }
+  try {
+    const { dispatchWebhookEvent, loadOrder } = await import("@/lib/webhooks.server");
+    const order = await loadOrder(orderId);
+    await dispatchWebhookEvent("payment.succeeded", order);
+    await dispatchWebhookEvent("order.status_changed", order, {
+      old_status: current?.status ?? "pending",
+      new_status: order?.["status"] ?? "confirmed",
+    });
+  } catch (e) {
+    console.error("[payments/webhook] outbound dispatch failed", e);
+  }
 }
 
 async function markFailed(session: any) {
@@ -31,6 +64,12 @@ async function markFailed(session: any) {
     .from("orders")
     .update({ payment_status: "failed", updated_at: new Date().toISOString() } as Database["public"]["Tables"]["orders"]["Update"])
     .eq("id", orderId);
+  try {
+    const { dispatchWebhookEvent, loadOrder } = await import("@/lib/webhooks.server");
+    await dispatchWebhookEvent("payment.failed", await loadOrder(orderId));
+  } catch (e) {
+    console.error("[payments/webhook] outbound dispatch failed", e);
+  }
 }
 
 export const Route = createFileRoute("/api/public/payments/webhook")({
