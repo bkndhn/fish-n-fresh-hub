@@ -1,3 +1,4 @@
+import { escapeHtml } from "@/lib/htmlEscape";
 import { createFileRoute } from "@tanstack/react-router";
 import type { Database } from "@/integrations/supabase/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -621,16 +622,16 @@ function ProductsAdmin() {
       ${activeItems.map((p, idx) => `
         <tr>
           <td style="text-align: center;">
-            <span class="code-badge">#${String(p.pos_code ?? idx + 1).padStart(2, "0")}</span>
+            <span class="code-badge">#${escapeHtml(String(p.pos_code ?? idx + 1).padStart(2, "0"))}</span>
           </td>
           <td>
-            <div style="font-weight: 700; font-size: 12px; color: #0f172a;">${p.name}</div>
-            ${p.name_tamil ? `<div class="tamil">${p.name_tamil}</div>` : ""}
+            <div style="font-weight: 700; font-size: 12px; color: #0f172a;">${escapeHtml(p.name)}</div>
+            ${p.name_tamil ? `<div class="tamil">${escapeHtml(p.name_tamil)}</div>` : ""}
           </td>
-          <td style="color: #475569; font-weight: 500;">${p.category || "Seafood"}</td>
-          <td class="price">₹${Number(p.price).toFixed(2)} / ${p.unit}</td>
+          <td style="color: #475569; font-weight: 500;">${escapeHtml(p.category || "Seafood")}</td>
+          <td class="price">₹${Number(p.price).toFixed(2)} / ${escapeHtml(p.unit)}</td>
           <td style="text-align: right; font-weight: 600; color: ${(p.stock ?? 0) <= 5 ? "#dc2626" : "#059669"};">
-            ${p.stock} ${p.unit}
+            ${Number(p.stock ?? 0)} ${escapeHtml(p.unit)}
           </td>
         </tr>
       `).join("")}

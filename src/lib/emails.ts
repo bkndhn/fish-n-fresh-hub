@@ -1,3 +1,4 @@
+import { escapeDeep } from "@/lib/htmlEscape";
 /**
  * Transactional Email Templates & Delivery Engine.
  * 
@@ -45,6 +46,7 @@ export interface OrderEmailData {
  * 1. Order Confirmed Email Template
  */
 export function buildOrderConfirmedEmail(data: OrderEmailData): string {
+  data = escapeDeep(data);
   const storeName = data.storeName || "Fish N Fresh";
   const trackingUrl = data.trackingUrl || `https://fishnfresh.in/track/${data.orderId}`;
 
@@ -195,6 +197,7 @@ export function buildOrderConfirmedEmail(data: OrderEmailData): string {
  * 2. Out For Delivery Email Template
  */
 export function buildOutForDeliveryEmail(data: OrderEmailData): string {
+  data = escapeDeep(data);
   const storeName = data.storeName || "Fish N Fresh";
   const trackingUrl = data.trackingUrl || `https://fishnfresh.in/track/${data.orderId}`;
 
@@ -263,6 +266,7 @@ export function buildOutForDeliveryEmail(data: OrderEmailData): string {
  * 3. Order Delivered Email Template
  */
 export function buildOrderDeliveredEmail(data: OrderEmailData): string {
+  data = escapeDeep(data);
   const storeName = data.storeName || "Fish N Fresh";
   const waHelp = `https://wa.me/${(data.storePhone || "919843061919").replace(/\D/g, "")}?text=${encodeURIComponent(
     `Hi ${storeName}, feedback for delivered order #${data.orderNumber}: `
