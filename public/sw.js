@@ -1,5 +1,5 @@
-// Fish N Fresh Hub — PWA Service Worker v6 (Role-Based Push Notifications)
-const CACHE_NAME = 'fnf-pwa-v6';
+// Fish N Fresh Hub — PWA Service Worker v7 (Role-Based Push Notifications)
+const CACHE_NAME = 'fnf-pwa-v7';
 const IMAGE_CACHE_NAME = 'fnf-images-v2';
 const STATIC_ASSETS = [
   '/',
@@ -75,21 +75,36 @@ self.addEventListener('fetch', (e) => {
   // Skip cross-origin requests
   if (!url.startsWith(self.location.origin)) return;
 
-  // 2. Page navigations — network-first with 2s timeout
+  // 2. Page navigations — always network-first, cache only as an offline fallback.
+  // No artificial timeout: a slow network must never swap in stale HTML that
+  // points at build asset names which no longer exist (causes unstyled pages).
   if (e.request.mode === 'navigate') {
     e.respondWith(
-      Promise.race([
-        fetch(e.request),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
-      ]).catch(() =>
+      fetch(e.request).catch(() =>
         caches.match('/').then((c) => c || Response.error())
       )
     );
     return;
   }
 
-  // 3. Static assets — stale-while-revalidate
+  // 3. Static assets — network-first for CSS/JS so a fresh build always wins,
+  // stale-while-revalidate for everything else.
   if (e.request.method === 'GET') {
+    const isStyleOrScript =
+      e.request.destination === 'style' ||
+      e.request.destination === 'script' ||
+      /\.(css|js|mjs)(\?.*)?$/i.test(url);
+
+    if (isStyleOrScript) {
+      e.respondWith(
+        fetch(e.request).then((r) => {
+          if (r.ok) caches.open(CACHE_NAME).then((c) => c.put(e.request, r.clone()));
+          return r;
+        }).catch(() => caches.match(e.request).then((hit) => hit || Response.error()))
+      );
+      return;
+    }
+
     e.respondWith(
       caches.match(e.request).then((hit) => {
         const network = fetch(e.request).then((r) => {

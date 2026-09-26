@@ -132,12 +132,17 @@ function applySecurityAndCdnHeaders(response: Response, url: string): Response {
     url.endsWith(".woff2");
 
   if (isStaticAsset) {
-    headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    // Only freeze assets that actually exist. Caching a 404 for a CSS/JS chunk
+    // is what makes pages render completely unstyled on later visits.
+    if (response.status === 200) {
+      headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    } else {
+      headers.set("Cache-Control", "no-store");
+    }
   } else if (!headers.has("Cache-Control")) {
-    headers.set(
-      "Cache-Control",
-      "public, max-age=0, s-maxage=60, stale-while-revalidate=300"
-    );
+    // HTML must always be revalidated so the browser never loads a cached page
+    // that references stale build asset filenames.
+    headers.set("Cache-Control", "public, max-age=0, must-revalidate");
   }
 
   return new Response(response.body, {
