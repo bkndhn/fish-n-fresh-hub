@@ -372,6 +372,8 @@ function PaymentsReport() {
           })}
         </div>
       )}
+
+      <WebhookManager />
     </AdminShell>
   );
 }
