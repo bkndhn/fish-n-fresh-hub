@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOrdersQuery } from "@/lib/admin";
 import { formatINR, formatIST } from "@/lib/format";
@@ -8,7 +10,169 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ExportDropdown, type ExportColumn, type ExportOptions } from "@/lib/exportUtils";
+import {
+  listWebhookEndpoints,
+  saveWebhookEndpoint,
+  deleteWebhookEndpoint,
+  testWebhookEndpoint,
+  type WebhookEndpointRow,
+} from "@/lib/webhooks.functions";
+
+const EVENT_OPTIONS = [
+  { key: "payment.succeeded", label: "Payment successful" },
+  { key: "payment.failed", label: "Payment failed" },
+  { key: "order.created", label: "New order placed" },
+  { key: "order.status_changed", label: "Order status changed" },
+];
+
+function WebhookManager() {
+  const list = useServerFn(listWebhookEndpoints);
+  const save = useServerFn(saveWebhookEndpoint);
+  const remove = useServerFn(deleteWebhookEndpoint);
+  const ping = useServerFn(testWebhookEndpoint);
+
+  const q = useQuery<WebhookEndpointRow[]>({
+    queryKey: ["webhook-endpoints"],
+    queryFn: () => list({ data: undefined } as never),
+  });
+
+  const [label, setLabel] = useState("");
+  const [url, setUrl] = useState("");
+  const [events, setEvents] = useState<string[]>(EVENT_OPTIONS.map((e) => e.key));
+  const [active, setActive] = useState(true);
+
+  const inboundUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/api/public/payments/webhook?env=live`
+      : "https://fishnfresh.lovable.app/api/public/payments/webhook?env=live";
+
+  const saveMut = useMutation({
+    mutationFn: () => save({ data: { label, url, events, is_active: active } }),
+    onSuccess: () => {
+      toast.success("Webhook saved");
+      setLabel("");
+      setUrl("");
+      q.refetch();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const pingMut = useMutation({
+    mutationFn: (id: string) => ping({ data: { id } }),
+    onSuccess: (r: { ok: boolean; status: number; durationMs: number; error?: string }) => {
+      if (r.ok) toast.success(`Test delivered · HTTP ${r.status} in ${r.durationMs}ms`);
+      else toast.error(`Test failed · ${r.error ?? `HTTP ${r.status}`}`);
+      q.refetch();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const delMut = useMutation({
+    mutationFn: (id: string) => remove({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Webhook removed");
+      q.refetch();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <div className="mt-8 space-y-4">
+      <Card>
+        <CardContent className="space-y-2 pt-6">
+          <h3 className="font-display text-lg font-bold">Payment provider webhook</h3>
+          <p className="text-sm text-muted-foreground">
+            Paste this address into your payment provider so paid orders are confirmed automatically.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <code className="min-w-0 flex-1 truncate rounded-md bg-muted px-2 py-1.5 text-xs">{inboundUrl}</code>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                navigator.clipboard.writeText(inboundUrl);
+                toast.success("Copied");
+              }}
+            >
+              Copy
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Events to enable: checkout.session.completed, checkout.session.async_payment_succeeded,
+            checkout.session.async_payment_failed.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="space-y-3 pt-6">
+          <h3 className="font-display text-lg font-bold">Send app events elsewhere</h3>
+          <p className="text-sm text-muted-foreground">
+            Add any address (Zapier, Make, your accounting tool) and we post a signed update whenever these
+            things happen.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label>Name</Label>
+              <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Accounting sync" />
+            </div>
+            <div className="space-y-1">
+              <Label>Address</Label>
+              <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {EVENT_OPTIONS.map((ev) => (
+              <label key={ev.key} className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={events.includes(ev.key)}
+                  onCheckedChange={(c) =>
+                    setEvents((prev) => (c ? [...prev, ev.key] : prev.filter((k) => k !== ev.key)))
+                  }
+                />
+                {ev.label}
+              </label>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-sm">
+              <Switch checked={active} onCheckedChange={setActive} /> Active
+            </label>
+            <Button size="sm" disabled={saveMut.isPending} onClick={() => saveMut.mutate()}>
+              {saveMut.isPending ? "Saving..." : "Add webhook"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {(q.data ?? []).map((w) => (
+        <Card key={w.id}>
+          <CardContent className="flex flex-wrap items-center gap-3 py-4">
+            <div className="min-w-40 flex-1">
+              <p className="text-sm font-semibold">{w.label}</p>
+              <p className="truncate text-xs text-muted-foreground">{w.url}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {w.events.join(", ")}
+                {w.last_delivered_at ? ` · last ${formatIST(w.last_delivered_at)} (HTTP ${w.last_status})` : ""}
+              </p>
+            </div>
+            <Badge variant={w.is_active ? "default" : "secondary"}>{w.is_active ? "Active" : "Paused"}</Badge>
+            <Button size="sm" variant="outline" disabled={pingMut.isPending} onClick={() => pingMut.mutate(w.id)}>
+              Test ping
+            </Button>
+            <Button size="sm" variant="destructive" onClick={() => delMut.mutate(w.id)}>
+              Remove
+            </Button>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
 
 const PAYMENT_EXPORT_COLUMNS: ExportColumn[] = [
   { key: "order_no", label: "Order #", width: 16 },
