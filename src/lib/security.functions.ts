@@ -12,8 +12,14 @@ export const confirmSecurityRevocation = createServerFn({ method: "POST" })
     targetId: input?.targetId ? String(input.targetId) : null,
   }))
   .handler(async ({ data }): Promise<{ valid: boolean; reason?: string }> => {
-    await requireUser();
+    const userId = await requireUser();
     if (!["global", "branch", "user"].includes(data.scope)) return { valid: false };
+    // Callers may only confirm revocations that actually apply to them.
+    if (data.scope === "user" && data.targetId !== userId) return { valid: false };
+    if (data.scope === "branch") {
+      const { isStaffCaller } = await import("@/lib/authz.server");
+      if (!data.targetId || !(await isStaffCaller())) return { valid: false };
+    }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const since = new Date(Date.now() - 5 * 60 * 1000).toISOString();

@@ -473,7 +473,9 @@ export function exportToCsv({ filename, columns, data }: ExportOptions): void {
         .map((col) => {
           const rawVal = row[col.key];
           const val = col.format ? col.format(rawVal, row) : rawVal ?? "";
-          return `"${String(val).replace(/"/g, '""')}"`;
+          let str = String(val);
+          if (/^[=+\-@\t\r]/.test(str)) str = `'${str}`;
+          return `"${str.replace(/"/g, '""')}"`;
         })
         .join(",")
     );

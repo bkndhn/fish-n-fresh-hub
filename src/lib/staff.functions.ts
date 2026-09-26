@@ -146,7 +146,12 @@ export const inviteStaff = createServerFn({ method: "POST" })
         invited = true;
       } else {
         // Email delivery not configured — create the account with a temp password instead.
-        tempPassword = `Fnf-${Math.random().toString(36).slice(2, 10)}!${Math.floor(Math.random() * 90 + 10)}`;
+        {
+          const bytes = new Uint8Array(18);
+          crypto.getRandomValues(bytes);
+          const rand = btoa(String.fromCharCode(...bytes)).replace(/[+/=]/g, "").slice(0, 20);
+          tempPassword = `Fnf-${rand}!9a`;
+        }
         const created = await supabaseAdmin.auth.admin.createUser({
           email: data.email,
           password: tempPassword,

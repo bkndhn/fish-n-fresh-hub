@@ -1,3 +1,4 @@
+import { escapeDeep } from "@/lib/htmlEscape";
 /**
  * Supplier Account Statement & Outstanding Ledger PDF Engine
  * Generates print-ready vector PDF statements with debit/credit running balances,
@@ -56,6 +57,7 @@ export interface SupplierStatementData {
 }
 
 export function buildSupplierStatementHtml(data: SupplierStatementData): string {
+  data = escapeDeep(data);
   const formatCurrency = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
   return `

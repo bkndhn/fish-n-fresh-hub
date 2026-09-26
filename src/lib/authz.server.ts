@@ -75,31 +75,7 @@ export async function getCallerRoles(userId: string): Promise<CallerRole[]> {
     // ignore
   }
 
-  // Also inspect auth user app_metadata / user_metadata as fallback
-  const token = bearerToken();
-  if (token) {
-    try {
-      const { data } = await supabaseAdmin.auth.getUser(token);
-      const user = data?.user;
-      if (user) {
-        const appMeta = user.app_metadata as Record<string, unknown> | undefined;
-        const userMeta = user.user_metadata as Record<string, unknown> | undefined;
-        const candidateRole = (appMeta?.["role"] || userMeta?.["role"] || user.role) as CallerRole;
-        if (candidateRole && !roles.includes(candidateRole)) {
-          roles.push(candidateRole);
-        }
-        const candidateRoles = (appMeta?.["roles"] || userMeta?.["roles"]) as CallerRole[] | undefined;
-        if (Array.isArray(candidateRoles)) {
-          for (const r of candidateRoles) {
-            if (r && !roles.includes(r)) roles.push(r);
-          }
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }
-
+  // Roles come ONLY from the user_roles table. User/app metadata is never trusted.
   return roles;
 }
 

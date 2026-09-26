@@ -61,8 +61,17 @@ export const createSubscription = createServerFn({ method: "POST" })
     const callerId = await requireUser();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const price = Number(data.pricePerUnit) || 0;
-    const qty = Number(data.quantity) || 1;
+    // Price always comes from the product record, never from the caller.
+    const { data: product, error: productErr } = await supabaseAdmin
+      .from("products")
+      .select("id, name, price")
+      .eq("id", data.productId)
+      .maybeSingle();
+    if (productErr || !product) throw new Error("Product not found");
+    const price = Number(product.price) || 0;
+    if (price <= 0) throw new Error("This product cannot be subscribed to right now");
+    const qty = Number(data.quantity);
+    if (!Number.isFinite(qty) || qty <= 0 || qty > 100) throw new Error("Enter a valid quantity");
     const discount = 5.0; // 5% Subscribe & Save discount
     const subtotal = price * qty;
     const totalPrice = Math.round(subtotal * (1 - discount / 100));
@@ -76,7 +85,7 @@ export const createSubscription = createServerFn({ method: "POST" })
       customer_email: data.customerEmail || null,
       customer_address: data.customerAddress,
       product_id: data.productId,
-      product_name: data.productName,
+      product_name: product.name ?? data.productName,
       quantity: qty,
       unit: data.unit || "kg",
       cutting_style: data.cuttingStyle || "Curry Cut",

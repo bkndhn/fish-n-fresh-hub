@@ -1,3 +1,4 @@
+import { escapeDeep } from "@/lib/htmlEscape";
 /**
  * GSTIN-Compliant Tax Invoice Engine.
  * 
@@ -154,6 +155,7 @@ export function numberToIndianWords(num: number): string {
  * Builds the complete HTML string for the Tax Invoice document.
  */
 export function generateTaxInvoiceHtml(data: TaxInvoiceData): string {
+  data = escapeDeep(data);
   const words = numberToIndianWords(data.total);
 
   // Derive tax calculations

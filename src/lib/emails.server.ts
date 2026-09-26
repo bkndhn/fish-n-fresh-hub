@@ -206,7 +206,7 @@ async function dispatchOrderEmail(
 
         if (res.ok) {
           const json = (await res.json()) as { id: string };
-          console.log(`[Email Engine] Sent real email via Resend to ${recipient}: ${json.id}`);
+          console.log(`[Email Engine] Sent real email via Resend: ${json.id}`);
           return {
             success: true,
             recipient,
@@ -224,7 +224,7 @@ async function dispatchOrderEmail(
     }
 
     // Fallback: Safe simulated dispatch log with complete store details
-    console.log(`[Email Engine: ${type.toUpperCase()}] To: ${recipient || "Customer (No Email Given)"} | Subject: "${subject}" | From: ${fromName} <${fromEmail}>`);
+    console.log(`[Email Engine: ${type.toUpperCase()}] Simulated delivery for order ${orderId} (recipient ${recipient ? "present" : "missing"})`);
     return {
       success: true,
       recipient: recipient || "customer",

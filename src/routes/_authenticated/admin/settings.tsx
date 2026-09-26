@@ -428,11 +428,16 @@ function AdminSettings() {
       }
 
       const headers = ["Order ID", "Date", "Customer Name", "Customer Phone", "Status", "Payment Method", "Payment Status", "Subtotal (INR)", "Delivery Fee (INR)", "Discount (INR)", "Total (INR)", "Delivery Address"];
+      const csvCell = (v: unknown) => {
+        let str = String(v ?? "");
+        if (/^[=+\-@\t\r]/.test(str)) str = `'${str}`;
+        return `"${str.replace(/"/g, '""')}"`;
+      };
       const rows = (orders as any[]).map((o: any) => [
         o.id,
         new Date(o.created_at).toLocaleString("en-IN"),
-        `"${(o.customer_name || "").replace(/"/g, '""')}"`,
-        `"${(o.customer_phone || "").replace(/"/g, '""')}"`,
+        csvCell(o.customer_name),
+        csvCell(o.customer_phone),
         o.status,
         o.payment_method || "cod",
         o.payment_status || "pending",
@@ -440,7 +445,7 @@ function AdminSettings() {
         o.delivery_fee || 0,
         o.discount || (o as any).discount_amount || 0,
         o.total || 0,
-        `"${(o.delivery_address || (o as any).address || "").replace(/"/g, '""')}"`,
+        csvCell(o.delivery_address || (o as any).address),
       ]);
 
       const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
