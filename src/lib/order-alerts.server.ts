@@ -130,6 +130,22 @@ export async function triggerOrderAlert(
     return { success: false, message: 'Status unchanged' }
   }
 
+  // Fan the same lifecycle event out to subscribed outbound webhooks.
+  // Failures here must never affect push delivery or order processing.
+  try {
+    const { dispatchWebhookEvent } = await import('./webhooks.server')
+    if (eventType === 'INSERT') {
+      await dispatchWebhookEvent('order.created', order as Record<string, unknown>)
+    } else {
+      await dispatchWebhookEvent('order.status_changed', order as Record<string, unknown>, {
+        old_status: oldStatus ?? null,
+        new_status: newStatus,
+      })
+    }
+  } catch (e) {
+    console.error('[triggerOrderAlert] webhook dispatch failed', e)
+  }
+
   const orderNum = order.order_number || order.id.slice(0, 8)
   
   let notif: NotificationPayload | null = null

@@ -2690,6 +2690,95 @@ export type Database = {
           },
         ]
       }
+      webhook_deliveries: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          endpoint_id: string | null
+          error: string | null
+          event: string
+          id: string
+          ok: boolean
+          order_id: string | null
+          status_code: number | null
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          endpoint_id?: string | null
+          error?: string | null
+          event: string
+          id?: string
+          ok?: boolean
+          order_id?: string | null
+          status_code?: number | null
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          endpoint_id?: string | null
+          error?: string | null
+          event?: string
+          id?: string
+          ok?: boolean
+          order_id?: string | null
+          status_code?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_deliveries_endpoint_id_fkey"
+            columns: ["endpoint_id"]
+            isOneToOne: false
+            referencedRelation: "webhook_endpoints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhook_endpoints: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          events: string[]
+          id: string
+          is_active: boolean
+          label: string
+          last_delivered_at: string | null
+          last_error: string | null
+          last_status: number | null
+          secret: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          events?: string[]
+          id?: string
+          is_active?: boolean
+          label: string
+          last_delivered_at?: string | null
+          last_error?: string | null
+          last_status?: number | null
+          secret?: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          events?: string[]
+          id?: string
+          is_active?: boolean
+          label?: string
+          last_delivered_at?: string | null
+          last_error?: string | null
+          last_status?: number | null
+          secret?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       wholesale_accounts: {
         Row: {
           address: string | null

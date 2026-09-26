@@ -50,6 +50,13 @@
       "when": 1790075794157,
       "tag": "0006_store_settings_public_sales_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790398546407,
+      "tag": "0007_create_webhook_endpoints_and_deliveries",
+      "breakpoints": true
     }
   ]
 }
