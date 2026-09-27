@@ -130,9 +130,9 @@ export type Product = {
   branch_id?: string | null;
   branch_name?: string | null;
   cost_price?: number | null;
-  min_order_qty?: number;
-  max_order_qty?: number | null;
-  step_qty?: number;
+  min_order_qty?: number | undefined;
+  max_order_qty?: number | null | undefined;
+  step_qty?: number | undefined;
   // Universal Retail extensions
   brand?: string | null;
   model_number?: string | null;
@@ -266,6 +266,9 @@ export type CartItem = {
   cut_preference?: string | null;
   branch_id?: string | null;
   branch_name?: string | null;
+  min_order_qty?: number | undefined;
+  max_order_qty?: number | null | undefined;
+  step_qty?: number | undefined;
   // Universal Retail additions
   serial_numbers?: string[] | null;
   variant?: { id?: string; size?: string; color?: string; sku?: string } | null;

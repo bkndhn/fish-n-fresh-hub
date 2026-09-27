@@ -211,13 +211,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
             cut_preference: cut_preference || "Curry Cut",
             branch_id: targetBranchId,
             branch_name: targetBranchName,
+            min_order_qty: product.min_order_qty,
+            max_order_qty: product.max_order_qty,
+            step_qty: product.step_qty,
             retail_price: Number(product.price),
             wholesale_price: product.wholesale_price ?? null,
             wholesale_min_qty: product.wholesale_min_qty ?? 0,
             wholesale_tiers: product.wholesale_tiers ?? [],
             gst_percentage: product.gst_percent ?? 0,
             hsn_code: product.hsn_code ?? null,
-          },
+          } as CartItem,
         ];
       });
 
@@ -243,13 +246,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
           cut_preference: cut_preference || "Curry Cut",
           branch_id: targetBranchId,
           branch_name: targetBranchName,
+          min_order_qty: product.min_order_qty,
+          max_order_qty: product.max_order_qty,
+          step_qty: product.step_qty,
           retail_price: Number(product.price),
           wholesale_price: product.wholesale_price ?? null,
           wholesale_min_qty: product.wholesale_min_qty ?? 0,
           wholesale_tiers: product.wholesale_tiers ?? [],
           gst_percentage: product.gst_percent ?? 0,
           hsn_code: product.hsn_code ?? null,
-        },
+        } as CartItem,
       ]);
     },
     []
@@ -270,11 +276,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setQty = useCallback((productId: string, qty: number) => {
-    setItems((prev) =>
-      qty <= 0
-        ? prev.filter((i) => i.product_id !== productId)
-        : prev.map((i) => (i.product_id === productId ? { ...i, qty } : i))
-    );
+    setItems((prev) => {
+      const item = prev.find((i) => i.product_id === productId);
+      const min = item?.min_order_qty ?? 0;
+      const max = item?.max_order_qty ?? Infinity;
+      if (qty <= 0 || qty < min) {
+        return prev.filter((i) => i.product_id !== productId);
+      }
+      const clamped = Math.min(qty, max === null ? Infinity : max ?? Infinity);
+      return prev.map((i) => (i.product_id === productId ? { ...i, qty: clamped } : i));
+    });
   }, []);
 
   const setCutPreference = useCallback((productId: string, cut_preference: string) => {

@@ -588,7 +588,7 @@ function AdminSettings() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("payment_gateway_credentials")
-        .select("id, provider, api_key, secret_key, webhook_secret")
+        .select("id, provider, api_key, secret_key")
         .limit(1)
         .maybeSingle();
       if (error) throw error;
@@ -606,14 +606,27 @@ function AdminSettings() {
   }, [settings]);
 
   useEffect(() => {
-    if (gateway)
+    if (gateway) {
+      // For Razorpay, secret_key stores JSON: { secret: "...", webhook_secret: "..." }
+      let secretKey = gateway.secret_key ?? "";
+      let webhookSecret = "";
+      if (gateway.provider === "razorpay" && secretKey.startsWith("{")) {
+        try {
+          const parsed = JSON.parse(secretKey) as { secret?: string; webhook_secret?: string };
+          secretKey = parsed.secret ?? secretKey;
+          webhookSecret = parsed.webhook_secret ?? "";
+        } catch {
+          // not JSON, treat as plain key
+        }
+      }
       setGatewayForm({
         id: gateway.id,
         provider: gateway.provider ?? "none",
         api_key: gateway.api_key ?? "",
-        secret_key: gateway.secret_key ?? "",
-        webhook_secret: gateway.webhook_secret ?? "",
+        secret_key: secretKey,
+        webhook_secret: webhookSecret,
       });
+    }
   }, [gateway]);
 
   const update = useMutation({
@@ -633,11 +646,16 @@ function AdminSettings() {
       const { error } = await supabase.from("store_settings").update(dbPatch).eq("id", settings.id);
       if (error) throw error;
 
+      // Encode webhook_secret inside secret_key as JSON for Razorpay
+      const encodedSecretKey = (
+        gatewayForm.provider === "razorpay" && gatewayForm.webhook_secret
+          ? JSON.stringify({ secret: gatewayForm.secret_key || "", webhook_secret: gatewayForm.webhook_secret })
+          : gatewayForm.secret_key || null
+      );
       const creds = {
         provider: gatewayForm.provider,
         api_key: gatewayForm.api_key || null,
-        secret_key: gatewayForm.secret_key || null,
-        webhook_secret: gatewayForm.webhook_secret || null,
+        secret_key: encodedSecretKey,
       };
       if (gatewayForm.id) {
         const { error: gErr } = await supabase

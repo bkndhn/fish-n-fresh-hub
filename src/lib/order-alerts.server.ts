@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/integrations/supabase/client.server'
 import { sendWebPush, type PushSubscriptionJSON } from './webpush-edge.server'
+import { getVerticalStatusPhrases } from './verticals'
 
 export type NotificationPayload = {
   title: string
@@ -148,6 +149,24 @@ export async function triggerOrderAlert(
 
   const orderNum = order.order_number || order.id.slice(0, 8)
   
+  // Load store vertical for contextual notification copy
+  let storeVertical: import('./verticals').BusinessVertical = 'seafood'
+  let storeFulfillmentType: 'delivery' | 'pickup' = 
+    (order.fulfillment_type === 'pickup') ? 'pickup' : 'delivery'
+  try {
+    const { data: settings } = await supabaseAdmin
+      .from('store_settings')
+      .select('business_vertical')
+      .limit(1)
+      .maybeSingle()
+    if (settings?.business_vertical) {
+      storeVertical = settings.business_vertical as import('./verticals').BusinessVertical
+    }
+  } catch {
+    // ignore, fall back to seafood
+  }
+  const phrases = getVerticalStatusPhrases(storeVertical, storeFulfillmentType)
+  
   let notif: NotificationPayload | null = null
   let target: 'admin_staff' | 'driver' | 'customer' | null = null
   
@@ -165,7 +184,7 @@ export async function triggerOrderAlert(
     target = 'driver'
     notif = {
       title: '📦 Order Ready for Pickup!',
-      body: `Order #${orderNum} is packed on ice and ready for dispatch.`,
+      body: `Order #${orderNum}: ${phrases.packedReady}`,
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-maskable-192.png',
       data: { url: '/driver', order_id: order.id },
@@ -175,7 +194,7 @@ export async function triggerOrderAlert(
     target = 'customer'
     notif = {
       title: '🚚 Fresh Catch On the Way!',
-      body: 'Your order is on the way with your delivery partner. Track live!',
+      body: phrases.outForDelivery,
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-maskable-192.png',
       data: { url: `/track/${order.id}`, order_id: order.id },
@@ -185,7 +204,7 @@ export async function triggerOrderAlert(
     target = 'customer'
     notif = {
       title: '🎉 Order Delivered!',
-      body: `Your fresh seafood order #${orderNum} was safely delivered. Enjoy your meal!`,
+      body: `${phrases.delivered} Order #${orderNum}.`,
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-maskable-192.png',
       data: { url: `/track/${order.id}`, order_id: order.id },

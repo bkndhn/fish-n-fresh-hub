@@ -36,7 +36,7 @@ import { getGoogleMapsDirUrl } from "@/lib/maps";
 import { CustomerDeliveryPinCard } from "@/components/CustomerDeliveryPinCard";
 import { InlineDeliveryRouteMap } from "@/components/InlineDeliveryRouteMap";
 import { NotificationPromptCard } from "@/components/NotificationPromptCard";
-import { getVerticalConfig } from "@/lib/verticals";
+import { getVerticalConfig, getVerticalStatusPhrases } from "@/lib/verticals";
 import { requestReturn } from "@/lib/returns.functions";
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -126,6 +126,14 @@ function TrackPage() {
               Math.sin(dLng/2) * Math.sin(dLng/2);
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   }, [order, settings]);
+
+  const isPickup = order?.fulfillment_type === 'pickup';
+
+  const verticalPhrases = useMemo(() => {
+    const vertical = (settings?.business_vertical || 'seafood') as import('@/lib/verticals').BusinessVertical;
+    const ft: 'delivery' | 'pickup' = (order?.fulfillment_type === 'pickup') ? 'pickup' : 'delivery';
+    return getVerticalStatusPhrases(vertical, ft);
+  }, [settings?.business_vertical, order?.fulfillment_type]);
 
   const currentStepIndex = useMemo(() => {
     if (!order) return 0;
@@ -313,6 +321,30 @@ function TrackPage() {
           />
         )}
 
+        {/* Pickup Counter Ready Card */}
+        {!isCancelled && isPickup && (order.status === 'packed' || order.status === 'ready' || order.status === 'out_for_delivery') && (
+          <Card className="border-emerald-500/30 bg-emerald-500/10">
+            <CardContent className="p-5 flex items-start gap-4">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white">
+                <PackageCheck className="size-5" />
+              </div>
+              <div className="flex-1">
+                <p className="font-bold text-emerald-700 dark:text-emerald-400 text-sm">
+                  {verticalPhrases.pickupReady(order.order_number ?? order.id.slice(0, 8))}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Please show your order PIN at the store counter for handover.
+                </p>
+                {(settings as any)?.store_address && (
+                  <p className="mt-2 text-xs font-medium text-foreground">
+                    📍 {(settings as any).store_address}
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Live Delivery Hero Card */}
         {isCancelled ? (
           <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5 text-center">
@@ -342,17 +374,17 @@ function TrackPage() {
                       {isDelivered
                         ? "Order Delivered Successfully!"
                         : isOutForDelivery
-                        ? "Out For Delivery Right Now!"
-                        : order.status === "packed"
-                        ? "Packed on Ice & Ready for Dispatch"
-                        : "Preparing Your Fresh Catch"}
+                        ? (isPickup ? "Ready for Counter Handover" : "Out For Delivery Right Now!")
+                        : order.status === "packed" || order.status === "ready"
+                        ? (isPickup ? verticalPhrases.pickupReady(order.order_number ?? order.id.slice(0, 8)) : verticalPhrases.packedReady)
+                        : verticalPhrases.preparing}
                     </h2>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {isDelivered
-                        ? "Delivered to your doorstep fresh and chilled."
+                        ? verticalPhrases.delivered
                         : order.eta_minutes
-                        ? `Estimated arrival at your doorstep: ~${order.eta_minutes} minutes`
-                        : "Our cutters are preparing your order with strict hygiene standards."}
+                        ? `Estimated ${isPickup ? 'ready' : 'arrival'} in ~${order.eta_minutes} minutes`
+                        : verticalPhrases.preparing}
                     </p>
                   </div>
                 </div>
@@ -479,7 +511,7 @@ function TrackPage() {
         )}
 
         {/* Assigned Driver / Delivery Partner Card */}
-        {order.driver_name && order.status === "out_for_delivery" && (
+        {order.driver_name && order.status === "out_for_delivery" && !isPickup && (
           <Card className="border-border/70 shadow-xs overflow-hidden">
             <CardContent className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">

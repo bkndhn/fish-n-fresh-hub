@@ -173,7 +173,12 @@ function CartPage() {
       )}
 
       <ul className="mt-4 space-y-3">
-        {cartStockAnalysis.map((item) => (
+        {cartStockAnalysis.map((item) => {
+          const maxQty = item.matched?.max_order_qty ?? item.max_order_qty;
+          const minQty = item.matched?.min_order_qty ?? item.min_order_qty ?? 0;
+          const stepQty = item.matched?.step_qty ?? item.step_qty;
+          
+          return (
           <li
             key={item.product_id}
             className={`flex flex-col sm:flex-row gap-3 rounded-2xl border p-3 transition-colors ${
@@ -243,9 +248,15 @@ function CartPage() {
                 <button
                   onClick={() => {
                     const isWeighted = (item.unit || "").toLowerCase().includes("kg") || (item.unit || "").toLowerCase() === "g";
-                    const step = isWeighted ? (item.qty <= 1 ? 0.25 : 0.5) : 1;
+                    const stepQty = item.matched?.step_qty ?? item.step_qty;
+                    const minQty = item.matched?.min_order_qty ?? item.min_order_qty ?? 0;
+                    const step = stepQty ?? (isWeighted ? 0.5 : 1);
                     const next = Math.max(0, Math.round((item.qty - step) * 100) / 100);
-                    setQty(item.product_id, next);
+                    if (next < minQty) {
+                      remove(item.product_id);
+                    } else {
+                      setQty(item.product_id, next);
+                    }
                   }}
                   aria-label="Decrease"
                   className="p-1 hover:text-primary transition-colors"
@@ -257,7 +268,9 @@ function CartPage() {
                   inputMode="decimal"
                   defaultValue={item.qty}
                   key={`${item.product_id}-${item.qty}`}
+                  readOnly={(stepQty ?? 0) > 0 || (minQty ?? 0) > 0}
                   onBlur={(e) => {
+                    if ((stepQty ?? 0) > 0 || (minQty ?? 0) > 0) return;
                     const val = parseFloat(e.target.value);
                     if (isNaN(val) || val <= 0) {
                       e.target.value = String(item.qty);
@@ -277,19 +290,26 @@ function CartPage() {
                   title="Type custom quantity or weight"
                 />
                 <button
-                  disabled={item.isSoldOut || item.qty >= item.availableStock}
+                  disabled={item.isSoldOut || item.qty >= item.availableStock || Boolean((item.matched?.max_order_qty || item.max_order_qty) && item.qty >= (item.matched?.max_order_qty || item.max_order_qty || Infinity))}
                   onClick={() => {
                     const isWeighted = (item.unit || "").toLowerCase().includes("kg") || (item.unit || "").toLowerCase() === "g";
-                    const step = isWeighted ? 0.5 : 1;
-                    if (item.qty + step > item.availableStock) {
+                    const stepQty = item.matched?.step_qty ?? item.step_qty;
+                    const maxQty = item.matched?.max_order_qty ?? item.max_order_qty;
+                    const step = stepQty ?? (isWeighted ? 0.5 : 1);
+                    const next = Math.round((item.qty + step) * 100) / 100;
+                    if (maxQty != null && next > maxQty) {
+                      toast.error(`Maximum order quantity is ${maxQty}`);
+                      return;
+                    }
+                    if (next > item.availableStock) {
                       toast.error(`Only ${item.availableStock} ${item.unit} available in stock`);
                       return;
                     }
-                    setQty(item.product_id, Math.round((item.qty + step) * 100) / 100);
+                    setQty(item.product_id, next);
                   }}
                   className="p-1 disabled:opacity-30 disabled:cursor-not-allowed hover:text-primary transition-colors"
                   aria-label="Increase"
-                  title={item.isSoldOut ? "Item is sold out" : item.qty >= item.availableStock ? "Max stock reached" : "Increase quantity"}
+                  title={item.isSoldOut ? "Item is sold out" : item.qty >= item.availableStock ? "Max stock reached" : (item.matched?.max_order_qty || item.max_order_qty) && item.qty >= (item.matched?.max_order_qty || item.max_order_qty || Infinity) ? "Max quantity reached" : "Increase quantity"}
                 >
                   <Plus className="size-3.5" />
                 </button>
@@ -304,7 +324,8 @@ function CartPage() {
               </button>
             </div>
           </li>
-        ))}
+          );
+        })}
       </ul>
       <div className="mt-5 space-y-2 rounded-2xl border border-border bg-card p-4">
         <div className="flex items-center justify-between gap-2">

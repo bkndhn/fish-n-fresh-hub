@@ -872,6 +872,12 @@ export function RetailPosCounterPage() {
     };
   }, []);
 
+  function clampQty(qty: number, product: { min_order_qty?: number | null | undefined; max_order_qty?: number | null | undefined; step_qty?: number | null | undefined }) {
+    const min = product.min_order_qty ?? 1;
+    const max = product.max_order_qty ?? Infinity;
+    return Math.max(min, Math.min(qty, max === null ? Infinity : max));
+  }
+
   // Open item customization modal (with stock guard & live scale reading auto-detect)
   const handleOpenItem = (prod: Product) => {
     if ((prod.stock ?? 0) <= 0 || prod.is_available === false) {
@@ -893,7 +899,7 @@ export function RetailPosCounterPage() {
         setTimeout(() => setAutoCapturedNotice(null), 3000);
       }
     } else {
-      setModalWeightInput("1.0");
+      setModalWeightInput(clampQty(1, prod).toString());
     }
     setModalCutting(CUTTING_STYLES[0] ?? "Curry Cut");
   };
@@ -986,7 +992,11 @@ export function RetailPosCounterPage() {
         const isWeight = item.unit.toLowerCase() === "kg";
 
         if (isWeight) {
-          const newWeight = Math.max(0.05, Math.round((item.weightKg + delta) * 100) / 100);
+          let newWeight = Math.round((item.weightKg + delta) * 100) / 100;
+          if (matched && newWeight < (matched.min_order_qty ?? 1)) return null as any;
+          if (matched) newWeight = clampQty(newWeight, matched);
+          else newWeight = Math.max(0.05, newWeight);
+
           if (delta > 0 && newWeight > maxStock) {
             toast.warning(`Cannot exceed available store stock (${maxStock} kg)!`);
             return item;
@@ -997,7 +1007,11 @@ export function RetailPosCounterPage() {
             totalPrice: Math.round(newWeight * item.pricePerKg),
           };
         } else {
-          const newQty = Math.max(1, item.qty + delta);
+          let newQty = item.qty + delta;
+          if (matched && newQty < (matched.min_order_qty ?? 1)) return null as any;
+          if (matched) newQty = clampQty(newQty, matched);
+          else newQty = Math.max(1, newQty);
+
           if (delta > 0 && newQty > maxStock) {
             toast.warning(`Cannot exceed available store stock (${maxStock} pcs)!`);
             return item;
@@ -1008,7 +1022,7 @@ export function RetailPosCounterPage() {
             totalPrice: Math.round(newQty * item.pricePerKg),
           };
         }
-      })
+      }).filter(Boolean)
     );
   };
 
@@ -1031,13 +1045,18 @@ export function RetailPosCounterPage() {
     const maxStock = matchedProd?.stock ?? 9999;
     const isWeight = editingCartItem.unit.toLowerCase() === "kg";
 
-    if (parsedVal > maxStock) {
-      toast.warning(`Requested ${parsedVal} exceeds available store stock (${maxStock} ${editingCartItem.unit})!`);
+    let finalVal = parsedVal;
+    if (matchedProd) {
+      finalVal = clampQty(parsedVal, matchedProd);
+    }
+
+    if (finalVal > maxStock) {
+      toast.warning(`Requested ${finalVal} exceeds available store stock (${maxStock} ${editingCartItem.unit})!`);
       return;
     }
 
-    const newWeightKg = isWeight ? parsedVal : 0;
-    const newQty = isWeight ? 1 : Math.round(parsedVal);
+    const newWeightKg = isWeight ? finalVal : 0;
+    const newQty = isWeight ? 1 : Math.round(finalVal);
     const newTotalPrice = Math.round(editingCartItem.pricePerKg * (isWeight ? newWeightKg : newQty));
 
     setCart((prev) =>
