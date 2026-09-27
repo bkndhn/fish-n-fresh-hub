@@ -19,6 +19,7 @@ GRANT SELECT ON TABLE public.branches TO anon, authenticated;
 GRANT SELECT ON TABLE public.banners TO anon, authenticated;
 GRANT SELECT ON TABLE public.trust_badges TO anon, authenticated;
 GRANT SELECT ON TABLE public.promotions TO anon, authenticated;
+GRANT SELECT ON TABLE public.marketing_campaigns TO anon, authenticated;
 
 -- 3. Ensure Row Level Security (RLS) permissive SELECT policies exist for public storefront data
 
@@ -75,5 +76,13 @@ ALTER TABLE public.promotions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "promotions_public_read" ON public.promotions;
 CREATE POLICY "promotions_public_read"
     ON public.promotions FOR SELECT
+    TO anon, authenticated
+    USING (true);
+
+-- Marketing Campaigns: Public read
+ALTER TABLE public.marketing_campaigns ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "marketing_campaigns_public_read" ON public.marketing_campaigns;
+CREATE POLICY "marketing_campaigns_public_read"
+    ON public.marketing_campaigns FOR SELECT
     TO anon, authenticated
     USING (true);

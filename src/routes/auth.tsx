@@ -139,9 +139,6 @@ function AuthPage() {
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [signupLockout, setSignupLockout] = useState(0);
 
-  // ── OTP state ─────────────────────────────────────────────────────────────
-
-
   // ── Forgot / reset state ──────────────────────────────────────────────────
   // forgotStep: 1=email entry, 2=check email waiting, 3=set new password (after clicking link)
   const [viewMode, setViewMode] = useState<"auth" | "forgot">("auth");
@@ -265,9 +262,6 @@ function AuthPage() {
     }
   }
 
-  // ─── OTP LOGIN ─────────────────────────────────────────────────────────────
-
-
   // ─── SIGN UP ───────────────────────────────────────────────────────────────
   async function submitSignup(e: React.FormEvent) {
     e.preventDefault();
@@ -279,7 +273,8 @@ function AuthPage() {
     }
     // Validation
     if (signupFullName.trim().length < 2) { toast.error("Please enter your full name."); return; }
-    if (signupPhone.length !== 10 || !/^[6-9]/.test(signupPhone)) {
+    const trimmedPhone = signupPhone.trim();
+    if (trimmedPhone.length > 0 && (trimmedPhone.length !== 10 || !/^[6-9]/.test(trimmedPhone))) {
       toast.error("Enter a valid 10-digit Indian mobile number starting with 6–9."); return;
     }
     if (!isValidEmail(signupEmail)) { toast.error("Please enter a valid email address."); return; }
@@ -302,7 +297,10 @@ function AuthPage() {
       password: signupPassword,
       options: {
         emailRedirectTo: `${window.location.origin}/auth`,
-        data: { full_name: signupFullName, phone: signupPhone },
+        data: {
+          full_name: signupFullName.trim(),
+          ...(trimmedPhone ? { phone: trimmedPhone } : {}),
+        },
       },
     });
     setLoading(false);
@@ -670,11 +668,11 @@ function AuthPage() {
                       )}
                     </div>
 
-                    {/* Phone */}
+                    {/* Phone (Optional) */}
                     <div className="space-y-1">
-                      <Label htmlFor="phone">Phone Number</Label>
+                      <Label htmlFor="phone">Phone Number <span className="text-xs text-muted-foreground font-normal">(Optional)</span></Label>
                       <Input id="phone" type="tel" inputMode="numeric"
-                        placeholder="e.g. 9876543210" maxLength={10}
+                        placeholder="e.g. 9876543210 (Optional)" maxLength={10}
                         value={signupPhone}
                         onChange={(e) => {
                           const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
@@ -752,7 +750,7 @@ function AuthPage() {
                       disabled={
                         loading || signupLockout > 0 ||
                         signupFullName.trim().length < 2 ||
-                        signupPhone.length !== 10 || !/^[6-9]/.test(signupPhone) ||
+                        (signupPhone.length > 0 && (signupPhone.length !== 10 || !/^[6-9]/.test(signupPhone))) ||
                         !isValidEmail(signupEmail) ||
                         getPasswordErrors(signupPassword).length > 0 ||
                         signupPassword !== signupConfirmPassword
