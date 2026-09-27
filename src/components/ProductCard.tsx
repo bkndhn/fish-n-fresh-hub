@@ -275,49 +275,60 @@ export function ProductCard({ product }: { product: Product }) {
                   );
                 })()}
 
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={localQtyStr}
-                  onChange={(e) => {
-                    const text = e.target.value;
-                    if (text === "" || /^\d*\.?\d*$/.test(text)) {
-                      setLocalQtyStr(text);
-                      const val = parseFloat(text);
-                      if (!isNaN(val) && val > 0) {
-                        if (product.stock !== null && val > Number(product.stock)) {
-                          toast.error(`Only ${product.stock} ${product.unit} available in stock`);
+                {(() => {
+                  const isStepEnforced = product.step_qty != null || product.min_order_qty != null || (product.step_qty ?? 0) > 0 || (product.min_order_qty ?? 0) > 0;
+                  return (
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={localQtyStr}
+                      readOnly={isStepEnforced}
+                      onChange={(e) => {
+                        if (isStepEnforced) return;
+                        const text = e.target.value;
+                        if (text === "" || /^\d*\.?\d*$/.test(text)) {
+                          setLocalQtyStr(text);
+                          const val = parseFloat(text);
+                          if (!isNaN(val) && val > 0) {
+                            if (product.stock !== null && val > Number(product.stock)) {
+                              toast.error(`Only ${product.stock} ${product.unit} available in stock`);
+                              setQty(product.id, Number(product.stock));
+                              setLocalQtyStr(String(product.stock));
+                            } else if (product.max_order_qty != null && val > product.max_order_qty) {
+                              toast.error(`Maximum allowed: ${product.max_order_qty}`);
+                              setQty(product.id, product.max_order_qty);
+                              setLocalQtyStr(String(product.max_order_qty));
+                            } else {
+                              setQty(product.id, val);
+                            }
+                          }
+                        }
+                      }}
+                      onBlur={() => {
+                        if (isStepEnforced) return;
+                        const val = parseFloat(localQtyStr);
+                        const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
+                        const fallbackMin = isWeighted ? 0.25 : 1;
+                        const minQty = product.min_order_qty ?? fallbackMin;
+
+                        if (isNaN(val) || val < minQty) {
+                          setLocalQtyStr(String(cartItem.qty));
+                        } else if (product.stock !== null && val > Number(product.stock)) {
                           setQty(product.id, Number(product.stock));
                           setLocalQtyStr(String(product.stock));
                         } else if (product.max_order_qty != null && val > product.max_order_qty) {
-                          toast.error(`Maximum allowed: ${product.max_order_qty}`);
                           setQty(product.id, product.max_order_qty);
                           setLocalQtyStr(String(product.max_order_qty));
-                        } else {
-                          setQty(product.id, val);
                         }
-                      }
-                    }
-                  }}
-                  onBlur={() => {
-                    const val = parseFloat(localQtyStr);
-                    const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
-                    const fallbackMin = isWeighted ? 0.25 : 1;
-                    const minQty = product.min_order_qty ?? fallbackMin;
-
-                    if (isNaN(val) || val < minQty) {
-                      setLocalQtyStr(String(cartItem.qty));
-                    } else if (product.stock !== null && val > Number(product.stock)) {
-                      setQty(product.id, Number(product.stock));
-                      setLocalQtyStr(String(product.stock));
-                    } else if (product.max_order_qty != null && val > product.max_order_qty) {
-                      setQty(product.id, product.max_order_qty);
-                      setLocalQtyStr(String(product.max_order_qty));
-                    }
-                  }}
-                  className="w-full min-w-0 flex-1 bg-transparent text-center text-[11px] sm:text-xs font-black font-mono outline-none text-primary dark:text-primary-foreground select-all p-0 leading-none"
-                  title="Type custom quantity"
-                />
+                      }}
+                      className={cn(
+                        "w-full min-w-0 flex-1 bg-transparent text-center text-[11px] sm:text-xs font-black font-mono outline-none text-primary dark:text-primary-foreground select-all p-0 leading-none",
+                        isStepEnforced && "cursor-default select-none"
+                      )}
+                      title={isStepEnforced ? "Use + / - buttons to adjust quantity" : "Type custom quantity"}
+                    />
+                  );
+                })()}
 
                 <button
                   type="button"

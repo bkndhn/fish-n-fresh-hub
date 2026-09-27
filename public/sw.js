@@ -2,7 +2,6 @@
 const CACHE_NAME = 'fnf-pwa-v8';
 const IMAGE_CACHE_NAME = 'fnf-images-v2';
 const STATIC_ASSETS = [
-  '/',
   '/manifest.json',
   '/favicon.ico',
   '/icons/icon-192.png',
