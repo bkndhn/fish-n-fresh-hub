@@ -36,10 +36,24 @@ export function ProductCard({ product }: { product: Product }) {
 
   const s = settings as import("@/lib/types").SiteSettings | undefined;
 
-  const isOutOfStock = (product.stock !== null && Number(product.stock) <= 0) || product.is_available === false;
+  const isUnlimited = Boolean(
+    product.unlimited_stock ||
+    (s as any)?.allow_unlimited_stock ||
+    s?.business_vertical === "restaurant_cafe" ||
+    s?.business_vertical === "juice_shake_bar" ||
+    s?.business_vertical === "bakery_cake"
+  );
+  const hideOutOfStockBadges = Boolean((s as any)?.hide_out_of_stock_badges);
+
+  const isOutOfStock =
+    !isUnlimited &&
+    !hideOutOfStockBadges &&
+    ((product.stock !== null && Number(product.stock) <= 0) || product.is_available === false);
   const showStockToCustomer = s?.show_stock_to_customers ?? true;
   const urgencyThreshold = Number(s?.stock_urgency_threshold ?? 5);
   const isLowStock =
+    !isUnlimited &&
+    !hideOutOfStockBadges &&
     showStockToCustomer &&
     !isOutOfStock &&
     product.stock !== null &&
@@ -312,7 +326,7 @@ export function ProductCard({ product }: { product: Product }) {
                           setLocalQtyStr(text);
                           const val = parseFloat(text);
                           if (!isNaN(val) && val > 0) {
-                            if (product.stock !== null && val > Number(product.stock)) {
+                            if (!isUnlimited && product.stock !== null && val > Number(product.stock)) {
                               toast.error(`Only ${product.stock} ${product.unit} available in stock`);
                               setQty(product.id, Number(product.stock));
                               setLocalQtyStr(String(product.stock));
@@ -335,7 +349,7 @@ export function ProductCard({ product }: { product: Product }) {
 
                         if (isNaN(val) || val < minQty) {
                           setLocalQtyStr(String(cartItem.qty));
-                        } else if (product.stock !== null && val > Number(product.stock)) {
+                        } else if (!isUnlimited && product.stock !== null && val > Number(product.stock)) {
                           setQty(product.id, Number(product.stock));
                           setLocalQtyStr(String(product.stock));
                         } else if (product.max_order_qty != null && val > product.max_order_qty) {
@@ -370,7 +384,7 @@ export function ProductCard({ product }: { product: Product }) {
                     if (product.max_order_qty != null && nextQty > product.max_order_qty) {
                       nextQty = product.max_order_qty;
                     }
-                    if (product.stock !== null && nextQty > Number(product.stock)) {
+                    if (!isUnlimited && product.stock !== null && nextQty > Number(product.stock)) {
                       toast.error(`Only ${product.stock} ${product.unit} available in stock`);
                       return;
                     }
@@ -390,7 +404,7 @@ export function ProductCard({ product }: { product: Product }) {
                 size="sm"
                 className="h-8 w-full rounded-full px-2.5 text-xs font-bold shadow-2xs hover:shadow-xs active:scale-95 transition-all"
                 onClick={() => {
-                  if (product.stock !== null && Number(product.stock) <= 0) {
+                  if (!isUnlimited && !hideOutOfStockBadges && product.stock !== null && Number(product.stock) <= 0) {
                     toast.error("This product is currently out of stock");
                     return;
                   }

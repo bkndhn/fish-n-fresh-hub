@@ -53,6 +53,25 @@ export const deductOrderStockServerFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requireStaff();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Check if store has unlimited stock enabled
+    const { data: settings } = await supabaseAdmin
+      .from("store_settings")
+      .select("allow_unlimited_stock, business_vertical")
+      .limit(1)
+      .maybeSingle();
+
+    const isGlobalUnlimited = Boolean(
+      (settings as any)?.allow_unlimited_stock ||
+      settings?.business_vertical === "restaurant_cafe" ||
+      settings?.business_vertical === "juice_shake_bar" ||
+      settings?.business_vertical === "bakery_cake"
+    );
+
+    if (isGlobalUnlimited) {
+      return { success: true, message: "Unlimited stock mode active — stock deduction skipped" };
+    }
+
     const { data: result, error } = await supabaseAdmin.rpc("deduct_order_stock_atomic", {
       p_order_id: data.orderId,
     });
@@ -97,6 +116,33 @@ export const updateOrderStatusWithEmail = createServerFn({ method: "POST" })
     }
     const { error } = await supabaseAdmin.from("orders").update(patch as never).eq("id", data.orderId);
     if (error) throw new Error(error.message);
+
+    // Deduct stock upon order completion or delivery if not already deducted and not unlimited
+    if (data.status === "completed" || data.status === "delivered") {
+      try {
+        const { data: settings } = await supabaseAdmin
+          .from("store_settings")
+          .select("allow_unlimited_stock, business_vertical")
+          .limit(1)
+          .maybeSingle();
+
+        const isGlobalUnlimited = Boolean(
+          (settings as any)?.allow_unlimited_stock ||
+          settings?.business_vertical === "restaurant_cafe" ||
+          settings?.business_vertical === "juice_shake_bar" ||
+          settings?.business_vertical === "bakery_cake"
+        );
+
+        if (!isGlobalUnlimited) {
+          const { error: rpcErr } = await supabaseAdmin.rpc("deduct_order_stock_atomic", {
+            p_order_id: data.orderId,
+          });
+          if (rpcErr) console.warn("[Orders] Stock deduction on completion notice:", rpcErr.message);
+        }
+      } catch (err) {
+        console.warn("[Orders] Stock deduction error on completion:", err);
+      }
+    }
 
     // Automatically restore stock if order is cancelled or rejected (idempotent in SQL)
     if (data.status === "cancelled" || data.status === "rejected") {

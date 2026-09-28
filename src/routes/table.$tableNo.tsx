@@ -16,6 +16,8 @@ import {
   Receipt,
   MessageSquare,
   AlertCircle,
+  Trash2,
+  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -28,7 +30,7 @@ import { formatINR } from "@/lib/format";
 import { soundEngine } from "@/lib/realtime";
 import { UpiPaymentQr } from "@/components/UpiPaymentQr";
 import { supabase } from "@/integrations/supabase/client";
-import type { Product, SiteSettings } from "@/lib/types";
+import type { Product, RestaurantTable, SiteSettings } from "@/lib/types";
 
 export const Route = createFileRoute("/table/$tableNo")({
   component: TableOrderingPage,
@@ -47,7 +49,15 @@ function TableOrderingPage() {
   const { tableNo } = Route.useParams();
   const qc = useQueryClient();
 
-  const { data: settings } = useQuery(settingsQuery);
+  const { data: rawSettings } = useQuery(settingsQuery);
+  const settings = rawSettings as (SiteSettings & {
+    table_ordering_enabled?: boolean | null;
+    table_ordering_offline_message?: string | null;
+    restaurant_tables?: RestaurantTable[] | null;
+    allow_unlimited_stock?: boolean | null;
+    hide_out_of_stock_badges?: boolean | null;
+  }) | null;
+
   const { data: categories } = useQuery(categoriesQuery);
   const { data: products } = useQuery(productsQuery());
 
@@ -72,6 +82,38 @@ function TableOrderingPage() {
   const storeName = settings?.store_name || "Restaurant & Café";
   const storeUpiId = (settings as any)?.upi_id || "9843061919@upi";
 
+  // Match table configuration from store_settings
+  const matchedTable = useMemo(() => {
+    const rawTables = settings?.restaurant_tables;
+    if (!Array.isArray(rawTables)) return null;
+    const cleanNo = String(tableNo).trim().toLowerCase();
+    const exact = rawTables.find((t) => String(t.id).toLowerCase() === cleanNo);
+    if (exact) return exact;
+    const cleanDigits = cleanNo.replace(/\D/g, "");
+    return (
+      rawTables.find(
+        (t) =>
+          (cleanDigits && String(t.id).toLowerCase() === cleanDigits) ||
+          String(t.name).toLowerCase() === `table ${cleanNo}` ||
+          String(t.name).toLowerCase() === `table ${cleanDigits}`
+      ) || null
+    );
+  }, [settings?.restaurant_tables, tableNo]);
+
+  const tableDisplayName = matchedTable ? matchedTable.name : `Table #${tableNo}`;
+  const tableDisplayHeader = matchedTable
+    ? `${matchedTable.name} • ${matchedTable.section} • ${matchedTable.seating_capacity} Seater`
+    : `Table #${tableNo} • Contactless Dine-In`;
+
+  // Unlimited stock configuration
+  const isGlobalUnlimited = Boolean(
+    settings?.allow_unlimited_stock ||
+    settings?.business_vertical === "restaurant_cafe" ||
+    settings?.business_vertical === "juice_shake_bar" ||
+    settings?.business_vertical === "bakery_cake"
+  );
+  const hideOutOfStockBadges = Boolean(settings?.hide_out_of_stock_badges);
+
   // Query existing active orders for this table
   const { data: tableOrders, refetch: refetchTableOrders } = useQuery({
     queryKey: ["table_active_orders", tableNo],
@@ -80,7 +122,7 @@ function TableOrderingPage() {
         .from("orders")
         .select("*")
         .eq("fulfillment_type", "dine_in")
-        .or(`customer_address.ilike.%Table #${tableNo}%,notes.ilike.%Table #${tableNo}%`)
+        .or(`table_number.eq.${tableNo},customer_address.ilike.%Table #${tableNo}%,notes.ilike.%Table #${tableNo}%`)
         .in("status", ["pending", "confirmed", "packed", "ready", "preparing"])
         .order("created_at", { ascending: false });
 
@@ -140,7 +182,7 @@ function TableOrderingPage() {
       }
       return [...prev, { product, qty: 1, spiceLevel: spice, cookingNote: "" }];
     });
-    toast.success(`Added ${product.name} to Table #${tableNo}`);
+    toast.success(`Added ${product.name} to ${tableDisplayName}`);
   };
 
   const updateCartQty = (productId: string, spice: SpiceLevel, delta: number) => {
@@ -165,6 +207,13 @@ function TableOrderingPage() {
           : i
       )
     );
+  };
+
+  const handleClearCart = () => {
+    if (cart.length === 0) return;
+    setCart([]);
+    setIsCartOpen(false);
+    toast.success(`Cart cleared for ${tableDisplayName}`);
   };
 
   const cartTotal = useMemo(() => {
@@ -207,16 +256,17 @@ function TableOrderingPage() {
         order_number: orderNumber,
         status: "pending",
         fulfillment_type: "dine_in",
-        customer_name: customerName.trim() || `Table #${tableNo} Diner`,
+        table_number: String(tableNo),
+        customer_name: customerName.trim() || `${tableDisplayName} Diner`,
         customer_phone: customerPhone.trim() || null,
-        customer_address: `Table #${tableNo} (Dine-In)`,
+        customer_address: `${tableDisplayName} (Dine-In)`,
         total: cartTotal,
         subtotal: cartTotal,
         delivery_fee: 0,
         discount: 0,
         payment_method: "pay_at_counter",
         payment_status: "pending",
-        notes: `Table #${tableNo} Dine-In. Prep Notes: ${orderNotes.trim() || "Standard Chef Prep"}`,
+        notes: `${tableDisplayName} Dine-In. Prep Notes: ${orderNotes.trim() || "Standard Chef Prep"}`,
         items: orderItems,
       };
 
@@ -235,30 +285,162 @@ function TableOrderingPage() {
       setCart([]);
       setIsCartOpen(false);
       qc.invalidateQueries({ queryKey: ["table_active_orders", tableNo] });
-      toast.success(`Order placed to kitchen for Table #${tableNo}!`);
+      toast.success(`Order placed to kitchen for ${tableDisplayName}!`);
     },
     onError: (err: any) => {
       toast.error(err.message || "Failed to send order to kitchen");
     },
   });
 
+  // ─── GATE 1: Master QR Switch Offline Check ───
+  const isMasterEnabled = settings?.table_ordering_enabled ?? true;
+  const offlineMessage =
+    settings?.table_ordering_offline_message ||
+    "Table ordering is currently offline. Please call our steward or visit the counter.";
+
+  if (settings && isMasterEnabled === false) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex flex-col justify-between p-4 sm:p-8">
+        <header className="max-w-md mx-auto w-full text-center space-y-2 pt-6">
+          {settings.logo_url ? (
+            <img
+              src={settings.logo_url}
+              alt={storeName}
+              className="size-16 mx-auto rounded-2xl object-cover shadow-sm"
+            />
+          ) : (
+            <div className="size-16 mx-auto rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+              <Utensils className="size-8" />
+            </div>
+          )}
+          <h1 className="text-xl font-black text-foreground">{storeName}</h1>
+          <Badge variant="outline" className="border-border text-xs px-3 py-0.5">
+            {tableDisplayName}
+          </Badge>
+        </header>
+
+        <main className="max-w-md mx-auto w-full text-center space-y-5 my-auto py-8">
+          <div className="size-20 mx-auto rounded-3xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
+            <AlertCircle className="size-10" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-extrabold text-foreground">Table Ordering Offline</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed px-2">
+              {offlineMessage}
+            </p>
+          </div>
+
+          <div className="space-y-2.5 pt-2">
+            <Button
+              onClick={() => {
+                soundEngine.playStatusChime();
+                toast.success(`Steward notified for ${tableDisplayName}!`, {
+                  description: "A server has been alerted and will attend your table shortly.",
+                });
+              }}
+              className="w-full h-11 rounded-2xl font-bold text-xs bg-primary text-primary-foreground gap-2 shadow-sm"
+            >
+              <Users className="size-4" />
+              <span>Call Steward to Table 🛎️</span>
+            </Button>
+
+            <Link to="/" className="block">
+              <Button
+                variant="outline"
+                className="w-full h-11 rounded-2xl text-xs font-semibold border-border"
+              >
+                Browse Store Catalog
+              </Button>
+            </Link>
+          </div>
+        </main>
+
+        <footer className="max-w-md mx-auto w-full text-center text-xs text-muted-foreground pb-4">
+          <p>{storeName} • Contactless Dining Suite</p>
+        </footer>
+      </div>
+    );
+  }
+
+  // ─── GATE 2: Table Maintenance / Reserved Status Check ───
+  if (matchedTable && (matchedTable.status === "maintenance" || matchedTable.status === "reserved")) {
+    const isMaint = matchedTable.status === "maintenance";
+    return (
+      <div className="min-h-screen bg-background text-foreground flex flex-col justify-between p-4 sm:p-8">
+        <header className="max-w-md mx-auto w-full text-center space-y-2 pt-6">
+          <h1 className="text-xl font-black text-foreground">{storeName}</h1>
+          <Badge variant="outline" className="border-border text-xs px-3 py-0.5">
+            {matchedTable.name} • {matchedTable.section}
+          </Badge>
+        </header>
+
+        <main className="max-w-md mx-auto w-full text-center space-y-5 my-auto py-8">
+          <div
+            className={`size-20 mx-auto rounded-3xl flex items-center justify-center ${
+              isMaint
+                ? "bg-muted text-muted-foreground"
+                : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+            }`}
+          >
+            {isMaint ? <AlertCircle className="size-10" /> : <Clock className="size-10" />}
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-extrabold text-foreground">
+              {isMaint ? "Table Under Maintenance" : "Table Reserved"}
+            </h2>
+            <p className="text-sm text-muted-foreground leading-relaxed px-2">
+              {isMaint
+                ? "This table is currently undergoing service or cleaning. Please consult our staff to be seated."
+                : "This table is currently reserved for a scheduled dining booking. Please consult our host for table allocation."}
+            </p>
+          </div>
+
+          <div className="space-y-2.5 pt-2">
+            <Button
+              onClick={() => {
+                soundEngine.playStatusChime();
+                toast.success(`Staff notified for ${matchedTable.name}!`);
+              }}
+              className="w-full h-11 rounded-2xl font-bold text-xs bg-primary text-primary-foreground gap-2"
+            >
+              <Users className="size-4" />
+              <span>Call Host / Steward 🛎️</span>
+            </Button>
+            <Link to="/" className="block">
+              <Button
+                variant="outline"
+                className="w-full h-11 rounded-2xl text-xs font-semibold border-border"
+              >
+                Explore Store Catalog
+              </Button>
+            </Link>
+          </div>
+        </main>
+
+        <footer className="max-w-md mx-auto w-full text-center text-xs text-muted-foreground pb-4">
+          <p>{storeName} • Contactless Dining Suite</p>
+        </footer>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-background text-foreground pb-24">
+    <div className="min-h-screen bg-background text-foreground pb-28">
       {/* Table Header Bar */}
       <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-md px-4 py-3">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="size-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-black text-sm shrink-0">
-              T{tableNo}
+            <div className="size-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-black text-xs shrink-0">
+              {matchedTable ? matchedTable.id.slice(0, 4).toUpperCase() : `T${tableNo}`}
             </div>
             <div className="truncate">
               <h1 className="text-base font-bold truncate flex items-center gap-1.5">
                 <span>{storeName}</span>
-                <span className="text-xs font-normal text-muted-foreground">• Table #{tableNo}</span>
+                <span className="text-xs font-normal text-muted-foreground">• {tableDisplayName}</span>
               </h1>
               <p className="text-[11px] text-muted-foreground flex items-center gap-1">
                 <ChefHat className="size-3 text-emerald-600 dark:text-emerald-400" />
-                <span>Contactless Dine-In &amp; Instant Kitchen Ordering</span>
+                <span>{tableDisplayHeader}</span>
               </p>
             </div>
           </div>
@@ -294,14 +476,14 @@ function TableOrderingPage() {
           <div className="space-y-0.5">
             <div className="flex items-center gap-1.5 text-xs font-bold text-primary">
               <Utensils className="size-3.5" />
-              <span>Table #{tableNo} Self-Service Menu</span>
+              <span>{tableDisplayName} Self-Service Menu</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Select items, customize spice level, and send tickets directly to the kitchen line.
+              Select dishes, customize spice level &amp; notes, and send tickets directly to the kitchen.
             </p>
           </div>
           <Badge variant="outline" className="border-primary/30 text-primary text-xs py-1 px-2.5">
-            Dine-In Mode Active
+            Dine-In Active
           </Badge>
         </div>
 
@@ -359,10 +541,10 @@ function TableOrderingPage() {
           <button
             type="button"
             onClick={() => setActiveCategory("all")}
-            className={`rounded-full px-3.5 py-1 text-xs font-medium shrink-0 transition-colors ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
               activeCategory === "all"
-                ? "bg-primary text-primary-foreground font-semibold"
-                : "border border-border text-muted-foreground hover:text-foreground"
+                ? "bg-primary text-primary-foreground shadow-xs"
+                : "bg-muted/60 text-muted-foreground hover:bg-muted"
             }`}
           >
             All Items
@@ -371,11 +553,11 @@ function TableOrderingPage() {
             <button
               key={cat.id}
               type="button"
-              onClick={() => setActiveCategory(cat.id)}
-              className={`rounded-full px-3.5 py-1 text-xs font-medium shrink-0 transition-colors ${
-                activeCategory === cat.id
-                  ? "bg-primary text-primary-foreground font-semibold"
-                  : "border border-border text-muted-foreground hover:text-foreground"
+              onClick={() => setActiveCategory(cat.name)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+                activeCategory === cat.name
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "bg-muted/60 text-muted-foreground hover:bg-muted"
               }`}
             >
               {cat.name}
@@ -383,34 +565,52 @@ function TableOrderingPage() {
           ))}
         </div>
 
-        {/* Menu Items Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {/* Dish Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           {filteredProducts.map((product) => {
-            const inCartItems = cart.filter((i) => i.product.id === product.id);
-            const totalQtyInCart = inCartItems.reduce((s, i) => s + i.qty, 0);
+            const isItemUnlimited = isGlobalUnlimited || Boolean(product.unlimited_stock);
+            const isOutOfStock =
+              !isItemUnlimited &&
+              !hideOutOfStockBadges &&
+              ((product.stock !== null && Number(product.stock) <= 0) || product.is_available === false);
+
+            const cartItemsForProduct = cart.filter((i) => i.product.id === product.id);
+            const totalQtyInCart = cartItemsForProduct.reduce((sum, i) => sum + i.qty, 0);
 
             return (
               <Card
                 key={product.id}
-                className="overflow-hidden rounded-2xl border-border/70 hover:border-primary/40 transition-colors flex flex-col justify-between"
+                className={`rounded-2xl border-border/70 overflow-hidden shadow-xs hover:border-primary/40 transition-all flex flex-col justify-between ${
+                  isOutOfStock ? "opacity-60 bg-muted/20" : ""
+                }`}
               >
-                <div className="p-3.5 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <h3 className="font-bold text-sm text-foreground leading-snug">
-                        {product.name}
-                      </h3>
+                <div className="p-3.5 space-y-2.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-extrabold text-sm text-foreground">
+                          {product.name}
+                        </span>
+                        {product.category && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-border">
+                            {product.category}
+                          </Badge>
+                        )}
+                      </div>
                       {product.description && (
-                        <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
+                        <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                           {product.description}
                         </p>
                       )}
                     </div>
+
                     {product.image_url && (
                       <img
                         src={product.image_url}
                         alt={product.name}
-                        className="size-16 rounded-xl object-cover shrink-0 border border-border/50"
+                        className={`size-16 rounded-xl object-cover shrink-0 border border-border/50 ${
+                          isOutOfStock ? "grayscale" : ""
+                        }`}
                         loading="lazy"
                       />
                     )}
@@ -425,7 +625,11 @@ function TableOrderingPage() {
                       </span>
                     </span>
 
-                    {totalQtyInCart === 0 ? (
+                    {isOutOfStock ? (
+                      <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-muted-foreground/30 text-muted-foreground">
+                        Sold Out
+                      </Badge>
+                    ) : totalQtyInCart === 0 ? (
                       <Button
                         size="sm"
                         onClick={() => addToCart(product, "medium")}
@@ -476,12 +680,11 @@ function TableOrderingPage() {
                                 i.product.id === product.id ? { ...i, spiceLevel: sp } : i
                               )
                             );
-                            toast.success(`Set spice to ${sp} for ${product.name}`);
                           }}
-                          className={`px-1.5 py-0.5 rounded text-[10px] capitalize transition-colors ${
-                            inCartItems.some((i) => i.spiceLevel === sp)
-                              ? "bg-primary text-primary-foreground font-bold"
-                              : "hover:bg-muted text-muted-foreground"
+                          className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-colors capitalize ${
+                            cartItemsForProduct.some((i) => i.spiceLevel === sp)
+                              ? "bg-primary text-primary-foreground shadow-xs"
+                              : "text-muted-foreground hover:text-foreground"
                           }`}
                         >
                           {sp}
@@ -496,7 +699,7 @@ function TableOrderingPage() {
         </div>
 
         {filteredProducts.length === 0 && (
-          <div className="text-center py-12 space-y-2">
+          <div className="text-center py-12 bg-muted/20 border border-dashed border-border rounded-2xl space-y-2">
             <Utensils className="size-8 text-muted-foreground mx-auto opacity-50" />
             <p className="text-sm font-semibold">No dishes match your filter</p>
             <Button
@@ -515,17 +718,31 @@ function TableOrderingPage() {
         )}
       </main>
 
-      {/* Floating Bottom Cart Review Bar */}
+      {/* ─── FEATURE 2: Floating Bottom Cart Review Bar with 1-Tap Clear ─── */}
       {cartCount > 0 && (
-        <aside aria-label="Table order review bar" className="fixed bottom-0 inset-x-0 z-40 bg-background/95 backdrop-blur-md border-t border-border p-3 shadow-lg">
+        <aside
+          aria-label="Table order review bar"
+          className="fixed bottom-0 inset-x-0 z-40 bg-background/95 backdrop-blur-md border-t border-border p-3 shadow-lg"
+        >
           <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold text-foreground">
-                Table #{tableNo} Cart: {cartCount} items
+                {tableDisplayName} Cart: {cartCount} items
               </p>
               <p className="text-base font-extrabold text-primary">{formatINR(cartTotal)}</p>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearCart}
+                className="rounded-xl text-xs h-9 text-muted-foreground hover:text-destructive gap-1 px-2.5"
+                title="Clear table cart"
+              >
+                <Trash2 className="size-3.5" />
+                <span className="hidden sm:inline">Clear</span>
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -534,6 +751,7 @@ function TableOrderingPage() {
               >
                 Review Items
               </Button>
+
               <Button
                 size="sm"
                 onClick={() => placeOrderMutation.mutate()}
@@ -548,13 +766,26 @@ function TableOrderingPage() {
         </aside>
       )}
 
-      {/* Cart & Kitchen Notes Sheet / Modal */}
+      {/* ─── FEATURE 2: Cart Review Modal with 1-Tap Clear Cart ─── */}
       <Dialog open={isCartOpen} onOpenChange={setIsCartOpen}>
         <DialogContent className="max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="text-base flex items-center gap-2">
-              <ChefHat className="size-5 text-primary" />
-              <span>Review Order — Table #{tableNo}</span>
+            <DialogTitle className="text-base flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <ChefHat className="size-5 text-primary" />
+                <span>Review Order — {tableDisplayName}</span>
+              </span>
+              {cart.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearCart}
+                  className="h-7 text-[11px] text-destructive hover:bg-destructive/10 px-2 gap-1 rounded-lg"
+                >
+                  <Trash2 className="size-3" />
+                  <span>Clear All</span>
+                </Button>
+              )}
             </DialogTitle>
           </DialogHeader>
 
@@ -669,14 +900,25 @@ function TableOrderingPage() {
               <p className="text-xs text-muted-foreground">Order Total</p>
               <p className="text-base font-black text-primary">{formatINR(cartTotal)}</p>
             </div>
-            <Button
-              onClick={() => placeOrderMutation.mutate()}
-              disabled={placeOrderMutation.isPending}
-              className="rounded-xl h-10 px-5 font-bold text-xs bg-primary text-primary-foreground gap-1.5"
-            >
-              <ChefHat className="size-4" />
-              <span>{placeOrderMutation.isPending ? "Sending to Kitchen..." : "Confirm & Send to Kitchen"}</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleClearCart}
+                className="rounded-xl h-10 px-3 font-semibold text-xs border-destructive/30 text-destructive hover:bg-destructive/10 gap-1.5"
+              >
+                <Trash2 className="size-4" />
+                <span>Clear Cart</span>
+              </Button>
+              <Button
+                onClick={() => placeOrderMutation.mutate()}
+                disabled={placeOrderMutation.isPending}
+                className="rounded-xl h-10 px-4 font-bold text-xs bg-primary text-primary-foreground gap-1.5"
+              >
+                <ChefHat className="size-4" />
+                <span>{placeOrderMutation.isPending ? "Sending..." : "Confirm & Send"}</span>
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -687,7 +929,7 @@ function TableOrderingPage() {
           <DialogHeader>
             <DialogTitle className="text-base flex items-center gap-2">
               <Receipt className="size-5 text-primary" />
-              <span>Table #{tableNo} — Bill &amp; Split</span>
+              <span>{tableDisplayName} — Bill &amp; Split</span>
             </DialogTitle>
           </DialogHeader>
 
@@ -831,7 +1073,7 @@ function TableOrderingPage() {
                 size="sm"
                 onClick={() => {
                   soundEngine.playStatusChime();
-                  toast.success(`Steward notified to attend Table #${tableNo}!`, {
+                  toast.success(`Steward notified to attend ${tableDisplayName}!`, {
                     description: "Our staff is on the way to your table for cash / card settlement.",
                   });
                 }}

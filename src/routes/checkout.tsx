@@ -647,9 +647,8 @@ function Checkout() {
       console.warn("FCM push notice:", fcmErr);
     }
 
-    // Atomically reduce product stock (Server Function + RPC)
-    const snapshotItems = [...items];
-    await deductOrderStock(data.id, snapshotItems);
+    // Note: Stock deduction is deferred until status transition to 'completed' or 'delivered'
+    // (and bypassed if unlimited stock is enabled in store settings or vertical)
 
     // Trigger Transactional Order Confirmation Email with GST Invoice attachment
     const cleanEmail = email.trim();

@@ -134,6 +134,7 @@ export type Product = {
   min_order_qty?: number | undefined;
   max_order_qty?: number | null | undefined;
   step_qty?: number | undefined;
+  unlimited_stock?: boolean | undefined;
   // Universal Retail extensions
   brand?: string | null;
   model_number?: string | null;
@@ -495,3 +496,26 @@ export interface GstTaxBreakdown {
   sgst: number;
   igst: number;
 }
+
+/**
+ * Dine-In Restaurant Table Configuration.
+ */
+export interface RestaurantTable {
+  id: string; // e.g. "1", "t-2", "vip-1"
+  name: string; // e.g. "Table 1", "Rooftop Garden 4"
+  seating_capacity: number; // e.g. 2, 4, 6, 8, 12
+  section: string; // e.g. "Main Hall", "AC Dining", "Rooftop"
+  status: "active" | "maintenance" | "reserved";
+}
+
+/**
+ * Dine-In QR Ordering Store Settings Extension.
+ */
+export interface TableOrderingSettings {
+  table_ordering_enabled?: boolean | null | undefined;
+  table_ordering_offline_message?: string | null | undefined;
+  restaurant_tables?: RestaurantTable[] | null | undefined;
+  allow_unlimited_stock?: boolean | null | undefined;
+  hide_out_of_stock_badges?: boolean | null | undefined;
+}
+

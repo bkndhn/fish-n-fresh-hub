@@ -151,10 +151,24 @@ function ProductPage() {
   const effectiveStock = selectedVariant ? Number(selectedVariant.stock ?? 0) : (product.stock !== null ? Number(product.stock) : 0);
   const related = (all ?? []).filter((p) => p.category === product.category && p.id !== product.id).slice(0, 5);
 
-  const isOutOfStock = (product.stock !== null && effectiveStock <= 0) || product.is_available === false;
+  const isUnlimited = Boolean(
+    product.unlimited_stock ||
+    (settings as any)?.allow_unlimited_stock ||
+    settings?.business_vertical === "restaurant_cafe" ||
+    settings?.business_vertical === "juice_shake_bar" ||
+    settings?.business_vertical === "bakery_cake"
+  );
+  const hideOutOfStockBadges = Boolean((settings as any)?.hide_out_of_stock_badges);
+
+  const isOutOfStock =
+    !isUnlimited &&
+    !hideOutOfStockBadges &&
+    ((product.stock !== null && effectiveStock <= 0) || product.is_available === false);
   const showStockToCustomer = (settings as SiteSettings)?.show_stock_to_customers ?? true;
   const urgencyThreshold = Number((settings as SiteSettings)?.stock_urgency_threshold ?? 5);
   const isLowStock =
+    !isUnlimited &&
+    !hideOutOfStockBadges &&
     showStockToCustomer &&
     !isOutOfStock &&
     product.stock !== null &&
@@ -385,7 +399,7 @@ function ProductPage() {
                       setQtyInput(text);
                       const val = parseFloat(text);
                       if (!isNaN(val) && val > 0) {
-                        if (product.stock !== null && val > Number(product.stock)) {
+                        if (!isUnlimited && product.stock !== null && val > Number(product.stock)) {
                           toast.error(`Only ${product.stock} ${product.unit} available in stock`);
                           setQty(Number(product.stock));
                         } else {
@@ -398,7 +412,7 @@ function ProductPage() {
                     const val = parseFloat(qtyInput);
                     if (isNaN(val) || val <= 0) {
                       setQtyInput(String(qty));
-                    } else if (product.stock !== null && val > Number(product.stock)) {
+                    } else if (!isUnlimited && product.stock !== null && val > Number(product.stock)) {
                       setQty(Number(product.stock));
                       setQtyInput(String(product.stock));
                     }
@@ -411,7 +425,7 @@ function ProductPage() {
                   onClick={() => {
                     const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
                     const step = isWeighted ? 0.5 : 1;
-                    if (product.stock !== null && qty + step > Number(product.stock)) {
+                    if (!isUnlimited && product.stock !== null && qty + step > Number(product.stock)) {
                       toast.error(`Only ${product.stock} ${product.unit} available in stock`);
                       return;
                     }
@@ -420,7 +434,7 @@ function ProductPage() {
                     setQtyInput(String(next));
                   }}
                   aria-label="Increase"
-                  disabled={isOutOfStock || (product.stock !== null && qty >= Number(product.stock))}
+                  disabled={isOutOfStock || (!isUnlimited && product.stock !== null && qty >= Number(product.stock))}
                   className="disabled:opacity-40"
                 >
                   <Plus className="size-4" />
