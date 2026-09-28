@@ -38,6 +38,7 @@ import {
   Wrench,
   Check,
   TrendingDown,
+  QrCode,
 } from "lucide-react";
 import { AdminBranchProvider } from "@/lib/branchContext";
 import { AdminBranchSwitcher } from "@/components/admin/AdminBranchSwitcher";
@@ -69,6 +70,7 @@ import {
 const NAV = [
   { to: "/admin", label: "Dashboard", icon: BarChart3, exact: true, roles: ["admin", "manager", "staff"] },
   { to: "/admin/pos", label: "POS Counter", icon: Store, roles: ["admin", "manager", "cashier", "staff"] },
+  { to: "/admin/tables", label: "Table QRs", icon: QrCode, roles: ["admin", "manager", "cashier", "staff"] },
   { to: "/admin/products", label: "Products", icon: Package, roles: ["admin", "manager", "inventory_manager"] },
   { to: "/admin/broadcasts", label: "Catch Alerts", icon: Bell, roles: ["admin", "manager", "inventory_manager", "staff"] },
   { to: "/admin/purchases", label: "Purchases", icon: Anchor, roles: ["admin", "manager", "inventory_manager", "staff"] },
@@ -165,7 +167,7 @@ export function AdminShell({
       if (nav.length > 0 && nav[0]) {
         const target = nav[0];
         toast.info(`Redirected to your authorized workspace: ${target.label}`);
-        navigate({ to: target.to, replace: true });
+        navigate({ to: target.to as any, replace: true });
       } else {
         toast.error("Access restricted: Staff credentials required");
         navigate({ to: "/", replace: true });
@@ -297,7 +299,7 @@ export function AdminShell({
               {nav.map((item) => (
                 <Link
                   key={item.to}
-                  to={item.to}
+                  to={item.to as any}
                   preload="intent"
                   activeOptions={{ exact: Boolean((item as { exact?: boolean }).exact) }}
                   activeProps={{ className: "bg-primary text-primary-foreground hover:bg-primary shadow-xs font-bold" }}
@@ -344,7 +346,7 @@ export function AdminShell({
             {primaryNav.map((item) => (
               <li key={item.to} className="flex-1 flex justify-center">
                 <Link
-                  to={item.to}
+                  to={item.to as any}
                   preload="intent"
                   activeOptions={{ exact: Boolean((item as { exact?: boolean }).exact) }}
                   className="group relative flex flex-col items-center justify-center gap-0.5 py-1.5 px-2 rounded-2xl w-full text-[10px] font-medium text-muted-foreground hover:text-foreground transition-all duration-200 active:scale-90 [&.active]:bg-primary/15 [&.active]:text-primary [&.active]:font-bold [&.active]:shadow-2xs"
@@ -403,7 +405,7 @@ export function AdminShell({
                       {moreNav.map((item) => (
                         <Link
                           key={item.to}
-                          to={item.to}
+                          to={item.to as any}
                           preload="intent"
                           onClick={() => setMoreOpen(false)}
                           activeOptions={{ exact: Boolean((item as { exact?: boolean }).exact) }}

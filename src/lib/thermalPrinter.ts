@@ -1604,3 +1604,247 @@ export function buildTestPrintForFormat(format: PrintFormat, config: ThermalPrin
   };
 }
 
+export interface ZReportData {
+  reportNo: string;
+  openingTime: string;
+  closingTime: string;
+  cashierName: string;
+  branchName?: string | undefined;
+  openingFloat: number;
+  cashSales: number;
+  upiSales: number;
+  cardSales: number;
+  totalRevenue: number;
+  orderCount: number;
+  refundsTotal: number;
+  expectedCash: number;
+  actualCash: number;
+  variance: number;
+  notes?: string | undefined;
+  storeName?: string | undefined;
+  storeAddress?: string | undefined;
+  storePhone?: string | undefined;
+  storeGstin?: string | undefined;
+}
+
+/**
+ * Format Cashier Day-End Shift Z-Report with ESC/POS binary commands and styled thermal HTML.
+ */
+export function formatZReportReceipt(
+  data: ZReportData,
+  storeSettings?: any,
+  config: ThermalPrinterConfig = getSavedPrinterConfig()
+): { escPosBytes: Uint8Array; html: string } {
+  const store = data.storeName || storeSettings?.firm_name || storeSettings?.store_name || config.headerLine1 || "FISH N FRESH HUB";
+  const address = data.storeAddress || storeSettings?.shop_address || config.headerLine2 || "";
+  const phone = data.storePhone || storeSettings?.contact_phone || config.supportPhone || "";
+  const gstin = data.storeGstin || storeSettings?.gstin || storeSettings?.gst_number || "";
+
+  // 1. ESC/POS Binary Builder
+  const b = new EscPosBuilder(config.paperWidth);
+  b.align("center")
+    .bold(true)
+    .size("double")
+    .textLine(store)
+    .size("normal");
+
+  if (address) b.textLine(address);
+  if (phone) b.textLine(`Ph: ${phone}`);
+  if (gstin) b.textLine(`GSTIN: ${gstin}`);
+
+  b.horizontalRule("=")
+    .bold(true)
+    .textLine("*** END-OF-DAY REGISTER REPORT ***")
+    .textLine("*** Z-REPORT (AUDIT RECORD) ***")
+    .bold(false)
+    .horizontalRule("=")
+    .align("left")
+    .row("Report No:", data.reportNo)
+    .row("Generated:", new Date().toLocaleDateString("en-IN") + " " + new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }))
+    .row("Shift Open:", data.openingTime)
+    .row("Shift Close:", data.closingTime)
+    .row("Cashier:", data.cashierName);
+
+  if (data.branchName) {
+    b.row("Branch:", data.branchName);
+  }
+
+  b.horizontalRule("-")
+    .align("center")
+    .bold(true)
+    .textLine("--- FINANCIAL BREAKDOWN ---")
+    .bold(false)
+    .align("left")
+    .row("Completed Orders:", String(data.orderCount))
+    .row("Gross Revenue:", `Rs.${data.totalRevenue.toFixed(2)}`)
+    .row("Cash Sales:", `Rs.${data.cashSales.toFixed(2)}`)
+    .row("UPI / Digital Sales:", `Rs.${data.upiSales.toFixed(2)}`)
+    .row("Card / POS Sales:", `Rs.${data.cardSales.toFixed(2)}`);
+
+  if (data.refundsTotal > 0) {
+    b.row("Refunds / Voids:", `-Rs.${data.refundsTotal.toFixed(2)}`);
+  }
+
+  b.horizontalRule("-")
+    .align("center")
+    .bold(true)
+    .textLine("--- DRAWER RECONCILIATION ---")
+    .bold(false)
+    .align("left")
+    .row("Opening Cash Float:", `Rs.${data.openingFloat.toFixed(2)}`)
+    .row("(+) Cash Inflow:", `+Rs.${data.cashSales.toFixed(2)}`);
+
+  if (data.refundsTotal > 0) {
+    b.row("(-) Cash Refunds:", `-Rs.${data.refundsTotal.toFixed(2)}`);
+  }
+
+  b.horizontalRule("-")
+    .bold(true)
+    .row("Expected Cash in Drawer:", `Rs.${data.expectedCash.toFixed(2)}`)
+    .row("Actual Counted Cash:", `Rs.${data.actualCash.toFixed(2)}`);
+
+  const varLabel =
+    data.variance === 0
+      ? "EXACT MATCH (Rs.0.00)"
+      : data.variance > 0
+      ? `SURPLUS (+Rs.${data.variance.toFixed(2)})`
+      : `SHORTAGE (-Rs.${Math.abs(data.variance).toFixed(2)})`;
+
+  b.row("Drawer Variance:", varLabel).bold(false);
+
+  if (data.notes) {
+    b.horizontalRule("-").textLine(`Notes: ${data.notes}`);
+  }
+
+  b.horizontalRule("=")
+    .lineFeed(2)
+    .row("Cashier Signature", "Manager Signature")
+    .row("_________________", "_________________")
+    .lineFeed(1)
+    .align("center")
+    .textLine("*** END OF Z-REPORT ***")
+    .textLine("KEEP THIS SLIP FOR ACCOUNTING AUDIT")
+    .lineFeed(2);
+
+  if (config.openCashDrawer) b.openCashDrawer();
+  if (config.autoCut) b.cutPaper();
+
+  const escPosBytes = b.build();
+
+  // 2. High-contrast HTML Fallback / Browser View
+  const is58 = config.paperWidth === "58mm";
+  const rollWidth = is58 ? "58mm" : "80mm";
+  const printableWidth = is58 ? "48mm" : "72mm";
+  const fontSize = is58 ? "10px" : "12px";
+
+  const html = `<!DOCTYPE html>
+<html>
+  <head>
+    <title>Z-Report ${escapeHtml(data.reportNo)}</title>
+    <style>
+      @page {
+        size: ${rollWidth} auto;
+        margin: 0;
+      }
+      *, *:before, *:after { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        max-width: ${rollWidth};
+        background: #fff;
+        color: #000;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: ${fontSize};
+        line-height: 1.3;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .container {
+        width: ${printableWidth};
+        max-width: ${printableWidth};
+        margin: 0 auto;
+        padding: 3mm 2mm;
+      }
+      .center { text-align: center; }
+      .bold { font-weight: bold; }
+      .title { font-size: 1.25em; font-weight: 900; margin-bottom: 2px; }
+      .divider-double { border-top: 2px solid #000; margin: 4px 0; }
+      .divider-dashed { border-top: 1px dashed #666; margin: 4px 0; }
+      .row { display: flex; justify-content: space-between; margin: 2px 0; }
+      .signatures { display: flex; justify-content: space-between; margin-top: 24px; padding-top: 12px; }
+      .sig-box { width: 45%; text-align: center; border-top: 1px solid #000; padding-top: 4px; font-size: 0.85em; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="center title">${escapeHtml(store)}</div>
+      ${address ? `<div class="center">${escapeHtml(address)}</div>` : ""}
+      ${phone ? `<div class="center">Ph: ${escapeHtml(phone)}</div>` : ""}
+      ${gstin ? `<div class="center">GSTIN: ${escapeHtml(gstin)}</div>` : ""}
+      <div class="divider-double"></div>
+      <div class="center bold">*** END-OF-DAY REGISTER REPORT ***</div>
+      <div class="center bold">*** Z-REPORT (AUDIT RECORD) ***</div>
+      <div class="divider-double"></div>
+
+      <div class="row"><span>Report No:</span><span class="bold">${escapeHtml(data.reportNo)}</span></div>
+      <div class="row"><span>Generated:</span><span>${escapeHtml(new Date().toLocaleDateString("en-IN") + " " + new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }))}</span></div>
+      <div class="row"><span>Shift Open:</span><span>${escapeHtml(data.openingTime)}</span></div>
+      <div class="row"><span>Shift Close:</span><span>${escapeHtml(data.closingTime)}</span></div>
+      <div class="row"><span>Cashier:</span><span class="bold">${escapeHtml(data.cashierName)}</span></div>
+      ${data.branchName ? `<div class="row"><span>Branch:</span><span>${escapeHtml(data.branchName)}</span></div>` : ""}
+
+      <div class="divider-dashed"></div>
+      <div class="center bold">--- FINANCIAL BREAKDOWN ---</div>
+      <div class="divider-dashed"></div>
+      <div class="row"><span>Completed Orders:</span><span class="bold">${data.orderCount}</span></div>
+      <div class="row"><span>Gross Revenue:</span><span class="bold">₹${data.totalRevenue.toFixed(2)}</span></div>
+      <div class="row"><span>Cash Sales:</span><span>₹${data.cashSales.toFixed(2)}</span></div>
+      <div class="row"><span>UPI / Digital Sales:</span><span>₹${data.upiSales.toFixed(2)}</span></div>
+      <div class="row"><span>Card / POS Sales:</span><span>₹${data.cardSales.toFixed(2)}</span></div>
+      ${data.refundsTotal > 0 ? `<div class="row"><span>Refunds / Voids:</span><span>-₹${data.refundsTotal.toFixed(2)}</span></div>` : ""}
+
+      <div class="divider-dashed"></div>
+      <div class="center bold">--- DRAWER RECONCILIATION ---</div>
+      <div class="divider-dashed"></div>
+      <div class="row"><span>Opening Cash Float:</span><span>₹${data.openingFloat.toFixed(2)}</span></div>
+      <div class="row"><span>(+) Cash Inflow:</span><span>+₹${data.cashSales.toFixed(2)}</span></div>
+      ${data.refundsTotal > 0 ? `<div class="row"><span>(-) Cash Refunds:</span><span>-₹${data.refundsTotal.toFixed(2)}</span></div>` : ""}
+      <div class="divider-dashed"></div>
+      <div class="row bold"><span>Expected in Drawer:</span><span>₹${data.expectedCash.toFixed(2)}</span></div>
+      <div class="row bold"><span>Actual Counted Cash:</span><span>₹${data.actualCash.toFixed(2)}</span></div>
+      <div class="row bold" style="margin-top:4px;padding:2px 0;background:#eee;">
+        <span>Drawer Variance:</span>
+        <span>${escapeHtml(varLabel)}</span>
+      </div>
+
+      ${data.notes ? `<div class="divider-dashed"></div><div><span class="bold">Notes:</span> ${escapeHtml(data.notes)}</div>` : ""}
+
+      <div class="signatures">
+        <div class="sig-box">Cashier Sign</div>
+        <div class="sig-box">Manager Sign</div>
+      </div>
+
+      <div class="divider-double" style="margin-top:16px;"></div>
+      <div class="center bold">*** END OF Z-REPORT ***</div>
+      <div class="center" style="font-size:0.8em;">KEEP THIS SLIP FOR ACCOUNTING AUDIT</div>
+    </div>
+  </body>
+</html>`;
+
+  return { escPosBytes, html };
+}
+
+/**
+ * Print Cashier Day-End Shift Z-Report directly to connected ESC/POS printer or browser print fallback.
+ */
+export async function printZReport(
+  data: ZReportData,
+  storeSettings?: any,
+  config: ThermalPrinterConfig = getSavedPrinterConfig()
+): Promise<boolean> {
+  const { escPosBytes, html } = formatZReportReceipt(data, storeSettings, config);
+  return sendEscPosToPrinter(escPosBytes, config, html);
+}
+
+

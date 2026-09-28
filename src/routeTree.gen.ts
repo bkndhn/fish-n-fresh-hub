@@ -60,6 +60,7 @@ import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authenticated/admin/staff'
 import { Route as AuthenticatedAdminSuperRouteImport } from './routes/_authenticated/admin/super'
 import { Route as AuthenticatedAdminSupportRouteImport } from './routes/_authenticated/admin/support'
+import { Route as AuthenticatedAdminTablesRouteImport } from './routes/_authenticated/admin/tables'
 import { Route as AuthenticatedAdminWasteRouteImport } from './routes/_authenticated/admin/waste'
 import { Route as AuthenticatedAdminWholesaleRouteImport } from './routes/_authenticated/admin/wholesale'
 import { Route as ApiPublicOrderAlertsRouteImport } from './routes/api/public/order-alerts'
@@ -342,6 +343,12 @@ const AuthenticatedAdminSupportRoute =
     path: '/admin/support',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminTablesRoute =
+  AuthenticatedAdminTablesRouteImport.update({
+    id: '/admin/tables',
+    path: '/admin/tables',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminWasteRoute = AuthenticatedAdminWasteRouteImport.update({
   id: '/admin/waste',
   path: '/admin/waste',
@@ -415,6 +422,7 @@ export interface FileRoutesByFullPath {
   '/admin/staff': typeof AuthenticatedAdminStaffRoute
   '/admin/super': typeof AuthenticatedAdminSuperRoute
   '/admin/support': typeof AuthenticatedAdminSupportRoute
+  '/admin/tables': typeof AuthenticatedAdminTablesRoute
   '/admin/waste': typeof AuthenticatedAdminWasteRoute
   '/admin/wholesale': typeof AuthenticatedAdminWholesaleRoute
   '/api/public/order-alerts': typeof ApiPublicOrderAlertsRoute
@@ -471,6 +479,7 @@ export interface FileRoutesByTo {
   '/admin/staff': typeof AuthenticatedAdminStaffRoute
   '/admin/super': typeof AuthenticatedAdminSuperRoute
   '/admin/support': typeof AuthenticatedAdminSupportRoute
+  '/admin/tables': typeof AuthenticatedAdminTablesRoute
   '/admin/waste': typeof AuthenticatedAdminWasteRoute
   '/admin/wholesale': typeof AuthenticatedAdminWholesaleRoute
   '/api/public/order-alerts': typeof ApiPublicOrderAlertsRoute
@@ -529,6 +538,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/staff': typeof AuthenticatedAdminStaffRoute
   '/_authenticated/admin/super': typeof AuthenticatedAdminSuperRoute
   '/_authenticated/admin/support': typeof AuthenticatedAdminSupportRoute
+  '/_authenticated/admin/tables': typeof AuthenticatedAdminTablesRoute
   '/_authenticated/admin/waste': typeof AuthenticatedAdminWasteRoute
   '/_authenticated/admin/wholesale': typeof AuthenticatedAdminWholesaleRoute
   '/api/public/order-alerts': typeof ApiPublicOrderAlertsRoute
@@ -587,6 +597,7 @@ export interface FileRouteTypes {
     | '/admin/staff'
     | '/admin/super'
     | '/admin/support'
+    | '/admin/tables'
     | '/admin/waste'
     | '/admin/wholesale'
     | '/api/public/order-alerts'
@@ -643,6 +654,7 @@ export interface FileRouteTypes {
     | '/admin/staff'
     | '/admin/super'
     | '/admin/support'
+    | '/admin/tables'
     | '/admin/waste'
     | '/admin/wholesale'
     | '/api/public/order-alerts'
@@ -700,6 +712,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/staff'
     | '/_authenticated/admin/super'
     | '/_authenticated/admin/support'
+    | '/_authenticated/admin/tables'
     | '/_authenticated/admin/waste'
     | '/_authenticated/admin/wholesale'
     | '/api/public/order-alerts'
@@ -1094,6 +1107,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminSupportRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/tables': {
+      id: '/_authenticated/admin/tables'
+      path: '/admin/tables'
+      fullPath: '/admin/tables'
+      preLoaderRoute: typeof AuthenticatedAdminTablesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/waste': {
       id: '/_authenticated/admin/waste'
       path: '/admin/waste'
@@ -1153,6 +1173,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminStaffRoute: typeof AuthenticatedAdminStaffRoute
   AuthenticatedAdminSuperRoute: typeof AuthenticatedAdminSuperRoute
   AuthenticatedAdminSupportRoute: typeof AuthenticatedAdminSupportRoute
+  AuthenticatedAdminTablesRoute: typeof AuthenticatedAdminTablesRoute
   AuthenticatedAdminWasteRoute: typeof AuthenticatedAdminWasteRoute
   AuthenticatedAdminWholesaleRoute: typeof AuthenticatedAdminWholesaleRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -1186,6 +1207,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminStaffRoute: AuthenticatedAdminStaffRoute,
   AuthenticatedAdminSuperRoute: AuthenticatedAdminSuperRoute,
   AuthenticatedAdminSupportRoute: AuthenticatedAdminSupportRoute,
+  AuthenticatedAdminTablesRoute: AuthenticatedAdminTablesRoute,
   AuthenticatedAdminWasteRoute: AuthenticatedAdminWasteRoute,
   AuthenticatedAdminWholesaleRoute: AuthenticatedAdminWholesaleRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,

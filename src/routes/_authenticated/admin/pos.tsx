@@ -47,6 +47,7 @@ import {
   Utensils,
   ChefHat,
   Users,
+  FileSpreadsheet,
 } from "lucide-react";
 import { hardwareScanner, type ParsedBarcode } from "@/lib/barcodeScanner";
 import { BarcodeCameraModal } from "@/components/BarcodeCameraModal";
@@ -73,6 +74,7 @@ import {
 } from "@/components/ui/dialog";
 import { PrinterSettingsModal } from "@/components/admin/PrinterSettingsModal";
 import { PosPastBillsModal } from "@/components/admin/PosPastBillsModal";
+import { PosZReportModal } from "@/components/admin/PosZReportModal";
 import { PortionChipsModal, getStoredPortionChips, DEFAULT_PORTION_CHIPS, type PortionChip } from "@/components/admin/PortionChipsModal";
 import {
   getSavedPrinterConfig,
@@ -484,6 +486,7 @@ export function RetailPosCounterPage() {
   const [lastReceipt, setLastReceipt] = useState<PosReceiptData | null>(null);
   const [printerModalOpen, setPrinterModalOpen] = useState(false);
   const [pastBillsModalOpen, setPastBillsModalOpen] = useState(false);
+  const [zReportModalOpen, setZReportModalOpen] = useState(false);
   const [parkedModalOpen, setParkedModalOpen] = useState(false);
   const [tablesModalOpen, setTablesModalOpen] = useState(false);
 
@@ -1749,6 +1752,18 @@ export function RetailPosCounterPage() {
             >
               <History className="size-3.5 text-primary" />
               <span>Sales Register [F5]</span>
+            </Button>
+
+            {/* Day-End Shift Register Reconciliation & Z-Report */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-rose-500/40 text-rose-700 dark:text-rose-400 hover:bg-rose-500/10 shrink-0"
+              onClick={() => setZReportModalOpen(true)}
+              title="Cashier Shift Reconciliation & Day-End Z-Report"
+            >
+              <FileSpreadsheet className="size-3.5 text-rose-600 dark:text-rose-400" />
+              <span>Close Shift / Z-Report</span>
             </Button>
 
             {/* Reprint Last Bill */}
@@ -3918,6 +3933,14 @@ export function RetailPosCounterPage() {
         open={pastBillsModalOpen}
         onOpenChange={setPastBillsModalOpen}
         storeSettings={settings}
+      />
+
+      {/* POS Cashier Shift Register & Day-End Z-Report Modal */}
+      <PosZReportModal
+        open={zReportModalOpen}
+        onOpenChange={setZReportModalOpen}
+        settings={settings}
+        branchName={settings?.firm_name || undefined}
       />
 
       {/* Bluetooth & USB ESC/POS Printer Pairing Modal */}

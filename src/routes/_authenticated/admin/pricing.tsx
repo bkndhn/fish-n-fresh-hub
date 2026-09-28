@@ -17,6 +17,11 @@ import {
   Package,
   Layers,
   Percent,
+  Check,
+  Sun,
+  Moon,
+  SlidersHorizontal,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AdminShell } from "@/components/admin/AdminShell";
@@ -32,6 +37,15 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Product } from "@/lib/types";
 
 export const Route = createFileRoute("/_authenticated/admin/pricing")({
+  head: () => ({
+    meta: [
+      { title: "AI Dynamic Pricing & Markdown Rules | Fish N Fresh Admin" },
+      {
+        name: "description",
+        content: "Automated perishable decay markdowns, rush-hour surge pricing, and excess inventory clearance with mobile touch control.",
+      },
+    ],
+  }),
   component: DynamicPricingPage,
 });
 
@@ -87,10 +101,20 @@ interface PricingRecommendation {
   urgency: "high" | "medium" | "low";
 }
 
+const TIME_PRESETS = [
+  { label: "Morning Fresh", time: "08:00", emoji: "🌅", desc: "Baseline margins" },
+  { label: "Lunch Peak", time: "13:30", emoji: "🍛", desc: "High demand rush surge" },
+  { label: "Evening Decay", time: "18:00", emoji: "🌙", desc: "Perishable markdown" },
+  { label: "Closing Flash", time: "20:30", emoji: "🚨", desc: "Zero-waste clearout" },
+] as const;
+
 function DynamicPricingPage() {
   const qc = useQueryClient();
   const { data: rawProducts, isLoading } = useQuery(adminProductsQuery());
   const { data: settings } = useQuery(settingsQuery);
+
+  // Mobile segmented tab switcher: "adjustments" | "rules" | "simulator"
+  const [activeMobileTab, setActiveMobileTab] = useState<"adjustments" | "rules" | "simulator">("adjustments");
 
   const [rules, setRules] = useState<PricingRules>(() => {
     if (typeof window === "undefined") return DEFAULT_RULES;
@@ -119,6 +143,18 @@ function DynamicPricingPage() {
       localStorage.setItem("fnf_dynamic_pricing_rules", JSON.stringify(newRules));
       toast.success("Dynamic pricing rules saved!");
     } catch {}
+  };
+
+  // Convert "HH:MM" to slider minute value (0 - 1439)
+  const sliderMinutes = useMemo(() => {
+    const [h, m] = simulatedHour.split(":").map(Number);
+    return (h || 0) * 60 + (m || 0);
+  }, [simulatedHour]);
+
+  const handleSliderChange = (minutes: number) => {
+    const h = String(Math.floor(minutes / 60)).padStart(2, "0");
+    const m = String(minutes % 60).padStart(2, "0");
+    setSimulatedHour(`${h}:${m}`);
   };
 
   // Evaluate dynamic pricing engine recommendations against active products
@@ -206,6 +242,15 @@ function DynamicPricingPage() {
     setSelectedItems(new Set(recommendations.map((r) => r.product.id)));
   }, [recommendations.length]);
 
+  // Estimated margin protected across recommended items
+  const totalMarginProtected = useMemo(() => {
+    return recommendations.reduce((acc, rec) => {
+      const diff = Math.abs(rec.suggestedPrice - rec.currentPrice);
+      const stock = Number(rec.product.stock || 1);
+      return acc + diff * Math.min(stock, 10);
+    }, 0);
+  }, [recommendations]);
+
   // Apply pricing mutations to database
   const applyPricingMutation = useMutation({
     mutationFn: async (targets: PricingRecommendation[]) => {
@@ -238,6 +283,10 @@ function DynamicPricingPage() {
 
   const handleApplySelected = () => {
     const targets = recommendations.filter((r) => selectedItems.has(r.product.id));
+    if (targets.length === 0) {
+      toast.info("No items selected. Check one or more products to apply prices.");
+      return;
+    }
     applyPricingMutation.mutate(targets);
   };
 
@@ -247,9 +296,48 @@ function DynamicPricingPage() {
 
   return (
     <AdminShell title="AI Dynamic Pricing Engine" allow={["admin", "manager"]}>
-      <div className="space-y-6 max-w-6xl mx-auto pb-16">
-        {/* Hero Banner */}
-        <div className="rounded-3xl border border-primary/20 bg-gradient-to-r from-primary/10 via-background to-primary/5 p-6 shadow-xs flex flex-wrap items-center justify-between gap-4">
+      <div className="space-y-6 max-w-6xl mx-auto pb-24 md:pb-16">
+        {/* Segmented Mobile Tab Switcher (< md screens) */}
+        <div className="grid grid-cols-3 gap-1 bg-muted/80 p-1.5 rounded-2xl md:hidden sticky top-2 z-30 shadow-xs backdrop-blur">
+          <button
+            onClick={() => setActiveMobileTab("adjustments")}
+            className={`py-2 px-1 text-center rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+              activeMobileTab === "adjustments"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <span>⚡ Adjustments</span>
+            {recommendations.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                {recommendations.length}
+              </Badge>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveMobileTab("rules")}
+            className={`py-2 px-1 text-center rounded-xl text-xs font-bold transition-all ${
+              activeMobileTab === "rules"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <span>⚙️ Rules</span>
+          </button>
+          <button
+            onClick={() => setActiveMobileTab("simulator")}
+            className={`py-2 px-1 text-center rounded-xl text-xs font-bold transition-all ${
+              activeMobileTab === "simulator"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <span>⏱️ Simulator</span>
+          </button>
+        </div>
+
+        {/* Hero Banner (Always visible on desktop, or adjustments tab on mobile) */}
+        <div className="rounded-3xl border border-primary/20 bg-gradient-to-r from-primary/10 via-background to-primary/5 p-5 sm:p-6 shadow-xs flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-1.5 min-w-[280px]">
             <div className="flex items-center gap-2">
               <Sparkles className="size-5 text-primary" />
@@ -263,7 +351,8 @@ function DynamicPricingPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Desktop Top Trigger Bar */}
+          <div className="hidden md:flex items-center gap-3">
             <div className="bg-card border border-border rounded-2xl p-2.5 flex items-center gap-3 text-xs shadow-xs">
               <Clock className="size-4 text-primary shrink-0" />
               <div>
@@ -292,8 +381,94 @@ function DynamicPricingPage() {
           </div>
         </div>
 
-        {/* Rule Customization Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Interactive Time Simulator Card (Mobile simulator tab OR desktop collapsible card) */}
+        <div className={`${activeMobileTab === "simulator" ? "block" : "hidden md:block"}`}>
+          <Card className="rounded-3xl border-primary/30 bg-card/70 shadow-xs">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <Clock className="size-4 text-primary" />
+                  <span>Interactive Time Simulator &amp; Clock Scrubber</span>
+                </CardTitle>
+                <div className="flex items-center gap-2 font-mono font-black text-sm bg-muted/70 px-3 py-1 rounded-xl">
+                  <span>Simulated:</span>
+                  <span className="text-primary">{simulatedHour}</span>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Drag the time slider or tap a quick preset chip below to preview real-time perishable decay
+                and surge price recommendations at different hours of the retail operating day.
+              </p>
+
+              {/* Range Slider */}
+              <div className="space-y-1.5 pt-1">
+                <input
+                  type="range"
+                  min="360"
+                  max="1380"
+                  step="15"
+                  value={sliderMinutes}
+                  onChange={(e) => handleSliderChange(Number(e.target.value))}
+                  className="w-full accent-primary h-2 bg-muted rounded-lg cursor-pointer"
+                />
+                <div className="flex justify-between text-[10px] font-mono text-muted-foreground px-1">
+                  <span>06:00 AM (Opening)</span>
+                  <span>12:00 PM (Lunch)</span>
+                  <span>06:00 PM (Decay)</span>
+                  <span>11:00 PM (Closing)</span>
+                </div>
+              </div>
+
+              {/* 4 Quick Preset Chips */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                {TIME_PRESETS.map((preset) => {
+                  const isCurrent = simulatedHour === preset.time;
+                  return (
+                    <button
+                      key={preset.time}
+                      type="button"
+                      onClick={() => {
+                        setSimulatedHour(preset.time);
+                        toast.info(`Simulating ${preset.label} (${preset.time})`);
+                      }}
+                      className={`p-2.5 rounded-2xl border text-left transition-all flex flex-col justify-between ${
+                        isCurrent
+                          ? "border-primary bg-primary/10 shadow-xs"
+                          : "border-border hover:border-primary/40 bg-card"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className="text-base">{preset.emoji}</span>
+                        <Badge
+                          variant="outline"
+                          className={`text-[9px] font-mono px-1.5 py-0 ${
+                            isCurrent ? "border-primary text-primary font-bold" : "text-muted-foreground"
+                          }`}
+                        >
+                          {preset.time}
+                        </Badge>
+                      </div>
+                      <div className="mt-1">
+                        <div className="text-xs font-bold text-foreground">{preset.label}</div>
+                        <div className="text-[10px] text-muted-foreground line-clamp-1">{preset.desc}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Rule Customization Cards (Mobile rules tab OR desktop grid) */}
+        <div
+          className={`${
+            activeMobileTab === "rules" ? "grid" : "hidden md:grid"
+          } grid-cols-1 md:grid-cols-3 gap-4`}
+        >
           {/* 1. Perishable Time Decay */}
           <Card className="rounded-3xl border-border/70 hover:border-amber-500/40 transition-colors">
             <CardHeader className="pb-3">
@@ -503,68 +678,59 @@ function DynamicPricingPage() {
           </Card>
         </div>
 
-        {/* Dynamic Recommendations Table */}
-        <Card className="rounded-3xl border-border/80 shadow-xs">
-          <CardHeader className="pb-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Sparkles className="size-4 text-primary" />
-                  <span>Live Recommended Price Adjustments</span>
-                </CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Showing {recommendations.length} calculated adjustments for simulated time:{" "}
-                  <code className="font-mono font-bold text-foreground">{simulatedHour}</code>
-                </p>
-              </div>
-
-              {recommendations.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (selectedItems.size === recommendations.length) {
-                        setSelectedItems(new Set());
-                      } else {
-                        setSelectedItems(new Set(recommendations.map((r) => r.product.id)));
-                      }
-                    }}
-                    className="rounded-xl text-xs h-8"
-                  >
-                    {selectedItems.size === recommendations.length
-                      ? "Deselect All"
-                      : "Select All"}
-                  </Button>
+        {/* Dynamic Recommendations Section (Visible on desktop OR mobile adjustments tab) */}
+        <div className={`${activeMobileTab === "adjustments" ? "block" : "hidden md:block"}`}>
+          <Card className="rounded-3xl border-border/80 shadow-xs">
+            <CardHeader className="pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <Sparkles className="size-4 text-primary" />
+                    <span>Live Recommended Price Adjustments</span>
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Showing {recommendations.length} calculated adjustments for simulated time:{" "}
+                    <code className="font-mono font-bold text-foreground">{simulatedHour}</code>
+                  </p>
                 </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            {recommendations.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground text-xs space-y-2">
-                <CheckCircle2 className="size-10 mx-auto text-emerald-500 opacity-60" />
-                <p className="font-bold text-foreground text-sm">All Inventory Operating at Target Margin</p>
-                <p className="max-w-md mx-auto">
-                  No automated markdowns or surges needed for time {simulatedHour}. Use the clock simulator above to
-                  preview evening clearance after {rules.timeDecay.cutOffTime}.
-                </p>
+
+                {recommendations.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (selectedItems.size === recommendations.length) {
+                          setSelectedItems(new Set());
+                        } else {
+                          setSelectedItems(new Set(recommendations.map((r) => r.product.id)));
+                        }
+                      }}
+                      className="rounded-xl text-xs h-8"
+                    >
+                      {selectedItems.size === recommendations.length
+                        ? "Deselect All"
+                        : "Select All"}
+                    </Button>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-border/80 text-muted-foreground">
-                      <th className="py-2.5 px-3 font-semibold">Select</th>
-                      <th className="py-2.5 px-3 font-semibold">Product</th>
-                      <th className="py-2.5 px-3 font-semibold">Stock</th>
-                      <th className="py-2.5 px-3 font-semibold">Current</th>
-                      <th className="py-2.5 px-3 font-semibold">Dynamic Price</th>
-                      <th className="py-2.5 px-3 font-semibold">AI Analysis &amp; Rule</th>
-                      <th className="py-2.5 px-3 font-semibold text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/60">
+            </CardHeader>
+
+            <CardContent>
+              {recommendations.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground text-xs space-y-2">
+                  <CheckCircle2 className="size-10 mx-auto text-emerald-500 opacity-60" />
+                  <p className="font-bold text-foreground text-sm">All Inventory Operating at Target Margin</p>
+                  <p className="max-w-md mx-auto">
+                    No automated markdowns or surges needed for time {simulatedHour}. Use the clock simulator above to
+                    preview evening clearance after {rules.timeDecay.cutOffTime}.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* MOBILE CARD FEED (< md screens) */}
+                  <div className="space-y-3.5 md:hidden">
                     {recommendations.map((rec) => {
                       const isSelected = selectedItems.has(rec.product.id);
                       const isDiscount = rec.suggestedPrice < rec.currentPrice;
@@ -572,13 +738,16 @@ function DynamicPricingPage() {
                       const pct = Math.round((diff / rec.currentPrice) * 100);
 
                       return (
-                        <tr
+                        <div
                           key={rec.product.id}
-                          className={`hover:bg-muted/30 transition-colors ${
-                            isSelected ? "bg-primary/5" : ""
+                          className={`rounded-2xl border transition-all p-4 space-y-3 ${
+                            isSelected
+                              ? "border-primary bg-primary/5 shadow-xs"
+                              : "border-border/80 bg-card"
                           }`}
                         >
-                          <td className="py-3 px-3">
+                          {/* Row 1: Checkbox, Thumbnail, Title, Stock Urgency */}
+                          <div className="flex items-start gap-3">
                             <input
                               type="checkbox"
                               checked={isSelected}
@@ -588,82 +757,250 @@ function DynamicPricingPage() {
                                 else next.delete(rec.product.id);
                                 setSelectedItems(next);
                               }}
-                              className="size-4 rounded accent-primary cursor-pointer"
+                              className="size-5 rounded mt-0.5 accent-primary cursor-pointer shrink-0"
                             />
-                          </td>
 
-                          <td className="py-3 px-3">
-                            <div className="font-bold text-foreground truncate max-w-[200px]">
-                              {rec.product.name}
+                            <div className="size-12 rounded-xl bg-muted border border-border/80 flex items-center justify-center overflow-hidden shrink-0">
+                              {rec.product.image_url ? (
+                                <img
+                                  src={rec.product.image_url}
+                                  alt={rec.product.name}
+                                  className="size-full object-cover"
+                                />
+                              ) : (
+                                <Package className="size-6 text-muted-foreground" />
+                              )}
                             </div>
-                            <span className="text-[10px] text-muted-foreground">
-                              {rec.product.unit || "portion"}
-                            </span>
-                          </td>
 
-                          <td className="py-3 px-3 font-semibold">
-                            <span
-                              className={
-                                Number(rec.product.stock || 0) >= rules.excessStock.stockThreshold
-                                  ? "text-rose-600 dark:text-rose-400 font-bold"
-                                  : "text-foreground"
-                              }
-                            >
-                              {rec.product.stock ?? 0}
-                            </span>
-                          </td>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-sm font-bold text-foreground truncate">
+                                {rec.product.name}
+                              </h4>
+                              <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
+                                <span>{rec.product.unit || "unit"}</span>
+                                <span>&bull;</span>
+                                <span
+                                  className={
+                                    Number(rec.product.stock || 0) >= rules.excessStock.stockThreshold
+                                      ? "text-rose-600 font-bold"
+                                      : "text-foreground"
+                                  }
+                                >
+                                  Stock: {rec.product.stock ?? 0}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
 
-                          <td className="py-3 px-3 font-medium text-muted-foreground">
-                            {formatINR(rec.currentPrice)}
-                          </td>
-
-                          <td className="py-3 px-3">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-sm font-extrabold text-foreground">
+                          {/* Row 2: Price Delta Capsule */}
+                          <div className="flex items-center justify-between bg-muted/40 border border-border/60 rounded-xl px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs line-through text-muted-foreground font-medium">
+                                {formatINR(rec.currentPrice)}
+                              </span>
+                              <ArrowRight className="size-3 text-muted-foreground" />
+                              <span className="text-base font-black text-foreground">
                                 {formatINR(rec.suggestedPrice)}
                               </span>
-                              <Badge
-                                variant="outline"
-                                className={`text-[10px] px-1.5 py-0 ${
-                                  isDiscount
-                                    ? "border-amber-500/30 text-amber-700 dark:text-amber-300 bg-amber-50/50 dark:bg-amber-950/20"
-                                    : "border-emerald-500/30 text-emerald-700 dark:text-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20"
-                                }`}
-                              >
-                                {isDiscount ? `-${pct}%` : `+${pct}%`}
-                              </Badge>
                             </div>
-                          </td>
 
-                          <td className="py-3 px-3 max-w-[320px]">
-                            <p className="text-[11px] font-medium text-foreground leading-snug">
+                            <Badge
+                              variant="outline"
+                              className={`text-xs font-bold px-2 py-0.5 ${
+                                isDiscount
+                                  ? "border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/10"
+                                  : "border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
+                              }`}
+                            >
+                              {isDiscount ? `-${pct}% Markdown` : `+${pct}% Surge`}
+                            </Badge>
+                          </div>
+
+                          {/* Row 3: AI Reason & Margin Protection */}
+                          <div className="bg-background/80 border border-border/50 rounded-xl p-2.5 text-xs space-y-1">
+                            <p className="font-semibold text-foreground text-[11px] leading-snug">
                               {rec.ruleDescription}
                             </p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                            <p className="text-[10px] text-muted-foreground">
                               💡 {rec.marginProtectionText}
                             </p>
-                          </td>
+                          </div>
 
-                          <td className="py-3 px-3 text-right">
+                          {/* Row 4: Single Apply Action */}
+                          <div className="flex items-center justify-end pt-0.5">
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => handleApplySingle(rec)}
                               disabled={applyPricingMutation.isPending}
-                              className="h-7 text-xs rounded-xl border-primary/30 text-primary hover:bg-primary/10"
+                              className="h-8 text-xs font-bold rounded-xl border-primary/40 text-primary hover:bg-primary/10 px-4"
                             >
-                              Apply
+                              Apply Price
                             </Button>
-                          </td>
-                        </tr>
+                          </div>
+                        </div>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </div>
+
+                  {/* DESKTOP TABLE VIEW (>= md screens) */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-border/80 text-muted-foreground">
+                          <th className="py-2.5 px-3 font-semibold">Select</th>
+                          <th className="py-2.5 px-3 font-semibold">Product</th>
+                          <th className="py-2.5 px-3 font-semibold">Stock</th>
+                          <th className="py-2.5 px-3 font-semibold">Current</th>
+                          <th className="py-2.5 px-3 font-semibold">Dynamic Price</th>
+                          <th className="py-2.5 px-3 font-semibold">AI Analysis &amp; Rule</th>
+                          <th className="py-2.5 px-3 font-semibold text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/60">
+                        {recommendations.map((rec) => {
+                          const isSelected = selectedItems.has(rec.product.id);
+                          const isDiscount = rec.suggestedPrice < rec.currentPrice;
+                          const diff = Math.abs(rec.suggestedPrice - rec.currentPrice);
+                          const pct = Math.round((diff / rec.currentPrice) * 100);
+
+                          return (
+                            <tr
+                              key={rec.product.id}
+                              className={`hover:bg-muted/30 transition-colors ${
+                                isSelected ? "bg-primary/5" : ""
+                              }`}
+                            >
+                              <td className="py-3 px-3">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    const next = new Set(selectedItems);
+                                    if (e.target.checked) next.add(rec.product.id);
+                                    else next.delete(rec.product.id);
+                                    setSelectedItems(next);
+                                  }}
+                                  className="size-4 rounded accent-primary cursor-pointer"
+                                />
+                              </td>
+
+                              <td className="py-3 px-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="size-8 rounded-lg bg-muted border border-border/70 overflow-hidden shrink-0 flex items-center justify-center">
+                                    {rec.product.image_url ? (
+                                      <img
+                                        src={rec.product.image_url}
+                                        alt={rec.product.name}
+                                        className="size-full object-cover"
+                                      />
+                                    ) : (
+                                      <Package className="size-4 text-muted-foreground" />
+                                    )}
+                                  </div>
+                                  <div>
+                                    <div className="font-bold text-foreground truncate max-w-[200px]">
+                                      {rec.product.name}
+                                    </div>
+                                    <span className="text-[10px] text-muted-foreground">
+                                      {rec.product.unit || "portion"}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-3 font-semibold">
+                                <span
+                                  className={
+                                    Number(rec.product.stock || 0) >= rules.excessStock.stockThreshold
+                                      ? "text-rose-600 dark:text-rose-400 font-bold"
+                                      : "text-foreground"
+                                  }
+                                >
+                                  {rec.product.stock ?? 0}
+                                </span>
+                              </td>
+
+                              <td className="py-3 px-3 font-medium text-muted-foreground">
+                                {formatINR(rec.currentPrice)}
+                              </td>
+
+                              <td className="py-3 px-3">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-sm font-extrabold text-foreground">
+                                    {formatINR(rec.suggestedPrice)}
+                                  </span>
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[10px] px-1.5 py-0 ${
+                                      isDiscount
+                                        ? "border-amber-500/30 text-amber-700 dark:text-amber-300 bg-amber-50/50 dark:bg-amber-950/20"
+                                        : "border-emerald-500/30 text-emerald-700 dark:text-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20"
+                                    }`}
+                                  >
+                                    {isDiscount ? `-${pct}%` : `+${pct}%`}
+                                  </Badge>
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-3 max-w-[320px]">
+                                <p className="text-[11px] font-medium text-foreground leading-snug">
+                                  {rec.ruleDescription}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                  💡 {rec.marginProtectionText}
+                                </p>
+                              </td>
+
+                              <td className="py-3 px-3 text-right">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleApplySingle(rec)}
+                                  disabled={applyPricingMutation.isPending}
+                                  className="h-7 text-xs rounded-xl border-primary/30 text-primary hover:bg-primary/10"
+                                >
+                                  Apply
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sticky Floating Mobile Action Bar (< md screens) */}
+        {recommendations.length > 0 && (
+          <div className="fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur border-t border-border p-3 md:hidden shadow-lg flex items-center justify-between gap-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+            <div className="space-y-0.5 min-w-0">
+              <div className="text-xs font-bold text-foreground">
+                {selectedItems.size} of {recommendations.length} Selected
               </div>
-            )}
-          </CardContent>
-        </Card>
+              <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold truncate">
+                🛡️ ~{formatINR(totalMarginProtected)} Margin Protected
+              </div>
+            </div>
+
+            <Button
+              onClick={handleApplySelected}
+              disabled={recommendations.length === 0 || applyPricingMutation.isPending}
+              className="h-10 text-xs font-bold px-4 bg-primary text-primary-foreground rounded-2xl gap-1.5 shadow-sm shrink-0"
+            >
+              <Zap className="size-3.5" />
+              <span>
+                {applyPricingMutation.isPending
+                  ? "Applying..."
+                  : `Apply Selected (${selectedItems.size})`}
+              </span>
+            </Button>
+          </div>
+        )}
       </div>
     </AdminShell>
   );

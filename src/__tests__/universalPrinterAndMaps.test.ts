@@ -6,8 +6,10 @@ import {
   buildA4InvoiceHtml,
   buildA5SlipHtml,
   buildTestPrintForFormat,
+  formatZReportReceipt,
   DEFAULT_PRINTER_CONFIG,
   type PosReceiptData,
+  type ZReportData,
 } from "@/lib/thermalPrinter";
 
 describe("Google Maps Smart Coordinate Parsing", () => {
@@ -141,5 +143,38 @@ describe("Universal Printing & Format Engines", () => {
         expect(artifact.bytes?.length).toBeGreaterThan(10);
       }
     });
+  });
+
+  it("formats Cashier Day-End Z-Report with binary ESC/POS and HTML breakdown", () => {
+    const mockZReport: ZReportData = {
+      reportNo: "Z-20260928-1001",
+      openingTime: "08:00 AM",
+      closingTime: "09:30 PM",
+      cashierName: "Kavitha S",
+      branchName: "Kasimedu Marine Main Hub",
+      openingFloat: 1000,
+      cashSales: 15450,
+      upiSales: 28900,
+      cardSales: 4200,
+      totalRevenue: 48550,
+      orderCount: 42,
+      refundsTotal: 350,
+      expectedCash: 16100,
+      actualCash: 16100,
+      variance: 0,
+      notes: "Audit verified and balanced",
+      storeName: "FISH N FRESH HUB",
+      storeGstin: "33AAAAF1234A1Z5",
+    };
+
+    const res = formatZReportReceipt(mockZReport, undefined, DEFAULT_PRINTER_CONFIG);
+    expect(res.escPosBytes).toBeDefined();
+    expect(res.escPosBytes.length).toBeGreaterThan(100);
+    expect(res.html).toContain("Z-REPORT (AUDIT RECORD)");
+    expect(res.html).toContain("Z-20260928-1001");
+    expect(res.html).toContain("Kavitha S");
+    expect(res.html).toContain("EXACT MATCH");
+    expect(res.html).toContain("Cashier Sign");
+    expect(res.html).toContain("Manager Sign");
   });
 });
