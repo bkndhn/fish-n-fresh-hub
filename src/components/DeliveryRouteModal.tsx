@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { escapeHtml } from "@/lib/htmlEscape";
 import { toast } from "sonner";
 import {
   MapPin,
