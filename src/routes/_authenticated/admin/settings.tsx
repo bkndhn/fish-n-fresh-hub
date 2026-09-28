@@ -516,11 +516,6 @@ function AdminSettings() {
         "Total (INR)",
         "Delivery Address",
       ];
-      const csvCell = (v: unknown) => {
-        let str = String(v ?? "");
-        if (/^[=+\-@\t\r]/.test(str)) str = `'${str}`;
-        return `"${str.replace(/"/g, '""')}"`;
-      };
       const rows = (orders as any[]).map((o: any) => [
         o.id,
         new Date(o.created_at).toLocaleString("en-IN"),
