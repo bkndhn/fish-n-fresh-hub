@@ -580,10 +580,10 @@ function AdminSettings() {
       ];
       const rows = (products as any[]).map((p: any) => [
         p.id,
-        `"${(p.name || "").replace(/"/g, '""')}"`,
+        csvCell(p.name || ""),
         p.price || 0,
         p.cost_price || 0,
-        `"${p.hsn_code || "0302"}"`,
+        csvCell(p.hsn_code || "0302"),
         p.stock ?? 0,
         p.is_available ? "Yes" : "No",
       ]);
