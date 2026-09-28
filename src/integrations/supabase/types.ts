@@ -1048,7 +1048,6 @@ export type Database = {
           stripe_refund_id: string | null
           stripe_session_id: string | null
           subtotal: number
-          table_number: string | null
           total: number
           tracking_url: string | null
           transit_log: Json | null
@@ -1131,7 +1130,6 @@ export type Database = {
           stripe_refund_id?: string | null
           stripe_session_id?: string | null
           subtotal?: number
-          table_number?: string | null
           total?: number
           tracking_url?: string | null
           transit_log?: Json | null
@@ -1214,7 +1212,6 @@ export type Database = {
           stripe_refund_id?: string | null
           stripe_session_id?: string | null
           subtotal?: number
-          table_number?: string | null
           total?: number
           tracking_url?: string | null
           transit_log?: Json | null
@@ -1454,7 +1451,6 @@ export type Database = {
           tags: string[] | null
           traceability: string | null
           unit: string
-          unlimited_stock: boolean | null
           updated_at: string
           variants: Json | null
           warranty_period_months: number | null
@@ -1506,7 +1502,6 @@ export type Database = {
           tags?: string[] | null
           traceability?: string | null
           unit?: string
-          unlimited_stock?: boolean | null
           updated_at?: string
           variants?: Json | null
           warranty_period_months?: number | null
@@ -1558,7 +1553,6 @@ export type Database = {
           tags?: string[] | null
           traceability?: string | null
           unit?: string
-          unlimited_stock?: boolean | null
           updated_at?: string
           variants?: Json | null
           warranty_period_months?: number | null
@@ -1853,7 +1847,6 @@ export type Database = {
           additional_charge_value: number
           address_line: string | null
           allow_preorders_when_closed: boolean | null
-          allow_unlimited_stock: boolean | null
           announcement: string | null
           base_delivery_fee: number
           bing_site_verification: string | null
@@ -2000,10 +1993,6 @@ export type Database = {
           whatsapp_order_phone: string | null
           wholesale_min_order_value: number
           working_days: Json | null
-          hide_out_of_stock_badges: boolean | null
-          restaurant_tables: Json | null
-          table_ordering_enabled: boolean | null
-          table_ordering_offline_message: string | null
         }
         Insert: {
           accent_color?: string
@@ -2011,7 +2000,6 @@ export type Database = {
           additional_charge_value?: number
           address_line?: string | null
           allow_preorders_when_closed?: boolean | null
-          allow_unlimited_stock?: boolean | null
           announcement?: string | null
           base_delivery_fee?: number
           bing_site_verification?: string | null
@@ -2158,10 +2146,6 @@ export type Database = {
           whatsapp_order_phone?: string | null
           wholesale_min_order_value?: number
           working_days?: Json | null
-          hide_out_of_stock_badges?: boolean | null
-          restaurant_tables?: Json | null
-          table_ordering_enabled?: boolean | null
-          table_ordering_offline_message?: string | null
         }
         Update: {
           accent_color?: string
@@ -2169,7 +2153,6 @@ export type Database = {
           additional_charge_value?: number
           address_line?: string | null
           allow_preorders_when_closed?: boolean | null
-          allow_unlimited_stock?: boolean | null
           announcement?: string | null
           base_delivery_fee?: number
           bing_site_verification?: string | null
@@ -2316,10 +2299,6 @@ export type Database = {
           whatsapp_order_phone?: string | null
           wholesale_min_order_value?: number
           working_days?: Json | null
-          hide_out_of_stock_badges?: boolean | null
-          restaurant_tables?: Json | null
-          table_ordering_enabled?: boolean | null
-          table_ordering_offline_message?: string | null
         }
         Relationships: []
       }
@@ -3052,11 +3031,6 @@ export type Database = {
           whatsapp_order_phone: string | null
           wholesale_min_order_value: number | null
           working_days: Json | null
-          allow_unlimited_stock: boolean | null
-          hide_out_of_stock_badges: boolean | null
-          restaurant_tables: Json | null
-          table_ordering_enabled: boolean | null
-          table_ordering_offline_message: string | null
         }
         Insert: {
           accent_color?: string | null
