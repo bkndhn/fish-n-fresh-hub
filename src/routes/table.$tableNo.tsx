@@ -49,7 +49,7 @@ function TableOrderingPage() {
 
   const { data: settings } = useQuery(settingsQuery);
   const { data: categories } = useQuery(categoriesQuery);
-  const { data: products } = useQuery(productsQuery);
+  const { data: products } = useQuery(productsQuery());
 
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");

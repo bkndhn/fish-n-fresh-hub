@@ -89,7 +89,7 @@ interface PricingRecommendation {
 
 function DynamicPricingPage() {
   const qc = useQueryClient();
-  const { data: rawProducts, isLoading } = useQuery(adminProductsQuery);
+  const { data: rawProducts, isLoading } = useQuery(adminProductsQuery());
   const { data: settings } = useQuery(settingsQuery);
 
   const [rules, setRules] = useState<PricingRules>(() => {
