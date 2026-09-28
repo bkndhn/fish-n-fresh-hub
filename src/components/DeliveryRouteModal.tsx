@@ -230,11 +230,11 @@ export function DeliveryRouteModal({
 
         L.marker([effectiveStoreLat, effectiveStoreLng], { icon: storeIcon })
           .addTo(map)
-          .bindPopup(`<strong>${verticalEmoji || "🐟"} Store Hub</strong><br/>${storeAddress}`);
+          .bindPopup(`<strong>${escapeHtml(verticalEmoji || "🐟")} Store Hub</strong><br/>${escapeHtml(storeAddress)}`);
 
         L.marker([targetLat!, targetLng!], { icon: customerIcon })
           .addTo(map)
-          .bindPopup(`<strong>🏡 Customer Doorstep</strong><br/>${customerName || "Customer"}<br/>${customerAddress || ""}`);
+          .bindPopup(`<strong>🏡 Customer Doorstep</strong><br/>${escapeHtml(customerName || "Customer")}<br/>${escapeHtml(customerAddress || "")}`);
 
         // Polyline connecting store to customer: dual-layer road polyline
         const coords = (roadRoute ? roadRoute.coordinates : [
