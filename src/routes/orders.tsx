@@ -18,6 +18,7 @@ import { settingsQuery } from "@/lib/queries";
 import { lookupGuestOrder, type GuestOrder } from "@/lib/orders.functions";
 import { CustomerDeliveryPinCard } from "@/components/CustomerDeliveryPinCard";
 import { TaxInvoiceModal } from "@/components/TaxInvoiceModal";
+import { checkRateLimit, recordRateLimitAttempt } from "@/lib/rateLimiter";
 
 export const Route = createFileRoute("/orders")({
   head: () => ({
@@ -297,6 +298,15 @@ function GuestLookup() {
   const [busy, setBusy] = useState(false);
 
   async function find() {
+    const cleanPhone = phone.replace(/\D/g, "");
+    const rateLimitKey = cleanPhone || reference.trim() || "guest";
+    const rl = checkRateLimit("guest_order_lookup", rateLimitKey);
+    if (!rl.allowed) {
+      toast.error(rl.errorMessage || "Too many lookup attempts. Please wait a moment.");
+      return;
+    }
+    recordRateLimitAttempt("guest_order_lookup", rateLimitKey);
+
     setBusy(true);
     try {
       const found = (await lookup({ data: { reference, phone } })) as GuestOrder | null;

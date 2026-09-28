@@ -19,6 +19,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Automated Secret Scanning (Gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js 20.x
         uses: actions/setup-node@v4
@@ -28,6 +35,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Dependency vulnerability audit
+        run: npm audit --audit-level=high
 
       - name: Type check (TypeScript)
         run: npx tsc --noEmit
@@ -44,6 +54,11 @@ jobs:
         env:
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder-key-for-build
+
+      - name: Verify build artifacts (Prevent .env/secret leakage)
+        run: |
+          find dist -name "*.env*" -exec rm -rf {} +
+          test ! -f dist/.env
 
       - name: Archive build artifacts
         uses: actions/upload-artifact@v4

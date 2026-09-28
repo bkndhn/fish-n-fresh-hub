@@ -45,7 +45,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { useAdminBranch } from "@/lib/branchContext";
 import { adminOrdersQuery, adminProductsQuery } from "@/lib/admin";
 import { settingsQuery } from "@/lib/queries";
-import { formatINR, formatIST, formatStockDisplay } from "@/lib/format";
+import { formatINR, formatIST, formatStockDisplay, formatMaskedPhone } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { restoreOrderStock } from "@/lib/inventorySync";
 import {
@@ -3963,7 +3963,7 @@ export function Reports() {
                           <p className="text-[11px] text-muted-foreground font-semibold">Customer &amp; Cashier:</p>
                           <p className="font-bold text-foreground">
                             {bill.customer_name || "Walk-in Customer"}{" "}
-                            {bill.customer_phone && <span className="font-mono text-muted-foreground">({bill.customer_phone})</span>}
+                            {bill.customer_phone && <span className="font-mono text-muted-foreground">({formatMaskedPhone(bill.customer_phone)})</span>}
                           </p>
                           <p className="text-[11px] text-muted-foreground">
                             Cashier: <strong>{bill.driver_name || "Counter 1"}</strong>

@@ -18,28 +18,41 @@ async function getServerEntry(): Promise<ServerEntry> {
   return serverEntryPromise;
 }
 
-// ── Rate Limiter ──────────────────────────────────────────────────
-// Sliding-window in-memory rate limiter. On Cloudflare Workers each
-// isolate has its own Map, so this is per-edge-node (good enough for
-// DDoS mitigation; for stricter limits use Cloudflare Rate Limiting).
+// ── Distributed Multi-Tier Rate Limiter ───────────────────────────
+// Sliding-window in-memory rate limiter per edge isolate with distinct tiers:
+// - Static assets: 500 req/min
+// - Public API & Server Functions (/api/*, /_server/*): 60 req/min
+// - Storefront & Admin SSR pages: 120 req/min
+type RateLimitTier = "static" | "api" | "page";
+
 const RATE_WINDOW_MS = 60_000; // 1 minute window
-const API_RATE_LIMIT = 100;    // 100 requests per minute for API/pages
-const STATIC_RATE_LIMIT = 500; // 500 requests per minute for static assets
+const TIER_LIMITS: Record<RateLimitTier, number> = {
+  static: 500, // 500 requests per minute for static assets
+  api: 60,     // 60 requests per minute for public API & server functions
+  page: 120,   // 120 requests per minute for storefront and admin SSR pages
+};
+
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 
-function isRateLimited(ip: string, isStatic: boolean): boolean {
+function checkEdgeRateLimit(
+  ip: string,
+  tier: RateLimitTier
+): { limited: boolean; limit: number; remaining: number } {
   const now = Date.now();
-  const limit = isStatic ? STATIC_RATE_LIMIT : API_RATE_LIMIT;
-  const bucket = rateBuckets.get(ip);
+  const limit = TIER_LIMITS[tier];
+  const bucketKey = `${ip}:${tier}`;
+  const bucket = rateBuckets.get(bucketKey);
 
   if (!bucket || now > bucket.resetAt) {
-    rateBuckets.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return false;
+    rateBuckets.set(bucketKey, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return { limited: false, limit, remaining: limit - 1 };
   }
 
   bucket.count++;
-  if (bucket.count > limit) return true;
-  return false;
+  if (bucket.count > limit) {
+    return { limited: true, limit, remaining: 0 };
+  }
+  return { limited: false, limit, remaining: limit - bucket.count };
 }
 
 // Periodic cleanup to prevent memory leaks (runs every 1000 requests)
@@ -47,8 +60,8 @@ let requestCounter = 0;
 function maybeCleanupBuckets(): void {
   if (++requestCounter % 1000 !== 0) return;
   const now = Date.now();
-  for (const [ip, bucket] of rateBuckets) {
-    if (now > bucket.resetAt) rateBuckets.delete(ip);
+  for (const [key, bucket] of rateBuckets) {
+    if (now > bucket.resetAt) rateBuckets.delete(key);
   }
 }
 
@@ -100,22 +113,23 @@ function applySecurityAndCdnHeaders(response: Response, url: string): Response {
   const headers = new Headers(response.headers);
 
   // 1. Enterprise Defense-in-Depth Security Headers ("Non-Hackable App")
+  headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
   headers.set("X-Frame-Options", "DENY");
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(self)");
+  headers.set("Permissions-Policy", "camera=(self), microphone=(), geolocation=(self)");
   headers.set("X-XSS-Protection", "1; mode=block");
 
   // Content Security Policy
   headers.set(
     "Content-Security-Policy",
     "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://checkout.razorpay.com; " +
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; " +
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.fr https://fcm.googleapis.com; " +
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://api.razorpay.com https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.fr https://fcm.googleapis.com; " +
       "img-src 'self' data: blob: https: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.fr; " +
       "font-src 'self' https://fonts.gstatic.com data:; " +
-      "frame-src https://js.stripe.com https://hooks.stripe.com; " +
+      "frame-src https://js.stripe.com https://hooks.stripe.com https://api.razorpay.com; " +
       "frame-ancestors 'none';"
   );
 
@@ -161,7 +175,7 @@ export default {
       return handleHealthCheck();
     }
 
-    // ── Rate limiting ──
+    // ── Multi-Tier Edge Rate limiting ──
     maybeCleanupBuckets();
     const clientIp =
       request.headers.get("x-real-ip") ??
@@ -169,23 +183,36 @@ export default {
       request.headers.get("cf-connecting-ip") ??
       request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
       "unknown";
+
     const isStatic =
       url.pathname.includes("/assets/") ||
       url.pathname.includes("/_build/") ||
       /\.(js|css|png|jpg|webp|svg|woff2|ico)$/.test(url.pathname);
+    const isApi =
+      url.pathname.startsWith("/api/") ||
+      url.pathname.startsWith("/_server/") ||
+      url.pathname.startsWith("/api") ||
+      url.pathname.startsWith("/_server");
 
-    if (clientIp !== "unknown" && isRateLimited(clientIp, isStatic)) {
-      return new Response(
-        JSON.stringify({ error: "Too many requests. Please try again later." }),
-        {
-          status: 429,
-          headers: {
-            "content-type": "application/json",
-            "retry-after": "60",
-            "cache-control": "no-store",
-          },
-        }
-      );
+    const tier: RateLimitTier = isStatic ? "static" : isApi ? "api" : "page";
+
+    if (clientIp !== "unknown") {
+      const { limited, limit } = checkEdgeRateLimit(clientIp, tier);
+      if (limited) {
+        return new Response(
+          JSON.stringify({ error: "Rate limit exceeded. Please slow down." }),
+          {
+            status: 429,
+            headers: {
+              "content-type": "application/json",
+              "retry-after": "60",
+              "x-ratelimit-limit": String(limit),
+              "x-ratelimit-remaining": "0",
+              "cache-control": "no-store",
+            },
+          }
+        );
+      }
     }
 
     try {

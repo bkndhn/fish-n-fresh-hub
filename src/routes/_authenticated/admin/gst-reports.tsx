@@ -61,7 +61,7 @@ function GstReportsAdmin() {
 
       const { data, error } = await supabase
         .from("orders")
-        .select("id, created_at, total, items, status, customer_name, fulfillment_type, table_number, order_number, customer_address, notes")
+        .select("id, created_at, total, items, status, customer_name, fulfillment_type, order_number, customer_address, notes")
         .neq("status", "cancelled")
         .gte("created_at", start.toISOString())
         .lte("created_at", end.toISOString())
@@ -205,7 +205,7 @@ function GstReportsAdmin() {
     const headers = ["Order Number", "Table", "Customer Name", "Items Count", "Total (INR)", "Status", "Date IST"];
     const rows = dineInOrders.map((o) => {
       const items = (o.items as any[]) || [];
-      const table = o.table_number || "Dine-In";
+      const table = (o as any).table_number || (o as any).table_no || (o.notes?.match(/Table:?\s*([^\s|,]+)/i)?.[1]) || "Dine-In";
       return [
         `"${o.order_number || o.id}"`,
         `"${table}"`,

@@ -1,6 +1,19 @@
 import { supabase } from "@/integrations/supabase/client";
 
 /**
+ * Constant-time string equality check to mitigate timing attacks against PIN or hash verification.
+ */
+export function timingSafeEqual(a: string, b: string): boolean {
+  if (typeof a !== "string" || typeof b !== "string") return false;
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i++) {
+    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return mismatch === 0;
+}
+
+/**
  * SHA-256 hash a plaintext PIN in browser environment.
  */
 export async function hashDeliveryPin(pin: string): Promise<string> {
@@ -210,7 +223,9 @@ export async function verifyAndDeliverOrder(
       }
 
       const inputHash = await hashDeliveryPin(cleanPin);
-      const isMatch = (p.pin_code && p.pin_code === cleanPin) || (p.pin_hash && p.pin_hash === inputHash);
+      const isMatch =
+        (Boolean(p.pin_code) && timingSafeEqual(p.pin_code, cleanPin)) ||
+        (Boolean(p.pin_hash) && timingSafeEqual(p.pin_hash, inputHash));
 
       if (!isMatch) {
         // Increment attempts

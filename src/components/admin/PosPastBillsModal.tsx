@@ -44,7 +44,7 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { formatINR, formatInvoiceDateTime } from "@/lib/format";
+import { formatINR, formatInvoiceDateTime, formatMaskedPhone } from "@/lib/format";
 import { restoreOrderStock } from "@/lib/inventorySync";
 import {
   getSavedPrinterConfig,
@@ -519,7 +519,7 @@ export function PosPastBillsModal({
                           <User className="size-3 text-muted-foreground" />
                           {order.customer_name || "Walk-in"}
                           {order.customer_phone && order.customer_phone !== "9999999999" && (
-                            <span className="font-mono text-muted-foreground">({order.customer_phone})</span>
+                            <span className="font-mono text-muted-foreground">({formatMaskedPhone(order.customer_phone)})</span>
                           )}
                         </span>
                         <span>•</span>

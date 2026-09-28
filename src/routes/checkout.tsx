@@ -19,6 +19,7 @@ import { MapPinPickerModal } from "@/components/MapPinPickerModal";
 import { calculateDistanceKm, getGoogleMapsDirUrl, forwardGeocodeAddress, getOsrmRoadRoute } from "@/lib/maps";
 import { settingsQuery, productsQuery } from "@/lib/queries";
 import { getStoreUpiTarget } from "@/lib/storefront.functions";
+import { verifyOrderPriceServerFn } from "@/lib/orders.functions";
 import { UpiPaymentQr } from "@/components/UpiPaymentQr";
 
 import {
@@ -509,6 +510,34 @@ function Checkout() {
       }
     } catch {
       // suspension check unavailable - continue with the order
+    }
+
+    // Server-side Anti-Tampering Price Verification
+    try {
+      await verifyOrderPriceServerFn({
+        data: {
+          items: items.map((i) => ({
+            product_id: i.product_id,
+            qty: i.qty,
+            price: i.price,
+          })),
+          fulfillment,
+          deliveryFee,
+          discount,
+          walletDiscount,
+          appliedPromoCode: appliedPromo?.code || null,
+          clientTotal: total,
+        },
+      });
+    } catch (err: any) {
+      console.error("[Checkout] Price verification failure:", err);
+      toast.error(
+        err?.message?.includes("Order total calculation mismatch")
+          ? "Price verification failed: order total does not match store prices. Please review your cart."
+          : err?.message || "Price verification failed. Please try again."
+      );
+      setSaving(false);
+      return;
     }
 
     const { data: sessionData } = await supabase.auth.getSession();

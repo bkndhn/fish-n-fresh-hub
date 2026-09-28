@@ -103,3 +103,45 @@ export function formatCompactNumber(count: number | null | undefined): string {
   const m = n / 1000000;
   return m >= 10 ? `${Math.round(m)}M` : `${Number(m.toFixed(1))}M`;
 }
+
+/**
+ * Masks a phone number for PII protection while keeping country code and key digits visible.
+ * e.g. "+91 98430 61919" -> "+91 98****1919"
+ * e.g. "9843061919" -> "98****1919"
+ * e.g. "+919843061919" -> "+91 98****1919"
+ */
+export function formatMaskedPhone(phone: string | null | undefined): string {
+  if (!phone) return "";
+  const trimmed = phone.trim();
+  if (!trimmed) return "";
+
+  const hasPlus = trimmed.startsWith("+");
+  const digits = trimmed.replace(/\D/g, "");
+
+  if (digits.length <= 4) {
+    return "*".repeat(digits.length);
+  }
+
+  // Indian standard phone (10 digits, or 12 digits starting with 91)
+  if (digits.length === 12 && digits.startsWith("91")) {
+    const main = digits.slice(2);
+    const masked = `${main.slice(0, 2)}****${main.slice(-4)}`;
+    return `+91 ${masked}`;
+  }
+
+  if (digits.length === 10) {
+    const masked = `${digits.slice(0, 2)}****${digits.slice(-4)}`;
+    return hasPlus ? `+${masked}` : masked;
+  }
+
+  if (digits.length > 6) {
+    const start = digits.slice(0, 2);
+    const end = digits.slice(-4);
+    const starCount = Math.max(2, digits.length - 6);
+    const masked = `${start}${"*".repeat(starCount)}${end}`;
+    return hasPlus ? `+${masked}` : masked;
+  }
+
+  return `${digits.slice(0, 1)}**${digits.slice(-1)}`;
+}
+

@@ -10,6 +10,7 @@ export type RateLimitAction =
   | "auth_signup"
   | "auth_reset"
   | "checkout_order"
+  | "guest_order_lookup"
   | "delivery_pin"
   | "support_chat"
   | "product_review";
@@ -26,7 +27,7 @@ export interface RateLimitRule {
 export const RATE_LIMIT_CONFIGS: Record<RateLimitAction, RateLimitRule> = {
   auth_signin: {
     maxAttempts: 5,
-    windowMs: 5 * 60 * 1000, // 5 minutes
+    windowMs: 10 * 60 * 1000, // 10 minutes
     label: "Sign in",
   },
   auth_signup: {
@@ -35,7 +36,7 @@ export const RATE_LIMIT_CONFIGS: Record<RateLimitAction, RateLimitRule> = {
     label: "Account registration",
   },
   auth_reset: {
-    maxAttempts: 3,
+    maxAttempts: 5,
     windowMs: 10 * 60 * 1000, // 10 minutes
     label: "Password reset",
   },
@@ -43,6 +44,11 @@ export const RATE_LIMIT_CONFIGS: Record<RateLimitAction, RateLimitRule> = {
     maxAttempts: 5,
     windowMs: 2 * 60 * 1000, // 2 minutes
     label: "Order placement",
+  },
+  guest_order_lookup: {
+    maxAttempts: 6,
+    windowMs: 60 * 1000, // 1 minute
+    label: "Guest order lookup",
   },
   delivery_pin: {
     maxAttempts: 5,
