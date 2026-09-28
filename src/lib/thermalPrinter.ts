@@ -1289,22 +1289,22 @@ export function formatKotReceipt(
         *** KITCHEN ORDER TICKET (KOT) ***
       </div>
       <div style="text-align: center; margin: 8px 0;">
-        ${tableNo ? `<div style="font-size: 20px; font-weight: 900; background: #000; color: #fff; padding: 4px; border-radius: 4px;">TABLE #${tableNo} (DINE-IN)</div>` : `<div style="font-size: 20px; font-weight: 900; background: #000; color: #fff; padding: 4px; border-radius: 4px;">TOKEN #${tokenNo}</div>`}
-        <div style="font-size: 11px; margin-top: 4px;">Time: ${timestamp} · Server: ${stewardName}</div>
+        ${tableNo ? `<div style="font-size: 20px; font-weight: 900; background: #000; color: #fff; padding: 4px; border-radius: 4px;">TABLE #${escapeHtml(tableNo)} (DINE-IN)</div>` : `<div style="font-size: 20px; font-weight: 900; background: #000; color: #fff; padding: 4px; border-radius: 4px;">TOKEN #${escapeHtml(tokenNo)}</div>`}
+        <div style="font-size: 11px; margin-top: 4px;">Time: ${escapeHtml(timestamp)} · Server: ${escapeHtml(stewardName)}</div>
       </div>
       <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0; margin-bottom: 8px; font-weight: bold;">
         PREPARATION ITEMS:
       </div>
       ${items.map((it: any) => `
         <div style="margin: 8px 0; padding: 6px; border: 1.5px solid #000; border-radius: 4px;">
-          <div style="font-size: 15px; font-weight: 900;">[ ${it.qty}x ] ${it.name}</div>
-          ${it.spiceLevel ? `<div style="font-weight: bold; color: #b91c1c; margin-top: 2px;">SPICE: ${it.spiceLevel.toUpperCase()}</div>` : ""}
-          ${it.prepNotes ? `<div style="background: #e2e8f0; font-weight: bold; padding: 2px 4px; margin-top: 4px; border-left: 3px solid #000;">NOTE: ${it.prepNotes.toUpperCase()}</div>` : ""}
+          <div style="font-size: 15px; font-weight: 900;">[ ${escapeHtml(it.qty)}x ] ${escapeHtml(it.name)}</div>
+          ${it.spiceLevel ? `<div style="font-weight: bold; color: #b91c1c; margin-top: 2px;">SPICE: ${escapeHtml(String(it.spiceLevel).toUpperCase())}</div>` : ""}
+          ${it.prepNotes ? `<div style="background: #e2e8f0; font-weight: bold; padding: 2px 4px; margin-top: 4px; border-left: 3px solid #000;">NOTE: ${escapeHtml(String(it.prepNotes).toUpperCase())}</div>` : ""}
         </div>
       `).join("")}
       ${orderNotes ? `
         <div style="margin-top: 8px; padding: 4px; border: 1px dashed #000; font-weight: bold; background: #fef08a;">
-          ORDER NOTE: ${orderNotes.toUpperCase()}
+          ORDER NOTE: ${escapeHtml(String(orderNotes).toUpperCase())}
         </div>
       ` : ""}
       <div style="text-align: center; margin-top: 12px; font-size: 11px; font-weight: bold;">
