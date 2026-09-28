@@ -1048,6 +1048,7 @@ export type Database = {
           stripe_refund_id: string | null
           stripe_session_id: string | null
           subtotal: number
+          table_number: string | null
           total: number
           tracking_url: string | null
           transit_log: Json | null
@@ -1130,6 +1131,7 @@ export type Database = {
           stripe_refund_id?: string | null
           stripe_session_id?: string | null
           subtotal?: number
+          table_number?: string | null
           total?: number
           tracking_url?: string | null
           transit_log?: Json | null
@@ -1212,6 +1214,7 @@ export type Database = {
           stripe_refund_id?: string | null
           stripe_session_id?: string | null
           subtotal?: number
+          table_number?: string | null
           total?: number
           tracking_url?: string | null
           transit_log?: Json | null
@@ -1451,6 +1454,7 @@ export type Database = {
           tags: string[] | null
           traceability: string | null
           unit: string
+          unlimited_stock: boolean | null
           updated_at: string
           variants: Json | null
           warranty_period_months: number | null
@@ -1502,6 +1506,7 @@ export type Database = {
           tags?: string[] | null
           traceability?: string | null
           unit?: string
+          unlimited_stock?: boolean | null
           updated_at?: string
           variants?: Json | null
           warranty_period_months?: number | null
@@ -1553,6 +1558,7 @@ export type Database = {
           tags?: string[] | null
           traceability?: string | null
           unit?: string
+          unlimited_stock?: boolean | null
           updated_at?: string
           variants?: Json | null
           warranty_period_months?: number | null
@@ -1847,6 +1853,7 @@ export type Database = {
           additional_charge_value: number
           address_line: string | null
           allow_preorders_when_closed: boolean | null
+          allow_unlimited_stock: boolean | null
           announcement: string | null
           base_delivery_fee: number
           bing_site_verification: string | null
@@ -1898,6 +1905,7 @@ export type Database = {
           harbour_alert_message: string | null
           harbour_alert_title: string | null
           harbour_source_name: string | null
+          hide_out_of_stock_badges: boolean | null
           holiday_dates: string[]
           holidays: string | null
           home_show_allproducts: boolean
@@ -1950,6 +1958,7 @@ export type Database = {
           referral_reward_referrer: number
           refund_content: string | null
           require_online_payment: boolean | null
+          restaurant_tables: Json | null
           returns_enabled: boolean
           sales_mode: string
           sender_email: string | null
@@ -1976,6 +1985,8 @@ export type Database = {
           support_email: string | null
           support_phone: string | null
           support_whatsapp: string | null
+          table_ordering_enabled: boolean | null
+          table_ordering_offline_message: string | null
           tagline: string | null
           terms_and_conditions: string | null
           terms_content: string | null
@@ -2000,6 +2011,7 @@ export type Database = {
           additional_charge_value?: number
           address_line?: string | null
           allow_preorders_when_closed?: boolean | null
+          allow_unlimited_stock?: boolean | null
           announcement?: string | null
           base_delivery_fee?: number
           bing_site_verification?: string | null
@@ -2051,6 +2063,7 @@ export type Database = {
           harbour_alert_message?: string | null
           harbour_alert_title?: string | null
           harbour_source_name?: string | null
+          hide_out_of_stock_badges?: boolean | null
           holiday_dates?: string[]
           holidays?: string | null
           home_show_allproducts?: boolean
@@ -2103,6 +2116,7 @@ export type Database = {
           referral_reward_referrer?: number
           refund_content?: string | null
           require_online_payment?: boolean | null
+          restaurant_tables?: Json | null
           returns_enabled?: boolean
           sales_mode?: string
           sender_email?: string | null
@@ -2129,6 +2143,8 @@ export type Database = {
           support_email?: string | null
           support_phone?: string | null
           support_whatsapp?: string | null
+          table_ordering_enabled?: boolean | null
+          table_ordering_offline_message?: string | null
           tagline?: string | null
           terms_and_conditions?: string | null
           terms_content?: string | null
@@ -2153,6 +2169,7 @@ export type Database = {
           additional_charge_value?: number
           address_line?: string | null
           allow_preorders_when_closed?: boolean | null
+          allow_unlimited_stock?: boolean | null
           announcement?: string | null
           base_delivery_fee?: number
           bing_site_verification?: string | null
@@ -2204,6 +2221,7 @@ export type Database = {
           harbour_alert_message?: string | null
           harbour_alert_title?: string | null
           harbour_source_name?: string | null
+          hide_out_of_stock_badges?: boolean | null
           holiday_dates?: string[]
           holidays?: string | null
           home_show_allproducts?: boolean
@@ -2256,6 +2274,7 @@ export type Database = {
           referral_reward_referrer?: number
           refund_content?: string | null
           require_online_payment?: boolean | null
+          restaurant_tables?: Json | null
           returns_enabled?: boolean
           sales_mode?: string
           sender_email?: string | null
@@ -2282,6 +2301,8 @@ export type Database = {
           support_email?: string | null
           support_phone?: string | null
           support_whatsapp?: string | null
+          table_ordering_enabled?: boolean | null
+          table_ordering_offline_message?: string | null
           tagline?: string | null
           terms_and_conditions?: string | null
           terms_content?: string | null
