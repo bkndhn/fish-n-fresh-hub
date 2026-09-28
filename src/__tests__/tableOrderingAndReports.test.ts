@@ -11,9 +11,9 @@ describe("Custom Tables & QR Studio Configuration", () => {
 
   it("supports unlimited custom table schemas with sections and capacities", () => {
     expect(sampleTables).toHaveLength(4);
-    expect(sampleTables[1].section).toBe("Rooftop");
-    expect(sampleTables[2].status).toBe("reserved");
-    expect(sampleTables[3].status).toBe("maintenance");
+    expect(sampleTables[1]!.section).toBe("Rooftop");
+    expect(sampleTables[2]!.status).toBe("reserved");
+    expect(sampleTables[3]!.status).toBe("maintenance");
   });
 
   it("correctly identifies unique sections from table list", () => {
@@ -193,13 +193,13 @@ describe("Dine-In & Table Sales Analytics Engine", () => {
       });
 
     const ranked = Array.from(tableMap.values()).sort((a, b) => b.revenue - a.revenue);
-    expect(ranked[0].label).toBe("Table 1"); // 850 + 450 = 1300
-    expect(ranked[0].revenue).toBe(1300);
-    expect(ranked[0].orders).toBe(2);
+    expect(ranked[0]!.label).toBe("Table 1"); // 850 + 450 = 1300
+    expect(ranked[0]!.revenue).toBe(1300);
+    expect(ranked[0]!.orders).toBe(2);
 
-    expect(ranked[1].label).toBe("Table 2");
-    expect(ranked[1].revenue).toBe(1200);
-    expect(ranked[1].orders).toBe(1);
+    expect(ranked[1]!.label).toBe("Table 2");
+    expect(ranked[1]!.revenue).toBe(1200);
+    expect(ranked[1]!.orders).toBe(1);
   });
 
   it("ranks top dine-in dishes by quantity sold", () => {
@@ -214,13 +214,13 @@ describe("Dine-In & Table Sales Analytics Engine", () => {
       });
 
     const sortedDishes = Array.from(dishMap.entries()).sort((a, b) => b[1] - a[1]);
-    expect(sortedDishes[0][0]).toBe("Garlic Naan");
-    expect(sortedDishes[0][1]).toBe(5);
+    expect(sortedDishes[0]![0]).toBe("Garlic Naan");
+    expect(sortedDishes[0]![1]).toBe(5);
 
-    expect(sortedDishes[1][0]).toBe("Dum Biryani");
-    expect(sortedDishes[1][1]).toBe(3); // 2 from ord-1 + 1 from ord-3
+    expect(sortedDishes[1]![0]).toBe("Dum Biryani");
+    expect(sortedDishes[1]![1]).toBe(3); // 2 from ord-1 + 1 from ord-3
 
-    expect(sortedDishes[2][0]).toBe("Fresh Lime Soda");
-    expect(sortedDishes[2][1]).toBe(3); // 2 from ord-1 + 1 from ord-3
+    expect(sortedDishes[2]![0]).toBe("Fresh Lime Soda");
+    expect(sortedDishes[2]![1]).toBe(3); // 2 from ord-1 + 1 from ord-3
   });
 });
