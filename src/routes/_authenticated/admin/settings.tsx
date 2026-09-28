@@ -99,12 +99,12 @@ import { ThermalPrinterCustomizer } from "@/components/admin/ThermalPrinterCusto
 import { AdminActionConfirmationModal } from "@/components/admin/AdminActionConfirmationModal";
 import type { SiteSettings } from "@/lib/types";
 import {
-import { csvCell } from "@/lib/csvSafe";
   type ProductLayoutConfig,
   getProductLayoutConfig,
   saveProductLayoutConfig,
   getDefaultProductLayoutConfig,
 } from "@/lib/productLayout";
+import { csvCell } from "@/lib/csvSafe";
 
 export const Route = createFileRoute("/_authenticated/admin/settings")({
   component: AdminSettings,
