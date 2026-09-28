@@ -1,4 +1,5 @@
 import type { Product, Expense, ExpenseCategory, PnlSummary, ProductPnlItem } from "./types";
+import { csvCell } from "@/lib/csvSafe";
 
 export interface ExpenseCategoryMeta {
   id: ExpenseCategory;
@@ -293,12 +294,12 @@ export function exportExpensesToCsv(expenses: Expense[], branchLabel: string = "
   const rows = expenses.map((e) => [
     e.expense_date,
     getExpenseCategoryMeta(e.category).label,
-    `"${(e.title || "").replace(/"/g, '""')}"`,
+    csvCell(e.title || ""),
     e.amount,
     (e.payment_method || "cash").toUpperCase(),
-    `"${(e.vendor_name || "").replace(/"/g, '""')}"`,
-    `"${(e.branch_name || branchLabel).replace(/"/g, '""')}"`,
-    `"${(e.notes || "").replace(/"/g, '""')}"`,
+    csvCell(e.vendor_name || ""),
+    csvCell(e.branch_name || branchLabel),
+    csvCell(e.notes || ""),
   ]);
 
   return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
@@ -327,9 +328,9 @@ export function exportProductPnlToCsv(items: ProductPnlItem[], branchLabel: stri
   ];
 
   const rows = items.map((i) => [
-    `"${(i.name || "").replace(/"/g, '""')}"`,
-    `"${(i.brand || "").replace(/"/g, '""')}"`,
-    `"${(i.category || "").replace(/"/g, '""')}"`,
+    csvCell(i.name || ""),
+    csvCell(i.brand || ""),
+    csvCell(i.category || ""),
     i.unit,
     i.sellingPrice,
     i.costPrice,
