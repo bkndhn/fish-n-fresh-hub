@@ -1130,26 +1130,26 @@ export function buildKotTokenEscPos(data: PosReceiptData, config: ThermalPrinter
 export function buildKotTokenHtml(data: PosReceiptData, config: ThermalPrinterConfig = getSavedPrinterConfig()): string {
   return `
     <div class="center bold title" style="font-size: 16px;">*** CUTTING TOKEN ***</div>
-    <div class="center bold">Token #${data.receiptNo}</div>
-    <div class="center muted">${data.date}</div>
+    <div class="center bold">Token #${escapeHtml(data.receiptNo)}</div>
+    <div class="center muted">${escapeHtml(data.date)}</div>
     <div class="hr"></div>
-    <div class="row"><span>Customer:</span><span class="bold">${data.customerName || "Counter Guest"}</span></div>
-    <div class="row"><span>Cashier:</span><span>${data.cashierName}</span></div>
+    <div class="row"><span>Customer:</span><span class="bold">${escapeHtml(data.customerName || "Counter Guest")}</span></div>
+    <div class="row"><span>Cashier:</span><span>${escapeHtml(data.cashierName)}</span></div>
     <div class="hr"></div>
     <div class="bold" style="margin-bottom: 4px;">ITEMS TO CUT & PREPARE:</div>
     ${data.items
       .map(
         (it, idx) => `
       <div style="margin: 6px 0; padding: 4px; border: 1px dashed #000;">
-        <div class="bold" style="font-size: 13px;">${idx + 1}. ${it.name}</div>
+        <div class="bold" style="font-size: 13px;">${idx + 1}. ${escapeHtml(it.name)}</div>
         <div class="row">
           <span>Qty:</span>
-          <span class="bold">${it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} ${it.unit || "unit"}`}</span>
+          <span class="bold">${it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${escapeHtml(it.qty || 1)} ${escapeHtml(it.unit || "unit")}`}</span>
         </div>
         ${
           it.cuttingStyle
             ? `<div style="background: #000; color: #fff; padding: 2px 4px; font-weight: bold; text-align: center; margin-top: 3px; font-size: 11px;">
-                STYLE: ${it.cuttingStyle.toUpperCase()}
+                STYLE: ${escapeHtml(String(it.cuttingStyle).toUpperCase())}
                </div>`
             : ""
         }
