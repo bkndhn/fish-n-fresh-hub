@@ -104,6 +104,7 @@ import {
   saveProductLayoutConfig,
   getDefaultProductLayoutConfig,
 } from "@/lib/productLayout";
+import { csvCell } from "@/lib/csvSafe";
 
 export const Route = createFileRoute("/_authenticated/admin/settings")({
   component: AdminSettings,
@@ -516,11 +517,6 @@ function AdminSettings() {
         "Total (INR)",
         "Delivery Address",
       ];
-      const csvCell = (v: unknown) => {
-        let str = String(v ?? "");
-        if (/^[=+\-@\t\r]/.test(str)) str = `'${str}`;
-        return `"${str.replace(/"/g, '""')}"`;
-      };
       const rows = (orders as any[]).map((o: any) => [
         o.id,
         new Date(o.created_at).toLocaleString("en-IN"),
@@ -580,10 +576,10 @@ function AdminSettings() {
       ];
       const rows = (products as any[]).map((p: any) => [
         p.id,
-        `"${(p.name || "").replace(/"/g, '""')}"`,
+        csvCell(p.name || ""),
         p.price || 0,
         p.cost_price || 0,
-        `"${p.hsn_code || "0302"}"`,
+        csvCell(p.hsn_code || "0302"),
         p.stock ?? 0,
         p.is_available ? "Yes" : "No",
       ]);

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { CartItem } from "@/lib/types";
+import { csvCell } from "@/lib/csvSafe";
 
 export const Route = createFileRoute("/_authenticated/admin/gst-reports")({
   head: () => ({
@@ -207,13 +208,13 @@ function GstReportsAdmin() {
       const items = (o.items as any[]) || [];
       const table = (o as any).table_number || (o as any).table_no || (o.notes?.match(/Table:?\s*([^\s|,]+)/i)?.[1]) || "Dine-In";
       return [
-        `"${o.order_number || o.id}"`,
-        `"${table}"`,
-        `"${o.customer_name || "Guest"}"`,
+        csvCell(o.order_number || o.id),
+        csvCell(table),
+        csvCell(o.customer_name || "Guest"),
         items.length,
         Number(o.total || 0).toFixed(2),
-        `"${o.status}"`,
-        `"${formatIST(o.created_at)}"`,
+        csvCell(o.status),
+        csvCell(formatIST(o.created_at)),
       ];
     });
 

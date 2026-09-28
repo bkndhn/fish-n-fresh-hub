@@ -1,4 +1,5 @@
 import type { Product } from "./types";
+import { csvCellCompact } from "@/lib/csvSafe";
 
 export interface ParsedCsvResult {
   validProducts: Partial<Product>[];
@@ -220,11 +221,7 @@ export function exportProductsToCsv(products: Product[]): string {
 }
 
 function escapeCsvCell(val: string): string {
-  if (!val) return "";
-  if (val.includes(",") || val.includes('"') || val.includes("\n")) {
-    return '"' + val.replace(/"/g, '""') + '"';
-  }
-  return val;
+  return csvCellCompact(val);
 }
 
 function splitCsvLine(line: string): string[] {

@@ -1130,26 +1130,26 @@ export function buildKotTokenEscPos(data: PosReceiptData, config: ThermalPrinter
 export function buildKotTokenHtml(data: PosReceiptData, config: ThermalPrinterConfig = getSavedPrinterConfig()): string {
   return `
     <div class="center bold title" style="font-size: 16px;">*** CUTTING TOKEN ***</div>
-    <div class="center bold">Token #${data.receiptNo}</div>
-    <div class="center muted">${data.date}</div>
+    <div class="center bold">Token #${escapeHtml(data.receiptNo)}</div>
+    <div class="center muted">${escapeHtml(data.date)}</div>
     <div class="hr"></div>
-    <div class="row"><span>Customer:</span><span class="bold">${data.customerName || "Counter Guest"}</span></div>
-    <div class="row"><span>Cashier:</span><span>${data.cashierName}</span></div>
+    <div class="row"><span>Customer:</span><span class="bold">${escapeHtml(data.customerName || "Counter Guest")}</span></div>
+    <div class="row"><span>Cashier:</span><span>${escapeHtml(data.cashierName)}</span></div>
     <div class="hr"></div>
     <div class="bold" style="margin-bottom: 4px;">ITEMS TO CUT & PREPARE:</div>
     ${data.items
       .map(
         (it, idx) => `
       <div style="margin: 6px 0; padding: 4px; border: 1px dashed #000;">
-        <div class="bold" style="font-size: 13px;">${idx + 1}. ${it.name}</div>
+        <div class="bold" style="font-size: 13px;">${idx + 1}. ${escapeHtml(it.name)}</div>
         <div class="row">
           <span>Qty:</span>
-          <span class="bold">${it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} ${it.unit || "unit"}`}</span>
+          <span class="bold">${it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${escapeHtml(it.qty || 1)} ${escapeHtml(it.unit || "unit")}`}</span>
         </div>
         ${
           it.cuttingStyle
             ? `<div style="background: #000; color: #fff; padding: 2px 4px; font-weight: bold; text-align: center; margin-top: 3px; font-size: 11px;">
-                STYLE: ${it.cuttingStyle.toUpperCase()}
+                STYLE: ${escapeHtml(String(it.cuttingStyle).toUpperCase())}
                </div>`
             : ""
         }
@@ -1289,22 +1289,22 @@ export function formatKotReceipt(
         *** KITCHEN ORDER TICKET (KOT) ***
       </div>
       <div style="text-align: center; margin: 8px 0;">
-        ${tableNo ? `<div style="font-size: 20px; font-weight: 900; background: #000; color: #fff; padding: 4px; border-radius: 4px;">TABLE #${tableNo} (DINE-IN)</div>` : `<div style="font-size: 20px; font-weight: 900; background: #000; color: #fff; padding: 4px; border-radius: 4px;">TOKEN #${tokenNo}</div>`}
-        <div style="font-size: 11px; margin-top: 4px;">Time: ${timestamp} · Server: ${stewardName}</div>
+        ${tableNo ? `<div style="font-size: 20px; font-weight: 900; background: #000; color: #fff; padding: 4px; border-radius: 4px;">TABLE #${escapeHtml(tableNo)} (DINE-IN)</div>` : `<div style="font-size: 20px; font-weight: 900; background: #000; color: #fff; padding: 4px; border-radius: 4px;">TOKEN #${escapeHtml(tokenNo)}</div>`}
+        <div style="font-size: 11px; margin-top: 4px;">Time: ${escapeHtml(timestamp)} · Server: ${escapeHtml(stewardName)}</div>
       </div>
       <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0; margin-bottom: 8px; font-weight: bold;">
         PREPARATION ITEMS:
       </div>
       ${items.map((it: any) => `
         <div style="margin: 8px 0; padding: 6px; border: 1.5px solid #000; border-radius: 4px;">
-          <div style="font-size: 15px; font-weight: 900;">[ ${it.qty}x ] ${it.name}</div>
-          ${it.spiceLevel ? `<div style="font-weight: bold; color: #b91c1c; margin-top: 2px;">SPICE: ${it.spiceLevel.toUpperCase()}</div>` : ""}
-          ${it.prepNotes ? `<div style="background: #e2e8f0; font-weight: bold; padding: 2px 4px; margin-top: 4px; border-left: 3px solid #000;">NOTE: ${it.prepNotes.toUpperCase()}</div>` : ""}
+          <div style="font-size: 15px; font-weight: 900;">[ ${escapeHtml(it.qty)}x ] ${escapeHtml(it.name)}</div>
+          ${it.spiceLevel ? `<div style="font-weight: bold; color: #b91c1c; margin-top: 2px;">SPICE: ${escapeHtml(String(it.spiceLevel).toUpperCase())}</div>` : ""}
+          ${it.prepNotes ? `<div style="background: #e2e8f0; font-weight: bold; padding: 2px 4px; margin-top: 4px; border-left: 3px solid #000;">NOTE: ${escapeHtml(String(it.prepNotes).toUpperCase())}</div>` : ""}
         </div>
       `).join("")}
       ${orderNotes ? `
         <div style="margin-top: 8px; padding: 4px; border: 1px dashed #000; font-weight: bold; background: #fef08a;">
-          ORDER NOTE: ${orderNotes.toUpperCase()}
+          ORDER NOTE: ${escapeHtml(String(orderNotes).toUpperCase())}
         </div>
       ` : ""}
       <div style="text-align: center; margin-top: 12px; font-size: 11px; font-weight: bold;">
