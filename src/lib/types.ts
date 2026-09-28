@@ -109,6 +109,7 @@ export type Product = {
   is_available: boolean;
   origin: string | null;
   rating: number;
+  reviews_count?: number;
   is_featured: boolean;
   is_bestseller?: boolean;
   tags: string[] | null;

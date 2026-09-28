@@ -31,6 +31,7 @@ import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedCrewRouteImport } from './routes/_authenticated/crew'
 import { Route as BranchSlugRouteImport } from './routes/branch.$slug'
 import { Route as ProductIdRouteImport } from './routes/product.$id'
+import { Route as TableTableNoRouteImport } from './routes/table.$tableNo'
 import { Route as TrackIdRouteImport } from './routes/track.$id'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
@@ -48,6 +49,7 @@ import { Route as AuthenticatedAdminOnboardingRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminOrdersRouteImport } from './routes/_authenticated/admin/orders'
 import { Route as AuthenticatedAdminPaymentsRouteImport } from './routes/_authenticated/admin/payments'
 import { Route as AuthenticatedAdminPosRouteImport } from './routes/_authenticated/admin/pos'
+import { Route as AuthenticatedAdminPricingRouteImport } from './routes/_authenticated/admin/pricing'
 import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authenticated/admin/products'
 import { Route as AuthenticatedAdminPromotionsRouteImport } from './routes/_authenticated/admin/promotions'
 import { Route as AuthenticatedAdminPurchasesRouteImport } from './routes/_authenticated/admin/purchases'
@@ -173,6 +175,11 @@ const ProductIdRoute = ProductIdRouteImport.update({
   path: '/product/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TableTableNoRoute = TableTableNoRouteImport.update({
+  id: '/table/$tableNo',
+  path: '/table/$tableNo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TrackIdRoute = TrackIdRouteImport.update({
   id: '/track/$id',
   path: '/track/$id',
@@ -271,6 +278,12 @@ const AuthenticatedAdminPosRoute = AuthenticatedAdminPosRouteImport.update({
   path: '/admin/pos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminPricingRoute =
+  AuthenticatedAdminPricingRouteImport.update({
+    id: '/admin/pricing',
+    path: '/admin/pricing',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminProductsRoute =
   AuthenticatedAdminProductsRouteImport.update({
     id: '/admin/products',
@@ -374,6 +387,7 @@ export interface FileRoutesByFullPath {
   '/crew': typeof AuthenticatedCrewRoute
   '/branch/$slug': typeof BranchSlugRoute
   '/product/$id': typeof ProductIdRoute
+  '/table/$tableNo': typeof TableTableNoRoute
   '/track/$id': typeof TrackIdRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/admin/badges': typeof AuthenticatedAdminBadgesRoute
@@ -390,6 +404,7 @@ export interface FileRoutesByFullPath {
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/pos': typeof AuthenticatedAdminPosRoute
+  '/admin/pricing': typeof AuthenticatedAdminPricingRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/promotions': typeof AuthenticatedAdminPromotionsRoute
   '/admin/purchases': typeof AuthenticatedAdminPurchasesRoute
@@ -428,6 +443,7 @@ export interface FileRoutesByTo {
   '/crew': typeof AuthenticatedCrewRoute
   '/branch/$slug': typeof BranchSlugRoute
   '/product/$id': typeof ProductIdRoute
+  '/table/$tableNo': typeof TableTableNoRoute
   '/track/$id': typeof TrackIdRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/admin/badges': typeof AuthenticatedAdminBadgesRoute
@@ -444,6 +460,7 @@ export interface FileRoutesByTo {
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/pos': typeof AuthenticatedAdminPosRoute
+  '/admin/pricing': typeof AuthenticatedAdminPricingRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/promotions': typeof AuthenticatedAdminPromotionsRoute
   '/admin/purchases': typeof AuthenticatedAdminPurchasesRoute
@@ -484,6 +501,7 @@ export interface FileRoutesById {
   '/_authenticated/crew': typeof AuthenticatedCrewRoute
   '/branch/$slug': typeof BranchSlugRoute
   '/product/$id': typeof ProductIdRoute
+  '/table/$tableNo': typeof TableTableNoRoute
   '/track/$id': typeof TrackIdRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/_authenticated/admin/badges': typeof AuthenticatedAdminBadgesRoute
@@ -500,6 +518,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/_authenticated/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/_authenticated/admin/pos': typeof AuthenticatedAdminPosRoute
+  '/_authenticated/admin/pricing': typeof AuthenticatedAdminPricingRoute
   '/_authenticated/admin/products': typeof AuthenticatedAdminProductsRoute
   '/_authenticated/admin/promotions': typeof AuthenticatedAdminPromotionsRoute
   '/_authenticated/admin/purchases': typeof AuthenticatedAdminPurchasesRoute
@@ -540,6 +559,7 @@ export interface FileRouteTypes {
     | '/crew'
     | '/branch/$slug'
     | '/product/$id'
+    | '/table/$tableNo'
     | '/track/$id'
     | '/.lovable/oauth/consent'
     | '/admin/badges'
@@ -556,6 +576,7 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/payments'
     | '/admin/pos'
+    | '/admin/pricing'
     | '/admin/products'
     | '/admin/promotions'
     | '/admin/purchases'
@@ -594,6 +615,7 @@ export interface FileRouteTypes {
     | '/crew'
     | '/branch/$slug'
     | '/product/$id'
+    | '/table/$tableNo'
     | '/track/$id'
     | '/.lovable/oauth/consent'
     | '/admin/badges'
@@ -610,6 +632,7 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/payments'
     | '/admin/pos'
+    | '/admin/pricing'
     | '/admin/products'
     | '/admin/promotions'
     | '/admin/purchases'
@@ -649,6 +672,7 @@ export interface FileRouteTypes {
     | '/_authenticated/crew'
     | '/branch/$slug'
     | '/product/$id'
+    | '/table/$tableNo'
     | '/track/$id'
     | '/.lovable/oauth/consent'
     | '/_authenticated/admin/badges'
@@ -665,6 +689,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/orders'
     | '/_authenticated/admin/payments'
     | '/_authenticated/admin/pos'
+    | '/_authenticated/admin/pricing'
     | '/_authenticated/admin/products'
     | '/_authenticated/admin/promotions'
     | '/_authenticated/admin/purchases'
@@ -703,6 +728,7 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   BranchSlugRoute: typeof BranchSlugRoute
   ProductIdRoute: typeof ProductIdRoute
+  TableTableNoRoute: typeof TableTableNoRoute
   TrackIdRoute: typeof TrackIdRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicOrderAlertsRoute: typeof ApiPublicOrderAlertsRoute
@@ -865,6 +891,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProductIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/table/$tableNo': {
+      id: '/table/$tableNo'
+      path: '/table/$tableNo'
+      fullPath: '/table/$tableNo'
+      preLoaderRoute: typeof TableTableNoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/track/$id': {
       id: '/track/$id'
       path: '/track/$id'
@@ -982,6 +1015,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/pos'
       fullPath: '/admin/pos'
       preLoaderRoute: typeof AuthenticatedAdminPosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/pricing': {
+      id: '/_authenticated/admin/pricing'
+      path: '/admin/pricing'
+      fullPath: '/admin/pricing'
+      preLoaderRoute: typeof AuthenticatedAdminPricingRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin/products': {
@@ -1102,6 +1142,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminOrdersRoute: typeof AuthenticatedAdminOrdersRoute
   AuthenticatedAdminPaymentsRoute: typeof AuthenticatedAdminPaymentsRoute
   AuthenticatedAdminPosRoute: typeof AuthenticatedAdminPosRoute
+  AuthenticatedAdminPricingRoute: typeof AuthenticatedAdminPricingRoute
   AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
   AuthenticatedAdminPromotionsRoute: typeof AuthenticatedAdminPromotionsRoute
   AuthenticatedAdminPurchasesRoute: typeof AuthenticatedAdminPurchasesRoute
@@ -1134,6 +1175,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminOrdersRoute: AuthenticatedAdminOrdersRoute,
   AuthenticatedAdminPaymentsRoute: AuthenticatedAdminPaymentsRoute,
   AuthenticatedAdminPosRoute: AuthenticatedAdminPosRoute,
+  AuthenticatedAdminPricingRoute: AuthenticatedAdminPricingRoute,
   AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
   AuthenticatedAdminPromotionsRoute: AuthenticatedAdminPromotionsRoute,
   AuthenticatedAdminPurchasesRoute: AuthenticatedAdminPurchasesRoute,
@@ -1174,6 +1216,7 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   BranchSlugRoute: BranchSlugRoute,
   ProductIdRoute: ProductIdRoute,
+  TableTableNoRoute: TableTableNoRoute,
   TrackIdRoute: TrackIdRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicOrderAlertsRoute: ApiPublicOrderAlertsRoute,

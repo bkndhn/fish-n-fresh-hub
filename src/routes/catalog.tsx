@@ -63,6 +63,7 @@ import { useCustomerBranch } from "@/lib/customerBranchContext";
 import { StickyCategoryBar } from "@/components/StickyCategoryBar";
 
 type PriceRange = "all" | "under300" | "300-600" | "600-1000" | "above1000";
+type RatingFilter = "all" | "4.5" | "4.0" | "3.5";
 type SortOption = "featured" | "price-asc" | "price-desc" | "rating" | "discount" | "name";
 
 function Catalog() {
@@ -71,6 +72,7 @@ function Catalog() {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<SortOption>("featured");
   const [priceRange, setPriceRange] = useState<PriceRange>("all");
+  const [ratingFilter, setRatingFilter] = useState<RatingFilter>("all");
   const [inStockOnly, setInStockOnly] = useState(false);
   const [discountOnly, setDiscountOnly] = useState(false);
   const [unitFilter, setUnitFilter] = useState<string>("all");
@@ -97,12 +99,13 @@ function Catalog() {
   // Reset pagination when search or filters change
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [category, q, sort, priceRange, inStockOnly, discountOnly, unitFilter, brandFilter]);
+  }, [category, q, sort, priceRange, ratingFilter, inStockOnly, discountOnly, unitFilter, brandFilter]);
 
   const activeFilterCount =
     (category ? 1 : 0) +
     (brandFilter !== "all" ? 1 : 0) +
     (priceRange !== "all" ? 1 : 0) +
+    (ratingFilter !== "all" ? 1 : 0) +
     (inStockOnly ? 1 : 0) +
     (discountOnly ? 1 : 0) +
     (unitFilter !== "all" ? 1 : 0) +
@@ -111,6 +114,7 @@ function Catalog() {
   const clearAllFilters = () => {
     navigate({ search: {} });
     setPriceRange("all");
+    setRatingFilter("all");
     setInStockOnly(false);
     setDiscountOnly(false);
     setUnitFilter("all");
@@ -134,6 +138,13 @@ function Catalog() {
       if (priceRange === "300-600") return price >= 300 && price <= 600;
       if (priceRange === "600-1000") return price >= 600 && price <= 1000;
       if (priceRange === "above1000") return price > 1000;
+      return true;
+    })
+    .filter((p) => {
+      const r = Number(p.rating ?? 0);
+      if (ratingFilter === "4.5") return r >= 4.5;
+      if (ratingFilter === "4.0") return r >= 4.0;
+      if (ratingFilter === "3.5") return r >= 3.5;
       return true;
     })
     .filter((p) => {
@@ -369,7 +380,7 @@ function Catalog() {
                       { id: "featured", label: `✨ Featured ${productTerm.plural}` },
                       { id: "price-asc", label: "💰 Price: Low to High" },
                       { id: "price-desc", label: "💎 Price: High to Low" },
-                      { id: "rating", label: "⭐ Highest Rated" },
+                      { id: "rating", label: "⭐ Highest Customer Rating" },
                       { id: "discount", label: "🔥 Biggest Discount" },
                       { id: "name", label: "🔤 Name: A to Z" },
                     ].map((opt) => (
@@ -385,6 +396,32 @@ function Catalog() {
                       >
                         <span>{opt.label}</span>
                         {sort === opt.id && <Check className="size-3.5 text-primary" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Customer Rating Filter */}
+                <div>
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Customer Rating</Label>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {[
+                      { id: "all", label: "All Ratings" },
+                      { id: "4.5", label: "4.5★ & above" },
+                      { id: "4.0", label: "4.0★ & above" },
+                      { id: "3.5", label: "3.5★ & above" },
+                    ].map((tier) => (
+                      <button
+                        key={tier.id}
+                        type="button"
+                        onClick={() => setRatingFilter(tier.id as RatingFilter)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          ratingFilter === tier.id
+                            ? "border-amber-500 bg-amber-500 text-white font-bold"
+                            : "border-border text-foreground hover:bg-muted/50"
+                        }`}
+                      >
+                        {tier.label}
                       </button>
                     ))}
                   </div>
@@ -525,6 +562,25 @@ function Catalog() {
             🔥 Deals
           </button>
 
+          {/* Quick Rating Filter Pills */}
+          {[
+            { id: "4.5", label: "4.5★+" },
+            { id: "4.0", label: "4.0★+" },
+          ].map((rf) => (
+            <button
+              key={rf.id}
+              type="button"
+              onClick={() => setRatingFilter(ratingFilter === rf.id ? "all" : (rf.id as RatingFilter))}
+              className={`rounded-full border px-2.5 py-1 text-xs font-medium shrink-0 transition-colors ${
+                ratingFilter === rf.id
+                  ? "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-400 font-semibold"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {rf.label}
+            </button>
+          ))}
+
           {/* Quick Sort Tabs */}
           {(["price-asc", "price-desc", "rating"] as const).map((s) => (
             <button
@@ -553,6 +609,15 @@ function Catalog() {
               <X
                 className="size-3 cursor-pointer hover:opacity-75"
                 onClick={() => navigate({ search: {} })}
+              />
+            </span>
+          )}
+          {ratingFilter !== "all" && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+              Rating: {ratingFilter}★ & above
+              <X
+                className="size-3 cursor-pointer hover:opacity-75"
+                onClick={() => setRatingFilter("all")}
               />
             </span>
           )}

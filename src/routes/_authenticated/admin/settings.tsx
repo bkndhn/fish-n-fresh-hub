@@ -117,6 +117,19 @@ type GatewayCreds = {
   webhook_secret?: string;
 };
 
+type WhatsAppCreds = {
+  id?: string;
+  provider: "meta_cloud" | "interakt" | "aisensy" | "wati" | "custom_webhook";
+  phoneNumberId: string;
+  wabaId: string;
+  accessToken: string;
+  webhookUrl: string;
+  templateConfirmed: string;
+  templatePacked: string;
+  templateDelivery: string;
+  templateOtp: string;
+};
+
 function AdminSettings() {
   const qc = useQueryClient();
   const { data: settings } = useQuery(settingsQuery);
@@ -127,6 +140,17 @@ function AdminSettings() {
     api_key: "",
     secret_key: "",
     webhook_secret: "",
+  });
+  const [whatsappForm, setWhatsappForm] = useState<WhatsAppCreds>({
+    provider: "meta_cloud",
+    phoneNumberId: "",
+    wabaId: "",
+    accessToken: "",
+    webhookUrl: "",
+    templateConfirmed: "order_confirmed",
+    templatePacked: "order_packed",
+    templateDelivery: "out_for_delivery",
+    templateOtp: "otp_auth",
   });
   const [shopPinModalOpen, setShopPinModalOpen] = useState(false);
   const [confirmStoreNameModalOpen, setConfirmStoreNameModalOpen] = useState(false);
@@ -589,6 +613,21 @@ function AdminSettings() {
       const { data, error } = await supabase
         .from("payment_gateway_credentials")
         .select("id, provider, api_key, secret_key")
+        .neq("provider", "whatsapp_business")
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: whatsappCreds } = useQuery({
+    queryKey: ["payment_gateway_credentials_whatsapp"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payment_gateway_credentials")
+        .select("id, provider, api_key, secret_key")
+        .eq("provider", "whatsapp_business")
         .limit(1)
         .maybeSingle();
       if (error) throw error;
@@ -629,6 +668,31 @@ function AdminSettings() {
     }
   }, [gateway]);
 
+  useEffect(() => {
+    if (whatsappCreds) {
+      let parsedSecret: any = {};
+      if (whatsappCreds.secret_key) {
+        try {
+          parsedSecret = JSON.parse(whatsappCreds.secret_key);
+        } catch {
+          parsedSecret = { accessToken: whatsappCreds.secret_key };
+        }
+      }
+      setWhatsappForm({
+        id: whatsappCreds.id,
+        provider: parsedSecret.provider || "meta_cloud",
+        phoneNumberId: whatsappCreds.api_key || parsedSecret.phoneNumberId || "",
+        wabaId: parsedSecret.wabaId || "",
+        accessToken: parsedSecret.accessToken || "",
+        webhookUrl: parsedSecret.webhookUrl || "",
+        templateConfirmed: parsedSecret.templates?.order_confirmed || "order_confirmed",
+        templatePacked: parsedSecret.templates?.order_packed || "order_packed",
+        templateDelivery: parsedSecret.templates?.out_for_delivery || "out_for_delivery",
+        templateOtp: parsedSecret.templates?.otp_auth || "otp_auth",
+      });
+    }
+  }, [whatsappCreds]);
+
   const update = useMutation({
     mutationFn: async (patch: any) => {
       if (!settings?.id) return;
@@ -666,6 +730,35 @@ function AdminSettings() {
       } else if (gatewayForm.provider !== "none") {
         const { error: gErr } = await supabase.from("payment_gateway_credentials").insert(creds);
         if (gErr) throw gErr;
+      }
+
+      // Save WhatsApp credentials
+      const waSecret = JSON.stringify({
+        provider: whatsappForm.provider,
+        wabaId: whatsappForm.wabaId,
+        accessToken: whatsappForm.accessToken,
+        webhookUrl: whatsappForm.webhookUrl,
+        templates: {
+          order_confirmed: whatsappForm.templateConfirmed,
+          order_packed: whatsappForm.templatePacked,
+          out_for_delivery: whatsappForm.templateDelivery,
+          otp_auth: whatsappForm.templateOtp,
+        },
+      });
+
+      const waCreds = {
+        provider: "whatsapp_business",
+        api_key: whatsappForm.phoneNumberId || null,
+        secret_key: waSecret,
+      };
+
+      if (whatsappForm.id) {
+        await supabase
+          .from("payment_gateway_credentials")
+          .update(waCreds)
+          .eq("id", whatsappForm.id);
+      } else if (whatsappForm.phoneNumberId || whatsappForm.accessToken || whatsappForm.webhookUrl) {
+        await supabase.from("payment_gateway_credentials").insert(waCreds);
       }
 
       if (gatewayForm.provider === "stripe" && gatewayForm.api_key) {
@@ -1714,6 +1807,189 @@ If you need any cut modifications, please reply here. Thank you!`;
 
 If you need any cut modifications, please reply here. Thank you!`}
                   </pre>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ),
+      },
+      {
+        id: "whatsapp_business_api",
+        tab: "growth" as const,
+        tabLabel: "Marketing, SEO & Loyalty",
+        title: "WhatsApp Business API (Meta Cloud / WABA) Engine",
+        description:
+          "Official WhatsApp Cloud API & webhook gateway for automated order confirmation, packed status, live GPS tracking and OTP messages.",
+        keywords: [
+          "whatsapp",
+          "meta cloud",
+          "waba",
+          "whatsapp api",
+          "phone number id",
+          "interakt",
+          "aisensy",
+          "wati",
+          "webhook",
+        ],
+        content: (
+          <Card className="mt-6 rounded-2xl shadow-xs border-emerald-500/30">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <MessageSquare className="size-4 text-emerald-600" />
+                  💬 Official WhatsApp Business API &amp; WABA Integration
+                </span>
+                <Badge
+                  className={
+                    whatsappForm.accessToken && whatsappForm.phoneNumberId
+                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-xs"
+                      : "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-xs"
+                  }
+                >
+                  {whatsappForm.accessToken && whatsappForm.phoneNumberId
+                    ? "Meta API Connected"
+                    : "Zero-Key Fallback Mode Active"}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-950/20 p-3.5 text-xs text-emerald-900 dark:text-emerald-200 space-y-1">
+                <p className="font-semibold flex items-center gap-1.5">
+                  <ShieldCheck className="size-4 text-emerald-600 shrink-0" />
+                  Plug-and-Play Zero-Key Fallback Engine
+                </p>
+                <p className="opacity-90 leading-relaxed">
+                  When API credentials are not yet entered, customer order notifications and cashier WhatsApp links
+                  automatically fallback to direct <code>wa.me</code> deep-links. Once you save your Meta System User Access Token
+                  and Phone Number ID, live cloud message dispatches activate instantly with 0 downtime.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="wa_provider">WhatsApp API Provider</Label>
+                  <select
+                    id="wa_provider"
+                    value={whatsappForm.provider}
+                    onChange={(e) =>
+                      setWhatsappForm({ ...whatsappForm, provider: e.target.value as any })
+                    }
+                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="meta_cloud">Meta Cloud API (Official Graph API v20.0)</option>
+                    <option value="interakt">Interakt WhatsApp Business</option>
+                    <option value="aisensy">AiSensy Smart Gateway</option>
+                    <option value="wati">Wati Gateway</option>
+                    <option value="custom_webhook">Custom Webhook Endpoint</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="wa_phone_id">Phone Number ID (Meta Graph API)</Label>
+                  <Input
+                    id="wa_phone_id"
+                    value={whatsappForm.phoneNumberId}
+                    onChange={(e) =>
+                      setWhatsappForm({ ...whatsappForm, phoneNumberId: e.target.value })
+                    }
+                    placeholder="e.g. 109283746501928"
+                    className="mt-1 font-mono text-xs"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="wa_waba_id">WhatsApp Business Account ID (WABA ID)</Label>
+                  <Input
+                    id="wa_waba_id"
+                    value={whatsappForm.wabaId}
+                    onChange={(e) =>
+                      setWhatsappForm({ ...whatsappForm, wabaId: e.target.value })
+                    }
+                    placeholder="e.g. 918273645102938"
+                    className="mt-1 font-mono text-xs"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="wa_token">System User Access Token / API Key</Label>
+                  <Input
+                    id="wa_token"
+                    type="password"
+                    value={whatsappForm.accessToken}
+                    onChange={(e) =>
+                      setWhatsappForm({ ...whatsappForm, accessToken: e.target.value })
+                    }
+                    placeholder="EAAG... (Permanent System User Token)"
+                    className="mt-1 font-mono text-xs"
+                  />
+                </div>
+
+                {whatsappForm.provider === "custom_webhook" && (
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="wa_webhook">Custom Webhook URL</Label>
+                    <Input
+                      id="wa_webhook"
+                      value={whatsappForm.webhookUrl}
+                      onChange={(e) =>
+                        setWhatsappForm({ ...whatsappForm, webhookUrl: e.target.value })
+                      }
+                      placeholder="https://api.yourdomain.com/whatsapp/webhook"
+                      className="mt-1 font-mono text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Template Mapping Configuration */}
+              <div className="pt-2 border-t border-border space-y-3">
+                <Label className="text-xs font-semibold text-foreground">
+                  Registered WhatsApp Template Names
+                </Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-muted-foreground block mb-1">Order Confirmed Template</span>
+                    <Input
+                      value={whatsappForm.templateConfirmed}
+                      onChange={(e) =>
+                        setWhatsappForm({ ...whatsappForm, templateConfirmed: e.target.value })
+                      }
+                      placeholder="order_confirmed"
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block mb-1">Order Packed / Ready Template</span>
+                    <Input
+                      value={whatsappForm.templatePacked}
+                      onChange={(e) =>
+                        setWhatsappForm({ ...whatsappForm, templatePacked: e.target.value })
+                      }
+                      placeholder="order_packed"
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block mb-1">Out For Delivery Template</span>
+                    <Input
+                      value={whatsappForm.templateDelivery}
+                      onChange={(e) =>
+                        setWhatsappForm({ ...whatsappForm, templateDelivery: e.target.value })
+                      }
+                      placeholder="out_for_delivery"
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block mb-1">OTP Authentication Template</span>
+                    <Input
+                      value={whatsappForm.templateOtp}
+                      onChange={(e) =>
+                        setWhatsappForm({ ...whatsappForm, templateOtp: e.target.value })
+                      }
+                      placeholder="otp_auth"
+                      className="font-mono text-xs"
+                    />
+                  </div>
                 </div>
               </div>
             </CardContent>

@@ -88,3 +88,18 @@ export function formatStockBadge(stock: number | null | undefined, unit: string 
   if (lower.endsWith("g") && !lower.includes(" ")) return `${s} pkts (${u})`;
   return `${s} ${u}`;
 }
+
+/**
+ * Formats a count into a compact string like 1,450 -> 1.5K, 25,000 -> 25K
+ */
+export function formatCompactNumber(count: number | null | undefined): string {
+  const n = Number(count) || 0;
+  if (n <= 0) return "0";
+  if (n < 1000) return String(n);
+  if (n < 1000000) {
+    const k = n / 1000;
+    return k >= 10 ? `${Math.round(k)}K` : `${Number(k.toFixed(1))}K`;
+  }
+  const m = n / 1000000;
+  return m >= 10 ? `${Math.round(m)}M` : `${Number(m.toFixed(1))}M`;
+}

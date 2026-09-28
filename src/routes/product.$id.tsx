@@ -23,6 +23,7 @@ import type { Product } from "@/lib/types";
 import { inr, formatIST, formatStockDisplay } from "@/lib/format";
 import { productQuery, productsQuery, settingsQuery } from "@/lib/queries";
 import { ProductCard } from "@/components/ProductCard";
+import { ImageUpload } from "@/components/ImageUpload";
 import { ProductAiBenefitsCard } from "@/components/ProductAiBenefitsCard";
 import { SeoStructuredData } from "@/components/SeoStructuredData";
 import { createSubscription } from "@/lib/subscriptions.functions";
@@ -807,6 +808,7 @@ function ProductReviewsSection({ productId, productName, customTitle }: { produc
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [comment, setComment] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
 
   const { data: reviews = [] } = useQuery({
     queryKey: ["product-reviews", productId],
@@ -822,9 +824,29 @@ function ProductReviewsSection({ productId, productName, customTitle }: { produc
     },
   });
 
+  // Verified purchase check: user must have at least one delivered/completed order with this product
+  const { data: isVerifiedBuyer = false, isLoading: checkingVerification } = useQuery({
+    queryKey: ["verified-buyer", user?.id, productId],
+    enabled: Boolean(user?.id && productId),
+    queryFn: async () => {
+      if (!user?.id) return false;
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id, status, items")
+        .eq("user_id", user.id)
+        .in("status", ["delivered", "completed"]);
+      if (error || !data) return false;
+      return data.some((order: any) => {
+        const orderItems = Array.isArray(order.items) ? order.items : [];
+        return orderItems.some((item: any) => item.product_id === productId || item.id === productId);
+      });
+    },
+  });
+
   const submitReview = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error("Please sign in to leave a review");
+      if (!isVerifiedBuyer) throw new Error("Only verified buyers with a completed order can review this product.");
       if (!name.trim()) throw new Error("Please enter your name");
       if (!comment.trim()) throw new Error("Please enter a short review");
       if (comment.trim().length > 1000) throw new Error("Please keep your review under 1000 characters");
@@ -836,6 +858,7 @@ function ProductReviewsSection({ productId, productName, customTitle }: { produc
         customer_name: name.trim(),
         customer_phone: phone.replace(/\D/g, "") || null,
         comment: comment.trim(),
+        photo_url: photoUrl.trim() || null,
         active: true,
         verified: true,
       });
@@ -845,6 +868,7 @@ function ProductReviewsSection({ productId, productName, customTitle }: { produc
       toast.success("Review submitted! Thank you for your feedback.");
       setOpenReview(false);
       setComment("");
+      setPhotoUrl("");
       qc.invalidateQueries({ queryKey: ["product-reviews", productId] });
     },
     onError: (err: any) => toast.error(err.message || "Failed to submit review"),
@@ -872,82 +896,108 @@ function ProductReviewsSection({ productId, productName, customTitle }: { produc
               <MessageSquare className="mr-1.5 size-3.5" /> Sign in to review
             </Link>
           </Button>
-        ) : (
-        <Dialog open={openReview} onOpenChange={setOpenReview}>
-          <DialogTrigger asChild>
-            <Button size="sm" variant="outline" className="rounded-xl shrink-0">
-              <MessageSquare className="mr-1.5 size-3.5" /> Rate & Review
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="rounded-2xl sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Write a Review for {productName}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3 pt-2">
-              <div className="space-y-1">
-                <Label>Your Rating</Label>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setRating(s)}
-                      className="p-1 text-accent hover:scale-110 transition-transform"
-                    >
-                      <Star
-                        className={`size-6 ${
-                          s <= rating ? "fill-accent text-accent" : "text-muted-foreground"
-                        }`}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="rev-name">Name *</Label>
-                  <Input
-                    id="rev-name"
-                    placeholder="Deepak"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="rev-phone">Phone (Optional)</Label>
-                  <Input
-                    id="rev-phone"
-                    placeholder="9876543210"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="rev-comment">Review Comments *</Label>
-                <Textarea
-                  id="rev-comment"
-                  placeholder={formFields.reviewPlaceholder}
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  className="rounded-xl"
-                />
-              </div>
-
-              <Button
-                className="w-full rounded-xl"
-                disabled={submitReview.isPending || !name.trim() || !comment.trim()}
-                onClick={() => submitReview.mutate()}
-              >
-                {submitReview.isPending ? "Submitting..." : "Submit Review"}
+        ) : isVerifiedBuyer ? (
+          <Dialog open={openReview} onOpenChange={setOpenReview}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline" className="rounded-xl shrink-0 border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
+                <ShieldCheck className="mr-1.5 size-3.5" /> Rate & Review (Verified Buyer)
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-        )}
+            </DialogTrigger>
+            <DialogContent className="rounded-2xl sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Write a Review for {productName}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 pt-2">
+                <div className="space-y-1">
+                  <Label>Your Rating</Label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setRating(s)}
+                        className="p-1 text-accent hover:scale-110 transition-transform"
+                      >
+                        <Star
+                          className={`size-6 ${
+                            s <= rating ? "fill-accent text-accent" : "text-muted-foreground"
+                          }`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="rev-name">Name *</Label>
+                    <Input
+                      id="rev-name"
+                      placeholder="Your name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="rev-phone">Phone (Optional)</Label>
+                    <Input
+                      id="rev-phone"
+                      placeholder="9876543210"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="rev-comment">Review Comments *</Label>
+                  <Textarea
+                    id="rev-comment"
+                    placeholder={formFields.reviewPlaceholder}
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    className="rounded-xl"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label>Add Photo (Optional)</Label>
+                  <ImageUpload
+                    currentImage={photoUrl}
+                    onUpload={(url) => setPhotoUrl(url)}
+                    onRemove={() => setPhotoUrl("")}
+                    compact
+                    label="Upload product photo"
+                  />
+                </div>
+
+                <Button
+                  className="w-full rounded-xl font-bold"
+                  disabled={submitReview.isPending || !name.trim() || !comment.trim()}
+                  onClick={() => submitReview.mutate()}
+                >
+                  {submitReview.isPending ? "Submitting..." : "Submit Verified Review"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        ) : null}
       </div>
+
+      {/* Informative banner for logged-in users who haven't completed an order for this item */}
+      {user?.id && !isVerifiedBuyer && !checkingVerification && (
+        <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span>Only verified buyers with a completed order can review this product.</span>
+          </div>
+          <Button asChild size="sm" variant="outline" className="h-7 rounded-lg border-amber-500/30 text-xs shrink-0">
+            <Link to="/orders">
+              View Your Orders
+            </Link>
+          </Button>
+        </div>
+      )}
 
       <div className="mt-4 space-y-3">
         {reviews.map((r) => (
@@ -971,6 +1021,16 @@ function ProductReviewsSection({ productId, productName, customTitle }: { produc
             </div>
 
             <p className="text-xs text-foreground/90 leading-relaxed">{r.comment}</p>
+
+            {r.photo_url && (
+              <a href={r.photo_url} target="_blank" rel="noopener noreferrer" className="block mt-2">
+                <img
+                  src={r.photo_url}
+                  alt="Customer review photo"
+                  className="size-20 rounded-xl object-cover border border-border shadow-xs hover:opacity-90 transition-opacity"
+                />
+              </a>
+            )}
 
             {r.admin_reply && (
               <div className="mt-2 rounded-lg bg-primary/5 border border-primary/20 p-2 text-xs text-primary">

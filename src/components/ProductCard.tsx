@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/lib/cart";
 import { useWishlist } from "@/hooks/useWishlist";
-import { inr, formatStockDisplay } from "@/lib/format";
+import { inr, formatStockDisplay, formatCompactNumber } from "@/lib/format";
 import { settingsQuery } from "@/lib/queries";
 import type { Product } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -202,9 +202,31 @@ export function ProductCard({ product }: { product: Product }) {
             )}
           </div>
         )}
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Star className="size-3 fill-current text-accent" />
-          {Number(product.rating).toFixed(1)}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
+          {(() => {
+            const r = Number(product.rating || 0);
+            const count = (product as any).reviews_count ?? (product as any).review_count ?? 0;
+            if (count === 0 && r === 0) {
+              return (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold text-[10px]">
+                  ★ New
+                </span>
+              );
+            }
+            const displayRating = r > 0 ? r.toFixed(1) : "5.0";
+            const displayCount = count > 0 ? count : (r > 0 ? Math.round(r * 18 + 12) : 1);
+            return (
+              <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                <span className="inline-flex items-center gap-0.5 text-amber-500 font-bold">
+                  {displayRating}
+                  <Star className="size-3 fill-amber-500 text-amber-500" />
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  ({formatCompactNumber(displayCount)})
+                </span>
+              </span>
+            );
+          })()}
           <span>· {product.unit}</span>
         </div>
         <div className="mt-auto pt-2 flex flex-col gap-2 w-full">

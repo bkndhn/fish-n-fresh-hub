@@ -19,6 +19,7 @@ import { MapPinPickerModal } from "@/components/MapPinPickerModal";
 import { calculateDistanceKm, getGoogleMapsDirUrl, forwardGeocodeAddress, getOsrmRoadRoute } from "@/lib/maps";
 import { settingsQuery, productsQuery } from "@/lib/queries";
 import { getStoreUpiTarget } from "@/lib/storefront.functions";
+import { UpiPaymentQr } from "@/components/UpiPaymentQr";
 
 import {
   getShippingScopeConfig,
@@ -578,8 +579,8 @@ function Checkout() {
         coupon_code: appliedPromo?.code ?? (autoCartReward.eligible ? "AUTO_CART_REWARD" : (appliedReferral?.code || null)),
         total,
         status: "pending",
-        payment_method: payment,
-        payment_status: (payment === "upi" && upiUtr.length === 12) ? "paid" : "pending",
+        payment_method: payment === "upi" ? "upi_qr" : payment,
+        payment_status: payment === "upi" ? (upiUtr.length === 12 ? "paid" : "pending_verification") : "pending",
         actual_payment_ref: upiUtr || null,
         upi_paid: Boolean(payment === "upi" && upiUtr.length === 12),
         fulfillment_type: fulfillment,
@@ -1740,87 +1741,14 @@ function Checkout() {
               </div>
             </div>
 
-            {/* UPI QR Code Container */}
-            <div className="flex flex-col items-center justify-center p-3.5 bg-white rounded-xl border shadow-2xs">
-              <img
-                src={upiQrUrl}
-                alt="UPI QR Code"
-                className="size-44 object-contain rounded-lg"
-              />
-              <p className="mt-2 text-[11px] text-muted-foreground text-center">
-                Scan with Google Pay, PhonePe, Paytm, BHIM, or any banking app
-              </p>
-            </div>
-
-            {/* Store UPI ID & Copy */}
-            <div className="flex items-center justify-between rounded-xl bg-background p-2.5 border text-xs">
-              <div className="min-w-0 pr-2">
-                <p className="text-[10px] text-muted-foreground">Store Official UPI ID</p>
-                <p className="font-mono font-medium truncate">{upiId}</p>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs rounded-lg shrink-0 gap-1"
-                onClick={() => {
-                  navigator.clipboard.writeText(upiId);
-                  toast.success("UPI ID copied to clipboard!");
-                }}
-              >
-                <Copy className="size-3" /> Copy ID
-              </Button>
-            </div>
-
-            {/* Direct 1-Tap UPI App Deep Links for Mobile */}
-            <div className="space-y-1.5 pt-0.5 sm:hidden">
-              <p className="text-[11px] font-semibold text-muted-foreground">
-                Or Pay Directly Using Installed App:
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-xl h-8 text-xs font-semibold border-border hover:border-primary/40 gap-1.5"
-                  onClick={() => {
-                    window.location.href = gpayDeepLink;
-                  }}
-                >
-                  <span>Google Pay</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-xl h-8 text-xs font-semibold border-border hover:border-primary/40 gap-1.5"
-                  onClick={() => {
-                    window.location.href = phonepeDeepLink;
-                  }}
-                >
-                  <span>PhonePe</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-xl h-8 text-xs font-semibold border-border hover:border-primary/40 gap-1.5"
-                  onClick={() => {
-                    window.location.href = paytmDeepLink;
-                  }}
-                >
-                  <span>Paytm</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-xl h-8 text-xs font-semibold border-primary/40 text-primary hover:bg-primary/10 gap-1.5"
-                  onClick={() => {
-                    window.location.href = upiDeepLink;
-                  }}
-                >
-                  <Smartphone className="size-3.5" />
-                  <span>Any UPI App</span>
-                </Button>
-              </div>
-            </div>
+            {/* High-Resolution Local UPI QR Code & 1-Tap App Deep Links */}
+            <UpiPaymentQr
+              upiId={upiId}
+              storeName={settings?.store_name || "Universal Commerce"}
+              amount={total}
+              orderReference={checkoutOrderId || (user?.id ? user.id.slice(0, 6) : "NEW")}
+              storeLogo={settings?.logo_url}
+            />
 
             {/* 12-Digit UTR Input with real-time validation */}
             <div className="space-y-1.5 pt-1">

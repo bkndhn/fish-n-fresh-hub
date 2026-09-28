@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Clock, Store, MessageSquare } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import { getStoreStatus } from "@/lib/storeSchedule";
 import { SeoStructuredData } from "@/components/SeoStructuredData";
 import { useCustomerBranch } from "@/lib/customerBranchContext";
 import { useCart } from "@/lib/cart";
-import type { SiteSettings } from "@/lib/types";
+import type { SiteSettings, Product } from "@/lib/types";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
@@ -85,6 +85,21 @@ function Home() {
       return Number(b.rating) - Number(a.rating);
     })
     .slice(0, 6);
+
+  const [homeRatingFilter, setHomeRatingFilter] = useState<"all" | "4.5" | "4.0" | "3.5">("all");
+
+  const topRated = useMemo(() => {
+    return [...(products ?? [])]
+      .filter((p) => {
+        const r = Number(p.rating ?? 0);
+        if (homeRatingFilter === "4.5") return r >= 4.5;
+        if (homeRatingFilter === "4.0") return r >= 4.0;
+        if (homeRatingFilter === "3.5") return r >= 3.5;
+        return true;
+      })
+      .sort((a, b) => Number(b.rating ?? 0) - Number(a.rating ?? 0))
+      .slice(0, 6);
+  }, [products, homeRatingFilter]);
 
   const vertical = getStoreVertical(settings);
   const storeName = settings?.store_name || "Our Store";
@@ -314,6 +329,46 @@ function Home() {
         </div>
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
           {featured.map((p) => (
+            <ProductCard key={p.id} product={p} />
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-8">
+        <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold">Top Customer Rated</h2>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+              Verified Reviews
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
+            {[
+              { id: "all", label: "All" },
+              { id: "4.5", label: "4.5★ & above" },
+              { id: "4.0", label: "4.0★ & above" },
+              { id: "3.5", label: "3.5★ & above" },
+            ].map((chip) => (
+              <button
+                key={chip.id}
+                type="button"
+                onClick={() => setHomeRatingFilter(chip.id as any)}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors shrink-0 ${
+                  homeRatingFilter === chip.id
+                    ? "bg-amber-500 text-white font-bold"
+                    : "border border-border text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {chip.label}
+              </button>
+            ))}
+            <Link to="/catalog" className="text-xs font-semibold text-primary pl-2 shrink-0">
+              {t("home.view_all")} &rarr;
+            </Link>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+          {topRated.map((p: Product) => (
             <ProductCard key={p.id} product={p} />
           ))}
         </div>

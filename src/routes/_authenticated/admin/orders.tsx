@@ -43,6 +43,8 @@ import { TaxInvoiceModal } from "@/components/TaxInvoiceModal";
 import { getGoogleMapsDirUrl } from "@/lib/maps";
 import { settingsQuery } from "@/lib/queries";
 import { formatINR, formatIST, formatInvoiceDateTime } from "@/lib/format";
+import { formatKotReceipt, getSavedPrinterConfig, sendEscPosToPrinter } from "@/lib/thermalPrinter";
+import { getStoreVertical } from "@/lib/verticals";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { supabase } from "@/integrations/supabase/client";
@@ -93,6 +95,7 @@ function OrdersAdmin() {
   const { selectedBranchId, selectedBranch, isConsolidated } = useAdminBranch();
   const orders = useQuery(adminOrdersQuery(selectedBranchId));
   const { data: settings } = useQuery(settingsQuery);
+  const storeVertical = getStoreVertical(settings);
 
   const todayStr = getLocalDateString(new Date().toISOString());
 
@@ -934,7 +937,7 @@ function OrdersAdmin() {
                           </>
                         )}
                       </div>
-                    ) : o.payment_method === "upi" ? (
+                    ) : o.payment_method === "upi" || o.payment_method === "upi_qr" ? (
                       <div className="flex flex-wrap items-center gap-1.5">
                         {(o as unknown as Database["public"]["Tables"]["orders"]["Row"]).upi_paid || o.payment_status === "paid" ? (
                           <span className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
@@ -1023,6 +1026,36 @@ function OrdersAdmin() {
                       >
                         <FileText className="mr-1.5 size-3.5 text-sky-600" /> Invoice
                       </Button>
+
+                      {storeVertical.id === "restaurant_cafe" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 sm:flex-initial rounded-xl h-8.5 text-xs font-semibold border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                          onClick={() => {
+                            const kot = formatKotReceipt({
+                              orderNumber: o.order_number ?? o.id.slice(0, 8),
+                              tableNumber: (o as any).table_number || null,
+                              tokenNumber: o.order_number ? o.order_number.slice(-4) : o.id.slice(0, 4),
+                              fulfillmentType: o.fulfillment_type,
+                              timestamp: formatInvoiceDateTime(o.created_at),
+                              stewardName: o.customer_name,
+                              notes: o.notes,
+                              items: (o.items as any[]).map((it: any) => ({
+                                name: it.name,
+                                qty: it.qty,
+                                prepNotes: it.cutPreference || it.notes,
+                              })),
+                            });
+                            const cfg = getSavedPrinterConfig();
+                            sendEscPosToPrinter(kot.escPosBytes, cfg, kot.html)
+                              .then(() => toast.success(`Kitchen Order Ticket (KOT) printed for Order #${o.order_number ?? o.id.slice(0, 8)}`))
+                              .catch((e: any) => toast.error(e.message || "Failed to print KOT"));
+                          }}
+                        >
+                          <Receipt className="mr-1.5 size-3.5 text-amber-600" /> KOT
+                        </Button>
+                      )}
 
                       {o.status === "processing" && (
                         <Button

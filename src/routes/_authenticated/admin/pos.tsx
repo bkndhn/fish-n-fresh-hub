@@ -44,6 +44,9 @@ import {
   Activity,
   Terminal,
   Settings2,
+  Utensils,
+  ChefHat,
+  Users,
 } from "lucide-react";
 import { hardwareScanner, type ParsedBarcode } from "@/lib/barcodeScanner";
 import { BarcodeCameraModal } from "@/components/BarcodeCameraModal";
@@ -53,6 +56,7 @@ import { categoriesQuery, settingsQuery } from "@/lib/queries";
 import { formatINR, formatStockDisplay, formatStockUnitLabel, formatStockBadge, formatInvoiceDateTime } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { deductOrderStock } from "@/lib/inventorySync";
+import { cachePosCatalog, generateOfflineBillSequence } from "@/lib/offlinePos";
 import type { Product } from "@/lib/types";
 import type { Json } from "@/integrations/supabase/types";
 import { getStoreVertical } from "@/lib/verticals";
@@ -79,6 +83,7 @@ import {
   getPosWhatsAppShareUrl,
   isHardwarePrinterConnected,
   autoReconnectSavedPrinters,
+  formatKotReceipt,
   type PosReceiptData,
   type PosReceiptItem,
 } from "@/lib/thermalPrinter";
@@ -480,6 +485,40 @@ export function RetailPosCounterPage() {
   const [printerModalOpen, setPrinterModalOpen] = useState(false);
   const [pastBillsModalOpen, setPastBillsModalOpen] = useState(false);
   const [parkedModalOpen, setParkedModalOpen] = useState(false);
+  const [tablesModalOpen, setTablesModalOpen] = useState(false);
+
+  // Active Dine-In Orders for Restaurant Tables View
+  const { data: activeDineInOrders } = useQuery({
+    queryKey: ["active_dine_in_orders"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("fulfillment_type", "dine_in")
+        .in("status", ["pending", "confirmed", "packed", "ready", "preparing"])
+        .order("created_at", { ascending: false });
+      if (error) return [];
+      return data || [];
+    },
+    refetchInterval: 10000,
+  });
+
+  const occupiedTables = useMemo(() => {
+    const map = new Map<number, any>();
+    (activeDineInOrders ?? []).forEach((order) => {
+      const match =
+        order.customer_address?.match(/Table #?(\d+)/i) ||
+        order.notes?.match(/Table #?(\d+)/i) ||
+        order.customer_name?.match(/Table #?(\d+)/i);
+      const tableNo = match && match[1] ? parseInt(match[1], 10) : null;
+      if (tableNo && !map.has(tableNo)) {
+        map.set(tableNo, order);
+      }
+    });
+    return map;
+  }, [activeDineInOrders]);
+
+  const occupiedTablesCount = occupiedTables.size;
 
   // Electronic Weighing Scale State & Driver Subscription
   const [scaleStatus, setScaleStatus] = useState<ScaleConnectionState>(() =>
@@ -559,6 +598,17 @@ export function RetailPosCounterPage() {
   );
   const [offlineQueueCount, setOfflineQueueCount] = useState<number>(0);
   const [isSyncingOffline, setIsSyncingOffline] = useState(false);
+
+  // Auto-cache active catalog to local IndexedDB for offline resilience
+  useEffect(() => {
+    if (rawProducts && rawProducts.length > 0) {
+      void cachePosCatalog(
+        rawProducts as Product[],
+        categories ?? [],
+        selectedBranchId && selectedBranchId !== "all" ? selectedBranchId : undefined
+      );
+    }
+  }, [rawProducts, categories, selectedBranchId]);
 
   // Parked Carts
   const [parkedCarts, setParkedCarts] = useState<ParkedCart[]>(() => {
@@ -1188,10 +1238,12 @@ export function RetailPosCounterPage() {
 
     setProcessingOrder(true);
     const printerConfig = getSavedPrinterConfig();
-    const orderNumber = getNextPosReceiptNo(
-      printerConfig.billPrefix || "POS-",
-      printerConfig.billSequenceDailyReset !== false
-    );
+    const orderNumber = !isOnline
+      ? generateOfflineBillSequence(selectedBranchId && selectedBranchId !== "all" ? selectedBranchId : undefined)
+      : getNextPosReceiptNo(
+          printerConfig.billPrefix || "POS-",
+          printerConfig.billSequenceDailyReset !== false
+        );
     const nowIso = new Date().toISOString();
     const dateFormatted = formatInvoiceDateTime(new Date(), true);
 
@@ -1236,7 +1288,7 @@ export function RetailPosCounterPage() {
       storeAddress: settings?.store_address || undefined,
       storePhone: (settings as SiteSettings)?.contact_phone || undefined,
       storeGstin: isGstActive ? ((settings as SiteSettings)?.gstin || undefined) : undefined,
-      copyType: "ORIGINAL",
+      copyType: !isOnline ? "OFFLINE RECEIPT" : "ORIGINAL",
       isReprint: false,
     };
 
@@ -1346,9 +1398,20 @@ export function RetailPosCounterPage() {
           try {
             await sendEscPosToPrinter(escPosBytes, printerConfig, fallbackHtml);
           } catch (printErr) {
-            console.warn("Direct thermal print notice:", printErr);
+            console.warn("Print copy failed:", printErr);
           }
         }
+
+        // Auto-print Kitchen Order Ticket (KOT) for restaurant vertical or if autoPrintKot is configured
+        if (printerConfig.autoPrintKot || storeVertical.id === "restaurant_cafe") {
+          try {
+            const kot = formatKotReceipt(receiptData, printerConfig);
+            await sendEscPosToPrinter(kot.escPosBytes, printerConfig, kot.html);
+          } catch (kotErr) {
+            console.warn("KOT auto-print notification:", kotErr);
+          }
+        }
+
         playCashRegisterChime();
         toast.success(`Bill #${orderNumber} completed & printed! Net: ${formatINR(totalPayable)}`);
       } else {
@@ -1378,6 +1441,21 @@ export function RetailPosCounterPage() {
       toast.error(err.message || "Failed to complete POS sale");
     } finally {
       setProcessingOrder(false);
+    }
+  };
+
+  const printKotLastBill = async () => {
+    if (!lastReceipt) {
+      toast.error("No recent receipt to print KOT");
+      return;
+    }
+    const printerConfig = getSavedPrinterConfig();
+    const kot = formatKotReceipt(lastReceipt, printerConfig);
+    try {
+      await sendEscPosToPrinter(kot.escPosBytes, printerConfig, kot.html);
+      toast.success(`Kitchen Order Ticket (KOT) sent to kitchen printer for Bill #${lastReceipt.receiptNo}`);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to print KOT");
     }
   };
 
@@ -1686,6 +1764,37 @@ export function RetailPosCounterPage() {
                 <span>Reprint Last</span>
               </Button>
             )}
+
+            {/* Print KOT Button */}
+            {(storeVertical.id === "restaurant_cafe" || lastReceipt) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 shrink-0"
+                onClick={printKotLastBill}
+                title="Print Kitchen Order Ticket (KOT)"
+              >
+                <Receipt className="size-3.5 text-amber-600" />
+                <span>Print KOT</span>
+              </Button>
+            )}
+
+            {/* Dine-In Tables View Trigger */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl h-8.5 text-xs font-semibold gap-1.5 border-primary/40 text-primary hover:bg-primary/10 shrink-0"
+              onClick={() => setTablesModalOpen(true)}
+              title="Dine-in Tables & Running Bills"
+            >
+              <Utensils className="size-3.5 text-primary" />
+              <span>🍽️ Tables View</span>
+              {occupiedTablesCount > 0 && (
+                <span className="size-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  {occupiedTablesCount}
+                </span>
+              )}
+            </Button>
 
             {/* Printer Settings Trigger */}
             <Button
@@ -3639,6 +3748,167 @@ export function RetailPosCounterPage() {
                 <p className="text-[10px]">Use "Hold [F4]" while billing to park a customer cart</p>
               </div>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dine-In Tables & Live Running Bills Modal */}
+      <Dialog open={tablesModalOpen} onOpenChange={setTablesModalOpen}>
+        <DialogContent className="max-w-2xl rounded-3xl p-5 max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Utensils className="size-5 text-primary" />
+                <span>🍽️ Restaurant Tables &amp; Dine-In Manager</span>
+              </span>
+              <Badge variant="outline" className="border-primary/30 text-primary text-xs">
+                {occupiedTablesCount} Occupied / 12 Total
+              </Badge>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            <p className="text-xs text-muted-foreground">
+              Monitor active dine-in dining sessions, view live accumulated orders, reprint kitchen KOTs, or load running bills directly into the counter register for settlement.
+            </p>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {Array.from({ length: 12 }, (_, idx) => idx + 1).map((tableNum) => {
+                const activeOrder = occupiedTables.get(tableNum);
+                const isOccupied = Boolean(activeOrder);
+
+                return (
+                  <div
+                    key={tableNum}
+                    className={`p-3 rounded-2xl border transition-all flex flex-col justify-between ${
+                      isOccupied
+                        ? "border-rose-500/40 bg-rose-50/40 dark:bg-rose-950/20 shadow-xs"
+                        : "border-border/70 bg-card hover:border-primary/40"
+                    }`}
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-black text-sm text-foreground">
+                          Table #{tableNum}
+                        </span>
+                        <span
+                          className={`size-2.5 rounded-full ${
+                            isOccupied ? "bg-rose-500 animate-pulse" : "bg-emerald-500"
+                          }`}
+                        />
+                      </div>
+
+                      {isOccupied ? (
+                        <div className="space-y-1 text-xs">
+                          <p className="font-extrabold text-sm text-rose-600 dark:text-rose-400">
+                            {formatINR(Number(activeOrder.total || 0))}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {activeOrder.customer_name || "Guest"} •{" "}
+                            {(activeOrder.items as any[])?.length || 0} items
+                          </p>
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] uppercase border-rose-500/30 text-rose-700 dark:text-rose-300 px-1.5 py-0"
+                          >
+                            {activeOrder.status}
+                          </Badge>
+                        </div>
+                      ) : (
+                        <div className="py-2 text-center text-[11px] text-muted-foreground">
+                          <span>🟢 Available</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-border/60 flex flex-col gap-1 mt-2">
+                      {isOccupied ? (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              const posItems: PosCartItem[] = ((activeOrder.items as any[]) || []).map(
+                                (it: any) => ({
+                                  id: String(Math.random()),
+                                  productId: it.product_id || it.id || "",
+                                  name: it.name,
+                                  pricePerKg: Number(it.price || 0),
+                                  weightKg: 1,
+                                  qty: Number(it.qty || 1),
+                                  unit: it.unit || "portion",
+                                  totalPrice: Number(it.price || 0) * Number(it.qty || 1),
+                                  gstPercent: 0,
+                                  cuttingStyle: it.cut_preference || it.spice_level || undefined,
+                                })
+                              );
+                              setCart(posItems);
+                              setCustomerName(`Table #${tableNum}`);
+                              setTablesModalOpen(false);
+                              toast.success(`Table #${tableNum} bill loaded into register!`);
+                            }}
+                            className="h-7 text-xs font-bold rounded-lg bg-primary text-primary-foreground"
+                          >
+                            Settle &amp; Bill
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              const printerCfg = getSavedPrinterConfig();
+                              const kotReceiptData: PosReceiptData = {
+                                receiptNo: activeOrder.order_number || `KOT-T${tableNum}`,
+                                date: formatInvoiceDateTime(new Date(activeOrder.created_at || Date.now()), true),
+                                cashierName: cashierName || "Steward",
+                                customerName: `Table #${tableNum}`,
+                                customerPhone: activeOrder.customer_phone || undefined,
+                                items: ((activeOrder.items as any[]) || []).map((it: any) => ({
+                                  name: it.name,
+                                  qty: Number(it.qty || 1),
+                                  unitPrice: Number(it.price || 0),
+                                  totalPrice: Number(it.price || 0) * Number(it.qty || 1),
+                                  unit: it.unit || "portion",
+                                  cutPreference: it.cut_preference || it.spice_level || undefined,
+                                })),
+                                subtotal: Number(activeOrder.total || 0),
+                                discount: 0,
+                                gstAmount: 0,
+                                total: Number(activeOrder.total || 0),
+                                paymentMethod: "dine_in",
+                                storeName: settings?.store_name || "Restaurant",
+                                storeAddress: `Table #${tableNum} (Dine-In)`,
+                              };
+                              try {
+                                const kot = formatKotReceipt(kotReceiptData, printerCfg);
+                                await sendEscPosToPrinter(kot.escPosBytes, printerCfg, kot.html);
+                                toast.success(`Kitchen Order Ticket printed for Table #${tableNum}!`);
+                              } catch (e: any) {
+                                toast.error("KOT Print failed: " + e.message);
+                              }
+                            }}
+                            className="h-6 text-[10px] rounded-lg border-border"
+                          >
+                            Print KOT
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setCustomerName(`Table #${tableNum}`);
+                            setTablesModalOpen(false);
+                            toast.info(`Billing started for Table #${tableNum}`);
+                          }}
+                          className="h-7 text-[11px] rounded-lg border-border"
+                        >
+                          Open Bill
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

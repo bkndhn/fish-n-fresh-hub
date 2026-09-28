@@ -32,6 +32,7 @@ export interface ThermalPrinterConfig {
   billPrefix?: string;
   billSequenceDailyReset?: boolean;
   autoWhatsAppPrompt?: boolean;
+  autoPrintKot?: boolean;
   // Header Customizations
   showHeaderStoreName?: boolean;
   showHeaderAddress?: boolean;
@@ -713,7 +714,7 @@ export interface PosReceiptData {
   storePhone?: string | undefined;
   storeGstin?: string | undefined;
   storeFssai?: string | undefined;
-  copyType?: "original" | "kitchen_token" | "merchant_copy" | "ORIGINAL" | "KITCHEN TOKEN" | "STORE RECORD" | undefined;
+  copyType?: "original" | "kitchen_token" | "merchant_copy" | "ORIGINAL" | "KITCHEN TOKEN" | "STORE RECORD" | "OFFLINE RECEIPT" | undefined;
   isReprint?: boolean | undefined;
   reprintCount?: number | undefined;
   reprintTimestamp?: string | undefined;
@@ -1159,6 +1160,160 @@ export function buildKotTokenHtml(data: PosReceiptData, config: ThermalPrinterCo
     <div class="hr"></div>
     <div class="center bold" style="font-size: 11px;">* PACK IN INSULATED ICE BOX *</div>
   `;
+}
+
+export interface KotOrderData {
+  orderNumber: string;
+  tableNumber?: string | null;
+  tokenNumber?: string | null;
+  fulfillmentType?: string | null;
+  timestamp?: string | null;
+  stewardName?: string | null;
+  customerName?: string | null;
+  notes?: string | null;
+  items: Array<{
+    name: string;
+    qty: number | string;
+    unit?: string | null;
+    prepNotes?: string | null;
+    variant?: string | null;
+    spiceLevel?: string | null;
+    cuttingStyle?: string | null;
+  }>;
+}
+
+/**
+ * Universal formatKotReceipt: Produces both ESC/POS commands and browser-print HTML
+ * for Kitchen Order Tickets (KOT) dedicated to kitchen and preparation stations.
+ * Prices, taxes, discounts, and payment totals are strictly omitted.
+ */
+export function formatKotReceipt(
+  order: KotOrderData | PosReceiptData,
+  config: ThermalPrinterConfig = getSavedPrinterConfig()
+): { escPosBytes: Uint8Array; html: string } {
+  const isPosData = "receiptNo" in order;
+  const orderNumber = isPosData ? (order as PosReceiptData).receiptNo : (order as KotOrderData).orderNumber;
+  const timestamp = isPosData ? (order as PosReceiptData).date : ((order as KotOrderData).timestamp || new Date().toLocaleTimeString("en-IN"));
+  const stewardName = isPosData ? (order as PosReceiptData).cashierName : ((order as KotOrderData).stewardName || "Counter Staff");
+  const tableNo = !isPosData ? (order as KotOrderData).tableNumber : null;
+  const tokenNo = !isPosData ? (order as KotOrderData).tokenNumber : orderNumber.slice(-4);
+  const fulfillment = !isPosData ? (order as KotOrderData).fulfillmentType : "pos";
+  const orderNotes = !isPosData ? (order as KotOrderData).notes : null;
+
+  const rawItems = isPosData ? (order as PosReceiptData).items : (order as KotOrderData).items;
+  const items = rawItems.map((it: any) => ({
+    name: it.name,
+    qty: it.qty ?? (it.weightKg ? `${it.weightKg} kg` : 1),
+    prepNotes: it.prepNotes || it.cuttingStyle || it.notes || "",
+    spiceLevel: it.spiceLevel || "",
+    variant: it.variant || "",
+  }));
+
+  // ESC/POS Command Generation
+  const b = new EscPosBuilder(config.paperWidth);
+  b.init()
+    .align("center")
+    .bold(true)
+    .line("*** KITCHEN ORDER TICKET (KOT) ***")
+    .feed(1);
+
+  if (tableNo) {
+    b.size("double")
+      .bold(true)
+      .line(`TABLE: #${tableNo}`)
+      .size("normal")
+      .line("[ DINE-IN SERVICE ]");
+  } else if (fulfillment === "takeaway" || fulfillment === "pickup") {
+    b.size("double")
+      .bold(true)
+      .line(`TOKEN: #${tokenNo}`)
+      .size("normal")
+      .line("[ TAKEAWAY / PARCEL ]");
+  } else {
+    b.size("double")
+      .bold(true)
+      .line(`ORDER: #${orderNumber}`)
+      .size("normal")
+      .line(`[ ${fulfillment?.toUpperCase() || "COUNTER"} ]`);
+  }
+
+  b.line(`Time: ${timestamp}`)
+    .line(`Steward/Cashier: ${stewardName}`)
+    .hr()
+    .align("left")
+    .bold(true)
+    .line("PREPARATION ITEMS:")
+    .bold(false);
+
+  items.forEach((it: any) => {
+    b.feed(1)
+      .bold(true)
+      .size("double")
+      .line(`[ ${it.qty}x ] ${it.name}`)
+      .size("normal")
+      .bold(false);
+
+    if (it.variant) {
+      b.line(`   Variation: ${it.variant}`);
+    }
+    if (it.spiceLevel) {
+      b.bold(true).line(`   Spice: ${it.spiceLevel.toUpperCase()}`).bold(false);
+    }
+    if (it.prepNotes) {
+      b.bold(true).line(`   >> NOTE: ${it.prepNotes.toUpperCase()} <<`).bold(false);
+    }
+  });
+
+  if (orderNotes) {
+    b.hr()
+      .bold(true)
+      .line("SPECIAL INSTRUCTIONS:")
+      .line(orderNotes.toUpperCase())
+      .bold(false);
+  }
+
+  b.hr()
+    .align("center")
+    .bold(true)
+    .line("--- END OF KOT ---")
+    .feed(3);
+
+  if (config.autoCut) {
+    b.cut();
+  }
+
+  // Browser Print High-Contrast HTML
+  const html = `
+    <div style="font-family: monospace; font-size: 13px; line-height: 1.4; color: #000; padding: 4px; max-width: 320px; margin: 0 auto;">
+      <div style="text-align: center; font-weight: 900; font-size: 16px; border-bottom: 2px solid #000; padding-bottom: 4px;">
+        *** KITCHEN ORDER TICKET (KOT) ***
+      </div>
+      <div style="text-align: center; margin: 8px 0;">
+        ${tableNo ? `<div style="font-size: 20px; font-weight: 900; background: #000; color: #fff; padding: 4px; border-radius: 4px;">TABLE #${tableNo} (DINE-IN)</div>` : `<div style="font-size: 20px; font-weight: 900; background: #000; color: #fff; padding: 4px; border-radius: 4px;">TOKEN #${tokenNo}</div>`}
+        <div style="font-size: 11px; margin-top: 4px;">Time: ${timestamp} · Server: ${stewardName}</div>
+      </div>
+      <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0; margin-bottom: 8px; font-weight: bold;">
+        PREPARATION ITEMS:
+      </div>
+      ${items.map((it: any) => `
+        <div style="margin: 8px 0; padding: 6px; border: 1.5px solid #000; border-radius: 4px;">
+          <div style="font-size: 15px; font-weight: 900;">[ ${it.qty}x ] ${it.name}</div>
+          ${it.spiceLevel ? `<div style="font-weight: bold; color: #b91c1c; margin-top: 2px;">SPICE: ${it.spiceLevel.toUpperCase()}</div>` : ""}
+          ${it.prepNotes ? `<div style="background: #e2e8f0; font-weight: bold; padding: 2px 4px; margin-top: 4px; border-left: 3px solid #000;">NOTE: ${it.prepNotes.toUpperCase()}</div>` : ""}
+        </div>
+      `).join("")}
+      ${orderNotes ? `
+        <div style="margin-top: 8px; padding: 4px; border: 1px dashed #000; font-weight: bold; background: #fef08a;">
+          ORDER NOTE: ${orderNotes.toUpperCase()}
+        </div>
+      ` : ""}
+      <div style="text-align: center; margin-top: 12px; font-size: 11px; font-weight: bold;">
+        --- END OF KOT ---
+      </div>
+    </div>
+  `;
+
+  return { escPosBytes: b.getBytes(), html };
 }
 
 /**
