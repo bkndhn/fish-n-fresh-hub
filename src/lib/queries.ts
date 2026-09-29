@@ -40,7 +40,7 @@ export function getProductsQuery(branchId?: string) {
       ];
 
       let q = supabase
-        .from("products")
+        .from("products_public")
         .select("*")
         .eq("is_available", true)
         .order("name");
@@ -61,7 +61,7 @@ export function getProductsQuery(branchId?: string) {
       // If branch has no products yet, fallback to all available products (still excluding hidden)
       if (branchId && list.length === 0) {
         let fallbackQ = supabase
-          .from("products")
+          .from("products_public")
           .select("*")
           .eq("is_available", true)
           .order("name");
@@ -130,7 +130,7 @@ export function productQuery(id: string) {
     staleTime: 1000 * 60 * 10,
     gcTime: 1000 * 60 * 60 * 24,
     queryFn: async (): Promise<Product | null> => {
-      const { data, error } = await supabase.from("products").select("*").eq("id", id).maybeSingle();
+      const { data, error } = await supabase.from("products_public").select("*").eq("id", id).maybeSingle();
       if (error) throw error;
       const res = (data ?? null) as unknown as Product | null;
       return res ? sanitizeProduct(res) : null;

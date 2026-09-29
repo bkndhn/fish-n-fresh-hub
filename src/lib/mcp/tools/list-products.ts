@@ -17,7 +17,7 @@ export default defineTool({
   handler: async ({ search, category, only_available, limit }) => {
     const supabase = supabaseAnon();
     let query = supabase
-      .from("products")
+      .from("products_public")
       .select("id, name, description, price, old_price, unit, category, stock, is_available, origin, rating")
       .order("name")
       .limit(Math.min(Math.max(limit ?? 20, 1), 100));
