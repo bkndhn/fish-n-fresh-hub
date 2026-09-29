@@ -424,6 +424,51 @@ function Dashboard() {
           </div>
         </div>
 
+        {/* Live Dine-In Tables */}
+        <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-2xs">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+              Live Tables ({activeTables.length} occupied)
+            </h2>
+            <Link to="/admin/tables" className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+              <span>Table Studio</span>
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+
+          {activeTables.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-3 text-center">
+              No tables occupied right now. Scanned table orders appear here instantly.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2.5">
+              {activeTables.map((t) => (
+                <Link
+                  key={t.table}
+                  to="/admin/orders"
+                  className="p-3 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-foreground">Table {t.table}</span>
+                    <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-primary/40 text-primary">
+                      {t.orders} {t.orders === 1 ? "bill" : "bills"}
+                    </Badge>
+                  </div>
+                  <p className="text-lg font-black text-foreground mt-1">{formatINR(t.amount)}</p>
+                  <span className="text-[10px] text-muted-foreground">Seated {minutesSince(t.since)}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {liveAt && (
+            <p className="mt-3 text-[10px] text-muted-foreground text-right">
+              Last live update {liveAt.toLocaleTimeString()}
+            </p>
+          )}
+        </div>
+
         {/* Quick Operations Launchpad */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
           <Link
