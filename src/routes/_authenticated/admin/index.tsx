@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { Database } from "@/integrations/supabase/types";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState, useEffect } from "react";
+import { subscribeToAllOrdersRealtime, soundEngine } from "@/lib/realtime";
 import {
   IndianRupee,
   Package,
@@ -68,6 +69,19 @@ function Dashboard() {
   const { data: settings } = useQuery(settingsQuery);
 
   const [timeframe, setTimeframe] = useState<"today" | "all">("today");
+  const [liveAt, setLiveAt] = useState<Date | null>(null);
+  const qc = useQueryClient();
+
+  // Live refresh: any new/updated order instantly refreshes dashboard metrics
+  useEffect(() => {
+    const unsubscribe = subscribeToAllOrdersRealtime(({ eventType }) => {
+      setLiveAt(new Date());
+      if (eventType === "INSERT") soundEngine.playStatusChime();
+      void qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "products"] });
+    });
+    return unsubscribe;
+  }, [qc]);
 
   const allOrders = orders.data ?? [];
   const allProducts = products.data ?? [];
@@ -135,6 +149,32 @@ function Dashboard() {
     }
     return Object.values(productStats).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
   }, [activeOrders]);
+
+  // Live dine-in tables currently occupied (open bills)
+  const activeTables = useMemo(() => {
+    const closed = ["delivered", "completed", "cancelled", "paid"];
+    const byTable: Record<string, { table: string; orders: number; amount: number; since: string }> = {};
+    for (const o of allOrders) {
+      const table = (o as { table_number?: string | null }).table_number;
+      if (!table) continue;
+      if (closed.includes(o.status)) continue;
+      const existing = byTable[table];
+      if (!existing) {
+        byTable[table] = { table, orders: 1, amount: Number(o.total || 0), since: o.created_at };
+      } else {
+        existing.orders += 1;
+        existing.amount += Number(o.total || 0);
+        if (new Date(o.created_at) < new Date(existing.since)) existing.since = o.created_at;
+      }
+    }
+    return Object.values(byTable).sort((a, b) => Number(a.table) - Number(b.table));
+  }, [allOrders]);
+
+  const minutesSince = (iso: string) => {
+    const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+    return mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
+  };
+
 
   return (
     <AdminShell 
@@ -382,6 +422,51 @@ function Dashboard() {
               <span className="text-[10px] text-muted-foreground">Fulfilled successfully</span>
             </Link>
           </div>
+        </div>
+
+        {/* Live Dine-In Tables */}
+        <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-2xs">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+              Live Tables ({activeTables.length} occupied)
+            </h2>
+            <Link to="/admin/tables" className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+              <span>Table Studio</span>
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+
+          {activeTables.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-3 text-center">
+              No tables occupied right now. Scanned table orders appear here instantly.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2.5">
+              {activeTables.map((t) => (
+                <Link
+                  key={t.table}
+                  to="/admin/orders"
+                  className="p-3 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-foreground">Table {t.table}</span>
+                    <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-primary/40 text-primary">
+                      {t.orders} {t.orders === 1 ? "bill" : "bills"}
+                    </Badge>
+                  </div>
+                  <p className="text-lg font-black text-foreground mt-1">{formatINR(t.amount)}</p>
+                  <span className="text-[10px] text-muted-foreground">Seated {minutesSince(t.since)}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {liveAt && (
+            <p className="mt-3 text-[10px] text-muted-foreground text-right">
+              Last live update {liveAt.toLocaleTimeString()}
+            </p>
+          )}
         </div>
 
         {/* Quick Operations Launchpad */}
