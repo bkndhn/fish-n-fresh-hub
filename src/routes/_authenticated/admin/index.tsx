@@ -69,6 +69,19 @@ function Dashboard() {
   const { data: settings } = useQuery(settingsQuery);
 
   const [timeframe, setTimeframe] = useState<"today" | "all">("today");
+  const [liveAt, setLiveAt] = useState<Date | null>(null);
+  const qc = useQueryClient();
+
+  // Live refresh: any new/updated order instantly refreshes dashboard metrics
+  useEffect(() => {
+    const unsubscribe = subscribeToAllOrdersRealtime(({ eventType }) => {
+      setLiveAt(new Date());
+      if (eventType === "INSERT") soundEngine.playStatusChime();
+      void qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "products"] });
+    });
+    return unsubscribe;
+  }, [qc]);
 
   const allOrders = orders.data ?? [];
   const allProducts = products.data ?? [];
