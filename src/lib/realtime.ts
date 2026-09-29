@@ -205,6 +205,32 @@ export function subscribeToUserOrdersRealtime(
 }
 
 /**
+ * Subscribe to every order change in the store (admin/kitchen dashboards).
+ * Fires on inserts, status updates and deletions so live metrics stay fresh.
+ */
+export function subscribeToAllOrdersRealtime(
+  onChange: (payload: { eventType: string; row: any }) => void
+): () => void {
+  const channel = supabase
+    .channel("realtime-admin-orders")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "orders" },
+      (payload) => {
+        onChange({
+          eventType: payload.eventType,
+          row: payload.new || payload.old,
+        });
+      }
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+
+/**
  * Realtime Connection Status Hook
  */
 export function useRealtimeConnectionStatus() {
