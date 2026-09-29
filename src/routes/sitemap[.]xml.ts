@@ -23,7 +23,7 @@ export const Route = createFileRoute("/sitemap.xml")({
           if (supabaseUrl && !supabaseUrl.includes("placeholder")) {
             const supabase = createClient(supabaseUrl, supabaseKey);
             const { data } = await supabase
-              .from("products")
+              .from("products_public")
               .select("id, name, image_url, updated_at, created_at, category")
               .eq("is_available", true);
             if (data) products = data;

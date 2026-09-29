@@ -67,7 +67,7 @@ export const recommendProducts = createServerFn({ method: "POST" })
     });
 
     let query = supabasePublic
-      .from("products")
+      .from("products_public")
       .select("id, name, name_tamil, description, price, unit, category, stock, tags, best_for, protein, origin")
       .eq("is_available", true)
       .gt("stock", 0)
