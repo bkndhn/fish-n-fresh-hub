@@ -32,17 +32,25 @@ export const Route = createFileRoute("/catalog")({
   }),
   head: ({ search }: any) => {
     const cat = search?.category;
-    const title = cat ? `${cat} | Catalog` : "Products Catalog | Express Delivery";
+    const title = cat
+      ? `${cat} — Buy Fresh Online | Fish N Fresh`
+      : "Shop Fresh Seafood & Meat Online | Fish N Fresh";
     const desc = cat
-      ? `Explore premium ${cat} available for express delivery.`
-      : "Browse products by category with fast same-day express delivery.";
+      ? `Order fresh ${cat} online at Fish N Fresh. Ice-packed, chemical-free and delivered same day, or collect from the store.`
+      : "Browse fresh fish, prawns, crab, and premium meat by category. Same-day express delivery, store pickup, COD and UPI accepted.";
+    const url = `https://fishnfresh.lovable.app/catalog${cat ? `?category=${encodeURIComponent(cat)}` : ""}`;
     return {
       meta: [
         { title },
         { name: "description", content: desc },
+        { name: "robots", content: "index, follow, max-image-preview:large" },
         { property: "og:title", content: title },
         { property: "og:description", content: desc },
+        { property: "og:type", content: "website" },
+        { property: "og:url", content: url },
+        { name: "twitter:card", content: "summary_large_image" },
       ],
+      links: [{ rel: "canonical", href: url }],
     };
   },
   component: Catalog,
