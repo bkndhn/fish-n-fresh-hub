@@ -23,18 +23,24 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Fresh Deliveries to Your Doorstep | Fast & Direct" },
+      { title: "Fish N Fresh — Fresh Seafood & Meat Delivered in 35 Minutes" },
       {
         name: "description",
         content:
-          "Order directly online. Express same-day delivery, verified authentic quality, COD and UPI supported.",
+          "Buy dock-fresh fish, prawns, crab and premium meat online. Ice-packed, chemical-free, same-day express delivery or store pickup. COD and UPI accepted.",
       },
-      { property: "og:title", content: "Fresh Deliveries to Your Doorstep" },
+      { name: "keywords", content: "fresh fish online, seafood delivery, prawns, crab, meat delivery, fish shop near me" },
+      { name: "robots", content: "index, follow, max-image-preview:large" },
+      { property: "og:title", content: "Fish N Fresh — Fresh Seafood & Meat Delivered in 35 Minutes" },
       {
         property: "og:description",
-        content: "Fresh products delivered directly to your doorstep. COD & UPI supported.",
+        content: "Dock-fresh seafood and premium meat, ice-packed and delivered to your doorstep. COD & UPI supported.",
       },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://fishnfresh.lovable.app/" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://fishnfresh.lovable.app/" }],
   }),
   component: Home,
 });
