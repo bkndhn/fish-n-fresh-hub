@@ -3564,6 +3564,18 @@ export type Database = {
         }
       }
       get_auth_branch_id: { Args: never; Returns: string }
+      get_table_active_orders: {
+        Args: { p_table: string }
+        Returns: {
+          created_at: string
+          id: string
+          items: Json
+          order_number: string
+          status: string
+          table_number: string
+          total: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -3577,6 +3589,16 @@ export type Database = {
       is_super_admin: { Args: never; Returns: boolean }
       is_team_member: { Args: never; Returns: boolean }
       is_wholesale_buyer: { Args: { _user_id: string }; Returns: boolean }
+      place_dine_in_order: {
+        Args: {
+          p_customer_name: string
+          p_customer_phone: string
+          p_items: Json
+          p_notes: string
+          p_table: string
+        }
+        Returns: Json
+      }
       redeem_wallet_balance: {
         Args: { p_amount: number; p_order_id?: string }
         Returns: Json
