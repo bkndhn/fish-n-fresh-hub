@@ -150,6 +150,32 @@ function Dashboard() {
     return Object.values(productStats).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
   }, [activeOrders]);
 
+  // Live dine-in tables currently occupied (open bills)
+  const activeTables = useMemo(() => {
+    const closed = ["delivered", "completed", "cancelled", "paid"];
+    const byTable: Record<string, { table: string; orders: number; amount: number; since: string }> = {};
+    for (const o of allOrders) {
+      const table = (o as { table_number?: string | null }).table_number;
+      if (!table) continue;
+      if (closed.includes(o.status)) continue;
+      const existing = byTable[table];
+      if (!existing) {
+        byTable[table] = { table, orders: 1, amount: Number(o.total || 0), since: o.created_at };
+      } else {
+        existing.orders += 1;
+        existing.amount += Number(o.total || 0);
+        if (new Date(o.created_at) < new Date(existing.since)) existing.since = o.created_at;
+      }
+    }
+    return Object.values(byTable).sort((a, b) => Number(a.table) - Number(b.table));
+  }, [allOrders]);
+
+  const minutesSince = (iso: string) => {
+    const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+    return mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
+  };
+
+
   return (
     <AdminShell 
       title="Store Operations & Command Center" 
