@@ -258,7 +258,7 @@ function TableOrderingPage() {
         fulfillment_type: "dine_in",
         table_number: String(tableNo),
         customer_name: customerName.trim() || `${tableDisplayName} Diner`,
-        customer_phone: customerPhone.trim() || null,
+        customer_phone: customerPhone.trim() || "9999999999",
         customer_address: `${tableDisplayName} (Dine-In)`,
         total: cartTotal,
         subtotal: cartTotal,
