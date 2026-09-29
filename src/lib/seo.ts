@@ -224,10 +224,37 @@ export function buildLocalBusinessSchema(storeInfo: StoreSeoInfo, origin = ""): 
     image: storeInfo.logoUrl || `${clientOrigin}/icons/icon-512.png`,
     url: clientOrigin,
     telephone: storeInfo.phone || "+919876543210",
+    description: storeInfo.description || "Fresh catch and premium meat with fast local delivery and store pickup.",
     priceRange: "₹₹",
     currenciesAccepted: "INR",
     paymentAccepted: "Cash, UPI, Google Pay, PhonePe, Credit Card, Debit Card, Net Banking",
     hasMap: `https://maps.google.com/?q=${storeInfo.lat || 13.0827},${storeInfo.lng || 80.2707}`,
+    areaServed: {
+      "@type": "GeoCircle",
+      geoMidpoint: {
+        "@type": "GeoCoordinates",
+        latitude: storeInfo.lat || 13.0827,
+        longitude: storeInfo.lng || 80.2707,
+      },
+      geoRadius: "15000",
+    },
+    hasOfferCatalog: {
+      "@type": "OfferCatalog",
+      name: `${name} Catalogue`,
+      url: `${clientOrigin}/catalog`,
+    },
+    potentialAction: {
+      "@type": "OrderAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${clientOrigin}/catalog`,
+        actionPlatform: [
+          "http://schema.org/DesktopWebPlatform",
+          "http://schema.org/MobileWebPlatform",
+        ],
+      },
+      deliveryMethod: ["http://purl.org/goodrelations/v1#DeliveryModeOwnFleet", "http://purl.org/goodrelations/v1#DeliveryModePickUp"],
+    },
   };
 
   if (storeInfo.address) {
