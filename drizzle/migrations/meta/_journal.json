@@ -85,6 +85,13 @@
       "when": 1790657285074,
       "tag": "0011_products_public_view_mask_wholesale",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790657371914,
+      "tag": "0012_grant_execute_role_helpers_to_anon",
+      "breakpoints": true
     }
   ]
 }
