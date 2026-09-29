@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { Database } from "@/integrations/supabase/types";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState, useEffect } from "react";
+import { subscribeToAllOrdersRealtime, soundEngine } from "@/lib/realtime";
 import {
   IndianRupee,
   Package,
