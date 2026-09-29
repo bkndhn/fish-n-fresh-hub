@@ -228,6 +228,13 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "collection_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       collections: {
@@ -387,6 +394,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_subscriptions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_public"
             referencedColumns: ["id"]
           },
         ]
@@ -802,6 +816,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_batches_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1375,6 +1396,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: true
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_ai_benefits_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products_public"
             referencedColumns: ["id"]
           },
         ]
@@ -2709,6 +2737,13 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "waste_entries_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       webhook_deliveries: {
@@ -2912,6 +2947,173 @@ export type Database = {
           total_shipments: number | null
         }
         Relationships: []
+      }
+      products_public: {
+        Row: {
+          aisle_location: string | null
+          allow_custom_qty: boolean | null
+          benefits: string[] | null
+          best_for: string | null
+          branch_id: string | null
+          brand: string | null
+          calories: number | null
+          catch_date: string | null
+          category: string | null
+          cost_price: number | null
+          created_at: string | null
+          description: string | null
+          gst_included: boolean | null
+          gst_percent: number | null
+          hsn_code: string | null
+          id: string | null
+          image_url: string | null
+          is_available: boolean | null
+          is_bestseller: boolean | null
+          is_featured: boolean | null
+          is_returnable: boolean | null
+          lab_tested: boolean | null
+          low_stock_threshold: number | null
+          model_number: string | null
+          name: string | null
+          name_tamil: string | null
+          old_price: number | null
+          origin: string | null
+          pos_code: number | null
+          price: number | null
+          protein: string | null
+          rating: number | null
+          recipe_steps: string | null
+          recipe_title: string | null
+          requires_serial: boolean | null
+          return_window_days: number | null
+          source_origin: string | null
+          specifications: Json | null
+          stock: number | null
+          storage: string | null
+          tags: string[] | null
+          traceability: string | null
+          unit: string | null
+          unlimited_stock: boolean | null
+          updated_at: string | null
+          variants: Json | null
+          warranty_period_months: number | null
+          wholesale_min_qty: number | null
+          wholesale_price: number | null
+          wholesale_tiers: Json | null
+        }
+        Insert: {
+          aisle_location?: string | null
+          allow_custom_qty?: boolean | null
+          benefits?: string[] | null
+          best_for?: string | null
+          branch_id?: string | null
+          brand?: string | null
+          calories?: number | null
+          catch_date?: string | null
+          category?: string | null
+          cost_price?: never
+          created_at?: string | null
+          description?: string | null
+          gst_included?: boolean | null
+          gst_percent?: number | null
+          hsn_code?: string | null
+          id?: string | null
+          image_url?: string | null
+          is_available?: boolean | null
+          is_bestseller?: boolean | null
+          is_featured?: boolean | null
+          is_returnable?: boolean | null
+          lab_tested?: boolean | null
+          low_stock_threshold?: number | null
+          model_number?: string | null
+          name?: string | null
+          name_tamil?: string | null
+          old_price?: number | null
+          origin?: string | null
+          pos_code?: number | null
+          price?: number | null
+          protein?: string | null
+          rating?: number | null
+          recipe_steps?: string | null
+          recipe_title?: string | null
+          requires_serial?: boolean | null
+          return_window_days?: number | null
+          source_origin?: string | null
+          specifications?: Json | null
+          stock?: number | null
+          storage?: string | null
+          tags?: string[] | null
+          traceability?: string | null
+          unit?: string | null
+          unlimited_stock?: boolean | null
+          updated_at?: string | null
+          variants?: Json | null
+          warranty_period_months?: number | null
+          wholesale_min_qty?: never
+          wholesale_price?: never
+          wholesale_tiers?: never
+        }
+        Update: {
+          aisle_location?: string | null
+          allow_custom_qty?: boolean | null
+          benefits?: string[] | null
+          best_for?: string | null
+          branch_id?: string | null
+          brand?: string | null
+          calories?: number | null
+          catch_date?: string | null
+          category?: string | null
+          cost_price?: never
+          created_at?: string | null
+          description?: string | null
+          gst_included?: boolean | null
+          gst_percent?: number | null
+          hsn_code?: string | null
+          id?: string | null
+          image_url?: string | null
+          is_available?: boolean | null
+          is_bestseller?: boolean | null
+          is_featured?: boolean | null
+          is_returnable?: boolean | null
+          lab_tested?: boolean | null
+          low_stock_threshold?: number | null
+          model_number?: string | null
+          name?: string | null
+          name_tamil?: string | null
+          old_price?: number | null
+          origin?: string | null
+          pos_code?: number | null
+          price?: number | null
+          protein?: string | null
+          rating?: number | null
+          recipe_steps?: string | null
+          recipe_title?: string | null
+          requires_serial?: boolean | null
+          return_window_days?: number | null
+          source_origin?: string | null
+          specifications?: Json | null
+          stock?: number | null
+          storage?: string | null
+          tags?: string[] | null
+          traceability?: string | null
+          unit?: string | null
+          unlimited_stock?: boolean | null
+          updated_at?: string | null
+          variants?: Json | null
+          warranty_period_months?: number | null
+          wholesale_min_qty?: never
+          wholesale_price?: never
+          wholesale_tiers?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       store_settings_public: {
         Row: {

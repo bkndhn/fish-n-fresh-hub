@@ -78,6 +78,13 @@
       "when": 1790596239749,
       "tag": "0010_harden_public_read_policies_and_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790657285074,
+      "tag": "0011_products_public_view_mask_wholesale",
+      "breakpoints": true
     }
   ]
 }
