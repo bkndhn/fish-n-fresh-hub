@@ -1462,6 +1462,7 @@ export type Database = {
           hsn_code: string | null
           id: string
           image_url: string | null
+          is_active: boolean | null
           is_available: boolean
           is_bestseller: boolean
           is_featured: boolean
@@ -1514,6 +1515,7 @@ export type Database = {
           hsn_code?: string | null
           id?: string
           image_url?: string | null
+          is_active?: boolean | null
           is_available?: boolean
           is_bestseller?: boolean
           is_featured?: boolean
@@ -1566,6 +1568,7 @@ export type Database = {
           hsn_code?: string | null
           id?: string
           image_url?: string | null
+          is_active?: boolean | null
           is_available?: boolean
           is_bestseller?: boolean
           is_featured?: boolean
