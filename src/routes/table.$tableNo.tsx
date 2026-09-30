@@ -303,15 +303,17 @@ function TableOrderingPage() {
       type: "waiter_call" | "bill_request" | "water" | "cutlery" | "cleaning" | "custom";
       details?: string;
     }) => {
+      const payload: any = {
+        table_number: String(tableNo),
+        session_id: sessionId,
+        request_type: type,
+        details: details || null,
+        status: "pending",
+      };
+
       const { data, error } = await supabase
         .from("table_service_requests")
-        .insert({
-          table_number: String(tableNo),
-          session_id: sessionId,
-          request_type: type,
-          details: details || null,
-          status: "pending",
-        })
+        .insert(payload)
         .select()
         .single();
 
@@ -493,16 +495,17 @@ function TableOrderingPage() {
       try {
         const { data: rpcRes, error: rpcErr } = await supabase.rpc("place_dine_in_order", {
           p_table: String(tableNo),
-          p_items: orderItems,
-          p_total: cartTotal,
           p_customer_name: customerName.trim() || `${tableDisplayName} Diner`,
           p_customer_phone: customerPhone.trim() || "9999999999",
           p_notes: `${tableDisplayName} Dine-In Round ${nextRoundNumber}. Prep Notes: ${orderNotes.trim() || "Standard Chef Prep"}`,
+          p_items: orderItems,
           p_round: nextRoundNumber,
           p_session_id: sessionId,
         });
 
-        if (!rpcErr && rpcRes && (rpcRes as any).success) {
+        if (rpcErr) {
+          console.warn("place_dine_in_order RPC error:", rpcErr);
+        } else if (rpcRes && (rpcRes as any).id) {
           return rpcRes;
         }
       } catch (e) {
