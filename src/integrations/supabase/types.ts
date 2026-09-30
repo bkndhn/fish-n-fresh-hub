@@ -2542,6 +2542,7 @@ export type Database = {
           details: string | null
           id: string
           request_type: string
+          session_id: string | null
           status: string
           table_number: string
           updated_at: string
@@ -2551,6 +2552,7 @@ export type Database = {
           details?: string | null
           id?: string
           request_type: string
+          session_id?: string | null
           status?: string
           table_number: string
           updated_at?: string
@@ -2560,6 +2562,7 @@ export type Database = {
           details?: string | null
           id?: string
           request_type?: string
+          session_id?: string | null
           status?: string
           table_number?: string
           updated_at?: string
