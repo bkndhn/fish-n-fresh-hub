@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Utensils,
   Plus,
@@ -18,15 +18,30 @@ import {
   AlertCircle,
   Trash2,
   Clock,
+  Bell,
+  BellRing,
+  Droplet,
+  Coffee,
+  X,
+  ChevronDown,
+  ChevronUp,
+  DollarSign,
+  Send,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { productsQuery, categoriesQuery, settingsQuery } from "@/lib/queries";
-import { formatINR } from "@/lib/format";
+import { formatINR, formatIST } from "@/lib/format";
 import { soundEngine } from "@/lib/realtime";
 import { UpiPaymentQr } from "@/components/UpiPaymentQr";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,9 +60,35 @@ interface TableCartItem {
   cookingNote: string;
 }
 
+export interface TableServiceRequest {
+  id: string;
+  table_number: string;
+  session_id: string | null;
+  request_type: "waiter_call" | "bill_request" | "water" | "cutlery" | "cleaning" | "custom" | string;
+  details: string | null;
+  status: "pending" | "acknowledged" | "resolved" | "cancelled" | string;
+  created_at: string;
+  updated_at: string;
+}
+
 function TableOrderingPage() {
   const { tableNo } = Route.useParams();
   const qc = useQueryClient();
+
+  // Multi-round session token: dine_in_session_T{tableNo}
+  const sessionKey = `dine_in_session_T${tableNo}`;
+  const [sessionId] = useState<string>(() => {
+    if (typeof window === "undefined") return `sess_ssr_${tableNo}`;
+    try {
+      const existing = window.sessionStorage.getItem(sessionKey);
+      if (existing && existing.trim()) return existing;
+      const newId = `sess_${tableNo}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      window.sessionStorage.setItem(sessionKey, newId);
+      return newId;
+    } catch {
+      return `sess_${tableNo}_${Date.now()}`;
+    }
+  });
 
   const { data: rawSettings } = useQuery(settingsQuery);
   const settings = rawSettings as (SiteSettings & {
@@ -73,6 +114,13 @@ function TableOrderingPage() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isBillOpen, setIsBillOpen] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState<any | null>(null);
+
+  // Custom request dialog state
+  const [customRequestOpen, setCustomRequestOpen] = useState(false);
+  const [customRequestText, setCustomRequestText] = useState("");
+
+  // Expandable round state for live stepper
+  const [expandedRoundIds, setExpandedRoundIds] = useState<Record<string, boolean>>({});
 
   // Split Bill Engine State
   const [splitDiners, setSplitDiners] = useState<number>(2);
@@ -114,10 +162,21 @@ function TableOrderingPage() {
   );
   const hideOutOfStockBadges = Boolean(settings?.hide_out_of_stock_badges);
 
-  // Query existing active orders for this table
-  const { data: tableOrders, refetch: refetchTableOrders } = useQuery({
+  // ─── 1. QUERY & REALTIME: Active Orders for this Table ───
+  const { data: tableOrders = [], refetch: refetchTableOrders } = useQuery<any[]>({
     queryKey: ["table_active_orders", tableNo],
     queryFn: async () => {
+      try {
+        const { data: rpcData, error: rpcErr } = await supabase.rpc("get_table_active_orders", {
+          p_table: String(tableNo),
+        });
+        if (!rpcErr && Array.isArray(rpcData)) {
+          return rpcData;
+        }
+      } catch {
+        // RPC fallback to direct query
+      }
+
       const { data, error } = await supabase
         .from("orders")
         .select("*")
@@ -132,8 +191,186 @@ function TableOrderingPage() {
       }
       return data || [];
     },
-    refetchInterval: 12000,
+    refetchInterval: 8000,
   });
+
+  // Realtime subscription on orders for celebratory chimes and live status changes
+  useEffect(() => {
+    const channel = supabase
+      .channel(`table_orders_stream_${tableNo}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "orders",
+          filter: `table_number=eq.${tableNo}`,
+        },
+        (payload) => {
+          refetchTableOrders();
+          if (payload.eventType === "UPDATE") {
+            const newStatus = (payload.new as any)?.status;
+            const oldStatus = (payload.old as any)?.status;
+            const roundNum = (payload.new as any)?.round_number || 1;
+            if (newStatus !== oldStatus) {
+              soundEngine.playStatusChime();
+              if (newStatus === "preparing") {
+                toast.info(`👨‍🍳 Chef started preparing Round #${roundNum}!`, {
+                  description: "Your food is fresh in the pan.",
+                });
+              } else if (newStatus === "ready") {
+                toast.success(`🔔 Round #${roundNum} is ready!`, {
+                  description: "Our server is bringing hot dishes to your table.",
+                  duration: 6000,
+                });
+              } else if (newStatus === "delivered" || newStatus === "completed") {
+                toast.success(`🍽️ Round #${roundNum} served. Enjoy your meal!`);
+              }
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tableNo, refetchTableOrders]);
+
+  // ─── 2. QUERY & REALTIME: Active Service Requests for this Table ───
+  const { data: serviceRequests = [], refetch: refetchServiceRequests } = useQuery<TableServiceRequest[]>({
+    queryKey: ["table_service_requests", tableNo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("table_service_requests")
+        .select("*")
+        .eq("table_number", String(tableNo))
+        .in("status", ["pending", "acknowledged"])
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.warn("Failed fetching table service requests:", error);
+        return [];
+      }
+      return (data as TableServiceRequest[]) || [];
+    },
+    refetchInterval: 6000,
+  });
+
+  // Realtime subscription on table_service_requests
+  useEffect(() => {
+    const channel = supabase
+      .channel(`table_service_stream_${tableNo}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "table_service_requests",
+          filter: `table_number=eq.${tableNo}`,
+        },
+        (payload) => {
+          refetchServiceRequests();
+          if (payload.eventType === "UPDATE") {
+            const newStatus = (payload.new as any)?.status;
+            const oldStatus = (payload.old as any)?.status;
+            if (newStatus !== oldStatus) {
+              soundEngine.playStatusChime();
+              if (newStatus === "acknowledged") {
+                toast.info("🏃 Staff on the way!", {
+                  description: "A steward has acknowledged your request and is coming to your table.",
+                });
+              } else if (newStatus === "resolved") {
+                toast.success("✅ Service request attended by staff.");
+              }
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tableNo, refetchServiceRequests]);
+
+  // ─── 3. MUTATIONS: Service Requests (Call Waiter, Request Bill, Water, Cutlery, Cleaning) ───
+  const createServiceRequestMutation = useMutation({
+    mutationFn: async ({
+      type,
+      details,
+    }: {
+      type: "waiter_call" | "bill_request" | "water" | "cutlery" | "cleaning" | "custom";
+      details?: string;
+    }) => {
+      const { data, error } = await supabase
+        .from("table_service_requests")
+        .insert({
+          table_number: String(tableNo),
+          session_id: sessionId,
+          request_type: type,
+          details: details || null,
+          status: "pending",
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, vars) => {
+      soundEngine.playStatusChime();
+      refetchServiceRequests();
+      const labels: Record<string, string> = {
+        waiter_call: "Waiter / Steward Called 🛎️",
+        bill_request: "Bill Requested 🧾",
+        water: "Drinking Water Requested 💧",
+        cutlery: "Cutlery & Plates Requested 🍴",
+        cleaning: "Table Cleaning Requested 🧹",
+        custom: "Special Request Sent 💬",
+      };
+      toast.success(labels[vars.type] || "Service request sent!", {
+        description: "Floor staff has been alerted in real time.",
+      });
+      if (vars.type === "bill_request") {
+        setIsBillOpen(true);
+      }
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to alert staff");
+    },
+  });
+
+  const cancelServiceRequestMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("table_service_requests")
+        .update({ status: "cancelled", updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => {
+      refetchServiceRequests();
+      toast.info("Service request cancelled.");
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to cancel request");
+    },
+  });
+
+  // ─── 4. MULTI-ROUND CALCULATION ───
+  const activeOrdersList = useMemo(() => {
+    return (tableOrders ?? []) as any[];
+  }, [tableOrders]);
+
+  const maxRound = useMemo(() => {
+    if (activeOrdersList.length === 0) return 0;
+    const rounds = activeOrdersList.map((o) => Number(o.round_number || 1));
+    return Math.max(0, ...rounds);
+  }, [activeOrdersList]);
+
+  const nextRoundNumber = maxRound + 1;
 
   // Filtered menu
   const filteredProducts = useMemo(() => {
@@ -182,7 +419,7 @@ function TableOrderingPage() {
       }
       return [...prev, { product, qty: 1, spiceLevel: spice, cookingNote: "" }];
     });
-    toast.success(`Added ${product.name} to ${tableDisplayName}`);
+    toast.success(`Added ${product.name} to Round #${nextRoundNumber}`);
   };
 
   const updateCartQty = (productId: string, spice: SpiceLevel, delta: number) => {
@@ -213,7 +450,7 @@ function TableOrderingPage() {
     if (cart.length === 0) return;
     setCart([]);
     setIsCartOpen(false);
-    toast.success(`Cart cleared for ${tableDisplayName}`);
+    toast.success(`Round #${nextRoundNumber} cart cleared`);
   };
 
   const cartTotal = useMemo(() => {
@@ -224,23 +461,23 @@ function TableOrderingPage() {
     return cart.reduce((sum, item) => sum + item.qty, 0);
   }, [cart]);
 
-  // Calculate live running table bill from current orders + local pending cart
+  // Calculate live running table bill consolidating all active rounds
   const runningTableBillTotal = useMemo(() => {
-    const ordersTotal = (tableOrders ?? []).reduce(
+    const ordersTotal = activeOrdersList.reduce(
       (sum, ord) => sum + Number(ord.total || 0),
       0
     );
     return ordersTotal > 0 ? ordersTotal : cartTotal;
-  }, [tableOrders, cartTotal]);
+  }, [activeOrdersList, cartTotal]);
 
-  // Place order to kitchen mutation
+  // ─── 5. PLACE ORDER MUTATION (With Multi-Round RPC & Fallback) ───
   const placeOrderMutation = useMutation({
     mutationFn: async () => {
       if (cart.length === 0) {
         throw new Error("Your table cart is empty.");
       }
 
-      const orderNumber = `DINE-T${tableNo}-${Date.now().toString().slice(-4)}`;
+      const orderNumber = `DINE-T${tableNo}-R${nextRoundNumber}-${Date.now().toString().slice(-4)}`;
       const orderItems = cart.map((i) => ({
         product_id: i.product.id,
         name: `${i.product.name} [${i.spiceLevel.toUpperCase()}]`,
@@ -252,6 +489,27 @@ function TableOrderingPage() {
         cooking_instruction: i.cookingNote || null,
       }));
 
+      // Try RPC first for transaction integrity and security definer
+      try {
+        const { data: rpcRes, error: rpcErr } = await supabase.rpc("place_dine_in_order", {
+          p_table: String(tableNo),
+          p_items: orderItems,
+          p_total: cartTotal,
+          p_customer_name: customerName.trim() || `${tableDisplayName} Diner`,
+          p_customer_phone: customerPhone.trim() || "9999999999",
+          p_notes: `${tableDisplayName} Dine-In Round ${nextRoundNumber}. Prep Notes: ${orderNotes.trim() || "Standard Chef Prep"}`,
+          p_round: nextRoundNumber,
+          p_session_id: sessionId,
+        });
+
+        if (!rpcErr && rpcRes && (rpcRes as any).success) {
+          return rpcRes;
+        }
+      } catch (e) {
+        console.warn("place_dine_in_order RPC fallback to direct insert:", e);
+      }
+
+      // Direct insert fallback
       const payload = {
         order_number: orderNumber,
         status: "pending",
@@ -266,8 +524,10 @@ function TableOrderingPage() {
         discount: 0,
         payment_method: "pay_at_counter",
         payment_status: "pending",
-        notes: `${tableDisplayName} Dine-In. Prep Notes: ${orderNotes.trim() || "Standard Chef Prep"}`,
+        notes: `${tableDisplayName} Dine-In Round ${nextRoundNumber}. Prep Notes: ${orderNotes.trim() || "Standard Chef Prep"}`,
         items: orderItems,
+        round_number: nextRoundNumber,
+        session_id: sessionId,
       };
 
       const { data, error } = await supabase
@@ -285,7 +545,9 @@ function TableOrderingPage() {
       setCart([]);
       setIsCartOpen(false);
       qc.invalidateQueries({ queryKey: ["table_active_orders", tableNo] });
-      toast.success(`Order placed to kitchen for ${tableDisplayName}!`);
+      toast.success(`Round #${nextRoundNumber} sent to kitchen for ${tableDisplayName}!`, {
+        description: "Chef ticket is printing. Track preparation live below.",
+      });
     },
     onError: (err: any) => {
       toast.error(err.message || "Failed to send order to kitchen");
@@ -333,11 +595,9 @@ function TableOrderingPage() {
           <div className="space-y-2.5 pt-2">
             <Button
               onClick={() => {
-                soundEngine.playStatusChime();
-                toast.success(`Steward notified for ${tableDisplayName}!`, {
-                  description: "A server has been alerted and will attend your table shortly.",
-                });
+                createServiceRequestMutation.mutate({ type: "waiter_call" });
               }}
+              disabled={createServiceRequestMutation.isPending}
               className="w-full h-11 rounded-2xl font-bold text-xs bg-primary text-primary-foreground gap-2 shadow-sm"
             >
               <Users className="size-4" />
@@ -398,9 +658,9 @@ function TableOrderingPage() {
           <div className="space-y-2.5 pt-2">
             <Button
               onClick={() => {
-                soundEngine.playStatusChime();
-                toast.success(`Staff notified for ${matchedTable.name}!`);
+                createServiceRequestMutation.mutate({ type: "waiter_call" });
               }}
+              disabled={createServiceRequestMutation.isPending}
               className="w-full h-11 rounded-2xl font-bold text-xs bg-primary text-primary-foreground gap-2"
             >
               <Users className="size-4" />
@@ -424,9 +684,28 @@ function TableOrderingPage() {
     );
   }
 
+  // Helper for Stepper Milestone Calculation
+  const getOrderStep = (status: string) => {
+    switch (status) {
+      case "pending":
+      case "confirmed":
+        return 1;
+      case "preparing":
+        return 2;
+      case "ready":
+      case "packed":
+        return 3;
+      case "delivered":
+      case "completed":
+        return 4;
+      default:
+        return 1;
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-background text-foreground pb-28">
-      {/* Table Header Bar */}
+    <div className="min-h-screen bg-background text-foreground pb-32">
+      {/* ─── STICKY TABLE HEADER ─── */}
       <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-md px-4 py-3">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -470,20 +749,269 @@ function TableOrderingPage() {
         </div>
       </header>
 
+      {/* ─── FEATURE 1: FLOATING QUICK SERVICE BAR (Instant Table Assistance) ─── */}
+      <div className="bg-muted/40 border-b border-border/80 px-4 py-2.5">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="default"
+              disabled={createServiceRequestMutation.isPending}
+              onClick={() => createServiceRequestMutation.mutate({ type: "waiter_call" })}
+              className="h-8 rounded-xl text-xs font-bold gap-1.5 bg-amber-500 hover:bg-amber-600 text-white shadow-xs"
+            >
+              <Bell className="size-3.5" />
+              <span>Call Waiter 🛎️</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={createServiceRequestMutation.isPending}
+              onClick={() => createServiceRequestMutation.mutate({ type: "bill_request" })}
+              className="h-8 rounded-xl text-xs font-bold gap-1.5 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+            >
+              <Receipt className="size-3.5" />
+              <span>Request Bill 🧾</span>
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0 text-xs">
+            <button
+              type="button"
+              disabled={createServiceRequestMutation.isPending}
+              onClick={() => createServiceRequestMutation.mutate({ type: "water" })}
+              className="h-8 px-2.5 rounded-xl border border-border bg-background hover:bg-muted font-medium flex items-center gap-1 transition-colors text-muted-foreground hover:text-foreground text-[11px]"
+            >
+              <Droplet className="size-3 text-blue-500" />
+              <span>Water</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={createServiceRequestMutation.isPending}
+              onClick={() => createServiceRequestMutation.mutate({ type: "cutlery" })}
+              className="h-8 px-2.5 rounded-xl border border-border bg-background hover:bg-muted font-medium flex items-center gap-1 transition-colors text-muted-foreground hover:text-foreground text-[11px]"
+            >
+              <Utensils className="size-3 text-purple-500" />
+              <span>Cutlery</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={createServiceRequestMutation.isPending}
+              onClick={() => createServiceRequestMutation.mutate({ type: "cleaning" })}
+              className="h-8 px-2.5 rounded-xl border border-border bg-background hover:bg-muted font-medium flex items-center gap-1 transition-colors text-muted-foreground hover:text-foreground text-[11px]"
+            >
+              <Sparkles className="size-3 text-rose-500" />
+              <span>Clean Table</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCustomRequestOpen(true)}
+              className="h-8 px-2.5 rounded-xl border border-border bg-background hover:bg-muted font-medium flex items-center gap-1 transition-colors text-muted-foreground hover:text-foreground text-[11px]"
+            >
+              <MessageSquare className="size-3 text-indigo-500" />
+              <span>Custom Note</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <main className="max-w-4xl mx-auto px-4 pt-4 space-y-4">
-        {/* Welcome Table Banner */}
+        {/* ─── ACTIVE SERVICE REQUEST TRACKER PILL ─── */}
+        {serviceRequests.length > 0 && (
+          <div className="space-y-2">
+            {serviceRequests.map((req) => {
+              const isAcknowledged = req.status === "acknowledged";
+              return (
+                <div
+                  key={req.id}
+                  className={`p-3 rounded-2xl border flex items-center justify-between gap-3 text-xs transition-all ${
+                    isAcknowledged
+                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300"
+                      : "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300 animate-pulse"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="size-2 rounded-full bg-current shrink-0 animate-ping" />
+                    <div className="truncate">
+                      <p className="font-bold truncate">
+                        {isAcknowledged ? "🏃 Staff on the way to table!" : "⏳ Request sent to staff..."}
+                      </p>
+                      <p className="text-[11px] opacity-80 truncate">
+                        {req.request_type === "waiter_call" && "Steward assistance requested"}
+                        {req.request_type === "bill_request" && "Bill printed & cashier alerted"}
+                        {req.request_type === "water" && "Fresh drinking water on the way"}
+                        {req.request_type === "cutlery" && "Extra cutlery & plates requested"}
+                        {req.request_type === "cleaning" && "Housekeeping notified to clean table"}
+                        {req.request_type === "custom" && `Note: ${req.details}`}
+                        {" • "}{formatIST(req.created_at)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={cancelServiceRequestMutation.isPending}
+                    onClick={() => cancelServiceRequestMutation.mutate(req.id)}
+                    className="h-7 text-[10px] text-muted-foreground hover:text-destructive px-2 shrink-0"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ─── FEATURE 3: LIVE ORDER PIPELINE FOR DINERS (Multi-Round Stepper) ─── */}
+        {activeOrdersList.length > 0 && (
+          <Card className="rounded-2xl border-primary/20 bg-card overflow-hidden shadow-xs">
+            <CardHeader className="p-3.5 pb-2 border-b border-border/60 bg-primary/5 flex flex-row items-center justify-between">
+              <div className="space-y-0.5">
+                <CardTitle className="text-xs font-bold flex items-center gap-1.5 text-primary">
+                  <ChefHat className="size-4" />
+                  <span>Kitchen Tickets &amp; Live Order Pipeline</span>
+                </CardTitle>
+                <p className="text-[11px] text-muted-foreground">
+                  {activeOrdersList.length} Round{activeOrdersList.length > 1 ? "s" : ""} placed for {tableDisplayName}. Real-time kitchen progress:
+                </p>
+              </div>
+              <Badge variant="outline" className="border-primary/40 text-primary text-[10px] font-bold">
+                {activeOrdersList.length} Active Ticket{activeOrdersList.length > 1 ? "s" : ""}
+              </Badge>
+            </CardHeader>
+
+            <CardContent className="p-3.5 space-y-3.5 divide-y divide-border/60">
+              {activeOrdersList.map((order, idx) => {
+                const step = getOrderStep(order.status);
+                const roundNum = order.round_number || idx + 1;
+                const items = (order.items as any[]) || [];
+                const isExpanded = expandedRoundIds[order.id] ?? true;
+
+                return (
+                  <div key={order.id} className="pt-3 first:pt-0 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-primary text-primary-foreground font-black text-xs px-2 py-0.5">
+                          Round #{roundNum}
+                        </Badge>
+                        <span className="text-xs font-bold text-foreground">
+                          {formatINR(Number(order.total || 0))}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          ({items.length} item{items.length !== 1 ? "s" : ""})
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedRoundIds((prev) => ({
+                            ...prev,
+                            [order.id]: !isExpanded,
+                          }))
+                        }
+                        className="text-[11px] text-primary font-semibold flex items-center gap-0.5"
+                      >
+                        <span>{isExpanded ? "Hide items" : "Show items"}</span>
+                        {isExpanded ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+                      </button>
+                    </div>
+
+                    {/* Stepper with 4 milestones */}
+                    <div className="space-y-1.5 pt-1">
+                      <div className="grid grid-cols-4 gap-1 text-center">
+                        <div className={`space-y-1 ${step >= 1 ? "text-primary font-bold" : "text-muted-foreground opacity-60"}`}>
+                          <div className={`size-6 mx-auto rounded-full flex items-center justify-center text-[10px] border transition-all ${
+                            step >= 1 ? "bg-primary text-primary-foreground border-primary" : "bg-muted border-border"
+                          }`}>
+                            1
+                          </div>
+                          <p className="text-[10px] leading-tight">Confirmed ⏱️</p>
+                        </div>
+
+                        <div className={`space-y-1 ${step >= 2 ? "text-amber-600 dark:text-amber-400 font-bold" : "text-muted-foreground opacity-60"}`}>
+                          <div className={`size-6 mx-auto rounded-full flex items-center justify-center text-[10px] border transition-all ${
+                            step >= 2 ? "bg-amber-500 text-white border-amber-500 animate-pulse" : "bg-muted border-border"
+                          }`}>
+                            2
+                          </div>
+                          <p className="text-[10px] leading-tight">Cooking 👨‍🍳</p>
+                        </div>
+
+                        <div className={`space-y-1 ${step >= 3 ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-muted-foreground opacity-60"}`}>
+                          <div className={`size-6 mx-auto rounded-full flex items-center justify-center text-[10px] border transition-all ${
+                            step >= 3 ? "bg-emerald-500 text-white border-emerald-500 animate-bounce" : "bg-muted border-border"
+                          }`}>
+                            3
+                          </div>
+                          <p className="text-[10px] leading-tight">Ready 🔔</p>
+                        </div>
+
+                        <div className={`space-y-1 ${step >= 4 ? "text-primary font-bold" : "text-muted-foreground opacity-60"}`}>
+                          <div className={`size-6 mx-auto rounded-full flex items-center justify-center text-[10px] border transition-all ${
+                            step >= 4 ? "bg-primary text-primary-foreground border-primary" : "bg-muted border-border"
+                          }`}>
+                            4
+                          </div>
+                          <p className="text-[10px] leading-tight">Served ✅</p>
+                        </div>
+                      </div>
+
+                      {/* Progress Bar Track */}
+                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary transition-all duration-500"
+                          style={{
+                            width: step === 1 ? "25%" : step === 2 ? "50%" : step === 3 ? "75%" : "100%",
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Expandable item details */}
+                    {isExpanded && items.length > 0 && (
+                      <div className="p-2.5 rounded-xl bg-muted/30 border border-border/50 text-[11px] space-y-1">
+                        {items.map((it: any, iIdx: number) => (
+                          <div key={iIdx} className="flex items-center justify-between text-muted-foreground">
+                            <span>
+                              {it.qty}x {it.name}
+                            </span>
+                            <span className="font-semibold text-foreground">
+                              {formatINR(Number(it.total_price || (it.price * it.qty) || 0))}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Welcome Table Banner & Multi-Round Notice */}
         <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-0.5">
             <div className="flex items-center gap-1.5 text-xs font-bold text-primary">
               <Utensils className="size-3.5" />
-              <span>{tableDisplayName} Self-Service Menu</span>
+              <span>
+                {tableDisplayName} — {maxRound > 0 ? `Order Round #${nextRoundNumber}` : "Self-Service Menu"}
+              </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Select dishes, customize spice level &amp; notes, and send tickets directly to the kitchen.
+              {maxRound > 0
+                ? `You have ${maxRound} round(s) active. You can keep adding starters, mains or drinks anytime!`
+                : "Select dishes, customize spice levels & instructions, and place orders directly to the chef."}
             </p>
           </div>
           <Badge variant="outline" className="border-primary/30 text-primary text-xs py-1 px-2.5">
-            Dine-In Active
+            Round #{nextRoundNumber} Active
           </Badge>
         </div>
 
@@ -718,7 +1246,7 @@ function TableOrderingPage() {
         )}
       </main>
 
-      {/* ─── FEATURE 2: Floating Bottom Cart Review Bar with 1-Tap Clear ─── */}
+      {/* ─── FEATURE 4: FLOATING BOTTOM CART REVIEW & MULTI-ROUND CTA BAR ─── */}
       {cartCount > 0 && (
         <aside
           aria-label="Table order review bar"
@@ -727,7 +1255,7 @@ function TableOrderingPage() {
           <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold text-foreground">
-                {tableDisplayName} Cart: {cartCount} items
+                Round #{nextRoundNumber}: {cartCount} items
               </p>
               <p className="text-base font-extrabold text-primary">{formatINR(cartTotal)}</p>
             </div>
@@ -759,21 +1287,25 @@ function TableOrderingPage() {
                 className="rounded-xl text-xs h-9 font-bold bg-primary text-primary-foreground gap-1.5 shadow-sm px-4"
               >
                 <ChefHat className="size-4" />
-                <span>{placeOrderMutation.isPending ? "Sending..." : "Send to Kitchen 👨‍🍳"}</span>
+                <span>
+                  {placeOrderMutation.isPending
+                    ? "Sending..."
+                    : `Send Round #${nextRoundNumber} 👨‍🍳`}
+                </span>
               </Button>
             </div>
           </div>
         </aside>
       )}
 
-      {/* ─── FEATURE 2: Cart Review Modal with 1-Tap Clear Cart ─── */}
+      {/* ─── CART REVIEW MODAL WITH MULTI-ROUND TICKETING ─── */}
       <Dialog open={isCartOpen} onOpenChange={setIsCartOpen}>
         <DialogContent className="max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-base flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <ChefHat className="size-5 text-primary" />
-                <span>Review Order — {tableDisplayName}</span>
+                <span>Review Round #{nextRoundNumber} — {tableDisplayName}</span>
               </span>
               {cart.length > 0 && (
                 <Button
@@ -860,12 +1392,14 @@ function TableOrderingPage() {
 
             {/* General Kitchen Prep Instructions */}
             <div className="space-y-1.5 pt-2 border-t border-border">
-              <label htmlFor="table-order-notes-input" className="text-xs font-semibold text-foreground">Special Instructions for Chef</label>
+              <label htmlFor="table-order-notes-input" className="text-xs font-semibold text-foreground">
+                Special Instructions for Round #{nextRoundNumber}
+              </label>
               <Input
                 id="table-order-notes-input"
                 value={orderNotes}
                 onChange={(e) => setOrderNotes(e.target.value)}
-                placeholder="e.g. Please bring water glasses, serve starters first"
+                placeholder="e.g. Serve piping hot, bring finger bowls"
                 className="h-8 text-xs rounded-xl"
               />
             </div>
@@ -873,7 +1407,9 @@ function TableOrderingPage() {
             {/* Optional Diner Contact */}
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
-                <label htmlFor="table-diner-name-input" className="text-[11px] text-muted-foreground block mb-0.5">Your Name (Optional)</label>
+                <label htmlFor="table-diner-name-input" className="text-[11px] text-muted-foreground block mb-0.5">
+                  Your Name (Optional)
+                </label>
                 <Input
                   id="table-diner-name-input"
                   value={customerName}
@@ -883,7 +1419,9 @@ function TableOrderingPage() {
                 />
               </div>
               <div>
-                <label htmlFor="table-diner-phone-input" className="text-[11px] text-muted-foreground block mb-0.5">Mobile Number (Optional)</label>
+                <label htmlFor="table-diner-phone-input" className="text-[11px] text-muted-foreground block mb-0.5">
+                  Mobile Number (Optional)
+                </label>
                 <Input
                   id="table-diner-phone-input"
                   value={customerPhone}
@@ -897,7 +1435,7 @@ function TableOrderingPage() {
 
           <div className="pt-3 border-t border-border flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs text-muted-foreground">Order Total</p>
+              <p className="text-xs text-muted-foreground">Round #{nextRoundNumber} Total</p>
               <p className="text-base font-black text-primary">{formatINR(cartTotal)}</p>
             </div>
             <div className="flex items-center gap-2">
@@ -908,7 +1446,7 @@ function TableOrderingPage() {
                 className="rounded-xl h-10 px-3 font-semibold text-xs border-destructive/30 text-destructive hover:bg-destructive/10 gap-1.5"
               >
                 <Trash2 className="size-4" />
-                <span>Clear Cart</span>
+                <span>Clear</span>
               </Button>
               <Button
                 onClick={() => placeOrderMutation.mutate()}
@@ -916,20 +1454,81 @@ function TableOrderingPage() {
                 className="rounded-xl h-10 px-4 font-bold text-xs bg-primary text-primary-foreground gap-1.5"
               >
                 <ChefHat className="size-4" />
-                <span>{placeOrderMutation.isPending ? "Sending..." : "Confirm & Send"}</span>
+                <span>
+                  {placeOrderMutation.isPending
+                    ? "Sending..."
+                    : `Confirm Round #${nextRoundNumber}`}
+                </span>
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Bill & Split Bill Engine Modal */}
-      <Dialog open={isBillOpen} onOpenChange={setIsBillOpen}>
-        <DialogContent className="max-w-md rounded-2xl">
+      {/* ─── CUSTOM SERVICE REQUEST MODAL ─── */}
+      <Dialog open={customRequestOpen} onOpenChange={setCustomRequestOpen}>
+        <DialogContent className="max-w-sm rounded-2xl p-5">
           <DialogHeader>
             <DialogTitle className="text-base flex items-center gap-2">
-              <Receipt className="size-5 text-primary" />
-              <span>{tableDisplayName} — Bill &amp; Split</span>
+              <MessageSquare className="size-4 text-primary" />
+              <span>Custom Table Request</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 pt-2 text-xs">
+            <p className="text-muted-foreground">
+              Need extra ice, baby high chair, toothpicks, or lime? Tell the floor staff directly:
+            </p>
+            <Input
+              value={customRequestText}
+              onChange={(e) => setCustomRequestText(e.target.value)}
+              placeholder="e.g. Please bring extra green chillies & lime"
+              className="text-xs rounded-xl h-10"
+              autoFocus
+            />
+          </div>
+
+          <DialogFooter className="pt-3 border-t border-border flex items-center justify-between gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCustomRequestOpen(false)}
+              className="rounded-xl text-xs h-9"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={createServiceRequestMutation.isPending || !customRequestText.trim()}
+              onClick={() => {
+                createServiceRequestMutation.mutate({
+                  type: "custom",
+                  details: customRequestText.trim(),
+                });
+                setCustomRequestText("");
+                setCustomRequestOpen(false);
+              }}
+              className="rounded-xl text-xs h-9 font-bold bg-primary text-primary-foreground gap-1.5"
+            >
+              <Send className="size-3.5" />
+              <span>Send to Staff</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── FEATURE 5: COMBINED RUNNING BILL & SPLIT BILL ENGINE MODAL ─── */}
+      <Dialog open={isBillOpen} onOpenChange={setIsBillOpen}>
+        <DialogContent className="max-w-md rounded-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Receipt className="size-5 text-primary" />
+                <span>{tableDisplayName} — Combined Master Bill</span>
+              </span>
+              <Badge variant="outline" className="border-primary/30 text-primary text-xs font-bold">
+                {activeOrdersList.length} Round{activeOrdersList.length !== 1 ? "s" : ""}
+              </Badge>
             </DialogTitle>
           </DialogHeader>
 
@@ -937,9 +1536,9 @@ function TableOrderingPage() {
             {/* Active Table Running Bill Summary */}
             <div className="rounded-xl bg-muted/40 p-3.5 border border-border space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Table Status:</span>
+                <span className="text-muted-foreground">Session Status:</span>
                 <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30">
-                  Dine-In Active
+                  Dine-In Active 🟢
                 </Badge>
               </div>
               <div className="flex items-center justify-between text-sm font-bold">
@@ -948,12 +1547,53 @@ function TableOrderingPage() {
                   {formatINR(runningTableBillTotal)}
                 </span>
               </div>
-              {(tableOrders ?? []).length > 0 && (
+              {activeOrdersList.length > 0 && (
                 <p className="text-[11px] text-muted-foreground">
-                  Includes {(tableOrders ?? []).length} active kitchen ticket(s) currently being served.
+                  Consolidates all {activeOrdersList.length} dining round(s) placed at this table.
                 </p>
               )}
             </div>
+
+            {/* Itemized Rounds Breakdown */}
+            {activeOrdersList.length > 0 && (
+              <div className="space-y-2 pt-1 border-t border-border">
+                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                  <Utensils className="size-3.5 text-primary" />
+                  Itemized Order Rounds
+                </span>
+
+                <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-1">
+                  {activeOrdersList.map((order, idx) => {
+                    const items = (order.items as any[]) || [];
+                    const roundNum = order.round_number || idx + 1;
+                    return (
+                      <div
+                        key={order.id}
+                        className="p-2.5 rounded-xl border border-border/70 bg-card space-y-1.5 text-xs"
+                      >
+                        <div className="flex items-center justify-between font-bold text-foreground">
+                          <span className="flex items-center gap-1.5">
+                            <span className="size-2 rounded-full bg-primary" />
+                            Round #{roundNum}
+                          </span>
+                          <span className="text-primary">{formatINR(Number(order.total || 0))}</span>
+                        </div>
+                        <div className="space-y-1 divide-y divide-border/40 text-[11px]">
+                          {items.map((it: any, iIdx: number) => (
+                            <div key={iIdx} className="pt-1 first:pt-0 flex items-center justify-between text-muted-foreground">
+                              <span>
+                                {it.qty}x {it.name}
+                              </span>
+                              <span>{formatINR(Number(it.total_price || (it.price * it.qty) || 0))}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Split Mode Selector */}
             <div className="space-y-2 pt-1 border-t border-border">
@@ -1040,7 +1680,9 @@ function TableOrderingPage() {
               ) : (
                 <div className="space-y-3 pt-1">
                   <div className="space-y-1">
-                    <label htmlFor="custom-table-share-input" className="text-muted-foreground">Enter your share amount (₹):</label>
+                    <label htmlFor="custom-table-share-input" className="text-muted-foreground">
+                      Enter your share amount (₹):
+                    </label>
                     <Input
                       id="custom-table-share-input"
                       type="number"
@@ -1066,16 +1708,30 @@ function TableOrderingPage() {
               )}
             </div>
 
-            {/* Offline Steward Request Call */}
-            <div className="pt-2 border-t border-border flex items-center justify-between gap-2">
+            {/* Offline Steward Request Call & Full Bill Request */}
+            <div className="pt-2 border-t border-border space-y-2">
+              <Button
+                variant="default"
+                size="sm"
+                disabled={createServiceRequestMutation.isPending}
+                onClick={() => {
+                  createServiceRequestMutation.mutate({ type: "bill_request" });
+                  toast.success(`Bill request sent for ${tableDisplayName}!`, {
+                    description: "Our cashier is printing your final bill and steward is on the way.",
+                  });
+                }}
+                className="w-full rounded-xl text-xs h-10 font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+              >
+                <DollarSign className="size-4" />
+                <span>Request Printed Bill &amp; Card Machine 🧾</span>
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
+                disabled={createServiceRequestMutation.isPending}
                 onClick={() => {
-                  soundEngine.playStatusChime();
-                  toast.success(`Steward notified to attend ${tableDisplayName}!`, {
-                    description: "Our staff is on the way to your table for cash / card settlement.",
-                  });
+                  createServiceRequestMutation.mutate({ type: "waiter_call" });
                 }}
                 className="w-full rounded-xl text-xs h-9 border-border"
               >

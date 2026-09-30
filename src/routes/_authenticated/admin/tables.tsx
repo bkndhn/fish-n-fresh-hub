@@ -22,6 +22,10 @@ import {
   Store,
   CheckCircle2,
   Clock,
+  Bell,
+  BellRing,
+  DollarSign,
+  Droplet,
   ChevronRight,
   Filter,
   Plus,
@@ -192,6 +196,74 @@ function TableQrStudioPage() {
     });
     return map;
   }, [activeOrders]);
+
+  // Query active floor service requests (waiter calls, bill requests, cutlery, water)
+  const { data: floorServiceRequests = [], refetch: refetchFloorRequests } = useQuery<any[]>({
+    queryKey: ["admin_tables_floor_service_requests"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("table_service_requests")
+        .select("*")
+        .in("status", ["pending", "acknowledged"])
+        .order("created_at", { ascending: false });
+
+      if (error) return [];
+      return data || [];
+    },
+    refetchInterval: 5000,
+  });
+
+  // Realtime subscription for incoming table service calls
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin_tables_service_requests_channel")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "table_service_requests",
+        },
+        () => {
+          refetchFloorRequests();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetchFloorRequests]);
+
+  const serviceRequestsMap = useMemo(() => {
+    const map = new Map<string, any>();
+    floorServiceRequests.forEach((req) => {
+      const raw = String(req.table_number).trim().toLowerCase();
+      const digits = raw.replace(/\D/g, "");
+      if (!map.has(raw)) map.set(raw, req);
+      if (digits && !map.has(digits)) map.set(digits, req);
+    });
+    return map;
+  }, [floorServiceRequests]);
+
+  // Mutation to update service request status from tables page
+  const updateServiceRequestMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "acknowledged" | "resolved" }) => {
+      const { error } = await supabase
+        .from("table_service_requests")
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+      return { id, status };
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["admin_tables_floor_service_requests"] });
+      toast.success(vars.status === "acknowledged" ? "Request acknowledged!" : "Service request resolved!");
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to update service request");
+    },
+  });
 
   // Generate crisp QR code data URLs for all tables
   useEffect(() => {
@@ -628,6 +700,103 @@ function TableQrStudioPage() {
           </div>
         )}
 
+        {/* Live Floor Service Requests Panel */}
+        {floorServiceRequests.length > 0 && (
+          <div className="rounded-3xl border border-amber-500/40 bg-amber-500/5 p-4 shadow-xs space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <BellRing className="size-4 text-amber-500 animate-bounce" />
+                <h3 className="font-extrabold text-sm text-foreground">
+                  Active Table Service Calls ({floorServiceRequests.length})
+                </h3>
+              </div>
+              <Badge variant="destructive" className="text-xs px-2 py-0.5">
+                Immediate Floor Attention
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+              {floorServiceRequests.map((req) => {
+                const isPending = req.status === "pending";
+                return (
+                  <div
+                    key={req.id}
+                    className={`p-3 rounded-2xl border text-xs flex flex-col justify-between gap-2 ${
+                      isPending
+                        ? "border-amber-500/50 bg-background shadow-2xs"
+                        : "border-border bg-card/60"
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-black text-sm text-foreground">
+                          Table #{req.table_number}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className={`text-[9px] px-1.5 py-0 ${
+                            isPending
+                              ? "border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/10"
+                              : "border-border text-muted-foreground"
+                          }`}
+                        >
+                          {isPending ? "⏳ Pending" : "🏃 En Route"}
+                        </Badge>
+                      </div>
+                      <p className="font-bold text-xs mt-1 text-foreground">
+                        {req.request_type === "waiter_call" && "🔔 Call Waiter"}
+                        {req.request_type === "bill_request" && "🧾 Request Bill"}
+                        {req.request_type === "water" && "💧 Water"}
+                        {req.request_type === "cutlery" && "🍴 Cutlery"}
+                        {req.request_type === "cleaning" && "🧹 Clean Table"}
+                        {req.request_type === "custom" && "💬 Special Note"}
+                      </p>
+                      {req.details && (
+                        <p className="text-[11px] text-muted-foreground italic truncate mt-0.5">
+                          "{req.details}"
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 pt-1 border-t border-border/50 justify-end">
+                      {isPending && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={updateServiceRequestMutation.isPending}
+                          onClick={() =>
+                            updateServiceRequestMutation.mutate({
+                              id: req.id,
+                              status: "acknowledged",
+                            })
+                          }
+                          className="h-6 text-[10px] font-semibold rounded-lg border-amber-500/30 text-amber-700 dark:text-amber-400"
+                        >
+                          Ack
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        disabled={updateServiceRequestMutation.isPending}
+                        onClick={() =>
+                          updateServiceRequestMutation.mutate({
+                            id: req.id,
+                            status: "resolved",
+                          })
+                        }
+                        className="h-6 text-[10px] font-bold rounded-lg bg-primary text-primary-foreground gap-1 px-2"
+                      >
+                        <Check className="size-3" />
+                        <span>Done</span>
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Filter Toolbar & Section Pills */}
         <Card className="rounded-3xl border-border/80 shadow-xs">
           <CardContent className="p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3">
@@ -720,13 +889,18 @@ function TableQrStudioPage() {
               const isReserved = t.status === "reserved";
               const activeOrder = occupancyMap.get(t.id) || occupancyMap.get(t.name);
               const isOccupied = Boolean(activeOrder) && t.status === "active";
+              const activeServiceReq =
+                serviceRequestsMap.get(String(t.id).toLowerCase()) ||
+                serviceRequestsMap.get(String(t.name).toLowerCase());
               const dataUrl = qrMap[t.id];
 
               return (
                 <Card
                   key={t.id}
                   className={`rounded-3xl border transition-all shadow-xs overflow-hidden flex flex-col justify-between ${
-                    isMaintenance
+                    activeServiceReq
+                      ? "border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/30 shadow-md"
+                      : isMaintenance
                       ? "opacity-60 bg-muted/20 border-border/60"
                       : isReserved
                       ? "border-amber-500/40 bg-amber-500/5 hover:border-amber-500"
@@ -735,6 +909,36 @@ function TableQrStudioPage() {
                       : "border-border/80 hover:border-primary/50"
                   }`}
                 >
+                  {/* Active Floor Service Request Banner on Table Card */}
+                  {activeServiceReq && (
+                    <div className="w-full bg-amber-500/25 border-b border-amber-500/30 px-3 py-1.5 flex items-center justify-between gap-1 text-[11px] font-bold text-amber-900 dark:text-amber-200">
+                      <span className="flex items-center gap-1.5 truncate">
+                        <BellRing className="size-3.5 text-amber-600 dark:text-amber-400 animate-bounce shrink-0" />
+                        <span className="truncate">
+                          {activeServiceReq.request_type === "waiter_call" && "🔔 Waiter Called"}
+                          {activeServiceReq.request_type === "bill_request" && "🧾 Bill Requested"}
+                          {activeServiceReq.request_type === "water" && "💧 Water Needed"}
+                          {activeServiceReq.request_type === "cutlery" && "🍴 Cutlery Needed"}
+                          {activeServiceReq.request_type === "cleaning" && "🧹 Clean Table"}
+                          {activeServiceReq.request_type === "custom" && "💬 Special Note"}
+                        </span>
+                      </span>
+                      <Button
+                        size="sm"
+                        disabled={updateServiceRequestMutation.isPending}
+                        onClick={() =>
+                          updateServiceRequestMutation.mutate({
+                            id: activeServiceReq.id,
+                            status: "resolved",
+                          })
+                        }
+                        className="h-5 text-[9px] font-black rounded-md px-1.5 bg-amber-600 hover:bg-amber-700 text-white shrink-0"
+                      >
+                        Resolve
+                      </Button>
+                    </div>
+                  )}
+
                   <CardHeader className="p-4 pb-2">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">

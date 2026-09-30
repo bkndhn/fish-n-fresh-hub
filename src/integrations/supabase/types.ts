@@ -1062,6 +1062,8 @@ export type Database = {
           rto_reason: string | null
           settled_at: string | null
           settlement_id: string | null
+          round_number: number | null
+          session_id: string | null
           shipped_at: string | null
           status: string
           status_history: Json
@@ -1145,6 +1147,8 @@ export type Database = {
           rto_reason?: string | null
           settled_at?: string | null
           settlement_id?: string | null
+          round_number?: number | null
+          session_id?: string | null
           shipped_at?: string | null
           status?: string
           status_history?: Json
@@ -1228,6 +1232,8 @@ export type Database = {
           rto_reason?: string | null
           settled_at?: string | null
           settlement_id?: string | null
+          round_number?: number | null
+          session_id?: string | null
           shipped_at?: string | null
           status?: string
           status_history?: Json
@@ -2405,6 +2411,39 @@ export type Database = {
         }
         Relationships: []
       }
+      table_service_requests: {
+        Row: {
+          created_at: string
+          details: string | null
+          id: string
+          request_type: string
+          session_id: string | null
+          status: string
+          table_number: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          request_type: string
+          session_id?: string | null
+          status?: string
+          table_number: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          request_type?: string
+          session_id?: string | null
+          status?: string
+          table_number?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       suppliers: {
         Row: {
           balance_due: number
@@ -3571,6 +3610,7 @@ export type Database = {
           id: string
           items: Json
           order_number: string
+          round_number: number | null
           status: string
           table_number: string
           total: number
@@ -3595,6 +3635,8 @@ export type Database = {
           p_customer_phone: string
           p_items: Json
           p_notes: string
+          p_round?: number
+          p_session_id?: string | null
           p_table: string
         }
         Returns: Json

@@ -21,6 +21,8 @@ import {
   UserCheck,
   CheckCircle2,
   PackageCheck,
+  ChefHat,
+  Bell,
   Clock,
   Compass,
   Route as RouteIcon,
@@ -338,10 +340,24 @@ function OrdersAdmin() {
 
   const allOrders = orders.data ?? [];
 
+  const dineInKotCount = useMemo(() => {
+    return allOrders.filter((o) => {
+      const isDineIn = o.fulfillment_type === "dine_in" || Boolean((o as any).table_number);
+      return isDineIn && ["pending", "confirmed", "preparing", "ready"].includes(o.status);
+    }).length;
+  }, [allOrders]);
+
   // Filter rows
   const rows = allOrders.filter((o) => {
     // 1. Status Filter
-    if (statusFilter !== "all" && o.status !== statusFilter) return false;
+    if (statusFilter === "kitchen_kot") {
+      const isDineIn = o.fulfillment_type === "dine_in" || Boolean((o as any).table_number);
+      if (!isDineIn || !["pending", "confirmed", "preparing", "ready"].includes(o.status)) {
+        return false;
+      }
+    } else if (statusFilter !== "all" && o.status !== statusFilter) {
+      return false;
+    }
 
     // 2. Date Filter
     if (dateFilter === "today") {
@@ -636,6 +652,20 @@ function OrdersAdmin() {
           >
             All Statuses ({rows.length})
           </Button>
+
+          <Button
+            size="sm"
+            variant={statusFilter === "kitchen_kot" ? "default" : "outline"}
+            className={`rounded-full text-xs shrink-0 font-bold gap-1.5 transition-all ${
+              statusFilter === "kitchen_kot"
+                ? "bg-amber-500 hover:bg-amber-600 text-white shadow-xs"
+                : "border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+            }`}
+            onClick={() => setStatusFilter("kitchen_kot")}
+          >
+            <ChefHat className="size-3.5" />
+            <span>🍳 Kitchen KOTs ({dineInKotCount})</span>
+          </Button>
           {ORDER_STATUSES.map((s) => {
             const count = allOrders.filter((o) => {
               if (dateFilter === "today" && getLocalDateString(o.created_at) !== todayStr) return false;
@@ -830,6 +860,18 @@ function OrdersAdmin() {
 
                   <span className="text-muted-foreground text-xs">·</span>
                   <span className="capitalize text-muted-foreground text-xs font-medium">{o.fulfillment_type}</span>
+                  {(o.fulfillment_type === "dine_in" || Boolean((o as any).table_number)) && (
+                    <span className="inline-flex items-center gap-1.5 ml-1">
+                      <span className="rounded-md bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[11px] font-black text-amber-800 dark:text-amber-300">
+                        🍽️ Table #{(o as any).table_number || "Dine-In"}
+                      </span>
+                      {(o as any).round_number && (
+                        <span className="rounded-md bg-primary/10 border border-primary/25 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                          Round #{(o as any).round_number}
+                        </span>
+                      )}
+                    </span>
+                  )}
                 </div>
 
                 {/* Address with Google Maps turn-by-turn link & View Route */}
@@ -1027,7 +1069,7 @@ function OrdersAdmin() {
                         <FileText className="mr-1.5 size-3.5 text-sky-600" /> Invoice
                       </Button>
 
-                      {storeVertical.id === "restaurant_cafe" && (
+                      {(storeVertical.id === "restaurant_cafe" || o.fulfillment_type === "dine_in" || Boolean((o as any).table_number)) && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -1055,6 +1097,44 @@ function OrdersAdmin() {
                         >
                           <Receipt className="mr-1.5 size-3.5 text-amber-600" /> KOT
                         </Button>
+                      )}
+
+                      {/* Kitchen Dispatch Workflow for Dine-In / Restaurant prep */}
+                      {(o.fulfillment_type === "dine_in" || Boolean((o as any).table_number) || storeVertical.id === "restaurant_cafe") && (
+                        <>
+                          {(o.status === "pending" || o.status === "confirmed") && (
+                            <Button
+                              size="sm"
+                              className="flex-1 sm:flex-initial rounded-xl h-8.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white gap-1 shadow-xs"
+                              onClick={() => update.mutate({ id: o.id, status: "preparing" })}
+                              disabled={update.isPending}
+                            >
+                              <ChefHat className="size-3.5" /> Start Cooking
+                            </Button>
+                          )}
+
+                          {o.status === "preparing" && (
+                            <Button
+                              size="sm"
+                              className="flex-1 sm:flex-initial rounded-xl h-8.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1 shadow-xs"
+                              onClick={() => update.mutate({ id: o.id, status: "ready" })}
+                              disabled={update.isPending}
+                            >
+                              <Bell className="size-3.5" /> Mark Ready
+                            </Button>
+                          )}
+
+                          {o.status === "ready" && (
+                            <Button
+                              size="sm"
+                              className="flex-1 sm:flex-initial rounded-xl h-8.5 text-xs font-bold bg-primary text-primary-foreground gap-1 shadow-xs"
+                              onClick={() => update.mutate({ id: o.id, status: "delivered" })}
+                              disabled={update.isPending}
+                            >
+                              <CheckCircle2 className="size-3.5" /> Mark Served
+                            </Button>
+                          )}
+                        </>
                       )}
 
                       {o.status === "processing" && (

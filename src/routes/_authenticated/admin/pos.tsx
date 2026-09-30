@@ -523,6 +523,31 @@ export function RetailPosCounterPage() {
 
   const occupiedTablesCount = occupiedTables.size;
 
+  // Active Bill Requests for Cashier
+  const { data: activeBillRequests = [] } = useQuery<any[]>({
+    queryKey: ["pos_active_bill_requests"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("table_service_requests")
+        .select("*")
+        .eq("request_type", "bill_request")
+        .in("status", ["pending", "acknowledged"])
+        .order("created_at", { ascending: false });
+      if (error) return [];
+      return data || [];
+    },
+    refetchInterval: 6000,
+  });
+
+  const billRequestedTables = useMemo(() => {
+    const set = new Set<number>();
+    activeBillRequests.forEach((r) => {
+      const digits = r.table_number.replace(/\D/g, "");
+      if (digits) set.add(parseInt(digits, 10));
+    });
+    return set;
+  }, [activeBillRequests]);
+
   // Electronic Weighing Scale State & Driver Subscription
   const [scaleStatus, setScaleStatus] = useState<ScaleConnectionState>(() =>
     weighingScaleDriver.getConnectionState()
@@ -3792,11 +3817,15 @@ export function RetailPosCounterPage() {
                 const activeOrder = occupiedTables.get(tableNum);
                 const isOccupied = Boolean(activeOrder);
 
+                const hasBillRequest = billRequestedTables.has(tableNum);
+
                 return (
                   <div
                     key={tableNum}
                     className={`p-3 rounded-2xl border transition-all flex flex-col justify-between ${
-                      isOccupied
+                      hasBillRequest
+                        ? "border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500/40 shadow-sm"
+                        : isOccupied
                         ? "border-rose-500/40 bg-rose-50/40 dark:bg-rose-950/20 shadow-xs"
                         : "border-border/70 bg-card hover:border-primary/40"
                     }`}
@@ -3808,10 +3837,20 @@ export function RetailPosCounterPage() {
                         </span>
                         <span
                           className={`size-2.5 rounded-full ${
-                            isOccupied ? "bg-rose-500 animate-pulse" : "bg-emerald-500"
+                            hasBillRequest
+                              ? "bg-emerald-500 animate-ping"
+                              : isOccupied
+                              ? "bg-rose-500 animate-pulse"
+                              : "bg-emerald-500"
                           }`}
                         />
                       </div>
+
+                      {hasBillRequest && (
+                        <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black animate-pulse px-2 py-0.5">
+                          🧾 Bill Requested!
+                        </Badge>
+                      )}
 
                       {isOccupied ? (
                         <div className="space-y-1 text-xs">
@@ -3842,6 +3881,13 @@ export function RetailPosCounterPage() {
                           <Button
                             size="sm"
                             onClick={() => {
+                              if (hasBillRequest) {
+                                void supabase
+                                  .from("table_service_requests")
+                                  .update({ status: "resolved", updated_at: new Date().toISOString() })
+                                  .eq("table_number", String(tableNum))
+                                  .eq("request_type", "bill_request");
+                              }
                               const posItems: PosCartItem[] = ((activeOrder.items as any[]) || []).map(
                                 (it: any) => ({
                                   id: String(Math.random()),

@@ -47,6 +47,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { registerPushNotification } from "@/lib/fcm";
 import { myRolesQuery, type AppRole } from "@/lib/admin";
 import { settingsQuery } from "@/lib/queries";
+import { TableServiceNotificationsWidget } from "@/components/admin/TableServiceNotificationsWidget";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -238,6 +239,8 @@ export function AdminShell({
                   <ExternalLink className="size-2.5 opacity-60 ml-0.5 shrink-0" />
                 </Link>
               </Button>
+
+              <TableServiceNotificationsWidget onSettleBill={() => navigate({ to: "/admin/pos" })} />
 
               <Button
                 variant="outline"
