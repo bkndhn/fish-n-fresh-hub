@@ -1059,11 +1059,11 @@ export type Database = {
           return_requested_at: string | null
           return_status: string | null
           returned_at: string | null
+          round_number: number | null
           rto_reason: string | null
+          session_id: string | null
           settled_at: string | null
           settlement_id: string | null
-          round_number: number | null
-          session_id: string | null
           shipped_at: string | null
           status: string
           status_history: Json
@@ -1144,11 +1144,11 @@ export type Database = {
           return_requested_at?: string | null
           return_status?: string | null
           returned_at?: string | null
+          round_number?: number | null
           rto_reason?: string | null
+          session_id?: string | null
           settled_at?: string | null
           settlement_id?: string | null
-          round_number?: number | null
-          session_id?: string | null
           shipped_at?: string | null
           status?: string
           status_history?: Json
@@ -1229,11 +1229,11 @@ export type Database = {
           return_requested_at?: string | null
           return_status?: string | null
           returned_at?: string | null
+          round_number?: number | null
           rto_reason?: string | null
+          session_id?: string | null
           settled_at?: string | null
           settlement_id?: string | null
-          round_number?: number | null
-          session_id?: string | null
           shipped_at?: string | null
           status?: string
           status_history?: Json
@@ -2411,39 +2411,6 @@ export type Database = {
         }
         Relationships: []
       }
-      table_service_requests: {
-        Row: {
-          created_at: string
-          details: string | null
-          id: string
-          request_type: string
-          session_id: string | null
-          status: string
-          table_number: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          details?: string | null
-          id?: string
-          request_type: string
-          session_id?: string | null
-          status?: string
-          table_number: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          details?: string | null
-          id?: string
-          request_type?: string
-          session_id?: string | null
-          status?: string
-          table_number?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       suppliers: {
         Row: {
           balance_due: number
@@ -2565,6 +2532,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      table_service_requests: {
+        Row: {
+          created_at: string
+          details: string | null
+          id: string
+          request_type: string
+          status: string
+          table_number: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          request_type: string
+          status?: string
+          table_number: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          request_type?: string
+          status?: string
+          table_number?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       tenant_quotas: {
         Row: {
@@ -3610,7 +3607,7 @@ export type Database = {
           id: string
           items: Json
           order_number: string
-          round_number: number | null
+          round_number: number
           status: string
           table_number: string
           total: number
@@ -3636,7 +3633,7 @@ export type Database = {
           p_items: Json
           p_notes: string
           p_round?: number
-          p_session_id?: string | null
+          p_session_id?: string
           p_table: string
         }
         Returns: Json
