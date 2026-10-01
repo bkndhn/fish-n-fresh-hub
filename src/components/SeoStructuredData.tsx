@@ -34,9 +34,13 @@ export function SeoStructuredData({ product, breadcrumbs, faqs }: SeoStructuredD
   const customDomain = s?.custom_domain;
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setOrigin(getClientOrigin(null, customDomain));
-    }
+    if (typeof window === "undefined") return;
+    // Keep structured data on the canonical public domain: local/preview hosts
+    // must not leak into the JSON-LD (and would cause a hydration mismatch).
+    const host = window.location.hostname;
+    const isLocal = host === "localhost" || host === "127.0.0.1" || host.endsWith(".local");
+    if (isLocal) return;
+    setOrigin(getClientOrigin(null, customDomain));
   }, [customDomain]);
 
   const storeInfo: StoreSeoInfo = {
