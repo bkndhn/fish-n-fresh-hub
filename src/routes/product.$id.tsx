@@ -907,14 +907,14 @@ function ProductReviewsSection({ productId, productName, customTitle }: { produc
         {!user?.id ? (
           <Button asChild size="sm" variant="outline" className="rounded-xl shrink-0">
             <Link to="/auth">
-              <MessageSquare className="mr-1.5 size-3.5" /> Sign in to review
+              <MessageSquare className="shrink-0 size-3.5" /> Sign in to review
             </Link>
           </Button>
         ) : isVerifiedBuyer ? (
           <Dialog open={openReview} onOpenChange={setOpenReview}>
             <DialogTrigger asChild>
               <Button size="sm" variant="outline" className="rounded-xl shrink-0 border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
-                <ShieldCheck className="mr-1.5 size-3.5" /> Rate & Review (Verified Buyer)
+                <ShieldCheck className="shrink-0 size-3.5" /> Rate & Review (Verified Buyer)
               </Button>
             </DialogTrigger>
             <DialogContent className="rounded-2xl sm:max-w-md">

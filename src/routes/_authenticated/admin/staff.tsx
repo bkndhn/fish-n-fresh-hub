@@ -300,9 +300,9 @@ function StaffPage() {
               )}
               <Button type="submit" className="w-full" disabled={inviteMutation.isPending}>
                 {inviteMutation.isPending ? (
-                  <Loader2 className="mr-1.5 size-4 animate-spin" />
+                  <Loader2 className="shrink-0 size-4 animate-spin" />
                 ) : (
-                  <UserPlus className="mr-1.5 size-4" />
+                  <UserPlus className="shrink-0 size-4" />
                 )}
                 Send invite
               </Button>
@@ -418,9 +418,9 @@ function StaffPage() {
               </div>
               <Button type="submit" className="w-full" disabled={createMutation.isPending}>
                 {createMutation.isPending ? (
-                  <Loader2 className="mr-1.5 size-4 animate-spin" />
+                  <Loader2 className="shrink-0 size-4 animate-spin" />
                 ) : (
-                  <KeyRound className="mr-1.5 size-4" />
+                  <KeyRound className="shrink-0 size-4" />
                 )}
                 Create account
               </Button>

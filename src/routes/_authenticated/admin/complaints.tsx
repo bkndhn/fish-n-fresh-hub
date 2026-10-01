@@ -287,21 +287,21 @@ export function ComplaintsAdmin() {
                       asChild
                     >
                       <a href={waUrl} target="_blank" rel="noreferrer" className="flex items-center justify-center">
-                        <WhatsAppIcon className="mr-1 size-3.5" /> WhatsApp
+                        <WhatsAppIcon className="shrink-0 size-3.5" /> WhatsApp
                       </a>
                     </Button>
 
                     {/* Direct Call Button */}
                     <Button size="sm" variant="outline" className="rounded-xl h-8.5 text-xs font-semibold px-2" asChild>
                       <a href={`tel:${o.customer_phone}`} className="flex items-center justify-center">
-                        <Phone className="mr-1 size-3.5 text-primary" /> Call
+                        <Phone className="shrink-0 size-3.5 text-primary" /> Call
                       </a>
                     </Button>
 
                     {/* Email Response */}
                     <Button size="sm" variant="outline" className="rounded-xl h-8.5 text-xs font-semibold px-2" asChild>
                       <a href={mailUrl} className="flex items-center justify-center">
-                        <Mail className="mr-1 size-3.5 text-blue-500" /> Email
+                        <Mail className="shrink-0 size-3.5 text-blue-500" /> Email
                       </a>
                     </Button>
                   </div>
@@ -318,7 +318,7 @@ export function ComplaintsAdmin() {
                           setResolutionNote("Resolved after customer consultation. Feedback acknowledged.");
                         }}
                       >
-                        <CheckCircle2 className="mr-1.5 size-3.5" /> Resolve
+                        <CheckCircle2 className="shrink-0 size-3.5" /> Resolve
                       </Button>
                     ) : (
                       <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
@@ -350,7 +350,7 @@ export function ComplaintsAdmin() {
                           }
                         }}
                       >
-                        <RotateCcw className="mr-1.5 size-3.5" /> Refund
+                        <RotateCcw className="shrink-0 size-3.5" /> Refund
                       </Button>
                     )}
                   </div>
@@ -419,7 +419,7 @@ export function ComplaintsAdmin() {
                       });
                     }}
                   >
-                    <CheckCircle2 className="mr-1.5 size-4" /> Save Resolution
+                    <CheckCircle2 className="shrink-0 size-4" /> Save Resolution
                   </Button>
                 </div>
               </div>

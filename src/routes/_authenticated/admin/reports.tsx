@@ -1678,12 +1678,12 @@ export function Reports() {
             <div className="flex flex-wrap items-center gap-2">
               <Link to="/admin/purchases">
                 <Button size="sm" variant="outline" className="rounded-xl h-8 text-xs">
-                  <Package className="mr-1.5 size-3.5 text-primary" /> Catch Inward Refill
+                  <Package className="shrink-0 size-3.5 text-primary" /> Catch Inward Refill
                 </Button>
               </Link>
               <Link to="/admin/products">
                 <Button size="sm" variant="outline" className="rounded-xl h-8 text-xs">
-                  <ExternalLink className="mr-1.5 size-3.5" /> Edit Products
+                  <ExternalLink className="shrink-0 size-3.5" /> Edit Products
                 </Button>
               </Link>
               <ExportDropdown options={profitExportOptions} buttonLabel="Export Margin Sheet" />
@@ -1816,7 +1816,7 @@ export function Reports() {
                 }`}
                 onClick={() => setVelocityTierFilter("top")}
               >
-                <Flame className="mr-1 size-3.5 text-orange-400" /> Top ({productVelocity.topCount})
+                <Flame className="shrink-0 size-3.5 text-orange-400" /> Top ({productVelocity.topCount})
               </Button>
               <Button
                 size="sm"
@@ -1826,7 +1826,7 @@ export function Reports() {
                 }`}
                 onClick={() => setVelocityTierFilter("medium")}
               >
-                <Scale className="mr-1 size-3.5 text-blue-400" /> Medium ({productVelocity.mediumCount})
+                <Scale className="shrink-0 size-3.5 text-blue-400" /> Medium ({productVelocity.mediumCount})
               </Button>
               <Button
                 size="sm"
@@ -1836,7 +1836,7 @@ export function Reports() {
                 }`}
                 onClick={() => setVelocityTierFilter("slow")}
               >
-                <Snowflake className="mr-1 size-3.5 text-slate-400" /> Slow ({productVelocity.slowCount})
+                <Snowflake className="shrink-0 size-3.5 text-slate-400" /> Slow ({productVelocity.slowCount})
               </Button>
             </div>
 
@@ -2952,12 +2952,12 @@ export function Reports() {
             <div className="flex flex-wrap items-center gap-2">
               <Link to="/admin/purchases">
                 <Button size="sm" variant="outline" className="rounded-xl h-8 text-xs">
-                  <Package className="mr-1.5 size-3.5 text-primary" /> Catch Inward Refill
+                  <Package className="shrink-0 size-3.5 text-primary" /> Catch Inward Refill
                 </Button>
               </Link>
               <Link to="/admin/products">
                 <Button size="sm" variant="outline" className="rounded-xl h-8 text-xs">
-                  <ExternalLink className="mr-1.5 size-3.5" /> Edit Products
+                  <ExternalLink className="shrink-0 size-3.5" /> Edit Products
                 </Button>
               </Link>
               <ExportDropdown options={profitExportOptions} buttonLabel="Export Margin Sheet" />
@@ -3090,7 +3090,7 @@ export function Reports() {
                 }`}
                 onClick={() => setVelocityTierFilter("top")}
               >
-                <Flame className="mr-1 size-3.5 text-orange-400" /> Top ({productVelocity.topCount})
+                <Flame className="shrink-0 size-3.5 text-orange-400" /> Top ({productVelocity.topCount})
               </Button>
               <Button
                 size="sm"
@@ -3100,7 +3100,7 @@ export function Reports() {
                 }`}
                 onClick={() => setVelocityTierFilter("medium")}
               >
-                <Scale className="mr-1 size-3.5 text-blue-400" /> Medium ({productVelocity.mediumCount})
+                <Scale className="shrink-0 size-3.5 text-blue-400" /> Medium ({productVelocity.mediumCount})
               </Button>
               <Button
                 size="sm"
@@ -3110,7 +3110,7 @@ export function Reports() {
                 }`}
                 onClick={() => setVelocityTierFilter("slow")}
               >
-                <Snowflake className="mr-1 size-3.5 text-slate-400" /> Slow ({productVelocity.slowCount})
+                <Snowflake className="shrink-0 size-3.5 text-slate-400" /> Slow ({productVelocity.slowCount})
               </Button>
             </div>
 

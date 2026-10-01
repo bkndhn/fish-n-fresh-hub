@@ -449,7 +449,7 @@ function OrdersTab({
                 {o.status === "delivered" && (o.items as any[])?.[0]?.product_id && (
                   <Button asChild variant="outline" size="sm" className="rounded-xl h-8 text-xs font-semibold">
                     <Link to="/product/$id" params={{ id: (o.items as any[])[0].product_id }}>
-                      <Star className="mr-1 size-3.5 fill-amber-500 text-amber-500" /> Review
+                      <Star className="shrink-0 size-3.5 fill-amber-500 text-amber-500" /> Review
                     </Link>
                   </Button>
                 )}
@@ -459,7 +459,7 @@ function OrdersTab({
                   className="rounded-xl h-8 text-xs font-semibold"
                   onClick={() => onOpenInvoice(o)}
                 >
-                  <FileText className="mr-1 size-3.5" /> Invoice
+                  <FileText className="shrink-0 size-3.5" /> Invoice
                 </Button>
                 <Button
                   variant="outline"
@@ -467,7 +467,7 @@ function OrdersTab({
                   className="rounded-xl h-8 text-xs"
                   onClick={() => reorder(o.items)}
                 >
-                  <RotateCcw className="mr-1 size-3.5" /> Reorder
+                  <RotateCcw className="shrink-0 size-3.5" /> Reorder
                 </Button>
                 <Button asChild size="sm" className="rounded-xl h-8 text-xs font-semibold">
                   <Link to="/track/$id" params={{ id: o.id }}>

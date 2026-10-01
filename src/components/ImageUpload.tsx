@@ -124,7 +124,7 @@ export function ImageUpload({
             disabled={uploading}
           />
           <Button variant="outline" className="pointer-events-none rounded-xl text-xs font-semibold h-9" disabled={uploading}>
-            {uploading ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <UploadCloud className="mr-1.5 size-3.5" />}
+            {uploading ? <Loader2 className="shrink-0 size-3.5 animate-spin" /> : <UploadCloud className="shrink-0 size-3.5" />}
             {uploading ? "Compressing & Uploading..." : (label || "Upload Image")}
           </Button>
         </div>

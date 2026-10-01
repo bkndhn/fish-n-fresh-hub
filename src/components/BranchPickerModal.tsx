@@ -128,9 +128,9 @@ export function BranchPickerModal() {
             className="w-full justify-start rounded-xl border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-semibold py-2.5 h-auto transition-all"
           >
             {detecting ? (
-              <Loader2 className="mr-2 size-4 animate-spin shrink-0 text-emerald-600" />
+              <Loader2 className="shrink-0 size-4 animate-spin shrink-0 text-emerald-600" />
             ) : (
-              <Navigation className="mr-2 size-4 shrink-0 text-emerald-600" />
+              <Navigation className="shrink-0 size-4 shrink-0 text-emerald-600" />
             )}
             <div className="text-left">
               <div>Auto-Detect via GPS Location</div>

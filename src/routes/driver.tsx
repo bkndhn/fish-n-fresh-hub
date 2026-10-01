@@ -260,7 +260,7 @@ function DriverPanel() {
             onClick={() => setIsOnline(!isOnline)}
             className="rounded-xl font-bold"
           >
-            <Power className="mr-2 size-4" />
+            <Power className="shrink-0 size-4" />
             {isOnline ? "Go Offline" : "Go Online"}
           </Button>
         </div>
@@ -324,7 +324,7 @@ function DriverPanel() {
                           className="w-full rounded-xl font-bold bg-amber-600 hover:bg-amber-700 text-white" 
                           onClick={() => updateOrderStatus(order.id, "packed")}
                         >
-                          <PackageCheck className="mr-2 size-4" /> Mark as Packed
+                          <PackageCheck className="shrink-0 size-4" /> Mark as Packed
                         </Button>
                       )}
                       
@@ -333,7 +333,7 @@ function DriverPanel() {
                           className="w-full rounded-xl font-bold bg-blue-600 hover:bg-blue-700 text-white" 
                           onClick={() => updateOrderStatus(order.id, "out_for_delivery")}
                         >
-                          <Navigation className="mr-2 size-4" /> Start Delivery
+                          <Navigation className="shrink-0 size-4" /> Start Delivery
                         </Button>
                       )}
                       
@@ -342,7 +342,7 @@ function DriverPanel() {
                           className="w-full rounded-xl font-bold bg-primary hover:bg-primary/90 text-white" 
                           onClick={() => setPinDialogOrder(order)}
                         >
-                          <CheckCircle2 className="mr-2 size-4" /> Mark Delivered (Enter PIN)
+                          <CheckCircle2 className="shrink-0 size-4" /> Mark Delivered (Enter PIN)
                         </Button>
                       )}
                     </div>

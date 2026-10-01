@@ -1019,10 +1019,10 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
           <div className="w-full min-w-0 overflow-x-auto no-scrollbar touch-pan-x scroll-smooth pb-0.5">
             <TabsList className="rounded-2xl p-1 bg-muted/60 flex-nowrap w-max">
               <TabsTrigger value="ledger" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0">
-                <FileText className="mr-1.5 size-3.5" /> Catch Purchases
+                <FileText className="shrink-0 size-3.5" /> Catch Purchases
               </TabsTrigger>
               <TabsTrigger value="outstanding" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0">
-                <Receipt className="mr-1.5 size-3.5" /> Outstanding & Statements
+                <Receipt className="shrink-0 size-3.5" /> Outstanding & Statements
                 {purchases.filter((p) => p.total_amount > p.paid_amount).length > 0 && (
                   <span className="ml-1.5 rounded-full bg-rose-500/20 text-rose-600 dark:text-rose-400 px-1.5 py-0.2 text-[10px] font-extrabold">
                     {purchases.filter((p) => p.total_amount > p.paid_amount).length}
@@ -1030,7 +1030,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
                 )}
               </TabsTrigger>
               <TabsTrigger value="new" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0">
-                <PackagePlus className="mr-1.5 size-3.5" /> Inward Catch (New)
+                <PackagePlus className="shrink-0 size-3.5" /> Inward Catch (New)
               </TabsTrigger>
               <TabsTrigger value="po_requests" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0 gap-1.5">
                 <TrendingUp className="size-3.5 text-indigo-500" /> Demand Radar &amp; P.O.
@@ -1041,10 +1041,10 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
                 )}
               </TabsTrigger>
               <TabsTrigger value="suppliers" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0">
-                <Building2 className="mr-1.5 size-3.5" /> Suppliers Directory ({suppliers.length})
+                <Building2 className="shrink-0 size-3.5" /> Suppliers Directory ({suppliers.length})
               </TabsTrigger>
               <TabsTrigger value="batches" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0">
-                <ShieldAlert className="mr-1.5 size-3.5 text-cyan-600" /> {storeVertical.shortName} Batches & Recall
+                <ShieldAlert className="shrink-0 size-3.5 text-cyan-600" /> {storeVertical.shortName} Batches & Recall
                 {inventoryBatches.filter((b: any) => b.status === "active").length > 0 && (
                   <span className="ml-1.5 rounded-full bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 px-1.5 py-0.2 text-[10px] font-extrabold">
                     {inventoryBatches.filter((b: any) => b.status === "active").length}
@@ -1071,7 +1071,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
                 className="h-8 rounded-xl text-xs font-bold shrink-0"
                 onClick={() => setActiveTab("new")}
               >
-                <Plus className="mr-1 size-3.5" /> Log Catch
+                <Plus className="shrink-0 size-3.5" /> Log Catch
               </Button>
             </div>
           )}
@@ -1553,7 +1553,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
                     className="h-7 text-xs rounded-xl"
                     onClick={addItemRow}
                   >
-                    <Plus className="mr-1 size-3" /> Add {storeVertical.shortName} Item
+                    <Plus className="shrink-0 size-3" /> Add {storeVertical.shortName} Item
                   </Button>
                 </div>
 
@@ -1700,7 +1700,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
                   className="flex-1 rounded-xl font-bold h-10 shadow-xs"
                   onClick={handleSavePurchase}
                 >
-                  <CheckCircle2 className="mr-1.5 size-4" /> Save Catch Inward & Update Stock
+                  <CheckCircle2 className="shrink-0 size-4" /> Save Catch Inward & Update Stock
                 </Button>
               </div>
             </CardContent>
@@ -1716,7 +1716,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
               className="rounded-xl h-8 text-xs font-bold"
               onClick={() => setOpenAddSupplier(true)}
             >
-              <Plus className="mr-1 size-3.5" /> Add Supplier
+              <Plus className="shrink-0 size-3.5" /> Add Supplier
             </Button>
           </div>
 

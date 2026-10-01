@@ -148,7 +148,7 @@ Generated automatically by Fish N Fresh Hub Architecture Engine.`;
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
           <Button variant="ghost" size="sm" asChild className="rounded-xl -ml-2 text-muted-foreground hover:text-foreground">
             <Link to="/">
-              <ArrowLeft className="mr-1.5 size-4" /> Back to Store
+              <ArrowLeft className="shrink-0 size-4" /> Back to Store
             </Link>
           </Button>
           <div className="flex items-center gap-2">
@@ -158,14 +158,14 @@ Generated automatically by Fish N Fresh Hub Architecture Engine.`;
               onClick={handleDownloadMarkdown}
               className="rounded-xl text-xs"
             >
-              <Download className="mr-1.5 size-3.5" /> Download (.md)
+              <Download className="shrink-0 size-3.5" /> Download (.md)
             </Button>
             <Button
               size="sm"
               onClick={handlePrint}
               className="rounded-xl text-xs shadow-xs"
             >
-              <Printer className="mr-1.5 size-3.5" /> Print / Save as PDF
+              <Printer className="shrink-0 size-3.5" /> Print / Save as PDF
             </Button>
           </div>
         </div>

@@ -427,14 +427,14 @@ function CustomersAdmin() {
                 value="orders"
                 className="rounded-xl text-xs font-bold whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-xs px-3 sm:px-4"
               >
-                <ShoppingBag className="mr-1.5 size-3.5" />
+                <ShoppingBag className="shrink-0 size-3.5" />
                 Active Customers ({rows.length})
               </TabsTrigger>
               <TabsTrigger
                 value="registered"
                 className="rounded-xl text-xs font-bold whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-xs px-3 sm:px-4"
               >
-                <Users className="mr-1.5 size-3.5" />
+                <Users className="shrink-0 size-3.5" />
                 All Registered Customers ({registeredRows.length})
               </TabsTrigger>
             </TabsList>

@@ -2837,7 +2837,7 @@ If you need any cut modifications, please reply here. Thank you!`}
                       toast.success("Reverted to Default Ocean Blue theme (#0ea5e9)");
                     }}
                   >
-                    <RotateCcw className="mr-1 size-3" /> Revert to Default
+                    <RotateCcw className="shrink-0 size-3" /> Revert to Default
                   </Button>
                 </div>
 

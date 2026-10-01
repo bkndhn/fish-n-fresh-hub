@@ -437,7 +437,7 @@ export function DriverDispatchPage() {
               disabled={autoAssignMutation.isPending || unassignedOrders.length === 0}
               onClick={() => autoAssignMutation.mutate()}
             >
-              <Zap className="mr-1.5 size-3.5 text-amber-300 animate-pulse" />
+              <Zap className="shrink-0 size-3.5 text-amber-300 animate-pulse" />
               {autoAssignMutation.isPending
                 ? "Auto-Assigning..."
                 : `Smart Auto-Assign (${unassignedOrders.length} Unassigned)`}
@@ -888,7 +888,7 @@ export function DriverDispatchPage() {
                           })
                         }
                       >
-                        <Wallet className="mr-1.5 size-3.5" /> Collect & Settle Cash ({formatINR(d.codPending)})
+                        <Wallet className="shrink-0 size-3.5" /> Collect & Settle Cash ({formatINR(d.codPending)})
                       </Button>
                     ) : (
                       <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground py-1 bg-muted/30 rounded-xl">
@@ -973,7 +973,7 @@ export function DriverDispatchPage() {
                                 })
                               }
                             >
-                              <Wallet className="mr-1 size-3" /> Settle Cash
+                              <Wallet className="shrink-0 size-3" /> Settle Cash
                             </Button>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">

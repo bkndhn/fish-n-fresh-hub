@@ -888,7 +888,7 @@ function Checkout() {
                 target="_blank"
                 rel="noreferrer"
               >
-                <WhatsAppIcon className="mr-2 size-4" /> Send Confirmation on WhatsApp
+                <WhatsAppIcon className="shrink-0 size-4" /> Send Confirmation on WhatsApp
               </a>
             </Button>
 

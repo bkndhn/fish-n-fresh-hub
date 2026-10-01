@@ -748,7 +748,7 @@ function ProductsAdmin() {
               setOpenAdd(true);
             }}
           >
-            <Plus className="mr-1.5 size-4" /> Add Product
+            <Plus className="shrink-0 size-4" /> Add Product
           </Button>
         </div>
       }
@@ -843,13 +843,14 @@ function ProductsAdmin() {
                 </div>
                 <Button
                   size="sm"
-                  className="h-7 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shrink-0 px-2.5 shadow-2xs"
+                  className="h-7 gap-1 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shrink-0 px-2.5 shadow-2xs"
                   onClick={() => {
                     setRefillProduct(p);
                     setRefillQty("10");
                   }}
                 >
-                  <Zap className="mr-1 size-3 fill-current" /> Refill
+                  <Zap className="size-3 shrink-0 fill-current" />
+                  <span>Refill</span>
                 </Button>
               </div>
             ))}
@@ -904,7 +905,7 @@ function ProductsAdmin() {
           }`}
           onClick={() => setFilterType("active")}
         >
-          <Eye className="mr-1.5 size-3.5" /> Active ({activeProducts.length})
+          <Eye className="shrink-0 size-3.5" /> Active ({activeProducts.length})
         </Button>
         <Button
           size="sm"
@@ -916,7 +917,7 @@ function ProductsAdmin() {
           }`}
           onClick={() => setFilterType("inactive")}
         >
-          <EyeOff className="mr-1.5 size-3.5" /> Inactive / Hidden ({inactiveProducts.length})
+          <EyeOff className="shrink-0 size-3.5" /> Inactive / Hidden ({inactiveProducts.length})
         </Button>
         <Button
           size="sm"
@@ -1757,13 +1758,14 @@ function ProductsAdmin() {
                   {/* Quick Refill Button */}
                   <Button
                     size="sm"
-                    className="flex-1 min-w-[100px] rounded-xl h-8 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-xs"
+                    className="flex-1 min-w-[100px] gap-1.5 rounded-xl h-8 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-xs active:scale-[0.98] transition-transform"
                     onClick={() => {
                       setRefillProduct(p);
                       setRefillQty("10");
                     }}
                   >
-                    <Zap className="mr-1.5 size-3.5 fill-current" /> Quick Refill
+                    <Zap className="size-3.5 shrink-0 fill-current" />
+                    <span className="whitespace-nowrap">Quick Refill</span>
                   </Button>
 
                   {/* Edit Details */}
@@ -1791,7 +1793,7 @@ function ProductsAdmin() {
                       });
                     }}
                   >
-                    <Edit className="mr-1.5 size-3.5" /> Edit
+                    <Edit className="shrink-0 size-3.5" /> Edit
                   </Button>
 
                   {/* AI Marine Health & Culinary Intelligence */}
@@ -2548,7 +2550,7 @@ function ProductsAdmin() {
                     disabled={quickRefill.isPending || !refillQty || Number(refillQty) <= 0}
                     onClick={() => quickRefill.mutate()}
                   >
-                    <Zap className="mr-1.5 size-4" />
+                    <Zap className="shrink-0 size-4" />
                     {quickRefill.isPending
                       ? "Refilling..."
                       : `Confirm Refill (+${refillQty} ${formatStockUnitLabel(refillProduct.unit)})`}

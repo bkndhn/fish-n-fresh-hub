@@ -1057,7 +1057,7 @@ function OrdersAdmin() {
                         className="flex-1 sm:flex-initial rounded-xl h-8.5 text-xs font-semibold"
                         onClick={() => setPrintOrder(o)}
                       >
-                        <Printer className="mr-1.5 size-3.5" /> Bill
+                        <Printer className="shrink-0 size-3.5" /> Bill
                       </Button>
 
                       <Button
@@ -1066,7 +1066,7 @@ function OrdersAdmin() {
                         className="flex-1 sm:flex-initial rounded-xl h-8.5 text-xs font-semibold border-sky-500/30 text-sky-700 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40"
                         onClick={() => setInvoiceOrder(o)}
                       >
-                        <FileText className="mr-1.5 size-3.5 text-sky-600" /> Invoice
+                        <FileText className="shrink-0 size-3.5 text-sky-600" /> Invoice
                       </Button>
 
                       {(storeVertical.id === "restaurant_cafe" || o.fulfillment_type === "dine_in" || Boolean((o as any).table_number)) && (
@@ -1095,7 +1095,7 @@ function OrdersAdmin() {
                               .catch((e: any) => toast.error(e.message || "Failed to print KOT"));
                           }}
                         >
-                          <Receipt className="mr-1.5 size-3.5 text-amber-600" /> KOT
+                          <Receipt className="shrink-0 size-3.5 text-amber-600" /> KOT
                         </Button>
                       )}
 
@@ -1147,7 +1147,7 @@ function OrdersAdmin() {
                             setWeightModalOrder(o);
                           }}
                         >
-                          <Scale className="mr-1.5 size-3.5 text-amber-600" /> Scale
+                          <Scale className="shrink-0 size-3.5 text-amber-600" /> Scale
                         </Button>
                       )}
                     </div>
@@ -1350,7 +1350,7 @@ function OrdersAdmin() {
             <DialogTitle className="flex items-center justify-between">
               <span>Packing Slip / Receipt</span>
               <Button size="sm" onClick={() => window.print()} className="rounded-xl">
-                <Printer className="mr-1.5 size-4" /> Print Now
+                <Printer className="shrink-0 size-4" /> Print Now
               </Button>
             </DialogTitle>
           </DialogHeader>

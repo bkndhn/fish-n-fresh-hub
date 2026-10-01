@@ -380,7 +380,7 @@ export function PwaPrompt() {
               className="w-full rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm h-10"
               onClick={handleNativeInstall}
             >
-              <Download className="mr-1.5 size-4" />
+              <Download className="shrink-0 size-4" />
               Install App Now
             </Button>
           ) : (
@@ -389,7 +389,7 @@ export function PwaPrompt() {
                 className="w-full rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm h-10"
                 onClick={handleNativeInstall}
               >
-                <Download className="mr-1.5 size-4" />
+                <Download className="shrink-0 size-4" />
                 Install App
               </Button>
               <div className="p-2.5 rounded-xl bg-muted/30 border text-[11px] text-muted-foreground space-y-1">
