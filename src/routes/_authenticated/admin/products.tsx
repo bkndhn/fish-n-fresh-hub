@@ -843,7 +843,7 @@ function ProductsAdmin() {
                 </div>
                 <Button
                   size="sm"
-                  className="h-7 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shrink-0 px-2.5 shadow-2xs"
+                  className="h-7 gap-1 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shrink-0 px-2.5 shadow-2xs"
                   onClick={() => {
                     setRefillProduct(p);
                     setRefillQty("10");
