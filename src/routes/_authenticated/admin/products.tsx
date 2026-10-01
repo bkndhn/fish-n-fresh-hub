@@ -849,7 +849,8 @@ function ProductsAdmin() {
                     setRefillQty("10");
                   }}
                 >
-                  <Zap className="mr-1 size-3 fill-current" /> Refill
+                  <Zap className="size-3 shrink-0 fill-current" />
+                  <span>Refill</span>
                 </Button>
               </div>
             ))}
