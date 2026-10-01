@@ -595,7 +595,7 @@ function SchedulePage() {
                     className="w-full rounded-xl text-xs h-8 mt-1"
                     onClick={addCustomHoliday}
                   >
-                    <Plus className="mr-1 size-3.5" /> Add Holiday Date
+                    <Plus className="shrink-0 size-3.5" /> Add Holiday Date
                   </Button>
                 </div>
 
@@ -765,7 +765,7 @@ function SchedulePage() {
                     </div>
                   </div>
                   <Button type="submit" className="w-full rounded-xl" disabled={create.isPending}>
-                    <Plus className="mr-1.5 size-4" /> Add window
+                    <Plus className="shrink-0 size-4" /> Add window
                   </Button>
                 </form>
               </CardContent>

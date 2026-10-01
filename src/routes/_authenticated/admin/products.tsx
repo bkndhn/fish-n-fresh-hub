@@ -748,7 +748,7 @@ function ProductsAdmin() {
               setOpenAdd(true);
             }}
           >
-            <Plus className="mr-1.5 size-4" /> Add Product
+            <Plus className="shrink-0 size-4" /> Add Product
           </Button>
         </div>
       }
@@ -905,7 +905,7 @@ function ProductsAdmin() {
           }`}
           onClick={() => setFilterType("active")}
         >
-          <Eye className="mr-1.5 size-3.5" /> Active ({activeProducts.length})
+          <Eye className="shrink-0 size-3.5" /> Active ({activeProducts.length})
         </Button>
         <Button
           size="sm"
@@ -917,7 +917,7 @@ function ProductsAdmin() {
           }`}
           onClick={() => setFilterType("inactive")}
         >
-          <EyeOff className="mr-1.5 size-3.5" /> Inactive / Hidden ({inactiveProducts.length})
+          <EyeOff className="shrink-0 size-3.5" /> Inactive / Hidden ({inactiveProducts.length})
         </Button>
         <Button
           size="sm"
@@ -1793,7 +1793,7 @@ function ProductsAdmin() {
                       });
                     }}
                   >
-                    <Edit className="mr-1.5 size-3.5" /> Edit
+                    <Edit className="shrink-0 size-3.5" /> Edit
                   </Button>
 
                   {/* AI Marine Health & Culinary Intelligence */}
@@ -2550,7 +2550,7 @@ function ProductsAdmin() {
                     disabled={quickRefill.isPending || !refillQty || Number(refillQty) <= 0}
                     onClick={() => quickRefill.mutate()}
                   >
-                    <Zap className="mr-1.5 size-4" />
+                    <Zap className="shrink-0 size-4" />
                     {quickRefill.isPending
                       ? "Refilling..."
                       : `Confirm Refill (+${refillQty} ${formatStockUnitLabel(refillProduct.unit)})`}

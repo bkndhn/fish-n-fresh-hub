@@ -203,7 +203,7 @@ function MyOrders() {
                   className="rounded-xl h-8 px-2.5 sm:px-3 text-xs"
                   onClick={() => handleReorder(o.items as CartItem[])}
                 >
-                  <RotateCcw className="mr-1 size-3.5" /> Reorder
+                  <RotateCcw className="shrink-0 size-3.5" /> Reorder
                 </Button>
                 <Button
                   size="sm"
@@ -211,7 +211,7 @@ function MyOrders() {
                   className="rounded-xl border-sky-500/30 text-sky-700 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40 h-8 px-2.5 sm:px-3 text-xs"
                   onClick={() => setInvoiceOrder(o)}
                 >
-                  <FileText className="mr-1 size-3.5 text-sky-600" /> Invoice
+                  <FileText className="shrink-0 size-3.5 text-sky-600" /> Invoice
                 </Button>
                 {o.status === "pending" && (
                   <Button

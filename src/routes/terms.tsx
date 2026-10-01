@@ -33,7 +33,7 @@ function TermsPage() {
         <div className="mb-6 flex items-center justify-between">
           <Button variant="ghost" size="sm" asChild className="rounded-xl -ml-2 text-muted-foreground hover:text-foreground">
             <Link to="/">
-              <ArrowLeft className="mr-1.5 size-4" /> Back to Store
+              <ArrowLeft className="shrink-0 size-4" /> Back to Store
             </Link>
           </Button>
           <Badge variant="outline" className="text-[11px] font-mono border-primary/30 text-primary">

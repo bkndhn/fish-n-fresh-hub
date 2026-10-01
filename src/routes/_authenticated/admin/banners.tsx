@@ -80,7 +80,7 @@ function AdminBanners() {
             setEditingId("new");
           }}
         >
-          <Plus className="mr-2 size-4" /> Add Banner
+          <Plus className="shrink-0 size-4" /> Add Banner
         </Button>
       </div>
 

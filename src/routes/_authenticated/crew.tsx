@@ -161,7 +161,7 @@ function CrewBoard() {
             className={(roles.data ?? []).includes("admin") ? "" : "ml-auto"}
             onClick={() => supabase.auth.signOut()}
           >
-            <LogOut className="mr-1.5 size-4" /> Sign out
+            <LogOut className="shrink-0 size-4" /> Sign out
           </Button>
         </div>
       </header>
@@ -249,7 +249,7 @@ function CrewBoard() {
                     </Button>
                     <Button asChild size="sm" variant="ghost">
                       <a href={`tel:${o.customer_phone}`}>
-                        <Phone className="mr-1.5 size-4" /> Call
+                        <Phone className="shrink-0 size-4" /> Call
                       </a>
                     </Button>
 
@@ -261,7 +261,7 @@ function CrewBoard() {
                       onClick={() => setRouteModalOrder(o)}
                       title="Preview route on map with live ETA"
                     >
-                      <RouteIcon className="mr-1.5 size-4 text-primary" /> Route
+                      <RouteIcon className="shrink-0 size-4 text-primary" /> Route
                     </Button>
 
                     {/* Turn-by-Turn GPS Navigation */}
@@ -278,7 +278,7 @@ function CrewBoard() {
                         rel="noreferrer"
                         title="Open turn-by-turn driving navigation in Google Maps"
                       >
-                        <Compass className="mr-1.5 size-4 text-blue-500" /> Navigate
+                        <Compass className="shrink-0 size-4 text-blue-500" /> Navigate
                       </a>
                     </Button>
                   </div>

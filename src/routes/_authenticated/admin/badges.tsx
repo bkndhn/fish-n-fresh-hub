@@ -113,7 +113,7 @@ function AdminBadges() {
             </select>
           </div>
           <Button disabled={!label.trim() || create.isPending} onClick={() => create.mutate()}>
-            <Plus className="mr-1.5 size-4" /> Add card
+            <Plus className="shrink-0 size-4" /> Add card
           </Button>
         </CardContent>
       </Card>

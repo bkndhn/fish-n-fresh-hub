@@ -375,7 +375,7 @@ function PromotionsAdmin() {
         </div>
         {mainTab === "coupons" && (
           <Button onClick={openCreate} className="rounded-xl self-start sm:self-auto">
-            <Plus className="mr-1.5 size-4" /> Create Coupon
+            <Plus className="shrink-0 size-4" /> Create Coupon
           </Button>
         )}
       </div>
@@ -388,7 +388,7 @@ function PromotionsAdmin() {
           onClick={() => setMainTab("coupons")}
           className="rounded-xl h-8 text-xs font-semibold"
         >
-          <Tag className="mr-1.5 size-3.5" /> Discount Coupons ({rows.length})
+          <Tag className="shrink-0 size-3.5" /> Discount Coupons ({rows.length})
         </Button>
         <Button
           size="sm"
@@ -396,7 +396,7 @@ function PromotionsAdmin() {
           onClick={() => setMainTab("campaigns")}
           className="rounded-xl h-8 text-xs font-semibold"
         >
-          <Sparkles className="mr-1.5 size-3.5 text-amber-500" /> Automated Campaigns & A/B Testing ({(campaigns.data || []).length})
+          <Sparkles className="shrink-0 size-3.5 text-amber-500" /> Automated Campaigns & A/B Testing ({(campaigns.data || []).length})
         </Button>
         <Button
           size="sm"
@@ -404,7 +404,7 @@ function PromotionsAdmin() {
           onClick={() => setMainTab("social")}
           className="rounded-xl h-8 text-xs font-semibold"
         >
-          <Share2 className="mr-1.5 size-3.5 text-sky-500" /> Social Media Hub (Omnichannel)
+          <Share2 className="shrink-0 size-3.5 text-sky-500" /> Social Media Hub (Omnichannel)
         </Button>
       </div>
 

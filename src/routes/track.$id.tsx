@@ -303,7 +303,7 @@ function TrackPage() {
               asChild
             >
               <a href={storeWhatsAppUrl} target="_blank" rel="noreferrer">
-                <WhatsAppIcon className="mr-1.5 size-4" /> Help on WhatsApp
+                <WhatsAppIcon className="shrink-0 size-4" /> Help on WhatsApp
               </a>
             </Button>
           </div>
@@ -534,7 +534,7 @@ function TrackPage() {
               <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
                 <Button size="sm" variant="outline" className="rounded-xl h-8.5 text-xs font-semibold" asChild>
                   <a href={`tel:${(order as any).driver_phone || supportPhone}`} className="flex items-center justify-center">
-                    <Phone className="mr-1.5 size-3.5 text-primary" /> Call Driver
+                    <Phone className="shrink-0 size-3.5 text-primary" /> Call Driver
                   </a>
                 </Button>
                 <Button
@@ -551,7 +551,7 @@ function TrackPage() {
                     rel="noreferrer"
                     className="flex items-center justify-center"
                   >
-                    <WhatsAppIcon className="mr-1.5 size-4" /> WhatsApp Driver
+                    <WhatsAppIcon className="shrink-0 size-4" /> WhatsApp Driver
                   </a>
                 </Button>
               </div>

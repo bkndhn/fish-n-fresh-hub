@@ -423,7 +423,7 @@ export function ProductCard({ product }: { product: Product }) {
                   }
                 }}
               >
-                <Plus className="mr-0.5 xs:mr-1 size-3 stroke-[2.5]" /> Add
+                <Plus className="shrink-0 size-3 stroke-[2.5]" /> Add
               </Button>
             )}
           </div>
