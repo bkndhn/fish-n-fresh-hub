@@ -1758,13 +1758,14 @@ function ProductsAdmin() {
                   {/* Quick Refill Button */}
                   <Button
                     size="sm"
-                    className="flex-1 min-w-[100px] rounded-xl h-8 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-xs"
+                    className="flex-1 min-w-[100px] gap-1.5 rounded-xl h-8 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-xs active:scale-[0.98] transition-transform"
                     onClick={() => {
                       setRefillProduct(p);
                       setRefillQty("10");
                     }}
                   >
-                    <Zap className="mr-1.5 size-3.5 fill-current" /> Quick Refill
+                    <Zap className="size-3.5 shrink-0 fill-current" />
+                    <span className="whitespace-nowrap">Quick Refill</span>
                   </Button>
 
                   {/* Edit Details */}
