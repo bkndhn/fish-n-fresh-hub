@@ -320,6 +320,7 @@ import { AnalyticsTracker } from "@/components/AnalyticsTracker";
 import { CustomerBranchProvider } from "@/lib/customerBranchContext";
 import { BranchPickerModal } from "@/components/BranchPickerModal";
 import { PwaPrompt } from "@/components/PwaPrompt";
+import { PageGate } from "@/components/PageGate";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
@@ -365,7 +366,7 @@ function RootComponent() {
               <SeoStructuredData />
               <AnalyticsTracker />
               <RealtimeSubscriber queryClient={queryClient} />
-              {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+              {/* Required: nested routes render here. Removing <PageGate><Outlet /></PageGate> breaks all child routes. */}
               <Suspense fallback={<div className="flex items-center justify-center min-h-screen text-muted-foreground"><span className="animate-pulse">Loading App...</span></div>}>
                 <Outlet />
               </Suspense>

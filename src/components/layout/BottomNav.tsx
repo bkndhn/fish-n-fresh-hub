@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { myRolesQuery } from "@/lib/admin";
 import { useCart } from "@/lib/cart";
 import { useWishlist } from "@/hooks/useWishlist";
+import { disabledPagesQuery, isPathDisabled } from "@/lib/pageVisibility";
 
 const items = [
   { to: "/", label: "Home", icon: Home },
@@ -17,6 +18,7 @@ export function BottomNav() {
   const { count } = useCart();
   const { count: wishlistCount } = useWishlist();
   const { data: myRoles } = useQuery(myRolesQuery);
+  const { data: disabledPages } = useQuery(disabledPagesQuery);
   const showAdmin = myRoles?.some((r) => ["admin", "staff", "driver"].includes(r));
 
   return (
@@ -26,7 +28,7 @@ export function BottomNav() {
     >
       <div className="pointer-events-auto flex items-center justify-between w-full max-w-[390px] rounded-3xl bg-card border border-border/80 shadow-[0_10px_35px_rgba(0,0,0,0.14)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.5)] p-1 xs:p-1.5 ring-1 ring-black/5 dark:ring-white/10 transition-all duration-300">
         <ul className="flex items-center justify-around w-full gap-0.5 xs:gap-1 m-0 p-0 list-none">
-          {items.map(({ to, label, icon: Icon, ...rest }) => (
+          {items.filter((i) => !isPathDisabled(i.to, disabledPages)).map(({ to, label, icon: Icon, ...rest }) => (
             <li key={to} className="flex-1 flex justify-center">
               <Link
                 to={to}
