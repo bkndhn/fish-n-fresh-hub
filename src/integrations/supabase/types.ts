@@ -498,6 +498,21 @@ export type Database = {
         }
         Relationships: []
       }
+      disabled_pages: {
+        Row: {
+          created_at: string | null
+          path: string
+        }
+        Insert: {
+          created_at?: string | null
+          path: string
+        }
+        Update: {
+          created_at?: string | null
+          path?: string
+        }
+        Relationships: []
+      }
       driver_cash_settlements: {
         Row: {
           amount_collected: number
