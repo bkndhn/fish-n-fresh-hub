@@ -8,3 +8,4 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+- Page on/off switches live in the `disabled_pages` table (path list); PageGate in __root blocks them for all roles and nav menus filter them — why: one source of truth shared across devices and roles.
