@@ -1,15 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
 import { type StripeEnv, createStripeClient, getStripeErrorMessage } from "@/lib/stripe.server";
-import { requireOrderAccess } from "@/lib/authz.server";
+import { requirePaymentOrderAccess } from "@/lib/authz.server";
+import { getRequest } from "@tanstack/react-start/server";
 
 type CheckoutSessionResult = { clientSecret: string } | { error: string };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const createOrderCheckout = createServerFn({ method: "POST" })
-  .inputValidator((data: { orderId: string; returnUrl: string; environment: StripeEnv; guestPhone?: string | undefined }) => {
+  .inputValidator((data: { orderId: string; returnUrl: string; environment: StripeEnv; guestToken?: string | undefined }) => {
     if (!UUID.test(data?.orderId ?? "")) throw new Error("Invalid order");
-    if (!data.returnUrl?.startsWith("http")) throw new Error("Invalid return URL");
+    if (typeof data.returnUrl !== "string" || data.returnUrl.length > 500) throw new Error("Invalid return URL");
     if (data.environment !== "sandbox" && data.environment !== "live") {
       throw new Error("Invalid environment");
     }
@@ -17,7 +18,18 @@ export const createOrderCheckout = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }): Promise<CheckoutSessionResult> => {
     try {
-      await requireOrderAccess(data.orderId, data.guestPhone ?? null);
+      // The return page must be on this site, so checkout can't bounce customers elsewhere.
+      const appOrigin = new URL(getRequest().url).origin;
+      let returnUrl: URL;
+      try {
+        returnUrl = new URL(data.returnUrl);
+      } catch {
+        return { error: "Invalid return URL" };
+      }
+      if (returnUrl.origin !== appOrigin || returnUrl.pathname !== "/payment-status") {
+        return { error: "Invalid return URL" };
+      }
+      await requirePaymentOrderAccess(data.orderId, data.guestToken ?? null);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: order, error } = await supabaseAdmin
         .from("orders")
@@ -48,7 +60,7 @@ export const createOrderCheckout = createServerFn({ method: "POST" })
         ],
         mode: "payment",
         ui_mode: "embedded_page",
-        return_url: data.returnUrl,
+        return_url: returnUrl.toString(),
         payment_intent_data: { description: "Fish N Fresh seafood order" },
         ...(order.customer_email ? { customer_email: order.customer_email } : {}),
         metadata: { order_id: order.id },
@@ -66,13 +78,13 @@ export const createOrderCheckout = createServerFn({ method: "POST" })
   });
 
 export const verifyOrderPaymentSession = createServerFn({ method: "POST" })
-  .inputValidator((data: { orderId: string; environment?: StripeEnv; guestPhone?: string | undefined }) => {
+  .inputValidator((data: { orderId: string; environment?: StripeEnv; guestToken?: string | undefined }) => {
     if (!UUID.test(data?.orderId ?? "")) throw new Error("Invalid order");
     return data;
   })
   .handler(async ({ data }): Promise<{ success: boolean; paid: boolean; error?: string; orderNumber?: string }> => {
     try {
-      await requireOrderAccess(data.orderId, data.guestPhone ?? null);
+      await requirePaymentOrderAccess(data.orderId, data.guestToken ?? null);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: order, error } = await supabaseAdmin
         .from("orders")

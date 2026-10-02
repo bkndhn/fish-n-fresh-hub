@@ -12,7 +12,7 @@ export function AnalyticsTracker() {
 
     // 1. Google Analytics 4 (GA4) Injection
     const gaId = s.ga4_measurement_id;
-    if (gaId && gaId.trim() && !document.getElementById("ga4-script")) {
+    if (gaId && /^G-[A-Z0-9]{4,20}$/i.test(gaId.trim()) && !document.getElementById("ga4-script")) {
       const script = document.createElement("script");
       script.id = "ga4-script";
       script.async = true;
@@ -32,7 +32,7 @@ export function AnalyticsTracker() {
 
     // 2. Meta (Facebook) Pixel Injection
     const pixelId = s.meta_pixel_id;
-    if (pixelId && pixelId.trim() && !document.getElementById("meta-pixel-script")) {
+    if (pixelId && /^\d{6,20}$/.test(pixelId.trim()) && !document.getElementById("meta-pixel-script")) {
       const pixelScript = document.createElement("script");
       pixelScript.id = "meta-pixel-script";
       pixelScript.innerHTML = `

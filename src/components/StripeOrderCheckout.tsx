@@ -2,10 +2,10 @@ import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe
 import { getStripe, getStripeEnvironment } from "@/lib/stripe";
 import { createOrderCheckout } from "@/lib/payments.functions";
 
-export function StripeOrderCheckout({ orderId, returnUrl, guestPhone }: { orderId: string; returnUrl: string; guestPhone?: string | undefined }) {
+export function StripeOrderCheckout({ orderId, returnUrl }: { orderId: string; returnUrl: string }) {
   const fetchClientSecret = async (): Promise<string> => {
     const result = await createOrderCheckout({
-      data: { orderId, returnUrl, environment: getStripeEnvironment(), guestPhone: guestPhone ?? localStorage.getItem("fnf_phone") ?? undefined },
+      data: { orderId, returnUrl, environment: getStripeEnvironment(), guestToken: localStorage.getItem(`fnf_order_token_${orderId}`) ?? undefined },
     });
     if ("error" in result) throw new Error(result.error);
     if (!result.clientSecret) throw new Error("Payment provider did not return a session");

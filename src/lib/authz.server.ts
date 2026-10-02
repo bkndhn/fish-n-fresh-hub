@@ -148,3 +148,36 @@ export async function requireOrderAccess(
 
   throw new AuthorizationError("You are not allowed to access this order");
 }
+
+/**
+ * Stricter order access for payment actions: the signed-in owner, staff, or a
+ * guest holding the secret order token created in their browser at checkout.
+ * A phone number alone is not accepted here.
+ */
+export async function requirePaymentOrderAccess(
+  orderId: string,
+  guestToken?: string | null | undefined,
+): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: order } = await supabaseAdmin
+    .from("orders")
+    .select("id, user_id, guest_access_hash")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!order) throw new AuthorizationError("Order not found");
+
+  const userId = await getCallerUserId();
+  if (userId && order.user_id && order.user_id === userId) return;
+  if (userId) {
+    const roles = await getCallerRoles(userId);
+    if (roles.some((r) => STAFF_ROLES.includes(r))) return;
+  }
+
+  const token = String(guestToken ?? "");
+  const stored = (order as { guest_access_hash?: string | null }).guest_access_hash;
+  if (!order.user_id && stored && /^[0-9a-f]{64}$/.test(token)) {
+    const { createHash } = await import("crypto");
+    if (createHash("sha256").update(token).digest("hex") === stored) return;
+  }
+  throw new AuthorizationError("You are not allowed to access this order");
+}

@@ -30,7 +30,7 @@ export const Route = createFileRoute('/api/public/order-alerts')({
         const incomingSecret = request.headers.get('x-webhook-secret') ||
           request.headers.get('authorization')?.replace('Bearer ', '') || ''
         
-        if (secret && incomingSecret !== secret) {
+        if (!secret || incomingSecret !== secret) {
           return Response.json({ error: 'Unauthorized' }, { status: 401 })
         }
         
