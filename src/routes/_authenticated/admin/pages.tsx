@@ -33,7 +33,7 @@ function PagesAdmin() {
   });
 
   return (
-    <AdminShell allow={["admin"]}>
+    <AdminShell title="Pages &amp; Modules" allow={["admin"]}>
       <div className="space-y-4">
         <div>
           <h1 className="font-display text-2xl font-bold text-foreground">Pages & Modules</h1>
