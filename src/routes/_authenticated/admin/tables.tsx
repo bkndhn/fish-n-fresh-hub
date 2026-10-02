@@ -431,19 +431,46 @@ function TableQrStudioPage() {
     toast.success(`Downloaded QR code for ${table.name}`);
   };
 
+  // Print in an isolated window so admin menus, dialogs and page content never leak onto the card.
+  const printStandeesIsolated = () => {
+    const node = document.querySelector(".print-all-standees-container");
+    if (!node || !node.innerHTML.trim()) {
+      toast.error("QR codes are still generating — try again in a second");
+      return;
+    }
+    const w = window.open("", "_blank", "width=520,height=800");
+    if (!w) {
+      toast.error("Allow pop-ups to print standees");
+      return;
+    }
+    const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+      .map((el) => el.outerHTML)
+      .join("");
+    w.document.write(
+      `<!doctype html><html><head><title>Table QR Standees</title>${styles}<style>@page{size:auto;margin:0.3in}body{background:#fff;margin:0}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}.page-standee{break-after:page;margin:0 auto 0.3in}</style></head><body><div>${node.innerHTML}</div></body></html>`,
+    );
+    w.document.close();
+    const imgs = Array.from(w.document.images);
+    Promise.all(imgs.map((i) => (i.complete ? null : new Promise((r) => { i.onload = i.onerror = r; })))).then(() => {
+      setTimeout(() => {
+        w.focus();
+        w.print();
+      }, 350);
+    });
+  };
+
   const handlePrintSingleStandee = (tableId: string) => {
+    setIsBulkPrinting(false);
     setPreviewTableId(tableId);
-    setTimeout(() => {
-      window.print();
-    }, 300);
+    setTimeout(printStandeesIsolated, 150);
   };
 
   const handlePrintAllStandees = () => {
     setIsBulkPrinting(true);
     setTimeout(() => {
-      window.print();
+      printStandeesIsolated();
       setIsBulkPrinting(false);
-    }, 400);
+    }, 150);
   };
 
   // Distinct sections

@@ -366,7 +366,7 @@ function RootComponent() {
               <SeoStructuredData />
               <AnalyticsTracker />
               <RealtimeSubscriber queryClient={queryClient} />
-              {/* Required: nested routes render here. Removing <PageGate><Outlet /></PageGate> breaks all child routes. */}
+              {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
               <Suspense fallback={<div className="flex items-center justify-center min-h-screen text-muted-foreground"><span className="animate-pulse">Loading App...</span></div>}>
                 <Outlet />
               </Suspense>
