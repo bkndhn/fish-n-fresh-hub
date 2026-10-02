@@ -1046,6 +1046,7 @@ export type Database = {
           fulfillment_type: string
           gst_amount: number
           gst_percent: number | null
+          guest_access_hash: string | null
           id: string
           is_rto: boolean
           items: Json
@@ -1131,6 +1132,7 @@ export type Database = {
           fulfillment_type?: string
           gst_amount?: number
           gst_percent?: number | null
+          guest_access_hash?: string | null
           id?: string
           is_rto?: boolean
           items?: Json
@@ -1216,6 +1218,7 @@ export type Database = {
           fulfillment_type?: string
           gst_amount?: number
           gst_percent?: number | null
+          guest_access_hash?: string | null
           id?: string
           is_rto?: boolean
           items?: Json
