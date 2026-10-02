@@ -320,6 +320,7 @@ import { AnalyticsTracker } from "@/components/AnalyticsTracker";
 import { CustomerBranchProvider } from "@/lib/customerBranchContext";
 import { BranchPickerModal } from "@/components/BranchPickerModal";
 import { PwaPrompt } from "@/components/PwaPrompt";
+import { PageGate } from "@/components/PageGate";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();

@@ -242,3 +242,12 @@ html {
 
 
 
+
+@media print {
+  @page { margin: 0.4in; }
+  html, body { background: #fff !important; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  header, nav, footer, aside, [data-sonner-toaster], [role="dialog"], [data-radix-portal], .fixed { display: none !important; }
+  .print-all-standees-container, .print-all-standees-container * { visibility: visible !important; }
+  .page-standee { break-inside: avoid; break-after: page; }
+}

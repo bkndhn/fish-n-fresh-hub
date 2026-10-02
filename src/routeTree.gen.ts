@@ -47,6 +47,7 @@ import { Route as AuthenticatedAdminExpensesRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminGstReportsRouteImport } from './routes/_authenticated/admin/gst-reports'
 import { Route as AuthenticatedAdminOnboardingRouteImport } from './routes/_authenticated/admin/onboarding'
 import { Route as AuthenticatedAdminOrdersRouteImport } from './routes/_authenticated/admin/orders'
+import { Route as AuthenticatedAdminPagesRouteImport } from './routes/_authenticated/admin/pages'
 import { Route as AuthenticatedAdminPaymentsRouteImport } from './routes/_authenticated/admin/payments'
 import { Route as AuthenticatedAdminPosRouteImport } from './routes/_authenticated/admin/pos'
 import { Route as AuthenticatedAdminPricingRouteImport } from './routes/_authenticated/admin/pricing'
@@ -268,6 +269,11 @@ const AuthenticatedAdminOrdersRoute =
     path: '/admin/orders',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminPagesRoute = AuthenticatedAdminPagesRouteImport.update({
+  id: '/admin/pages',
+  path: '/admin/pages',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAdminPaymentsRoute =
   AuthenticatedAdminPaymentsRouteImport.update({
     id: '/admin/payments',
@@ -409,6 +415,7 @@ export interface FileRoutesByFullPath {
   '/admin/gst-reports': typeof AuthenticatedAdminGstReportsRoute
   '/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
+  '/admin/pages': typeof AuthenticatedAdminPagesRoute
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/pos': typeof AuthenticatedAdminPosRoute
   '/admin/pricing': typeof AuthenticatedAdminPricingRoute
@@ -466,6 +473,7 @@ export interface FileRoutesByTo {
   '/admin/gst-reports': typeof AuthenticatedAdminGstReportsRoute
   '/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
+  '/admin/pages': typeof AuthenticatedAdminPagesRoute
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/pos': typeof AuthenticatedAdminPosRoute
   '/admin/pricing': typeof AuthenticatedAdminPricingRoute
@@ -525,6 +533,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/gst-reports': typeof AuthenticatedAdminGstReportsRoute
   '/_authenticated/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/_authenticated/admin/orders': typeof AuthenticatedAdminOrdersRoute
+  '/_authenticated/admin/pages': typeof AuthenticatedAdminPagesRoute
   '/_authenticated/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/_authenticated/admin/pos': typeof AuthenticatedAdminPosRoute
   '/_authenticated/admin/pricing': typeof AuthenticatedAdminPricingRoute
@@ -584,6 +593,7 @@ export interface FileRouteTypes {
     | '/admin/gst-reports'
     | '/admin/onboarding'
     | '/admin/orders'
+    | '/admin/pages'
     | '/admin/payments'
     | '/admin/pos'
     | '/admin/pricing'
@@ -641,6 +651,7 @@ export interface FileRouteTypes {
     | '/admin/gst-reports'
     | '/admin/onboarding'
     | '/admin/orders'
+    | '/admin/pages'
     | '/admin/payments'
     | '/admin/pos'
     | '/admin/pricing'
@@ -699,6 +710,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/gst-reports'
     | '/_authenticated/admin/onboarding'
     | '/_authenticated/admin/orders'
+    | '/_authenticated/admin/pages'
     | '/_authenticated/admin/payments'
     | '/_authenticated/admin/pos'
     | '/_authenticated/admin/pricing'
@@ -1016,6 +1028,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminOrdersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/pages': {
+      id: '/_authenticated/admin/pages'
+      path: '/admin/pages'
+      fullPath: '/admin/pages'
+      preLoaderRoute: typeof AuthenticatedAdminPagesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/payments': {
       id: '/_authenticated/admin/payments'
       path: '/admin/payments'
@@ -1160,6 +1179,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminGstReportsRoute: typeof AuthenticatedAdminGstReportsRoute
   AuthenticatedAdminOnboardingRoute: typeof AuthenticatedAdminOnboardingRoute
   AuthenticatedAdminOrdersRoute: typeof AuthenticatedAdminOrdersRoute
+  AuthenticatedAdminPagesRoute: typeof AuthenticatedAdminPagesRoute
   AuthenticatedAdminPaymentsRoute: typeof AuthenticatedAdminPaymentsRoute
   AuthenticatedAdminPosRoute: typeof AuthenticatedAdminPosRoute
   AuthenticatedAdminPricingRoute: typeof AuthenticatedAdminPricingRoute
@@ -1194,6 +1214,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminGstReportsRoute: AuthenticatedAdminGstReportsRoute,
   AuthenticatedAdminOnboardingRoute: AuthenticatedAdminOnboardingRoute,
   AuthenticatedAdminOrdersRoute: AuthenticatedAdminOrdersRoute,
+  AuthenticatedAdminPagesRoute: AuthenticatedAdminPagesRoute,
   AuthenticatedAdminPaymentsRoute: AuthenticatedAdminPaymentsRoute,
   AuthenticatedAdminPosRoute: AuthenticatedAdminPosRoute,
   AuthenticatedAdminPricingRoute: AuthenticatedAdminPricingRoute,

@@ -1,4 +1,5 @@
 import { useState, useEffect, type ReactNode } from "react";
+import { disabledPagesQuery, isPathDisabled } from "@/lib/pageVisibility";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -97,6 +98,7 @@ const NAV = [
   { to: "/admin/staff", label: "Team", icon: UserCog, roles: ["admin"] },
   { to: "/admin/super", label: "Super Admin", icon: ShieldAlert, roles: ["super_admin"] },
   { to: "/admin/onboarding", label: "Setup Wizard", icon: Sparkles, roles: ["admin"] },
+  { to: "/admin/pages", label: "Pages & Modules", icon: Layers, roles: ["admin"] },
   { to: "/admin/settings", label: "Settings", icon: Settings, roles: ["admin"] },
 ] as const satisfies readonly { to: string; label: string; icon: typeof BarChart3; exact?: boolean; roles: readonly AppRole[] }[];
 
@@ -121,6 +123,7 @@ export function AdminShell({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { data: roles, isLoading } = useQuery(myRolesQuery);
   const { data: settings } = useQuery(settingsQuery);
+  const { data: disabledPages } = useQuery(disabledPagesQuery);
   const myRoles = roles ?? [];
   const isSuperAdmin = myRoles.includes("super_admin");
   const isDirectlyAllowed = myRoles.some((r) => allow.includes(r));
@@ -132,6 +135,7 @@ export function AdminShell({
     if (!isSuperAdmin && !(item.roles as readonly AppRole[]).some((r) => myRoles.includes(r))) return false;
     // Hide POS Counter if feature disabled in settings
     if (item.to === "/admin/pos" && (settings as any)?.feature_pos_enabled === false) return false;
+    if (isPathDisabled(item.to, disabledPages)) return false;
     return true;
   });
 
@@ -209,7 +213,7 @@ export function AdminShell({
   return (
     <AdminBranchProvider>
       <div className="min-h-screen bg-muted/30 overflow-x-hidden w-full">
-        <header className="glass sticky top-0 z-50 border-b border-border w-full max-w-full overflow-hidden">
+        <header className="print:hidden glass sticky top-0 z-50 border-b border-border w-full max-w-full overflow-hidden">
           <div className={`mx-auto flex h-14 ${fullWidth ? "max-w-[1920px] px-3 sm:px-6" : "max-w-7xl px-2.5 sm:px-4"} items-center justify-between gap-1.5 sm:gap-3 w-full min-w-0`}>
             <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 shrink">
               <Link to="/" className="flex items-center gap-1.5 sm:gap-2 font-display font-bold text-foreground shrink-0">
@@ -285,7 +289,7 @@ export function AdminShell({
         </header>
 
       <div className={`mx-auto flex ${fullWidth ? "max-w-[1920px] px-2 sm:px-4 md:px-6 py-3 md:py-5" : "max-w-7xl px-3 py-3 sm:px-6 sm:py-6"} gap-3 md:gap-5 w-full`}>
-        <aside className={`hidden shrink-0 md:block transition-all duration-200 ${sidebarCollapsed ? "w-16" : "w-56"}`}>
+        <aside className={`print:hidden hidden shrink-0 md:block transition-all duration-200 ${sidebarCollapsed ? "w-16" : "w-56"}`}>
           <div className="sticky top-20 space-y-2">
             <div className="flex items-center justify-between px-2 pb-1 border-b border-border/40">
               {!sidebarCollapsed && <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Admin Console</span>}
