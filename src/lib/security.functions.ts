@@ -17,8 +17,18 @@ export const confirmSecurityRevocation = createServerFn({ method: "POST" })
     // Callers may only confirm revocations that actually apply to them.
     if (data.scope === "user" && data.targetId !== userId) return { valid: false };
     if (data.scope === "branch") {
-      const { isStaffCaller } = await import("@/lib/authz.server");
-      if (!data.targetId || !(await isStaffCaller())) return { valid: false };
+      if (!data.targetId) return { valid: false };
+      // Only staff assigned to that branch (or store-wide admins) may confirm it.
+      const { supabaseAdmin: sa } = await import("@/integrations/supabase/client.server");
+      const { data: roleRows } = await sa
+        .from("user_roles")
+        .select("role, branch_id")
+        .eq("user_id", userId);
+      const allowed = (roleRows ?? []).some(
+        (r: { role: string; branch_id: string | null }) =>
+          (["admin", "super_admin"].includes(r.role) && !r.branch_id) || r.branch_id === data.targetId,
+      );
+      if (!allowed) return { valid: false };
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

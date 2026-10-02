@@ -38,7 +38,7 @@ function PaymentStatus() {
       try {
         const env = isPaymentsConfigured() ? getStripeEnvironment() : "sandbox";
         await verifyOrderPaymentSession({
-          data: { orderId: order, environment: env, guestPhone: localStorage.getItem("fnf_phone") ?? undefined },
+          data: { orderId: order, environment: env, guestToken: localStorage.getItem(`fnf_order_token_${order}`) ?? undefined },
         });
       } catch (err) {
         console.warn("Direct session verification note:", err);

@@ -194,6 +194,7 @@ export const listWholesaleBands = createServerFn({ method: "GET" }).handler(
       supabaseAdmin
         .from("wholesale_discount_bands")
         .select(BAND_FIELDS)
+        .eq("active", true)
         .order("min_order_value", { ascending: true }),
       supabaseAdmin.from("store_settings").select("wholesale_min_order_value").limit(1).maybeSingle(),
     ]);

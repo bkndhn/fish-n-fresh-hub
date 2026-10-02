@@ -10,8 +10,15 @@ export const testEmailDispatch = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }) => {
-    await requireAdmin();
-    return await sendTestStoreEmail(data.email);
+    const { userId } = await requireAdmin();
+    // Test emails only go to the signed-in admin's own address.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: u } = await supabaseAdmin.auth.admin.getUserById(userId);
+    const own = u?.user?.email?.toLowerCase();
+    if (!own || own !== data.email.trim().toLowerCase()) {
+      throw new Error("Test emails can only be sent to your own sign-in email");
+    }
+    return await sendTestStoreEmail(own);
   });
 
 export const sendOrderConfirmedEmailServer = createServerFn({ method: "POST" })

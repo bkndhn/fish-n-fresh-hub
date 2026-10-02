@@ -589,11 +589,19 @@ function Checkout() {
           });
     const newOrderNumber = `FNF-${Math.floor(100000 + Math.random() * 900000)}`;
 
+    // Secret guest token: kept only in this browser; the order stores its hash.
+    const tokenBytes = crypto.getRandomValues(new Uint8Array(32));
+    const guestToken = Array.from(tokenBytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(guestToken));
+    const guestAccessHash = Array.from(new Uint8Array(hashBuf), (b) => b.toString(16).padStart(2, "0")).join("");
+    try { localStorage.setItem(`fnf_order_token_${newOrderId}`, guestToken); } catch { /* storage unavailable */ }
+
     const { error } = await supabase
       .from("orders")
       .insert({
         id: newOrderId,
         order_number: newOrderNumber,
+        guest_access_hash: guestAccessHash,
         customer_name: cleanName,
         customer_phone: cleanPhone,
         customer_email: email.trim() || null,
@@ -922,7 +930,6 @@ function Checkout() {
         </div>
         <StripeOrderCheckout
           orderId={checkoutOrderId}
-          guestPhone={phone}
           returnUrl={`${window.location.origin}/payment-status?order=${checkoutOrderId}`}
         />
       </AppShell>
