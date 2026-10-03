@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { Minus, Plus, ShieldCheck, Star, MessageSquare, Fish, Calendar, CheckCircle2 } from "lucide-react";
+import { Minus, Plus, ShieldCheck, Star, MessageSquare, Fish, Calendar, CheckCircle2, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -235,7 +235,27 @@ function ProductPage() {
             </div>
           )}
 
-          <h1 className="text-2xl font-bold">{product.name}</h1>
+          <div className="flex items-start justify-between gap-2">
+            <h1 className="text-2xl font-bold">{product.name}</h1>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 gap-1.5"
+              onClick={async () => {
+                const url = `${window.location.origin}/product/${product.id}`;
+                const text = `Check out ${product.name} at ₹${product.price}/${product.unit}`;
+                try {
+                  if (navigator.share) await navigator.share({ title: product.name, text, url });
+                  else {
+                    await navigator.clipboard.writeText(`${text} ${url}`);
+                    toast.success("Link copied — paste it in WhatsApp");
+                  }
+                } catch { /* user cancelled */ }
+              }}
+            >
+              <Share2 className="size-4 shrink-0" /><span>Share</span>
+            </Button>
+          </div>
           {product.name_tamil && <p className="text-muted-foreground">{product.name_tamil}</p>}
 
           <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
