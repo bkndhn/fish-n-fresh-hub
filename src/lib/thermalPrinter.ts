@@ -723,6 +723,9 @@ export interface PosReceiptData {
     upi?: number;
     card?: number;
   } | undefined;
+  /** Store UPI ID — when set, a scan-to-pay QR prints at the bottom of the bill */
+  upiId?: string | undefined;
+  upiName?: string | undefined;
 }
 
 /**
@@ -1007,6 +1010,18 @@ export function buildPosReceiptHtml(
       ${typeof data.changeDue === "number" ? `<tr><td>Change Returned</td><td style="text-align:right;">₹${data.changeDue.toFixed(2)}</td></tr>` : ""}
       ${data.upiRef ? `<tr><td colspan="2" style="font-size:0.8em;color:#555;">UPI Ref: ${escapeHtml(data.upiRef)}</td></tr>` : ""}
     </table>
+
+    ${data.upiId && !data.isReprint ? (() => {
+      const link = `upi://pay?pa=${encodeURIComponent(data.upiId)}&pn=${encodeURIComponent(data.upiName || store)}&am=${(data.total || 0).toFixed(2)}&cu=INR&tn=${encodeURIComponent(`Bill ${data.receiptNo}`)}`;
+      const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=0&data=${encodeURIComponent(link)}`;
+      return `<div style="border-top:1px dashed #000;margin-top:6px;padding-top:6px;text-align:center;">
+        <div style="font-weight:900;font-size:1em;">SCAN &amp; PAY BY UPI</div>
+        <img src="${qr}" alt="UPI QR" style="width:42mm;height:42mm;margin:4px auto;display:block;image-rendering:pixelated;" />
+        <div style="font-weight:bold;">₹${(data.total || 0).toFixed(2)}</div>
+        <div style="font-size:0.8em;">${escapeHtml(data.upiId)}</div>
+        <div style="font-size:0.75em;color:#555;">GPay · PhonePe · Paytm · any UPI app</div>
+      </div>`;
+    })() : ""}
 
     <!-- FOOTER -->
     <div style="border-top:1px dashed #000;margin-top:6px;padding-top:5px;text-align:center;font-size:0.82em;">

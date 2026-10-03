@@ -13,7 +13,8 @@ export type BusinessVertical =
   | "juice_shake_bar"
   | "fruits_vegetables"
   | "bakery_cake"
-  | "pharmacy_medical";
+  | "pharmacy_medical"
+  | "food_truck";
 
 export interface VerticalConfig {
   id: BusinessVertical;
@@ -478,6 +479,28 @@ export const VERTICAL_CONFIGS: Record<BusinessVertical, VerticalConfig> = {
     hasTechnicalSpecs: true,
     hasSizeChart: true,
     hasCutPreferences: false,
+  },
+  food_truck: {
+    id: "food_truck",
+    name: "Food Truck & Street Kitchen",
+    shortName: "Food Truck",
+    emoji: "🚚",
+    tagline: "Hot Street Food · Token Billing · UPI Ready",
+    badgeText: "Cooked Fresh on Wheels",
+    recommendedThemeColor: "#f97316",
+    defaultCategories: ["Rolls & Wraps", "Fried Snacks", "Rice Bowls", "Burgers", "Cold Drinks"],
+    motto: { en: "Fast, Fresh & Tasty on Wheels", ta: "சக்கரத்தில் சுவையான உணவு", hi: "पहियों पर ताज़ा और स्वादिष्ट" },
+    subMotto: { en: "Order at the counter, pay by UPI, collect with your token.", ta: "கவுண்டரில் ஆர்டர், UPI கட்டணம், டோக்கனில் பெறுங்கள்.", hi: "काउंटर पर ऑर्डर, UPI से भुगतान, टोकन से लें।" },
+    features: [
+      { title: "Token Billing", desc: "Quick counter bills with printed token numbers." },
+      { title: "UPI on Receipt", desc: "Customers scan the QR printed on the bill." },
+      { title: "Works Offline", desc: "Keep billing in low-signal spots, syncs later." },
+      { title: "Kitchen Tickets", desc: "Instant KOT to the cooking station." },
+    ],
+    hasWeighingScale: false, hasImeiSerialTracking: false, hasSizeColorVariants: false,
+    hasAisleRackLocation: false, hasWarrantyManagement: false, hasTechnicalSpecs: false,
+    hasSizeChart: false, hasCutPreferences: false,
+    hasKotPrinting: true, hasCookingInstructions: true, hasSpiceLevelModifier: true,
   },
   restaurant_cafe: {
     id: "restaurant_cafe",

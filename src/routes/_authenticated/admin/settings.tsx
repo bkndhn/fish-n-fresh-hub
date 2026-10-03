@@ -706,6 +706,18 @@ function AdminSettings() {
       const { error } = await supabase.from("store_settings").update(dbPatch).eq("id", settings.id);
       if (error) throw error;
 
+      // Business type changed → hide pages that type doesn't use (owner can re-enable in Pages & Modules)
+      if (dbPatch.business_vertical && dbPatch.business_vertical !== (settings as any).business_vertical) {
+        try {
+          const { applyBusinessPagePreset } = await import("@/lib/pageVisibility");
+          const hidden = await applyBusinessPagePreset(dbPatch.business_vertical);
+          qc.invalidateQueries({ queryKey: ["disabled_pages"] });
+          toast.success(`Shop switched — ${hidden.length} unused pages hidden. Change anytime in Pages & Modules.`);
+        } catch {
+          toast.error("Shop type saved, but pages could not be auto-hidden. Use Pages & Modules.");
+        }
+      }
+
       // Encode webhook_secret inside secret_key as JSON for Razorpay
       const encodedSecretKey = (
         gatewayForm.provider === "razorpay" && gatewayForm.webhook_secret
@@ -1241,13 +1253,21 @@ function AdminSettings() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {(
                   [
-                    "electronics_appliances",
-                    "clothing_fashion",
-                    "grocery_supermarket",
-                    "departmental_store",
                     "seafood",
                     "chicken_meat",
                     "all_meat",
+                    "snacks_sweets",
+                    "food_truck",
+                    "fruits_vegetables",
+                    "juice_shake_bar",
+                    "restaurant_cafe",
+                    "bakery_cake",
+                    "pharmacy_medical",
+                    "grocery_supermarket",
+                    "departmental_store",
+                    "electronics_appliances",
+                    "clothing_fashion",
+                    "footwear",
                     "universal",
                   ] as BusinessVertical[]
                 ).map((vId) => {

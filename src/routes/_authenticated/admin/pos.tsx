@@ -1314,6 +1314,8 @@ export function RetailPosCounterPage() {
         upi: splitUpiNum,
         card: splitCardNum,
       } : undefined,
+      upiId: settings?.upi_id || undefined,
+      upiName: settings?.upi_name || settings?.store_name || undefined,
       storeName: settings?.store_name || "Universal Retail Hub",
       storeAddress: settings?.store_address || undefined,
       storePhone: (settings as SiteSettings)?.contact_phone || undefined,

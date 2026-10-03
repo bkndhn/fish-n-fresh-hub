@@ -57,3 +57,41 @@ export async function setPageDisabled(path: string, disabled: boolean) {
   const { error } = disabled ? await t.upsert({ path }) : await t.delete().eq("path", path);
   if (error) throw error;
 }
+
+/** Pages hidden by default for each business type. Applied when the owner switches business type; still editable in Pages & Modules. */
+const DINE_IN = ["/table", "/admin/tables"];
+const ONLINE = ["/catalog", "/wishlist", "/track", "/driver", "/admin/delivery", "/admin/driver", "/admin/returns"];
+const WHOLESALE = ["/wholesale", "/admin/wholesale"];
+const FISH_ONLY = ["/admin/broadcasts"];
+export const BUSINESS_HIDDEN_PAGES: Record<string, string[]> = {
+  seafood: [...DINE_IN],
+  chicken_meat: [...DINE_IN],
+  all_meat: [...DINE_IN],
+  restaurant_cafe: [...WHOLESALE, ...FISH_ONLY],
+  food_truck: [...DINE_IN, ...WHOLESALE, ...FISH_ONLY, "/driver", "/admin/delivery", "/admin/driver", "/admin/returns"],
+  juice_shake_bar: [...DINE_IN, ...WHOLESALE, ...FISH_ONLY, ...ONLINE],
+  snacks_sweets: [...DINE_IN, ...FISH_ONLY, "/admin/waste"],
+  fruits_vegetables: [...DINE_IN, ...FISH_ONLY],
+  bakery_cake: [...DINE_IN, ...WHOLESALE, ...FISH_ONLY],
+  pharmacy_medical: [...DINE_IN, ...WHOLESALE, ...FISH_ONLY],
+  grocery_supermarket: [...DINE_IN, ...FISH_ONLY],
+  departmental_store: [...DINE_IN, ...FISH_ONLY],
+  electronics_appliances: [...DINE_IN, ...FISH_ONLY, "/admin/waste"],
+  clothing_fashion: [...DINE_IN, ...FISH_ONLY, "/admin/waste"],
+  footwear: [...DINE_IN, ...FISH_ONLY, "/admin/waste"],
+  universal: [],
+};
+
+/** Replace the hidden page list with the defaults for a business type. */
+export async function applyBusinessPagePreset(vertical: string, counterOnly = false) {
+  const hide = new Set((BUSINESS_HIDDEN_PAGES[vertical] ?? []).filter((p) => ALLOWED.has(p)));
+  if (counterOnly) ONLINE.forEach((p) => hide.add(p));
+  const t = (supabase as any).from("disabled_pages");
+  const { error: delErr } = await t.delete().neq("path", "");
+  if (delErr) throw delErr;
+  if (hide.size) {
+    const { error } = await (supabase as any).from("disabled_pages").insert([...hide].map((path) => ({ path })));
+    if (error) throw error;
+  }
+  return [...hide];
+}
