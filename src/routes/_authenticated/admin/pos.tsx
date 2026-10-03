@@ -238,6 +238,7 @@ export function RetailPosCounterPage() {
   // UI States
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [priceTap, setPriceTap] = useState<number | null>(null);
   const [cart, setCart] = useState<PosCartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -778,6 +779,7 @@ export function RetailPosCounterPage() {
       if (selectedCategory !== "all" && p.category !== selectedCategory) {
         return false;
       }
+      if (priceTap !== null && Number(p.price) !== priceTap) return false;
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase().trim();
       const effectiveCode = p.pos_code ?? (idx + 1);
@@ -2096,6 +2098,18 @@ export function RetailPosCounterPage() {
 
             {/* Search & Category Filter */}
             <div className="space-y-2 bg-card p-3 rounded-2xl border border-border/80 shadow-2xs">
+              <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+                {[null, 10, 15, 20, 30, 50].map((pp) => (
+                  <button
+                    key={String(pp)}
+                    type="button"
+                    onClick={() => setPriceTap(pp)}
+                    className={`shrink-0 rounded-full border px-3 py-1 text-xs font-bold transition ${priceTap === pp ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border"}`}
+                  >
+                    {pp === null ? "All prices" : `₹${pp}`}
+                  </button>
+                ))}
+              </div>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                 <Input

@@ -26,7 +26,7 @@ export const Route = createFileRoute('/api/public/order-alerts')({
     handlers: {
       POST: async ({ request }: { request: Request }) => {
         // Validate webhook secret
-        const secret = process.env['SUPABASE_WEBHOOK_SECRET'] || ''
+        const secret = process.env['ORDER_ALERT_WEBHOOK_SECRET'] || process.env['SUPABASE_WEBHOOK_SECRET'] || ''
         const incomingSecret = request.headers.get('x-webhook-secret') ||
           request.headers.get('authorization')?.replace('Bearer ', '') || ''
         
