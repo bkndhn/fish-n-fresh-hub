@@ -9,3 +9,4 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 - Page on/off switches live in the `disabled_pages` table (path list); PageGate in __root blocks them for all roles and nav menus filter them — why: one source of truth shared across devices and roles.
+- Business type presets (BUSINESS_HIDDEN_PAGES in pageVisibility) rewrite disabled_pages when the shop type changes in admin settings — why: each business only sees the pages it uses.
