@@ -1335,16 +1335,16 @@ export function formatKotReceipt(
  * Generate standard A4 GST Tax Invoice HTML for laser/inkjet printers.
  */
 export function buildA4InvoiceHtml(data: PosReceiptData, config: ThermalPrinterConfig = getSavedPrinterConfig()): string {
-  const store = data.storeName || config.headerLine1 || "FISH N FRESH HUB";
-  const address = data.storeAddress || "Kasimedu Marine Terminal, Chennai - 600013";
-  const phone = data.storePhone || "9843061919";
-  const gstin = data.storeGstin || "33AAAAF1234A1Z5";
+  const store = escapeHtml(data.storeName || config.headerLine1 || "FISH N FRESH HUB");
+  const address = escapeHtml(data.storeAddress || "Kasimedu Marine Terminal, Chennai - 600013");
+  const phone = escapeHtml(data.storePhone || "9843061919");
+  const gstin = escapeHtml(data.storeGstin || "33AAAAF1234A1Z5");
 
   return `
     <!DOCTYPE html>
     <html>
       <head>
-        <title>GST Tax Invoice #${data.receiptNo}</title>
+        <title>GST Tax Invoice #${escapeHtml(data.receiptNo)}</title>
         <style>
           @page { size: A4 portrait; margin: 12mm 15mm; }
           body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 12px; color: #111; margin: 0; line-height: 1.4; }
@@ -1376,8 +1376,8 @@ export function buildA4InvoiceHtml(data: PosReceiptData, config: ThermalPrinterC
             </div>
             <div>
               <div class="doc-title">TAX INVOICE</div>
-              <div>Invoice No: <strong>#${data.receiptNo}</strong></div>
-              <div>Date: ${data.date}</div>
+              <div>Invoice No: <strong>#${escapeHtml(data.receiptNo)}</strong></div>
+              <div>Date: ${escapeHtml(data.date)}</div>
               <div>Place of Supply: Tamil Nadu (33)</div>
             </div>
           </div>
@@ -1385,13 +1385,13 @@ export function buildA4InvoiceHtml(data: PosReceiptData, config: ThermalPrinterC
           <div class="grid-2">
             <div>
               <div class="bold" style="color: #475569; font-size: 11px;">BILLED TO:</div>
-              <div class="bold" style="font-size: 13px;">${data.customerName || "Walk-in Customer"}</div>
-              <div>Phone: ${data.customerPhone || "N/A"}</div>
+              <div class="bold" style="font-size: 13px;">${escapeHtml(data.customerName || "Walk-in Customer")}</div>
+              <div>Phone: ${escapeHtml(data.customerPhone || "N/A")}</div>
               <div>Payment Mode: <strong>${data.paymentMethod.toUpperCase()}</strong></div>
             </div>
             <div class="text-right">
               <div class="bold" style="color: #475569; font-size: 11px;">DISPATCH DETAILS:</div>
-              <div>Cashier: ${data.cashierName}</div>
+              <div>Cashier: ${escapeHtml(data.cashierName)}</div>
               <div>Cold-Chain Integrity: Guaranteed 0°C–4°C</div>
               <div>HSN Code: 0302 (Fresh Sea Fish)</div>
             </div>
@@ -1415,11 +1415,11 @@ export function buildA4InvoiceHtml(data: PosReceiptData, config: ThermalPrinterC
                 <tr>
                   <td class="text-center">${idx + 1}</td>
                   <td>
-                    <strong>${it.name}</strong>
-                    ${it.cuttingStyle ? `<div style="font-size: 10px; color: #64748b;">Style: ${it.cuttingStyle}</div>` : ""}
+                    <strong>${escapeHtml(it.name)}</strong>
+                    ${it.cuttingStyle ? `<div style="font-size: 10px; color: #64748b;">Style: ${escapeHtml(it.cuttingStyle)}</div>` : ""}
                   </td>
                   <td class="text-center">0302</td>
-                  <td class="text-right">${it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} ${it.unit || "kg"}`}</td>
+                  <td class="text-right">${it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} ${escapeHtml(it.unit || "kg")}`}</td>
                   <td class="text-right">₹${it.unitPrice.toFixed(2)}</td>
                   <td class="text-right bold">₹${it.totalPrice.toFixed(2)}</td>
                 </tr>
@@ -1458,12 +1458,12 @@ export function buildA4InvoiceHtml(data: PosReceiptData, config: ThermalPrinterC
  * Generate standard A5 Delivery Packing Slip HTML.
  */
 export function buildA5SlipHtml(data: PosReceiptData, config: ThermalPrinterConfig = getSavedPrinterConfig()): string {
-  const store = data.storeName || config.headerLine1 || "FISH N FRESH HUB";
+  const store = escapeHtml(data.storeName || config.headerLine1 || "FISH N FRESH HUB");
   return `
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Packing Slip #${data.receiptNo}</title>
+        <title>Packing Slip #${escapeHtml(data.receiptNo)}</title>
         <style>
           @page { size: A5 landscape; margin: 8mm 10mm; }
           body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 11px; color: #111; margin: 0; }
@@ -1477,11 +1477,11 @@ export function buildA5SlipHtml(data: PosReceiptData, config: ThermalPrinterConf
         <div class="header">
           <div>
             <div style="font-size: 16px; font-weight: bold;">${store} — DISPATCH SLIP</div>
-            <div>Order #${data.receiptNo} · ${data.date}</div>
+            <div>Order #${escapeHtml(data.receiptNo)} · ${escapeHtml(data.date)}</div>
           </div>
           <div style="text-align: right;">
-            <div>Customer: <strong>${data.customerName || "Walk-in Customer"}</strong></div>
-            <div>Phone: ${data.customerPhone || "N/A"}</div>
+            <div>Customer: <strong>${escapeHtml(data.customerName || "Walk-in Customer")}</strong></div>
+            <div>Phone: ${escapeHtml(data.customerPhone || "N/A")}</div>
           </div>
         </div>
         <table class="table">
@@ -1500,7 +1500,7 @@ export function buildA5SlipHtml(data: PosReceiptData, config: ThermalPrinterConf
                 (it, idx) => `
               <tr>
                 <td style="text-align: center;">${idx + 1}</td>
-                <td class="bold">${it.name}</td>
+                <td class="bold">${escapeHtml(it.name)}</td>
                 <td>${it.cuttingStyle || "Standard"}</td>
                 <td style="text-align: right;">${it.weightKg ? `${it.weightKg.toFixed(2)} kg` : `${it.qty || 1} ${it.unit || "unit"}`}</td>
                 <td style="text-align: center; font-size: 14px;">[ &nbsp; ]</td>
