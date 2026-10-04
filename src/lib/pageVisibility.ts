@@ -70,7 +70,7 @@ export const BUSINESS_HIDDEN_PAGES: Record<string, string[]> = {
   restaurant_cafe: [...WHOLESALE, ...FISH_ONLY],
   food_truck: [...DINE_IN, ...WHOLESALE, ...FISH_ONLY, "/driver", "/admin/delivery", "/admin/driver", "/admin/returns"],
   juice_shake_bar: [...DINE_IN, ...WHOLESALE, ...FISH_ONLY, ...ONLINE],
-  snacks_sweets: [...DINE_IN, ...FISH_ONLY, "/admin/waste"],
+  snacks_sweets: [...DINE_IN, ...WHOLESALE, ...FISH_ONLY, "/admin/waste", "/driver", "/admin/delivery", "/admin/driver"],
   fruits_vegetables: [...DINE_IN, ...FISH_ONLY],
   bakery_cake: [...DINE_IN, ...WHOLESALE, ...FISH_ONLY],
   pharmacy_medical: [...DINE_IN, ...WHOLESALE, ...FISH_ONLY],
@@ -81,6 +81,23 @@ export const BUSINESS_HIDDEN_PAGES: Record<string, string[]> = {
   footwear: [...DINE_IN, ...FISH_ONLY, "/admin/waste"],
   universal: [],
 };
+
+/** Online-only pages turned off together by the "Counter only" switch. */
+export const COUNTER_ONLY_PAGES = ONLINE;
+
+/** Counter-only mode is on when every online page is hidden. */
+export function isCounterOnly(disabled: string[] | undefined): boolean {
+  return COUNTER_ONLY_PAGES.every((p) => disabled?.includes(p));
+}
+
+/** Hide or show all online pages in one go. */
+export async function setCounterOnly(on: boolean) {
+  const t = (supabase as any).from("disabled_pages");
+  const { error } = on
+    ? await t.upsert(COUNTER_ONLY_PAGES.map((path) => ({ path })))
+    : await t.delete().in("path", COUNTER_ONLY_PAGES);
+  if (error) throw error;
+}
 
 /** Replace the hidden page list with the defaults for a business type. */
 export async function applyBusinessPagePreset(vertical: string, counterOnly = false) {

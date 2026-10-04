@@ -71,6 +71,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { disabledPagesQuery as disabledPagesQueryForToggle, isCounterOnly as isCounterOnlyMode, setCounterOnly as setCounterOnlyMode } from "@/lib/pageVisibility";
 import { ImageUpload } from "@/components/ImageUpload";
 import { useState, useEffect, useMemo } from "react";
 import { MapPinPickerModal } from "@/components/MapPinPickerModal";
@@ -709,8 +710,9 @@ function AdminSettings() {
       // Business type changed → hide pages that type doesn't use (owner can re-enable in Pages & Modules)
       if (dbPatch.business_vertical && dbPatch.business_vertical !== (settings as any).business_vertical) {
         try {
-          const { applyBusinessPagePreset } = await import("@/lib/pageVisibility");
-          const hidden = await applyBusinessPagePreset(dbPatch.business_vertical);
+          const { applyBusinessPagePreset, isCounterOnly } = await import("@/lib/pageVisibility");
+          const keepCounter = isCounterOnly(qc.getQueryData<string[]>(["disabled_pages"]));
+          const hidden = await applyBusinessPagePreset(dbPatch.business_vertical, keepCounter);
           qc.invalidateQueries({ queryKey: ["disabled_pages"] });
           toast.success(`Shop switched — ${hidden.length} unused pages hidden. Change anytime in Pages & Modules.`);
         } catch {
@@ -1316,6 +1318,8 @@ function AdminSettings() {
                   );
                 })}
               </div>
+
+              <CounterOnlyToggle />
 
               {/* Quick Apply Industry Presets Button */}
               {(() => {
@@ -5906,5 +5910,30 @@ If you need any cut modifications, please reply here. Thank you!`}
         onConfirm={handleSeedConfirm}
       />
     </AdminShell>
+  );
+}
+
+function CounterOnlyToggle() {
+  const qc = useQueryClient();
+  const { data: disabled } = useQuery(disabledPagesQueryForToggle);
+  const on = isCounterOnlyMode(disabled);
+  const m = useMutation({
+    mutationFn: (v: boolean) => setCounterOnlyMode(v),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ["disabled_pages"] });
+      toast.success(v ? "Counter only: online pages hidden" : "Online pages back on");
+    },
+    onError: () => toast.error("Could not update. Try again."),
+  });
+  return (
+    <div className="rounded-xl border border-border bg-card p-3 flex items-center justify-between gap-3">
+      <div className="text-xs">
+        <p className="font-bold text-foreground">Counter only (walk-in sales)</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">
+          Hides Catalog, Wishlist, Order tracking, Delivery and Driver pages in one tap.
+        </p>
+      </div>
+      <Switch checked={on} disabled={m.isPending} onCheckedChange={(v) => m.mutate(v)} aria-label="Counter only" />
+    </div>
   );
 }
