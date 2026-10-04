@@ -113,6 +113,13 @@
       "when": 1790934697916,
       "tag": "0015_security_hardening_service_requests_guest_token",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791092932894,
+      "tag": "0016_drop_public_service_request_read",
+      "breakpoints": true
     }
   ]
 }

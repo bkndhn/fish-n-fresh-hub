@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Allow public select service requests for active tables" ON public.table_service_requests;

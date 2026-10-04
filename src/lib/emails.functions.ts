@@ -27,5 +27,7 @@ export const sendOrderConfirmedEmailServer = createServerFn({ method: "POST" })
     // The recipient always comes from the order record itself, never from the caller.
     await requireOrderAccess(data.orderId, data.guestPhone ?? null);
     const { sendOrderConfirmedEmail } = await import("./emails.server");
-    return await sendOrderConfirmedEmail(data.orderId);
+    const { recipient: _r, ...rest } = await sendOrderConfirmedEmail(data.orderId);
+    // Never echo the customer's email address back to the caller.
+    return rest;
   });

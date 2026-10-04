@@ -39,7 +39,14 @@ export const lookupGuestOrder = createServerFn({ method: "POST" })
       : query.eq("order_number", data.reference);
     const { data: rows, error } = await query;
     if (error) throw new Error(error.message);
-    return ((rows?.[0] as unknown as GuestOrder) ?? null);
+    const row = rows?.[0] as unknown as GuestOrder | undefined;
+    if (!row) return null;
+    // Return only what a tracking screen needs; mask personal details.
+    return {
+      ...row,
+      customer_name: String(row.customer_name ?? "").split(" ")[0] || "Customer",
+      customer_phone: `******${String(row.customer_phone ?? "").slice(-4)}`,
+    };
   });
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

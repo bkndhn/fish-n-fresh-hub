@@ -1,3 +1,4 @@
+import { getRequest } from "@tanstack/react-start/server";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -133,13 +134,28 @@ export const inviteStaff = createServerFn({ method: "POST" })
     // Find or invite the user.
     const { data: existing } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
     let user = existing?.users.find((u) => u.email?.toLowerCase() === data.email) ?? null;
+    // Abuse guard: cap new invitations per hour across the store.
+    const hourAgo = Date.now() - 60 * 60 * 1000;
+    const recentInvites = (existing?.users ?? []).filter(
+      (u) => (u as { invited_at?: string }).invited_at && new Date((u as { invited_at?: string }).invited_at!).getTime() > hourAgo,
+    ).length;
+    if (!user && recentInvites >= 10) throw new Error("Too many invitations in the last hour. Try again later.");
+    // Only allow redirects back to this app's own origin.
+    let safeRedirect: string | undefined;
+    if (data.redirectTo) {
+      try {
+        const reqOrigin = new URL(getRequest().url).origin;
+        const target = new URL(data.redirectTo);
+        if (target.origin === reqOrigin) safeRedirect = target.toString();
+      } catch { /* ignore invalid redirect */ }
+    }
     let tempPassword: string | null = null;
     let invited = false;
 
     if (!user) {
       const invite = await supabaseAdmin.auth.admin.inviteUserByEmail(data.email, {
         data: { full_name: data.fullName },
-        ...(data.redirectTo ? { redirectTo: data.redirectTo } : {}),
+        ...(safeRedirect ? { redirectTo: safeRedirect } : {}),
       });
       if (invite.data?.user) {
         user = invite.data.user;
