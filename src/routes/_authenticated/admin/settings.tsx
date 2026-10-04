@@ -709,8 +709,9 @@ function AdminSettings() {
       // Business type changed → hide pages that type doesn't use (owner can re-enable in Pages & Modules)
       if (dbPatch.business_vertical && dbPatch.business_vertical !== (settings as any).business_vertical) {
         try {
-          const { applyBusinessPagePreset } = await import("@/lib/pageVisibility");
-          const hidden = await applyBusinessPagePreset(dbPatch.business_vertical);
+          const { applyBusinessPagePreset, isCounterOnly } = await import("@/lib/pageVisibility");
+          const keepCounter = isCounterOnly(qc.getQueryData<string[]>(["disabled_pages"]));
+          const hidden = await applyBusinessPagePreset(dbPatch.business_vertical, keepCounter);
           qc.invalidateQueries({ queryKey: ["disabled_pages"] });
           toast.success(`Shop switched — ${hidden.length} unused pages hidden. Change anytime in Pages & Modules.`);
         } catch {
@@ -1316,6 +1317,8 @@ function AdminSettings() {
                   );
                 })}
               </div>
+
+              <CounterOnlyToggle />
 
               {/* Quick Apply Industry Presets Button */}
               {(() => {
