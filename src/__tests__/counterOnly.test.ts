@@ -12,6 +12,6 @@ describe("counter only", () => {
   });
   it("snacks hides table QR, wholesale and delivery", () => {
     for (const p of ["/table", "/admin/tables", "/wholesale", "/admin/wholesale", "/admin/delivery"])
-      expect(BUSINESS_HIDDEN_PAGES.snacks_sweets).toContain(p);
+      expect(BUSINESS_HIDDEN_PAGES["snacks_sweets"]).toContain(p);
   });
 });
