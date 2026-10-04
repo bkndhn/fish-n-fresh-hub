@@ -41,7 +41,7 @@ describe("Universal Business Verticals & Capabilities", () => {
     expect(verticalIds).not.toContain("hotel");
     expect(verticalIds).not.toContain("cloud_kitchen");
     expect(verticalIds).not.toContain("bar");
-    expect(verticalIds.length).toBe(15);
+    expect(verticalIds.length).toBe(16);
   });
 
   it("assigns electronics-specific capabilities correctly", () => {
