@@ -499,7 +499,30 @@ export const REAL_FASHION_PRODUCTS = [
   },
 ];
 
+const RS15 = (n: number, name: string, name_ta: string, desc: string, img: string) => ({
+  id: `d0000000-0000-0000-0000-00000000001${n}`,
+  pos_code: 510 + n,
+  name,
+  name_ta,
+  category_slug: "rs15-packs",
+  category_name: "₹15 Mini Packs",
+  price: 15,
+  original_mrp: 15,
+  unit: "pkt",
+  stock: 150,
+  image_url: img,
+  description: desc,
+  ai_benefits_summary: "Fresh small-batch counter pack.",
+  is_active: true,
+  is_featured: n === 1,
+  is_bestseller: true,
+  hsn_code: "2106",
+});
+
 export const REAL_SNACKS_PRODUCTS = [
+  RS15(1, "Butter Murukku (₹15 Mini Pack)", "பட்டர் முறுக்கு (₹15)", "Soft-crunch butter murukku in a handy mini pack.", "https://images.unsplash.com/photo-1601050690597-df0568f70950?w=800"),
+  RS15(2, "Spicy Thattai (₹15 Mini Pack)", "காரத் தட்டை (₹15)", "Crisp rice thattai with chilli and curry leaves.", "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=800"),
+  RS15(3, "Kara Boondi (₹15 Mini Pack)", "கார பூந்தி (₹15)", "Spiced gram-flour boondi with roasted peanuts.", "https://images.unsplash.com/photo-1525286102393-89a32c4f8ef0?w=800"),
   {
     id: "d0000000-0000-0000-0000-000000000001",
     pos_code: 501,
@@ -785,6 +808,7 @@ export const applyRealProductsCatalog = createServerFn({ method: "POST" })
 
         case "snacks_sweets":
           categoriesToUpsert = [
+            { id: "c8000000-1111-1111-1111-111111111111", name: "₹15 Mini Packs", name_ta: "₹15 பாக்கெட்", slug: "rs15-packs", sort_order: 0, is_active: true },
             { id: "c8111111-1111-1111-1111-111111111111", name: "₹20 Snack Packs", name_ta: "₹20 பாக்கெட்", slug: "rs20-packs", sort_order: 1, is_active: true },
             { id: "c8222222-2222-2222-2222-222222222222", name: "₹30 Party Packs", name_ta: "₹30 பாக்கெட்", slug: "rs30-packs", sort_order: 2, is_active: true },
             { id: "c8333333-3333-3333-3333-333333333333", name: "Pure Ghee Sweets & Mithai", name_ta: "நெய் இனிப்புகள்", slug: "sweets-mithai", sort_order: 3, is_active: true },
