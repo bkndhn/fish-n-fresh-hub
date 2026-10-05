@@ -36,7 +36,7 @@
 
 ## Oct 2026 batch
 - [ ] Keep seafood live; restore Catalog/Wishlist/Tracking (turn Counter only off)
-- [ ] Daily cash vs UPI closing report → WhatsApp (admin)
-- [ ] Supplier reorder list from low stock (Purchases)
+- [x] Daily cash vs UPI closing report → WhatsApp (admin)
+- [x] Supplier reorder list from low stock (Purchases)
 - [ ] Remaining security findings + guest kitchen check
 - [ ] Stronger multi-business foundation (non-seafood verticals)
