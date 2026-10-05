@@ -1808,7 +1808,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Track harbour dock origins, trawler vessel IDs, cold-chain temperatures, and execute instant customer recalls.
+                Track supplier origins, lot IDs, cold-chain temperatures, and execute instant customer recalls.
               </p>
             </div>
 

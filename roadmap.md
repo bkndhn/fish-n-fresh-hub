@@ -39,4 +39,4 @@
 - [x] Daily cash vs UPI closing report → WhatsApp (admin)
 - [x] Supplier reorder list from low stock (Purchases)
 - [x] Remaining security findings (fresh scan: 0 open)
-- [ ] Stronger multi-business foundation (non-seafood verticals)
+- [x] Stronger multi-business foundation (Purchases wording follows shop type)
