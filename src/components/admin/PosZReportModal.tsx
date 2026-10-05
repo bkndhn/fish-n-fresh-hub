@@ -539,6 +539,28 @@ export function PosZReportModal({
             <div className="flex items-center gap-2.5">
               <Button
                 variant="outline"
+                onClick={() => {
+                  const d = new Date().toLocaleDateString("en-IN");
+                  const msg = [
+                    `*Daily Closing — ${d}*`,
+                    `Cashier: ${cashierName}`,
+                    `Bills: ${breakdown.orderCount}`,
+                    `Cash: ${formatINR(breakdown.cashSales)} (${breakdown.cashCount})`,
+                    `UPI: ${formatINR(breakdown.upiSales)} (${breakdown.upiCount})`,
+                    `Card: ${formatINR(breakdown.cardSales)}`,
+                    `*Total: ${formatINR(breakdown.totalRevenue)}*`,
+                    `Expected cash in drawer: ${formatINR(breakdown.expectedCash)}`,
+                    `Counted cash: ${formatINR(actualCash)} (diff ${formatINR(variance)})`,
+                    notes ? `Notes: ${notes}` : "",
+                  ].filter(Boolean).join("\n");
+                  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank", "noopener");
+                }}
+                className="rounded-2xl h-10 text-xs font-bold px-4 gap-1.5"
+              >
+                <span>Send to WhatsApp</span>
+              </Button>
+              <Button
+                variant="outline"
                 onClick={handlePrintZReport}
                 disabled={isPrinting}
                 className="rounded-2xl h-10 text-xs font-bold px-4 gap-1.5 border-primary/40 text-primary hover:bg-primary/10"

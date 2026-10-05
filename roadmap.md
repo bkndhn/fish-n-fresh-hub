@@ -33,3 +33,10 @@
 ## Printer & bulk display
 - [x] Bluetooth printer: wider service discovery, safe 20-byte writes, auto-reconnect, disconnect detection, clear failure messages
 - [x] Cart shows bulk discount, next discount band and minimum bulk order hints
+
+## Oct 2026 batch
+- [ ] Keep seafood live; restore Catalog/Wishlist/Tracking (turn Counter only off)
+- [x] Daily cash vs UPI closing report → WhatsApp (admin)
+- [x] Supplier reorder list from low stock (Purchases)
+- [ ] Remaining security findings + guest kitchen check
+- [ ] Stronger multi-business foundation (non-seafood verticals)
