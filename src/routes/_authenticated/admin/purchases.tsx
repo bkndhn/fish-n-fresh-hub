@@ -209,6 +209,8 @@ function PurchasesAdmin() {
   const products = productsQueryObj.data ?? [];
   const { data: settings } = useQuery(settingsQuery);
   const storeVertical = getStoreVertical(settings);
+  const isSea = storeVertical.id === "seafood";
+  const T = { catch: isSea ? "Catch" : "Stock", inward: isSea ? "Inward Catch" : "Stock Inward", place: isSea ? "Harbour" : "Depot", partners: isSea ? "harbour trawlers" : "suppliers" };
   const formFields = useMemo(
     () => getVerticalFormFields(storeVertical.id, settings?.store_name),
     [storeVertical.id, settings?.store_name]
@@ -1006,7 +1008,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
         </Card>
 
         <Card className="rounded-2xl border-border/80 p-3.5 shadow-2xs">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Catch Weight</p>
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{T.catch} Weight</p>
           <p className="text-xl font-extrabold text-cyan-600 dark:text-cyan-400 mt-0.5">
             {totalWeightKg.toLocaleString()} kg
           </p>
@@ -1019,7 +1021,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
           <div className="w-full min-w-0 overflow-x-auto no-scrollbar touch-pan-x scroll-smooth pb-0.5">
             <TabsList className="rounded-2xl p-1 bg-muted/60 flex-nowrap w-max">
               <TabsTrigger value="ledger" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0">
-                <FileText className="shrink-0 size-3.5" /> Catch Purchases
+                <FileText className="shrink-0 size-3.5" /> {T.catch} Purchases
               </TabsTrigger>
               <TabsTrigger value="outstanding" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0">
                 <Receipt className="shrink-0 size-3.5" /> Outstanding & Statements
@@ -1030,7 +1032,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
                 )}
               </TabsTrigger>
               <TabsTrigger value="new" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0">
-                <PackagePlus className="shrink-0 size-3.5" /> Inward Catch (New)
+                <PackagePlus className="shrink-0 size-3.5" /> {T.inward} (New)
               </TabsTrigger>
               <TabsTrigger value="po_requests" className="rounded-xl text-xs font-bold whitespace-nowrap shrink-0 gap-1.5">
                 <TrendingUp className="size-3.5 text-indigo-500" /> Demand Radar &amp; P.O.
@@ -1071,7 +1073,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
                 className="h-8 rounded-xl text-xs font-bold shrink-0"
                 onClick={() => setActiveTab("new")}
               >
-                <Plus className="shrink-0 size-3.5" /> Log Catch
+                <Plus className="shrink-0 size-3.5" /> Log {T.catch}
               </Button>
             </div>
           )}
@@ -1230,7 +1232,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
 
             {filteredPurchases.length === 0 && (
               <p className="text-center py-10 text-sm text-muted-foreground">
-                No purchases match your criteria. Click "Log Catch" to inward fish.
+                No purchases match your criteria. Click "Log {T.catch}" to inward stock.
               </p>
             )}
           </div>
@@ -1700,7 +1702,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
                   className="flex-1 rounded-xl font-bold h-10 shadow-xs"
                   onClick={handleSavePurchase}
                 >
-                  <CheckCircle2 className="shrink-0 size-4" /> Save Catch Inward & Update Stock
+                  <CheckCircle2 className="shrink-0 size-4" /> Save {T.catch} Inward & Update Stock
                 </Button>
               </div>
             </CardContent>
@@ -1737,7 +1739,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Anchor className="size-3 shrink-0" /> {sup.harbour || "Harbour"}
+                    <Anchor className="size-3 shrink-0" /> {sup.harbour || T.place}
                   </p>
                   {sup.contact_person && (
                     <p className="text-xs text-muted-foreground">Contact: {sup.contact_person}</p>
@@ -1799,7 +1801,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-sm sm:text-base font-bold text-foreground">
-                  Catch Batches &amp; Food Safety Traceability
+                  {T.catch} Batches &amp; Food Safety Traceability
                 </h3>
                 <span className="rounded-full bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 text-[10px] font-extrabold px-2 py-0.5 border border-cyan-500/20">
                   FSSAI Compliant
@@ -1830,7 +1832,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
                 className="rounded-xl h-8 text-xs font-bold gap-1.5 bg-primary text-primary-foreground shadow-2xs"
                 onClick={() => setNewBatchModalOpen(true)}
               >
-                <Plus className="size-3.5" /> Log Catch Lot
+                <Plus className="size-3.5" /> Log {T.catch} Lot
               </Button>
             </div>
           </div>
@@ -1863,7 +1865,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
               <p className="text-xl font-extrabold text-foreground mt-0.5">
                 {inventoryBatches.length}
               </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Harbour to doorstep logged</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Source to doorstep logged</p>
             </Card>
           </div>
 
@@ -1873,9 +1875,9 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
               <table className="w-full text-left text-xs">
                 <thead className="bg-muted/60 text-muted-foreground font-semibold">
                   <tr>
-                    <th className="p-3">Lot # / Harbour</th>
-                    <th className="p-3">Catch Product &amp; Vessel</th>
-                    <th className="p-3">Catch Date</th>
+                    <th className="p-3">Lot # / {T.place}</th>
+                    <th className="p-3">{T.catch} Product &amp; Vessel</th>
+                    <th className="p-3">{T.catch} Date</th>
                     <th className="p-3">Cold Chain</th>
                     <th className="p-3 text-right">Qty (Init / Curr)</th>
                     <th className="p-3">Status</th>
@@ -2015,7 +2017,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
                       Smart Demand Radar &amp; Purchase Orders (P.O.)
                     </h2>
                     <p className="text-xs text-muted-foreground">
-                      AI replenishment radar flags depleted bestsellers, matches with harbour trawlers, and dispatches 1-tap WhatsApp purchase orders.
+                      AI replenishment radar flags depleted bestsellers, matches with {T.partners}, and dispatches 1-tap WhatsApp purchase orders.
                     </p>
                   </div>
                 </div>
@@ -2053,7 +2055,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
             {/* Quick Metrics */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-border/50">
               <div className="p-3 rounded-2xl bg-background/60 border border-border/70">
-                <p className="text-[11px] font-semibold text-muted-foreground">Critical Depleted Catch</p>
+                <p className="text-[11px] font-semibold text-muted-foreground">Critical Depleted {T.catch}</p>
                 <p className="text-lg font-black text-rose-600 dark:text-rose-400 mt-0.5">
                   {demandRadarItems.filter((i) => i.urgency === "critical").length} items
                 </p>
@@ -2092,7 +2094,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
                   Live Seafood Demand Radar — High-Velocity Replenishment Suggestions
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Products with high sales volume or low current dock inventory. Matched automatically to specialized supplier trawlers.
+                  Products with high sales volume or low current inventory. Matched automatically to specialized {T.partners}.
                 </p>
               </div>
               <Badge variant="outline" className="text-xs self-start sm:self-auto font-mono">
@@ -2371,7 +2373,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
               Create Supplier Purchase Order (P.O.)
             </DialogTitle>
             <p className="text-xs text-muted-foreground">
-              Draft formal replenishment request for harbour trawlers or wholesale partners.
+              Draft formal replenishment request for {T.partners} or wholesale partners.
             </p>
           </DialogHeader>
 
@@ -2386,7 +2388,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
                 >
                   {suppliers.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name} ({s.harbour || "Harbour"})
+                      {s.name} ({s.harbour || T.place})
                     </option>
                   ))}
                 </select>
@@ -2406,7 +2408,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
             {/* Item Rows */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold">Catch Items Requested</Label>
+                <Label className="text-xs font-bold">{T.catch} Items Requested</Label>
                 <Button
                   type="button"
                   size="sm"
