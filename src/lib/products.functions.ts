@@ -1,6 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireAdmin } from "@/lib/authz.server";
 import { detectVerticalFromStoreName, type BusinessVertical } from "@/lib/verticals";
+import {
+  JUICE_CATALOG,
+  PRODUCE_CATALOG,
+  BAKERY_CATALOG,
+  PHARMACY_CATALOG,
+  EXTRA_TEMPLATE_CATEGORY_SLUGS,
+  getExtraCatalog,
+} from "@/lib/verticalCatalogs";
 
 export interface SeedCatalogResult {
   success: boolean;
@@ -741,6 +749,8 @@ const ALL_TEMPLATE_CATEGORY_SLUGS = [
   "formal-shoes",
   "daily-sandals",
   "slides-chappals",
+  "rs15-packs",
+  ...EXTRA_TEMPLATE_CATEGORY_SLUGS,
 ];
 
 export const applyRealProductsCatalog = createServerFn({ method: "POST" })
@@ -826,6 +836,16 @@ export const applyRealProductsCatalog = createServerFn({ method: "POST" })
           productsToUpsert = REAL_FOOTWEAR_PRODUCTS;
           break;
 
+        case "juice_shake_bar":
+        case "fruits_vegetables":
+        case "bakery_cake":
+        case "pharmacy_medical": {
+          const extra = getExtraCatalog(activeVertical)!;
+          categoriesToUpsert = extra.categories;
+          productsToUpsert = extra.products;
+          break;
+        }
+
         case "seafood":
         default:
           categoriesToUpsert = [
@@ -873,6 +893,7 @@ export const applyRealProductsCatalog = createServerFn({ method: "POST" })
             ...REAL_FASHION_PRODUCTS.map((p) => p.id),
             ...REAL_SNACKS_PRODUCTS.map((p) => p.id),
             ...REAL_FOOTWEAR_PRODUCTS.map((p) => p.id),
+            ...[JUICE_CATALOG, PRODUCE_CATALOG, BAKERY_CATALOG, PHARMACY_CATALOG].flatMap((c) => c.products.map((p) => p.id)),
           ];
           const otherTemplateIds = allTemplateIds.filter((id) => !productIds.includes(id));
           if (otherTemplateIds.length > 0) {
