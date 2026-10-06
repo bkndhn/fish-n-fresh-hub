@@ -75,6 +75,7 @@ import {
 import { PrinterSettingsModal } from "@/components/admin/PrinterSettingsModal";
 import { PosPastBillsModal } from "@/components/admin/PosPastBillsModal";
 import { PosZReportModal } from "@/components/admin/PosZReportModal";
+import { PosAutoCloseTimer } from "@/components/admin/PosAutoCloseTimer";
 import { PortionChipsModal, getStoredPortionChips, DEFAULT_PORTION_CHIPS, type PortionChip } from "@/components/admin/PortionChipsModal";
 import {
   getSavedPrinterConfig,
@@ -488,6 +489,7 @@ export function RetailPosCounterPage() {
   const [printerModalOpen, setPrinterModalOpen] = useState(false);
   const [pastBillsModalOpen, setPastBillsModalOpen] = useState(false);
   const [zReportModalOpen, setZReportModalOpen] = useState(false);
+  const openZReport = useCallback(() => setZReportModalOpen(true), []);
   const [parkedModalOpen, setParkedModalOpen] = useState(false);
   const [tablesModalOpen, setTablesModalOpen] = useState(false);
 
@@ -1782,6 +1784,8 @@ export function RetailPosCounterPage() {
               <History className="size-3.5 text-primary" />
               <span>Sales Register [F5]</span>
             </Button>
+
+            <PosAutoCloseTimer onOpenReport={openZReport} />
 
             {/* Day-End Shift Register Reconciliation & Z-Report */}
             <Button
