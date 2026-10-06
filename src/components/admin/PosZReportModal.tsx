@@ -544,6 +544,7 @@ export function PosZReportModal({
                   const msg = [
                     `*Daily Closing — ${d}*`,
                     `Cashier: ${cashierName}`,
+                    `Opening balance: ${formatINR(openingFloat)}`,
                     `Bills: ${breakdown.orderCount}`,
                     `Cash: ${formatINR(breakdown.cashSales)} (${breakdown.cashCount})`,
                     `UPI: ${formatINR(breakdown.upiSales)} (${breakdown.upiCount})`,
