@@ -65,7 +65,9 @@ import { Route as AuthenticatedAdminTablesRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAdminWasteRouteImport } from './routes/_authenticated/admin/waste'
 import { Route as AuthenticatedAdminWholesaleRouteImport } from './routes/_authenticated/admin/wholesale'
 import { Route as ApiPublicOrderAlertsRouteImport } from './routes/api/public/order-alerts'
+import { Route as ApiPublicCronDailyCloseRouteImport } from './routes/api/public/cron/daily-close'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
+import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp/webhook'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -371,10 +373,21 @@ const ApiPublicOrderAlertsRoute = ApiPublicOrderAlertsRouteImport.update({
   path: '/api/public/order-alerts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCronDailyCloseRoute = ApiPublicCronDailyCloseRouteImport.update({
+  id: '/api/public/cron/daily-close',
+  path: '/api/public/cron/daily-close',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPaymentsWebhookRoute =
   ApiPublicPaymentsWebhookRouteImport.update({
     id: '/api/public/payments/webhook',
     path: '/api/public/payments/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicWhatsappWebhookRoute =
+  ApiPublicWhatsappWebhookRouteImport.update({
+    id: '/api/public/whatsapp/webhook',
+    path: '/api/public/whatsapp/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -434,7 +447,9 @@ export interface FileRoutesByFullPath {
   '/admin/wholesale': typeof AuthenticatedAdminWholesaleRoute
   '/api/public/order-alerts': typeof ApiPublicOrderAlertsRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/api/public/cron/daily-close': typeof ApiPublicCronDailyCloseRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -492,7 +507,9 @@ export interface FileRoutesByTo {
   '/admin/wholesale': typeof AuthenticatedAdminWholesaleRoute
   '/api/public/order-alerts': typeof ApiPublicOrderAlertsRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
+  '/api/public/cron/daily-close': typeof ApiPublicCronDailyCloseRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -552,7 +569,9 @@ export interface FileRoutesById {
   '/_authenticated/admin/wholesale': typeof AuthenticatedAdminWholesaleRoute
   '/api/public/order-alerts': typeof ApiPublicOrderAlertsRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/api/public/cron/daily-close': typeof ApiPublicCronDailyCloseRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -612,7 +631,9 @@ export interface FileRouteTypes {
     | '/admin/wholesale'
     | '/api/public/order-alerts'
     | '/admin/'
+    | '/api/public/cron/daily-close'
     | '/api/public/payments/webhook'
+    | '/api/public/whatsapp/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -670,7 +691,9 @@ export interface FileRouteTypes {
     | '/admin/wholesale'
     | '/api/public/order-alerts'
     | '/admin'
+    | '/api/public/cron/daily-close'
     | '/api/public/payments/webhook'
+    | '/api/public/whatsapp/webhook'
   id:
     | '__root__'
     | '/'
@@ -729,7 +752,9 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/wholesale'
     | '/api/public/order-alerts'
     | '/_authenticated/admin/'
+    | '/api/public/cron/daily-close'
     | '/api/public/payments/webhook'
+    | '/api/public/whatsapp/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -757,7 +782,9 @@ export interface RootRouteChildren {
   TrackIdRoute: typeof TrackIdRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicOrderAlertsRoute: typeof ApiPublicOrderAlertsRoute
+  ApiPublicCronDailyCloseRoute: typeof ApiPublicCronDailyCloseRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
+  ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1154,11 +1181,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicOrderAlertsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/daily-close': {
+      id: '/api/public/cron/daily-close'
+      path: '/api/public/cron/daily-close'
+      fullPath: '/api/public/cron/daily-close'
+      preLoaderRoute: typeof ApiPublicCronDailyCloseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/payments/webhook': {
       id: '/api/public/payments/webhook'
       path: '/api/public/payments/webhook'
       fullPath: '/api/public/payments/webhook'
       preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/whatsapp/webhook': {
+      id: '/api/public/whatsapp/webhook'
+      path: '/api/public/whatsapp/webhook'
+      fullPath: '/api/public/whatsapp/webhook'
+      preLoaderRoute: typeof ApiPublicWhatsappWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -1263,7 +1304,9 @@ const rootRouteChildren: RootRouteChildren = {
   TrackIdRoute: TrackIdRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicOrderAlertsRoute: ApiPublicOrderAlertsRoute,
+  ApiPublicCronDailyCloseRoute: ApiPublicCronDailyCloseRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
+  ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
