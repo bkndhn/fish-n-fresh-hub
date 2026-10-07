@@ -1,18 +1,30 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { authenticateCronRequest } from "@/integrations/supabase/cron-auth";
+import { expectedDrawerCash } from "@/lib/posFloat";
 
-/** Runs from the scheduler at closing time: totals today's counter sales and sends them to WhatsApp. */
+/**
+ * Runs from the database scheduler at 10 PM IST: totals today's sales, adds the
+ * opening cash, and sends the closing report to WhatsApp. Caller must present
+ * LOVABLE_CRON_SECRET or the private token stored in cron_tokens (server-only table).
+ */
+async function authorized(request: Request, admin: any) {
+  const token = /^Bearer (\S+)$/.exec(request.headers.get("authorization") ?? "")?.[1];
+  if (!token || token.length < 32) return false;
+  const { createHash, timingSafeEqual } = await import("node:crypto");
+  const d = (v: string) => createHash("sha256").update(v).digest();
+  const env = process.env["LOVABLE_CRON_SECRET"];
+  if (env && timingSafeEqual(d(token), d(env))) return true;
+  const { data } = await admin.from("cron_tokens").select("token").eq("name", "daily_close").maybeSingle();
+  return !!data?.token && timingSafeEqual(d(token), d(data.token));
+}
+
 export const Route = createFileRoute("/api/public/cron/daily-close")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const denied = await authenticateCronRequest(request);
-        if (denied) return denied;
-
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        if (!(await authorized(request, supabaseAdmin))) return new Response("Unauthorized", { status: 401 });
         const { sendWhatsAppNotification } = await import("@/lib/whatsappBusiness.server");
 
-        // Today in India time
         const now = new Date(Date.now() + 5.5 * 3600_000);
         const day = now.toISOString().slice(0, 10);
         const start = new Date(`${day}T00:00:00+05:30`).toISOString();
@@ -34,6 +46,12 @@ export const Route = createFileRoute("/api/public/cron/daily-close")({
           else t.other += amt;
         }
 
+        const { data: f } = await (supabaseAdmin.from("pos_shift_float" as any) as any)
+          .select("opening_float")
+          .eq("id", 1)
+          .maybeSingle();
+        const opening = Number(f?.opening_float ?? 1000) || 0;
+
         const { data: s } = await supabaseAdmin
           .from("store_settings")
           .select("store_name, contact_phone, social_whatsapp")
@@ -41,7 +59,18 @@ export const Route = createFileRoute("/api/public/cron/daily-close")({
           .maybeSingle();
         const phone = process.env["CLOSING_REPORT_PHONE"] || s?.social_whatsapp || s?.contact_phone;
         const total = t.cash + t.upi + t.card + t.other;
-        const text = `🧾 ${s?.store_name ?? "Store"} — Day close ${day}\nBills: ${t.count}\nCash: ₹${t.cash.toFixed(2)}\nUPI: ₹${t.upi.toFixed(2)}\nCard: ₹${t.card.toFixed(2)}\nOther: ₹${t.other.toFixed(2)}\nTotal: ₹${total.toFixed(2)}`;
+        const r = (n: number) => `₹${n.toFixed(2)}`;
+        const text = [
+          `🧾 ${s?.store_name ?? "Store"} — Day close ${day}`,
+          `Bills: ${t.count}`,
+          `Opening cash: ${r(opening)}`,
+          `Cash sales: ${r(t.cash)}`,
+          `Expected cash in drawer: ${r(expectedDrawerCash(opening, t.cash))}`,
+          `UPI: ${r(t.upi)}`,
+          `Card: ${r(t.card)}`,
+          `Other: ${r(t.other)}`,
+          `Total sales: ${r(total)}`,
+        ].join("\n");
 
         if (!phone) return Response.json({ ok: false, reason: "no phone" });
         const res = await sendWhatsAppNotification({ recipientPhone: phone, type: "order_confirmed", customMessage: text });

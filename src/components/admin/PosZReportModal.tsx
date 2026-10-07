@@ -174,10 +174,8 @@ export function PosZReportModal({
 
   const handleUpdateOpeningFloat = (val: number) => {
     setOpeningFloat(val);
-    try {
-      localStorage.setItem("fnf_pos_opening_float", String(val));
-      toast.success(`Opening cash float updated: ${formatINR(val)}`);
-    } catch {}
+    void import("@/lib/posFloat").then((m) => m.saveOpeningFloat(val));
+    toast.success(`Opening cash float updated: ${formatINR(val)}`);
   };
 
   const handlePrintZReport = async () => {
