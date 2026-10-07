@@ -19,6 +19,7 @@ export function PosAutoCloseTimer({ onOpenReport }: { onOpenReport: () => void }
   const [float, setFloat] = useState("1000");
 
   useEffect(() => {
+    if (!localStorage.getItem(AUTO_CLOSE_KEY)) localStorage.setItem(AUTO_CLOSE_KEY, "22:00");
     setCloseAt(localStorage.getItem(AUTO_CLOSE_KEY) || "");
     const check = () => {
       const time = localStorage.getItem(AUTO_CLOSE_KEY) || "";
@@ -48,7 +49,7 @@ export function PosAutoCloseTimer({ onOpenReport }: { onOpenReport: () => void }
   const startNewShift = () => {
     const amt = Number(float);
     if (!Number.isFinite(amt) || amt < 0) return;
-    localStorage.setItem("fnf_pos_opening_float", String(amt));
+    void import("@/lib/posFloat").then((m) => m.saveOpeningFloat(amt));
     localStorage.setItem("fnf_pos_shift_reopened", todayKey(new Date()));
     localStorage.setItem(
       "fnf_pos_shift_start",
