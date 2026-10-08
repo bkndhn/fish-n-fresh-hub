@@ -81,6 +81,7 @@ const NAV = [
   { to: "/admin/banners", label: "Banners", icon: Image, roles: ["admin", "manager"] },
   { to: "/admin/collections", label: "Collections", icon: Layers, roles: ["admin", "manager"] },
   { to: "/admin/orders", label: "Orders", icon: ReceiptText, roles: ["admin", "manager", "cashier", "support_staff", "staff"] },
+  { to: "/admin/kitchen", label: "Kitchen Bump Bar", icon: ReceiptText, roles: ["admin", "manager", "cashier", "staff"] },
   { to: "/admin/customers", label: "Customers", icon: Users, roles: ["admin", "manager", "support_staff"] },
   { to: "/admin/promotions", label: "Promotions", icon: Tag, roles: ["admin", "manager"] },
   { to: "/admin/pricing", label: "Dynamic Pricing", icon: TrendingDown, roles: ["admin", "manager"] },
