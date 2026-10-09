@@ -127,6 +127,13 @@
       "when": 1791526966658,
       "tag": "0017_security_lockdown_roles_and_dine_in_prices",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791526984651,
+      "tag": "0018_daily_close_10pm",
+      "breakpoints": true
     }
   ]
 }
