@@ -23,3 +23,10 @@ describe("kitchen timers", () => {
     expect(stationOf({ fulfillment_type: "pos" })).toBe("counter");
   });
 });
+
+import { posBillStatus as _pbs } from "@/lib/kitchenTimers";
+import { describe as _d, it as _it, expect as _e } from "vitest";
+_d("posBillStatus", () => {
+  _it("kitchen on → preparing ticket, not handed over", () => _e(_pbs(true)).toEqual({ status: "confirmed", delivered: false }));
+  _it("kitchen off → handed over at once", () => _e(_pbs(false)).toEqual({ status: "delivered", delivered: true }));
+});

@@ -76,6 +76,7 @@ import { PrinterSettingsModal } from "@/components/admin/PrinterSettingsModal";
 import { PosPastBillsModal } from "@/components/admin/PosPastBillsModal";
 import { PosZReportModal } from "@/components/admin/PosZReportModal";
 import { PosAutoCloseTimer } from "@/components/admin/PosAutoCloseTimer";
+import { posBillStatus } from "@/lib/kitchenTimers";
 import { PortionChipsModal, getStoredPortionChips, DEFAULT_PORTION_CHIPS, type PortionChip } from "@/components/admin/PortionChipsModal";
 import {
   getSavedPrinterConfig,
@@ -474,6 +475,10 @@ export function RetailPosCounterPage() {
 
   // Payment states (Single, Multi-payment / Split, or Custom method)
   const [paymentMode, setPaymentMode] = useState<string>(() => storePaymentConfig.defaultMethod || "cash");
+  const [sendToKitchen, setSendToKitchen] = useState(false);
+  useEffect(() => {
+    try { setSendToKitchen(localStorage.getItem("fnf_pos_send_to_kitchen") === "1"); } catch {}
+  }, []);
   const [customPaymentRef, setCustomPaymentRef] = useState<string>("");
   const [tenderedAmount, setTenderedAmount] = useState<string>("");
   const [upiUtr, setUpiUtr] = useState<string>("");
@@ -1333,7 +1338,7 @@ export function RetailPosCounterPage() {
         customer_name: customerName.trim() || "Walk-in Customer",
         customer_phone: customerPhone.trim() || "9999999999",
         fulfillment_type: "pos",
-        status: "delivered",
+        status: posBillStatus(sendToKitchen).status,
         payment_method: paymentLabel,
         payment_status: "paid",
         actual_payment_method: paymentMode === "upi" ? "upi_qr" : paymentLabel,
@@ -1364,7 +1369,7 @@ export function RetailPosCounterPage() {
         branch_id: selectedBranchId && selectedBranchId !== "all" ? selectedBranchId : null,
         branch_name: selectedBranch?.name || null,
         notes: `In-Store POS Counter Bill${paymentMode === "split" ? ` | Split: Cash ₹${splitCashNum}, UPI ₹${splitUpiNum}, Card ₹${splitCardNum}` : ""}${customPaymentRef ? ` | Ref: ${customPaymentRef}` : ""}`,
-        delivered_at: nowIso,
+        delivered_at: posBillStatus(sendToKitchen).delivered ? nowIso : null,
       };
 
       const stockItems = cart.map((it) => ({
@@ -1783,6 +1788,19 @@ export function RetailPosCounterPage() {
             >
               <History className="size-3.5 text-primary" />
               <span>Sales Register [F5]</span>
+            </Button>
+
+            <Button
+              variant={sendToKitchen ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                const v = !sendToKitchen;
+                setSendToKitchen(v);
+                try { localStorage.setItem("fnf_pos_send_to_kitchen", v ? "1" : "0"); } catch {}
+                toast.info(v ? "Counter bills now go to the Kitchen Bump Bar" : "Counter bills are handed over straight away");
+              }}
+            >
+              {sendToKitchen ? "Kitchen: ON" : "Kitchen: OFF"}
             </Button>
 
             <PosAutoCloseTimer onOpenReport={openZReport} />
