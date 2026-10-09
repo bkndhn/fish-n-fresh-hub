@@ -40,6 +40,11 @@ export const BUMP_LABEL: Record<string, string> = {
   packed: "Handed over",
 };
 
+/** POS counter bill status: "confirmed" puts it on the Bump Bar as preparing; "delivered" = handed over at once. */
+export function posBillStatus(sendToKitchen: boolean): { status: string; delivered: boolean } {
+  return sendToKitchen ? { status: "confirmed", delivered: false } : { status: "delivered", delivered: true };
+}
+
 export type KitchenStation = "all" | "dine_in" | "counter" | "delivery";
 
 export function stationOf(o: { fulfillment_type?: string | null; table_number?: string | null }): Exclude<KitchenStation, "all"> {
