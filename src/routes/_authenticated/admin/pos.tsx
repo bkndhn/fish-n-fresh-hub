@@ -4273,19 +4273,35 @@ export function RetailPosCounterPage() {
                         Disconnect Port
                       </Button>
                     ) : (
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="h-8.5 rounded-xl text-xs font-bold w-full bg-primary text-primary-foreground"
-                        onClick={async () => {
-                          const ok = await weighingScaleDriver.connectSerial(scaleConfig);
-                          if (ok) {
-                            toast.success("Scale connected & streaming live weight!");
-                          }
-                        }}
-                      >
-                        Select Port &amp; Connect
-                      </Button>
+                      <div className="grid grid-cols-2 gap-2 w-full">
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-8.5 rounded-xl text-xs font-bold"
+                          onClick={async () => {
+                            const ok = await weighingScaleDriver.connectSerial(scaleConfig);
+                            if (ok) toast.success("Wired scale connected");
+                          }}
+                        >
+                          USB / Wired
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="h-8.5 rounded-xl text-xs font-bold"
+                          onClick={async () => {
+                            try {
+                              const ok = await weighingScaleDriver.connectBluetooth();
+                              if (ok) toast.success("Bluetooth scale connected");
+                            } catch (e) {
+                              toast.error((e as Error).message);
+                            }
+                          }}
+                        >
+                          Bluetooth
+                        </Button>
+                      </div>
                     )}
 
                     <Button

@@ -127,6 +127,26 @@ export function playScaleCaptureChime(): void {
   }
 }
 
+export const BLE_WEIGHT_SERVICE = 0x181d;
+export const BLE_WEIGHT_MEASUREMENT = 0x2a9d;
+export const BLE_NUS_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+export const BLE_NUS_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+export const BLE_FFE0_SERVICE = 0xffe0;
+export const BLE_FFE1_CHAR = 0xffe1;
+
+/**
+ * Bluetooth SIG Weight Measurement (0x2A9D): flags byte, then uint16 LE weight.
+ * SI (bit0=0): 0.005 kg per unit. Imperial (bit0=1): 0.01 lb per unit → kg.
+ */
+export function parseBleWeightMeasurement(view: DataView): number | null {
+  if (!view || view.byteLength < 3) return null;
+  const flags = view.getUint8(0);
+  const raw = view.getUint16(1, true);
+  if (raw === 0xffff) return null; // measurement unsuccessful
+  const kg = flags & 0x01 ? raw * 0.01 * 0.45359237 : raw * 0.005;
+  return Math.round(kg * 1000) / 1000;
+}
+
 class WeighingScaleDriver {
   private serialPort: any = null;
   private reader: any = null;
@@ -688,6 +708,62 @@ class WeighingScaleDriver {
     this.hasCapturedCurrentPlate = false;
     this.stableSince = 0;
     this.recentWeights = [];
+  }
+
+  /**
+   * Wireless scale via Web Bluetooth (Chrome/Edge on Android, Windows, macOS, ChromeOS).
+   * Supports the standard Weight Scale service (0x181D) and BLE serial (Nordic UART / HM-10 FFE0)
+   * that streams the same text lines as wired scales.
+   */
+  async connectBluetooth(): Promise<boolean> {
+    const bt = (navigator as any).bluetooth;
+    if (!bt) throw new Error("Bluetooth scales need Chrome or Edge (not Safari/iPhone).");
+    this.setStatus("connecting" as ScaleConnectionState);
+    const device = await bt.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: [BLE_WEIGHT_SERVICE, BLE_NUS_SERVICE, BLE_FFE0_SERVICE],
+    });
+    const server = await device.gatt.connect();
+    device.addEventListener("gattserverdisconnected", () => this.setStatus("disconnected"));
+    const tryGet = async (svc: string | number, chr: string | number) => {
+      try {
+        return await (await server.getPrimaryService(svc)).getCharacteristic(chr);
+      } catch {
+        return null;
+      }
+    };
+    const weightChr = await tryGet(BLE_WEIGHT_SERVICE, BLE_WEIGHT_MEASUREMENT);
+    if (weightChr) {
+      weightChr.addEventListener("characteristicvaluechanged", (e: any) => {
+        const kg = parseBleWeightMeasurement(e.target.value as DataView);
+        if (kg != null) this.processIncomingPacket(`ST,GS,+${kg.toFixed(3)}kg`);
+      });
+      await weightChr.startNotifications();
+      this.setStatus("streaming");
+      return true;
+    }
+    const uart = (await tryGet(BLE_NUS_SERVICE, BLE_NUS_TX)) || (await tryGet(BLE_FFE0_SERVICE, BLE_FFE1_CHAR));
+    if (!uart) {
+      try { device.gatt.disconnect(); } catch {}
+      this.setStatus("disconnected");
+      throw new Error("This Bluetooth device doesn't send weight. Pick your scale.");
+    }
+    const decoder = new TextDecoder();
+    let buf = "";
+    uart.addEventListener("characteristicvaluechanged", (e: any) => {
+      buf += decoder.decode(e.target.value as DataView);
+      const lines = buf.split(/[\r\n]+/);
+      buf = lines.pop() ?? "";
+      for (const l of lines) if (l.trim()) this.processIncomingPacket(l);
+    });
+    await uart.startNotifications();
+    this.setStatus("streaming");
+    return true;
+  }
+
+  /** Feed raw text from any transport (used by tests and the Bluetooth link). */
+  feedRawLine(line: string): void {
+    this.processIncomingPacket(line);
   }
 
   /**
