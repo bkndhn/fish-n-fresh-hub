@@ -272,6 +272,21 @@ export type Database = {
           },
         ]
       }
+      cron_tokens: {
+        Row: {
+          name: string
+          token: string
+        }
+        Insert: {
+          name: string
+          token: string
+        }
+        Update: {
+          name?: string
+          token?: string
+        }
+        Relationships: []
+      }
       customer_addresses: {
         Row: {
           address: string
@@ -1365,6 +1380,24 @@ export type Database = {
           revoked_by?: string | null
           scope?: string
           target_id?: string | null
+        }
+        Relationships: []
+      }
+      pos_shift_float: {
+        Row: {
+          id: number
+          opening_float: number
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          opening_float?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          opening_float?: number
+          updated_at?: string
         }
         Relationships: []
       }
