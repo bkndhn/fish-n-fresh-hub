@@ -120,6 +120,13 @@
       "when": 1791092932894,
       "tag": "0016_drop_public_service_request_read",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791526966658,
+      "tag": "0017_security_lockdown_roles_and_dine_in_prices",
+      "breakpoints": true
     }
   ]
 }
