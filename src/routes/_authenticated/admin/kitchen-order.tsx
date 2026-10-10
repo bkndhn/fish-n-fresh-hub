@@ -84,7 +84,10 @@ function KitchenOrderPage() {
       items: lines.map((p) => ({ product_id: p.id, name: p.name, price: p.price, qty: cart[p.id], unit: p.unit })),
     } as never);
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("Sent to the Kitchen Bump Bar");
     setCart({});
     setNote("");
