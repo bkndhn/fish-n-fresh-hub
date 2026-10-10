@@ -134,6 +134,13 @@
       "when": 1791526984651,
       "tag": "0018_daily_close_10pm",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791620714479,
+      "tag": "0019_counter_staff_keep_pos_bill_status",
+      "breakpoints": true
     }
   ]
 }

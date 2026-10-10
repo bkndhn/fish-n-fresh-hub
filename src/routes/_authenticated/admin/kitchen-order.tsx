@@ -50,8 +50,8 @@ function KitchenOrderPage() {
     () => (products.data ?? []).filter((p) => p.name.toLowerCase().includes(q.toLowerCase())),
     [products.data, q],
   );
-  const lines = (products.data ?? []).filter((p) => cart[p.id] > 0);
-  const total = lines.reduce((s, p) => s + p.price * cart[p.id], 0);
+  const lines = (products.data ?? []).filter((p) => (cart[p.id] ?? 0) > 0);
+  const total = lines.reduce((s, p) => s + p.price * (cart[p.id] ?? 0), 0);
   const add = (id: string, d: number) =>
     setCart((c) => ({ ...c, [id]: Math.max(0, Math.round(((c[id] ?? 0) + d) * 100) / 100) }));
 
@@ -61,8 +61,11 @@ function KitchenOrderPage() {
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener");
   };
 
-  const place = async () => {
-    if (!lines.length) return toast.error("Add at least one item");
+  const place = async (): Promise<void> => {
+    if (!lines.length) {
+      toast.error("Add at least one item");
+      return;
+    }
     setBusy(true);
     const { data: u } = await supabase.auth.getUser();
     const subtotal = Math.round(total * 100) / 100;
