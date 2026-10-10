@@ -3679,6 +3679,7 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_admin_or_super: { Args: never; Returns: boolean }
+      is_counter_staff: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       is_team_member: { Args: never; Returns: boolean }
