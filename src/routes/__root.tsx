@@ -155,7 +155,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       // High-DPI Mascot Logo Favicons & PWA Icons
       { rel: "icon", href: "/icons/icon-192.png", type: "image/png", sizes: "192x192" },
       { rel: "icon", href: "/icons/icon-512.png", type: "image/png", sizes: "512x512" },
-      { rel: "icon", href: "/logo-1024.png", type: "image/png", sizes: "1024x1024" },
       { rel: "icon", href: "/favicon.ico" },
       { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
       { rel: "manifest", href: "/manifest.json" },

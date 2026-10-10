@@ -90,7 +90,7 @@ export function SiteHeader() {
         <div className="flex items-center gap-1 sm:gap-2 shrink min-w-0">
           <Link to="/" className="flex items-center gap-1.5 font-display text-sm sm:text-lg font-bold tracking-tight whitespace-nowrap min-w-0">
             <img 
-              src={settings?.logo_url || "/logo.png"} 
+              src={settings?.logo_url || "/logo-sm.webp"} 
               alt={settings?.store_name || "Fish N Fresh"} 
               className="h-7 sm:h-9 w-auto rounded-xl object-contain shrink-0 shadow-2xs" 
             />
