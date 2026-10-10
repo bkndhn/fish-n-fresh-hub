@@ -346,7 +346,7 @@ export function PwaPrompt() {
         <DialogContent className="rounded-3xl max-w-sm p-5 sm:p-6 border-border/80 shadow-2xl">
           <div className="flex flex-col items-center text-center space-y-3">
             <img
-              src="/logo.png"
+              src="/logo-sm.webp"
               alt="Fish N Fresh Hub"
               className="size-16 rounded-2xl object-contain shadow-md border border-border/60 p-1 bg-background"
             />

@@ -89,7 +89,7 @@ export function Footer() {
         <div className="space-y-4 lg:col-span-1">
           <div className="flex items-center gap-2.5">
             <img
-              src={settings.logo_url || "/logo.png"}
+              src={settings.logo_url || "/logo-sm.webp"}
               alt="Store Logo"
               className="h-10 w-auto rounded-xl object-contain shadow-2xs"
             />

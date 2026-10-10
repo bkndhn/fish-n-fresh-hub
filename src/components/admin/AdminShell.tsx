@@ -220,7 +220,7 @@ export function AdminShell({
             <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 shrink">
               <Link to="/" className="flex items-center gap-1.5 sm:gap-2 font-display font-bold text-foreground shrink-0">
                 <img 
-                  src={settings?.logo_url || "/logo.png"} 
+                  src={settings?.logo_url || "/logo-sm.webp"} 
                   alt="Store Logo" 
                   className="h-7.5 sm:h-8 w-auto rounded-xl object-contain shrink-0 shadow-2xs" 
                 />
