@@ -324,17 +324,36 @@ function PurchasesAdmin() {
   const [statementSupplierFilter, setStatementSupplierFilter] = useState<string>("all");
 
   // Purchase Orders & Demand Radar State
-  const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequestOrder[]>(() => {
-    try {
-      const saved = localStorage.getItem("fnf_purchase_orders");
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return DEFAULT_PURCHASE_REQUESTS;
-  });
+  // Purchase orders are stored in the backend so every device sees the same list.
+  const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequestOrder[]>([]);
+  const [poLoaded, setPoLoaded] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem("fnf_purchase_orders", JSON.stringify(purchaseRequests));
-  }, [purchaseRequests]);
+    (async () => {
+      const { data } = await (supabase.from("purchase_requests" as any) as any)
+        .select("data")
+        .order("updated_at", { ascending: false });
+      setPurchaseRequests(((data ?? []) as { data: PurchaseRequestOrder }[]).map((r) => r.data));
+      setPoLoaded(true);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!poLoaded) return;
+    (async () => {
+      const tbl = supabase.from("purchase_requests" as any) as any;
+      const { data: existing } = await tbl.select("id");
+      const keep = new Set(purchaseRequests.map((p) => p.id));
+      const stale = ((existing ?? []) as { id: string }[]).map((r) => r.id).filter((id) => !keep.has(id));
+      if (stale.length) await (supabase.from("purchase_requests" as any) as any).delete().in("id", stale);
+      if (purchaseRequests.length) {
+        const { error } = await (supabase.from("purchase_requests" as any) as any).upsert(
+          purchaseRequests.map((p) => ({ id: p.id, data: p, status: p.status, updated_at: new Date().toISOString() })),
+        );
+        if (error) toast.error("Could not save purchase orders");
+      }
+    })();
+  }, [purchaseRequests, poLoaded]);
 
   const [newPoModalOpen, setNewPoModalOpen] = useState(false);
   const [selectedPoForView, setSelectedPoForView] = useState<PurchaseRequestOrder | null>(null);
