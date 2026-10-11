@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Plus, Trash2, Search, Edit, AlertTriangle, Zap, PackagePlus, CheckCircle2, X, CheckSquare, Square, Layers, ArrowUpCircle, Eye, EyeOff, Sparkles, Star, Flame, Camera, RefreshCw, Copy, Check, Printer, Hash, FileUp, FileDown, Download, ShieldCheck } from "lucide-react";
+import { ProductAiAssist } from "@/components/admin/ProductAiAssist";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { useAdminBranch } from "@/lib/branchContext";
 import { adminProductsQuery } from "@/lib/admin";
@@ -1195,6 +1196,12 @@ function ProductsAdmin() {
                   currentImage={newProduct.image_url}
                   onUpload={(url) => setNewProduct({ ...newProduct, image_url: url })}
                 />
+                <ProductAiAssist
+                  name={newProduct.name}
+                  category={newProduct.category}
+                  onUseImage={(url) => setNewProduct((p: any) => ({ ...p, image_url: url }))}
+                  onUseDescription={(t) => setNewProduct((p: any) => ({ ...p, description: t }))}
+                />
               </div>
 
               <div className="space-y-1.5">
@@ -2064,6 +2071,12 @@ function ProductsAdmin() {
                 <ImageUpload
                   currentImage={editingProduct.image_url}
                   onUpload={(url) => setEditingProduct({ ...editingProduct, image_url: url })}
+                />
+                <ProductAiAssist
+                  name={editingProduct.name ?? ""}
+                  category={editingProduct.category ?? undefined}
+                  onUseImage={(url) => setEditingProduct((p: any) => ({ ...p, image_url: url }))}
+                  onUseDescription={(t) => setEditingProduct((p: any) => ({ ...p, description: t }))}
                 />
               </div>
 

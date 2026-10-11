@@ -48,6 +48,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { adminProductsQuery } from "@/lib/admin";
 import { settingsQuery } from "@/lib/queries";
 import { getStoreVertical, getVerticalFormFields } from "@/lib/verticals";
+import { productsNeedingPo, suggestedRestockQty, estimatedRate } from "@/lib/autoPo";
 import { supabase } from "@/integrations/supabase/client";
 import { formatINR, formatIST, formatStockDisplay } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -324,17 +325,36 @@ function PurchasesAdmin() {
   const [statementSupplierFilter, setStatementSupplierFilter] = useState<string>("all");
 
   // Purchase Orders & Demand Radar State
-  const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequestOrder[]>(() => {
-    try {
-      const saved = localStorage.getItem("fnf_purchase_orders");
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return DEFAULT_PURCHASE_REQUESTS;
-  });
+  // Purchase orders are stored in the backend so every device sees the same list.
+  const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequestOrder[]>([]);
+  const [poLoaded, setPoLoaded] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem("fnf_purchase_orders", JSON.stringify(purchaseRequests));
-  }, [purchaseRequests]);
+    (async () => {
+      const { data } = await (supabase.from("purchase_requests" as any) as any)
+        .select("data")
+        .order("updated_at", { ascending: false });
+      setPurchaseRequests(((data ?? []) as { data: PurchaseRequestOrder }[]).map((r) => r.data));
+      setPoLoaded(true);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!poLoaded) return;
+    (async () => {
+      const tbl = supabase.from("purchase_requests" as any) as any;
+      const { data: existing } = await tbl.select("id");
+      const keep = new Set(purchaseRequests.map((p) => p.id));
+      const stale = ((existing ?? []) as { id: string }[]).map((r) => r.id).filter((id) => !keep.has(id));
+      if (stale.length) await (supabase.from("purchase_requests" as any) as any).delete().in("id", stale);
+      if (purchaseRequests.length) {
+        const { error } = await (supabase.from("purchase_requests" as any) as any).upsert(
+          purchaseRequests.map((p) => ({ id: p.id, data: p, status: p.status, updated_at: new Date().toISOString() })),
+        );
+        if (error) toast.error("Could not save purchase orders");
+      }
+    })();
+  }, [purchaseRequests, poLoaded]);
 
   const [newPoModalOpen, setNewPoModalOpen] = useState(false);
   const [selectedPoForView, setSelectedPoForView] = useState<PurchaseRequestOrder | null>(null);
@@ -401,6 +421,46 @@ function PurchasesAdmin() {
       });
   }, [products, suppliers]);
 
+  // Auto-draft: when an item drops to its low-stock threshold, draft a PO for it automatically.
+  useEffect(() => {
+    if (!poLoaded || !products?.length || !suppliers.length) return;
+    const open = new Set(
+      purchaseRequests
+        .filter((p) => p.status === "draft" || p.status === "sent" || p.status === "partially_received")
+        .flatMap((p) => p.items.map((i) => i.product_id)),
+    );
+    const need = productsNeedingPo(products as any, open);
+    if (!need.length) return;
+    const sup = suppliers[0];
+    if (!sup) return;
+    const items = need.map((p) => ({
+      product_id: p.id,
+      product_name: p.name,
+      suggested_qty: suggestedRestockQty(p),
+      unit: p.unit || "kg",
+      estimated_rate: estimatedRate(p),
+      current_stock: Number(p.stock) || 0,
+    }));
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    const po: PurchaseRequestOrder = {
+      id: `auto-${Date.now()}`,
+      po_number: `PO-AUTO-${String(Date.now()).slice(-6)}`,
+      supplier_id: sup.id,
+      supplier_name: sup.name,
+      supplier_phone: sup.phone,
+      ...(sup.whatsapp ? { supplier_whatsapp: sup.whatsapp } : {}),
+      expected_delivery_date: d.toISOString().slice(0, 10),
+      status: "draft",
+      items,
+      total_estimated_cost: items.reduce((s, i) => s + i.suggested_qty * i.estimated_rate, 0),
+      notes: "Auto-drafted because stock fell below the low-stock level.",
+      created_at: new Date().toISOString(),
+    };
+    setPurchaseRequests((prev) => [po, ...prev]);
+    toast.info(`Auto-drafted PO for ${items.length} low-stock item(s)`);
+  }, [poLoaded, products, suppliers]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const sendPoWhatsApp = (po: PurchaseRequestOrder) => {
     const supplier = suppliers.find((s) => s.id === po.supplier_id);
     const phone = supplier?.whatsapp || supplier?.phone || po.supplier_phone || "9843061919";
@@ -430,6 +490,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
     const url = `https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`;
     window.open(url, "_blank");
     toast.success(`Opening WhatsApp to send PO #${po.po_number} to ${po.supplier_name}`);
+    if (po.status === "draft") setPurchaseRequests((prev) => prev.map((x) => (x.id === po.id ? { ...x, status: "sent" } : x)));
   };
 
   const convertPoToInward = (po: PurchaseRequestOrder) => {
