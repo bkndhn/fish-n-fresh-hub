@@ -489,6 +489,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
     const url = `https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`;
     window.open(url, "_blank");
     toast.success(`Opening WhatsApp to send PO #${po.po_number} to ${po.supplier_name}`);
+    if (po.status === "draft") setPurchaseRequests((prev) => prev.map((x) => (x.id === po.id ? { ...x, status: "sent" } : x)));
   };
 
   const convertPoToInward = (po: PurchaseRequestOrder) => {
