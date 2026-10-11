@@ -1,5 +1,5 @@
 // Fish N Fresh Hub — PWA Service Worker v8 (Role-Based Push Notifications)
-const CACHE_NAME = 'fnf-pwa-v8';
+const CACHE_NAME = 'fnf-pwa-v9';
 const IMAGE_CACHE_NAME = 'fnf-images-v2';
 const STATIC_ASSETS = [
   '/manifest.json',
@@ -89,6 +89,19 @@ self.addEventListener('fetch', (e) => {
       e.request.destination === 'style' ||
       e.request.destination === 'script' ||
       /\.(css|js|mjs)(\?.*)?$/i.test(url);
+
+    // Hashed build files never change: serve from cache instantly on revisit.
+    if (new URL(url).pathname.startsWith('/assets/')) {
+      e.respondWith(
+        caches.open(CACHE_NAME).then((c) =>
+          c.match(e.request).then((hit) => hit || fetch(e.request).then((r) => {
+            if (r.ok) c.put(e.request, r.clone());
+            return r;
+          }))
+        )
+      );
+      return;
+    }
 
     if (isStyleOrScript) {
       e.respondWith(
