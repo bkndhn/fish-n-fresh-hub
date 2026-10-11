@@ -48,6 +48,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { adminProductsQuery } from "@/lib/admin";
 import { settingsQuery } from "@/lib/queries";
 import { getStoreVertical, getVerticalFormFields } from "@/lib/verticals";
+import { productsNeedingPo, suggestedRestockQty, estimatedRate } from "@/lib/autoPo";
 import { supabase } from "@/integrations/supabase/client";
 import { formatINR, formatIST, formatStockDisplay } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -419,6 +420,45 @@ function PurchasesAdmin() {
         return order[a.urgency] - order[b.urgency] || a.stock - b.stock;
       });
   }, [products, suppliers]);
+
+  // Auto-draft: when an item drops to its low-stock threshold, draft a PO for it automatically.
+  useEffect(() => {
+    if (!poLoaded || !products?.length || !suppliers.length) return;
+    const open = new Set(
+      purchaseRequests
+        .filter((p) => p.status === "draft" || p.status === "sent" || p.status === "partially_received")
+        .flatMap((p) => p.items.map((i) => i.product_id)),
+    );
+    const need = productsNeedingPo(products as any, open);
+    if (!need.length) return;
+    const sup = suppliers[0];
+    const items = need.map((p) => ({
+      product_id: p.id,
+      product_name: p.name,
+      suggested_qty: suggestedRestockQty(p),
+      unit: p.unit || "kg",
+      estimated_rate: estimatedRate(p),
+      current_stock: Number(p.stock) || 0,
+    }));
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    const po: PurchaseRequestOrder = {
+      id: `auto-${Date.now()}`,
+      po_number: `PO-AUTO-${String(Date.now()).slice(-6)}`,
+      supplier_id: sup.id,
+      supplier_name: sup.name,
+      supplier_phone: sup.phone,
+      supplier_whatsapp: sup.whatsapp,
+      expected_delivery_date: d.toISOString().slice(0, 10),
+      status: "draft",
+      items,
+      total_estimated_cost: items.reduce((s, i) => s + i.suggested_qty * i.estimated_rate, 0),
+      notes: "Auto-drafted because stock fell below the low-stock level.",
+      created_at: new Date().toISOString(),
+    };
+    setPurchaseRequests((prev) => [po, ...prev]);
+    toast.info(`Auto-drafted PO for ${items.length} low-stock item(s)`);
+  }, [poLoaded, products, suppliers]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sendPoWhatsApp = (po: PurchaseRequestOrder) => {
     const supplier = suppliers.find((s) => s.id === po.supplier_id);
