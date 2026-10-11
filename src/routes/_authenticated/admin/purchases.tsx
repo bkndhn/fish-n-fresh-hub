@@ -449,7 +449,7 @@ function PurchasesAdmin() {
       supplier_id: sup.id,
       supplier_name: sup.name,
       supplier_phone: sup.phone,
-      supplier_whatsapp: sup.whatsapp ?? undefined,
+      ...(sup.whatsapp ? { supplier_whatsapp: sup.whatsapp } : {}),
       expected_delivery_date: d.toISOString().slice(0, 10),
       status: "draft",
       items,
