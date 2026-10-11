@@ -432,6 +432,7 @@ function PurchasesAdmin() {
     const need = productsNeedingPo(products as any, open);
     if (!need.length) return;
     const sup = suppliers[0];
+    if (!sup) return;
     const items = need.map((p) => ({
       product_id: p.id,
       product_name: p.name,
@@ -448,7 +449,7 @@ function PurchasesAdmin() {
       supplier_id: sup.id,
       supplier_name: sup.name,
       supplier_phone: sup.phone,
-      supplier_whatsapp: sup.whatsapp,
+      supplier_whatsapp: sup.whatsapp ?? undefined,
       expected_delivery_date: d.toISOString().slice(0, 10),
       status: "draft",
       items,

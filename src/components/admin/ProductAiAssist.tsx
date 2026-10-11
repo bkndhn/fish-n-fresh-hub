@@ -31,8 +31,8 @@ export function ProductAiAssist({ name, category, onUseDescription, onUseImage }
   const [descs, setDescs] = useState<string[]>([]);
   const [images, setImages] = useState<string[]>([]);
 
-  const load = async (mode: "free" | "ai") => {
-    if (name.trim().length < 2) return toast.error("Type the product name first");
+  const load = async (mode: "free" | "ai"): Promise<void> => {
+    if (name.trim().length < 2) { toast.error("Type the product name first"); return; }
     setOpen(true);
     const seed = Math.floor(Math.random() * 1e6);
     if (mode === "free") {
