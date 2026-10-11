@@ -40,3 +40,7 @@
 - [x] Supplier reorder list from low stock (Purchases)
 - [x] Remaining security findings (fresh scan: 0 open)
 - [x] Stronger multi-business foundation (Purchases wording follows shop type)
+- [x] Faster repeat visits (cached build files)
+- [x] Auto-drafted supplier PO on low stock, saved online, 1-tap WhatsApp marks sent
+- [x] Product photo + description suggestions (free option + smart AI), Use it / Leave it / New
+- [ ] Physical USB scale test and live 10 PM close on published site (needs your device / publish)
