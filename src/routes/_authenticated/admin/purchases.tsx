@@ -66,6 +66,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
+import { dispatchPoWhatsApp } from "@/lib/poDispatch.functions";
 import {
   printSupplierLedgerPdf,
   type SupplierLedgerEntry,
@@ -458,10 +459,10 @@ function PurchasesAdmin() {
       created_at: new Date().toISOString(),
     };
     setPurchaseRequests((prev) => [po, ...prev]);
-    toast.info(`Auto-drafted PO for ${items.length} low-stock item(s)`);
+    void sendPoWhatsApp(po, true);
   }, [poLoaded, products, suppliers]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const sendPoWhatsApp = (po: PurchaseRequestOrder) => {
+  const sendPoWhatsApp = async (po: PurchaseRequestOrder, auto = false): Promise<void> => {
     const supplier = suppliers.find((s) => s.id === po.supplier_id);
     const phone = supplier?.whatsapp || supplier?.phone || po.supplier_phone || "9843061919";
     const cleaned = phone.replace(/\D/g, "");
@@ -487,10 +488,21 @@ ${itemsText}
 
 _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
 
-    const url = `https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`;
-    window.open(url, "_blank");
+    const markSent = () =>
+      setPurchaseRequests((prev) => prev.map((x) => (x.id === po.id && x.status === "draft" ? { ...x, status: "sent" } : x)));
+    const r = await dispatchPoWhatsApp({ data: { phone: waNumber, supplierName: po.supplier_name, message: text } }).catch(() => null);
+    if (r?.sent) {
+      toast.success(`PO #${po.po_number} delivered to ${po.supplier_name}'s WhatsApp automatically`);
+      markSent();
+      return;
+    }
+    if (auto) {
+      toast.info(`PO #${po.po_number} drafted. Connect WhatsApp Business to send it automatically.`);
+      return;
+    }
+    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`, "_blank");
     toast.success(`Opening WhatsApp to send PO #${po.po_number} to ${po.supplier_name}`);
-    if (po.status === "draft") setPurchaseRequests((prev) => prev.map((x) => (x.id === po.id ? { ...x, status: "sent" } : x)));
+    markSent();
   };
 
   const convertPoToInward = (po: PurchaseRequestOrder) => {
