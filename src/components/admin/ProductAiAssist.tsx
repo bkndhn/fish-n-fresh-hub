@@ -40,11 +40,11 @@ export function ProductAiAssist({ name, category, onUseDescription, onUseImage }
     if (!words.length) return setOwnPhotos([]);
     const { data } = await supabase
       .from("products")
-      .select("image_url, images")
+      .select("image_url")
       .or(words.map((w) => `name.ilike.%${w.replace(/[%,()]/g, "")}%`).join(","))
       .limit(12);
     const urls = new Set<string>();
-    for (const p of (data ?? []) as { image_url: string | null; images?: unknown }[]) {
+    for (const p of (data ?? []) as unknown as { image_url: string | null; images?: unknown }[]) {
       if (p.image_url && !p.image_url.includes("pollinations")) urls.add(p.image_url);
       if (Array.isArray(p.images)) for (const u of p.images) if (typeof u === "string" && !u.includes("pollinations")) urls.add(u);
     }
