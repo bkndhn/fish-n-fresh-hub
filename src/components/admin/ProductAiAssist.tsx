@@ -3,6 +3,7 @@ import { Sparkles, RefreshCw, Check, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { suggestProductContent } from "@/lib/productAi.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 /** Free image source (no key, no credits): builds an image URL from a prompt. */
 export function freeImageUrl(prompt: string, seed: number) {
@@ -31,9 +32,29 @@ export function ProductAiAssist({ name, category, onUseDescription, onUseImage }
   const [descs, setDescs] = useState<string[]>([]);
   const [images, setImages] = useState<string[]>([]);
 
+  const [ownPhotos, setOwnPhotos] = useState<string[]>([]);
+
+  /** Your own uploaded product photos whose names match — shown before any generated image. */
+  const loadOwnPhotos = async (): Promise<void> => {
+    const words = name.trim().split(/\s+/).filter((w) => w.length > 2).slice(0, 3);
+    if (!words.length) return setOwnPhotos([]);
+    const { data } = await supabase
+      .from("products")
+      .select("image_url, images")
+      .or(words.map((w) => `name.ilike.%${w.replace(/[%,()]/g, "")}%`).join(","))
+      .limit(12);
+    const urls = new Set<string>();
+    for (const p of (data ?? []) as { image_url: string | null; images?: unknown }[]) {
+      if (p.image_url && !p.image_url.includes("pollinations")) urls.add(p.image_url);
+      if (Array.isArray(p.images)) for (const u of p.images) if (typeof u === "string" && !u.includes("pollinations")) urls.add(u);
+    }
+    setOwnPhotos([...urls].slice(0, 6));
+  };
+
   const load = async (mode: "free" | "ai"): Promise<void> => {
     if (name.trim().length < 2) { toast.error("Type the product name first"); return; }
     setOpen(true);
+    void loadOwnPhotos();
     const seed = Math.floor(Math.random() * 1e6);
     if (mode === "free") {
       setDescs(freeDescriptions(name.trim()));
@@ -84,6 +105,24 @@ export function ProductAiAssist({ name, category, onUseDescription, onUseImage }
         <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Thinking…</div>
       ) : (
         <>
+          {ownPhotos.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[11px] font-bold">Your real shop photos</p>
+              <div className="grid grid-cols-3 gap-2">
+                {ownPhotos.map((src) => (
+                  <button key={src} type="button" className="relative rounded-lg overflow-hidden border-2 border-primary aspect-square bg-muted"
+                    onClick={() => { onUseImage(src); toast.success("Your photo applied"); }}>
+                    <img src={src} alt={`${name} shop photo`} loading="lazy" className="size-full object-cover" />
+                    <span className="absolute inset-x-0 bottom-0 bg-background/85 text-[10px] font-bold py-1 flex items-center justify-center gap-1">
+                      <Check className="size-3" /> Use it
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] font-bold pt-1">Generated ideas</p>
+            </div>
+          )}
+          <p className="text-[11px] text-muted-foreground">Tip: upload your own photo with the image box above — it always beats a generated one.</p>
           <div className="grid grid-cols-3 gap-2">
             {images.map((src) => (
               <button
