@@ -76,6 +76,7 @@ const NAV = [
   { to: "/admin/products", label: "Products", icon: Package, roles: ["admin", "manager", "inventory_manager"] },
   { to: "/admin/broadcasts", label: "Catch Alerts", icon: Bell, roles: ["admin", "manager", "inventory_manager", "staff"] },
   { to: "/admin/purchases", label: "Purchases", icon: Anchor, roles: ["admin", "manager", "inventory_manager", "staff"] },
+  { to: "/admin/yield", label: "Yield & Cutting Loss", icon: Anchor, roles: ["admin", "manager", "inventory_manager"] },
   { to: "/admin/waste", label: "Waste mgmt", icon: Trash2, roles: ["admin", "manager", "inventory_manager", "staff"] },
   { to: "/admin/expenses", label: "Expenses", icon: Banknote, roles: ["admin", "manager", "staff"] },
   { to: "/admin/banners", label: "Banners", icon: Image, roles: ["admin", "manager"] },
