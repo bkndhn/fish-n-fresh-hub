@@ -148,6 +148,13 @@
       "when": 1792062561509,
       "tag": "0020_yield_cutting_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792062870039,
+      "tag": "0021_supplier_dues",
+      "breakpoints": true
     }
   ]
 }

@@ -2486,6 +2486,48 @@ export type Database = {
         }
         Relationships: []
       }
+      supplier_dues: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          entry_type: string
+          id: string
+          method: string | null
+          notes: string | null
+          reference: string | null
+          supplier_name: string
+          supplier_phone: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          entry_type: string
+          id?: string
+          method?: string | null
+          notes?: string | null
+          reference?: string | null
+          supplier_name: string
+          supplier_phone?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          entry_type?: string
+          id?: string
+          method?: string | null
+          notes?: string | null
+          reference?: string | null
+          supplier_name?: string
+          supplier_phone?: string | null
+        }
+        Relationships: []
+      }
       suppliers: {
         Row: {
           balance_due: number
