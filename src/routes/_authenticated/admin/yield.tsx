@@ -94,7 +94,7 @@ function YieldPage() {
   });
 
   return (
-    <AdminShell>
+    <AdminShell title="Yield & Cutting Loss">
       <div className="mx-auto max-w-4xl space-y-6 p-4">
         <div>
           <h1 className="text-2xl font-bold">Yield & Cutting Loss</h1>
