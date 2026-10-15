@@ -66,6 +66,7 @@ import { Route as AuthenticatedAdminSupportRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminTablesRouteImport } from './routes/_authenticated/admin/tables'
 import { Route as AuthenticatedAdminWasteRouteImport } from './routes/_authenticated/admin/waste'
 import { Route as AuthenticatedAdminWholesaleRouteImport } from './routes/_authenticated/admin/wholesale'
+import { Route as AuthenticatedAdminYieldRouteImport } from './routes/_authenticated/admin/yield'
 import { Route as ApiPublicOrderAlertsRouteImport } from './routes/api/public/order-alerts'
 import { Route as ApiPublicCronDailyCloseRouteImport } from './routes/api/public/cron/daily-close'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
@@ -382,6 +383,11 @@ const AuthenticatedAdminWholesaleRoute =
     path: '/admin/wholesale',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminYieldRoute = AuthenticatedAdminYieldRouteImport.update({
+  id: '/admin/yield',
+  path: '/admin/yield',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const ApiPublicOrderAlertsRoute = ApiPublicOrderAlertsRouteImport.update({
   id: '/api/public/order-alerts',
   path: '/api/public/order-alerts',
@@ -461,6 +467,7 @@ export interface FileRoutesByFullPath {
   '/admin/tables': typeof AuthenticatedAdminTablesRoute
   '/admin/waste': typeof AuthenticatedAdminWasteRoute
   '/admin/wholesale': typeof AuthenticatedAdminWholesaleRoute
+  '/admin/yield': typeof AuthenticatedAdminYieldRoute
   '/api/public/order-alerts': typeof ApiPublicOrderAlertsRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/api/public/cron/daily-close': typeof ApiPublicCronDailyCloseRoute
@@ -523,6 +530,7 @@ export interface FileRoutesByTo {
   '/admin/tables': typeof AuthenticatedAdminTablesRoute
   '/admin/waste': typeof AuthenticatedAdminWasteRoute
   '/admin/wholesale': typeof AuthenticatedAdminWholesaleRoute
+  '/admin/yield': typeof AuthenticatedAdminYieldRoute
   '/api/public/order-alerts': typeof ApiPublicOrderAlertsRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/api/public/cron/daily-close': typeof ApiPublicCronDailyCloseRoute
@@ -587,6 +595,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/tables': typeof AuthenticatedAdminTablesRoute
   '/_authenticated/admin/waste': typeof AuthenticatedAdminWasteRoute
   '/_authenticated/admin/wholesale': typeof AuthenticatedAdminWholesaleRoute
+  '/_authenticated/admin/yield': typeof AuthenticatedAdminYieldRoute
   '/api/public/order-alerts': typeof ApiPublicOrderAlertsRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/api/public/cron/daily-close': typeof ApiPublicCronDailyCloseRoute
@@ -651,6 +660,7 @@ export interface FileRouteTypes {
     | '/admin/tables'
     | '/admin/waste'
     | '/admin/wholesale'
+    | '/admin/yield'
     | '/api/public/order-alerts'
     | '/admin/'
     | '/api/public/cron/daily-close'
@@ -713,6 +723,7 @@ export interface FileRouteTypes {
     | '/admin/tables'
     | '/admin/waste'
     | '/admin/wholesale'
+    | '/admin/yield'
     | '/api/public/order-alerts'
     | '/admin'
     | '/api/public/cron/daily-close'
@@ -776,6 +787,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/tables'
     | '/_authenticated/admin/waste'
     | '/_authenticated/admin/wholesale'
+    | '/_authenticated/admin/yield'
     | '/api/public/order-alerts'
     | '/_authenticated/admin/'
     | '/api/public/cron/daily-close'
@@ -1214,6 +1226,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminWholesaleRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/yield': {
+      id: '/_authenticated/admin/yield'
+      path: '/admin/yield'
+      fullPath: '/admin/yield'
+      preLoaderRoute: typeof AuthenticatedAdminYieldRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/order-alerts': {
       id: '/api/public/order-alerts'
       path: '/api/public/order-alerts'
@@ -1279,6 +1298,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminTablesRoute: typeof AuthenticatedAdminTablesRoute
   AuthenticatedAdminWasteRoute: typeof AuthenticatedAdminWasteRoute
   AuthenticatedAdminWholesaleRoute: typeof AuthenticatedAdminWholesaleRoute
+  AuthenticatedAdminYieldRoute: typeof AuthenticatedAdminYieldRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
@@ -1316,6 +1336,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminTablesRoute: AuthenticatedAdminTablesRoute,
   AuthenticatedAdminWasteRoute: AuthenticatedAdminWasteRoute,
   AuthenticatedAdminWholesaleRoute: AuthenticatedAdminWholesaleRoute,
+  AuthenticatedAdminYieldRoute: AuthenticatedAdminYieldRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
 }
 
