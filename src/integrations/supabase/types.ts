@@ -3050,6 +3050,63 @@ export type Database = {
         }
         Relationships: []
       }
+      yield_cutting_logs: {
+        Row: {
+          branch_id: string | null
+          byproduct_revenue: number
+          cleaned_weight_kg: number
+          created_at: string
+          current_selling_price: number
+          cutting_loss_pct: number
+          id: string
+          logged_by: string | null
+          notes: string | null
+          product_id: string | null
+          product_name: string
+          purchase_cost_per_kg: number
+          raw_weight_kg: number
+          realized_margin_pct: number
+          total_raw_cost: number
+          true_cost_per_kg: number
+        }
+        Insert: {
+          branch_id?: string | null
+          byproduct_revenue?: number
+          cleaned_weight_kg: number
+          created_at?: string
+          current_selling_price?: number
+          cutting_loss_pct: number
+          id?: string
+          logged_by?: string | null
+          notes?: string | null
+          product_id?: string | null
+          product_name: string
+          purchase_cost_per_kg: number
+          raw_weight_kg: number
+          realized_margin_pct?: number
+          total_raw_cost: number
+          true_cost_per_kg: number
+        }
+        Update: {
+          branch_id?: string | null
+          byproduct_revenue?: number
+          cleaned_weight_kg?: number
+          created_at?: string
+          current_selling_price?: number
+          cutting_loss_pct?: number
+          id?: string
+          logged_by?: string | null
+          notes?: string | null
+          product_id?: string | null
+          product_name?: string
+          purchase_cost_per_kg?: number
+          raw_weight_kg?: number
+          realized_margin_pct?: number
+          total_raw_cost?: number
+          true_cost_per_kg?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       courier_performance_stats: {

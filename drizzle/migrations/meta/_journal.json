@@ -141,6 +141,13 @@
       "when": 1791620714479,
       "tag": "0019_counter_staff_keep_pos_bill_status",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792062561509,
+      "tag": "0020_yield_cutting_logs",
+      "breakpoints": true
     }
   ]
 }
