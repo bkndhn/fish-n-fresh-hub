@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { expectedDrawerCash } from "@/lib/posFloat";
+import { calculatePnlStatement } from "@/lib/pnl";
+import type { Product } from "@/lib/types";
 
 /**
  * Runs from the database scheduler at 10 PM IST: totals today's sales, adds the
@@ -28,15 +30,26 @@ export const Route = createFileRoute("/api/public/cron/daily-close")({
         const now = new Date(Date.now() + 5.5 * 3600_000);
         const day = now.toISOString().slice(0, 10);
         const start = new Date(`${day}T00:00:00+05:30`).toISOString();
+        const end = new Date(new Date(start).getTime() + 86400000).toISOString();
 
-        const { data: orders } = await supabaseAdmin
+        const { data: orders, error: ordersError } = await supabaseAdmin
           .from("orders")
-          .select("total, payment_method, actual_payment_method, status")
+          .select("total, discount, items, payment_method, actual_payment_method, status")
           .gte("created_at", start)
+          .lt("created_at", end)
           .neq("status", "cancelled");
+        if (ordersError) throw ordersError;
+        const [{ data: products, error: productsError }, { data: waste, error: wasteError }] = await Promise.all([
+          supabaseAdmin.from("products").select("id,name,price,cost_price,unit"),
+          supabaseAdmin.from("waste_entries").select("product_id,product_name,quantity,cost_loss,notes").eq("date", day),
+        ]);
+        if (productsError) throw productsError;
+        if (wasteError) throw wasteError;
+        const validOrders = (orders ?? []).filter(o => !["returned", "refunded"].includes(o.status));
+        const pnl = calculatePnlStatement(validOrders, products as unknown as Product[], [], waste ?? []);
 
         const t = { cash: 0, upi: 0, card: 0, other: 0, count: 0 };
-        for (const o of orders ?? []) {
+        for (const o of validOrders) {
           const m = String(o.actual_payment_method || o.payment_method || "").toLowerCase();
           const amt = Number(o.total) || 0;
           t.count++;
@@ -70,11 +83,15 @@ export const Route = createFileRoute("/api/public/cron/daily-close")({
           `Card: ${r(t.card)}`,
           `Other: ${r(t.other)}`,
           `Total sales: ${r(total)}`,
+          `Cost of goods (current cleaned cost): ${r(pnl.totalCogs)}`,
+          `Additional waste cost: ${r(pnl.totalWasteCost)}`,
+          `Gross profit: ${r(pnl.grossProfit)}`,
+          `Gross margin: ${pnl.grossMarginPct}%`,
         ].join("\n");
 
         if (!phone) return Response.json({ ok: false, reason: "no phone" });
         const res = await sendWhatsAppNotification({ recipientPhone: phone, type: "order_confirmed", customMessage: text });
-        return Response.json({ ok: res.success, skipped: res.skipped ?? false, count: t.count });
+        return Response.json({ ok: res.success, skipped: res.skipped ?? false, count: t.count, day, openingCash: opening, cashSales: t.cash, expectedCash: expectedDrawerCash(opening, t.cash), totalSales: total, cogs: pnl.totalCogs, grossProfit: pnl.grossProfit });
       },
     },
   },

@@ -452,7 +452,7 @@ export function Reports() {
 
       const costPrice = Number(p.cost_price) || Math.round(Number(p.price || 0) * 0.68);
       const cogs = Math.round(costPrice * match.qty);
-      const grossProfit = Math.max(0, match.value - cogs);
+      const grossProfit = match.value - cogs;
       const marginPct = match.value > 0 ? Math.round((grossProfit / match.value) * 100) : 0;
 
       return {

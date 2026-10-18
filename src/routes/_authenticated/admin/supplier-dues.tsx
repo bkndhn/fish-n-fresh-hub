@@ -127,7 +127,7 @@ function DuesPage() {
               </div>
               <div className="text-right">
                 <p className="font-bold">{inr(Math.max(0, b.balance))}</p>
-                <Badge variant={STATUS[b.status]!.v}>{STATUS[b.status]!.label}</Badge>
+                <Badge variant={STATUS[b.status]?.v ?? "outline"}>{STATUS[b.status]?.label ?? "Open"}</Badge>
               </div>
             </div>
           ))}
