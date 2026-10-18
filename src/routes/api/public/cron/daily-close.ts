@@ -41,7 +41,7 @@ export const Route = createFileRoute("/api/public/cron/daily-close")({
         if (ordersError) throw ordersError;
         const [{ data: products, error: productsError }, { data: waste, error: wasteError }] = await Promise.all([
           supabaseAdmin.from("products").select("id,name,price,cost_price,unit"),
-          supabaseAdmin.from("waste_entries").select("product_id,product_name,quantity,cost_loss,notes").eq("date", day),
+          supabaseAdmin.from("waste_entries").select("product_id,product_name,quantity,cost_loss,notes").gte("created_at", start).lt("created_at", end),
         ]);
         if (productsError) throw productsError;
         if (wasteError) throw wasteError;
