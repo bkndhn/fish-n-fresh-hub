@@ -82,6 +82,19 @@ export function getExpenseCategoryMeta(cat: string): ExpenseCategoryMeta {
   };
 }
 
+/** Cleaning loss already absorbed into sellable kg must not be expensed again. */
+export function isAbsorbedYieldWaste(w: { notes?: string | null }): boolean {
+  return w.notes?.includes("[yield-cost-absorbed]") ?? false;
+}
+
+function wasteCost(w: any, unitCost: number): number {
+  if (isAbsorbedYieldWaste(w)) return 0;
+  const recorded = Number(w.cost_loss);
+  return w.cost_loss != null && Number.isFinite(recorded) && recorded >= 0
+    ? recorded
+    : Number(w.quantity || 0) * unitCost;
+}
+
 /**
  * Calculates high-precision Profit & Loss statement for any branch or consolidated scope
  */
@@ -146,7 +159,7 @@ export function calculatePnlStatement(
     const prodId = (w.product_id || "").toLowerCase().trim();
     const prodName = (w.product_name || "").toLowerCase().trim();
     const unitCost = productCostMap.get(prodId) ?? productNameCostMap.get(prodName) ?? 150;
-    totalWasteCost += Math.round(qty * unitCost);
+    totalWasteCost += Math.round(wasteCost(w, unitCost));
   }
 
   const totalProductionCost = totalCogs + totalWasteCost;
@@ -218,9 +231,11 @@ export function calculateProductPnl(
 
   // Waste aggregator per product
   const wasteMap = new Map<string, number>();
+  const wasteRows = new Map<string, any[]>();
   for (const w of wasteEntries) {
     const key = (w.product_id || w.product_name || "").toLowerCase().trim();
     wasteMap.set(key, (wasteMap.get(key) ?? 0) + Number(w.quantity || 0));
+    wasteRows.set(key, [...(wasteRows.get(key) ?? []), w]);
   }
 
   // Build item breakdown
@@ -239,8 +254,10 @@ export function calculateProductPnl(
       : Math.round(sellingPrice * 0.68);
 
     const cogs = Math.round(costPrice * sales.qty);
-    const wasteCost = Math.round(costPrice * wasteQty);
-    const grossProfit = sales.revenue - cogs - wasteCost;
+    const rows = (p.id ? wasteRows.get(p.id.toLowerCase().trim()) : undefined)
+      ?? (p.name ? wasteRows.get(p.name.toLowerCase().trim()) : undefined) ?? [];
+    const lossCost = Math.round(rows.reduce((sum, w) => sum + wasteCost(w, costPrice), 0));
+    const grossProfit = sales.revenue - cogs - lossCost;
     const marginPct = sales.revenue > 0 ? Math.round((grossProfit / sales.revenue) * 100) : 0;
 
     let tier: "high_profit" | "healthy" | "slim" | "loss_making" = "slim";
@@ -265,7 +282,7 @@ export function calculateProductPnl(
       revenue: Math.round(sales.revenue),
       cogs,
       wasteQty: Math.round(wasteQty * 100) / 100,
-      wasteCost,
+      wasteCost: lossCost,
       grossProfit: Math.round(grossProfit),
       marginPct,
       profitSharePct: 0, // will compute after total

@@ -71,15 +71,18 @@ function YieldPage() {
         realized_margin_pct: result.marginPct, notes: notes || null,
       });
       if (error) throw error;
+      let costUpdated = false;
       if (updateCost) {
         const { error: e2 } = await supabase.from("products").update({ cost_price: result.trueCostPerKg }).eq("id", product.id);
         if (e2) toast.error("Saved, but cost price not updated: " + e2.message);
+        else costUpdated = true;
       }
       if (logWaste && result.wasteKg > 0) {
         const { error: e3 } = await supabase.from("waste_entries").insert({
           entry_number: `YLD-${Date.now().toString().slice(-8)}`, product_id: product.id, product_name: product.name,
           quantity: result.wasteKg, unit: "kg", reason: "cleaning_gutting_loss", action_taken: "discarded",
           cost_loss: Math.round(result.wasteKg * +cost * 100) / 100, logged_by: u.user?.email ?? "admin",
+          notes: costUpdated ? "[yield-cost-absorbed] Cutting loss included in true cleaned cost." : "Yield cutting loss; product cost unchanged.",
         });
         if (e3) toast.error("Saved, but wastage not logged: " + e3.message);
       }
@@ -89,6 +92,8 @@ function YieldPage() {
       setRawKg(""); setCleanKg(""); setByp(""); setNotes("");
       qc.invalidateQueries({ queryKey: ["yield-logs"] });
       qc.invalidateQueries({ queryKey: ["yield-products"] });
+      qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      qc.invalidateQueries({ queryKey: ["admin", "pnl-waste"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
