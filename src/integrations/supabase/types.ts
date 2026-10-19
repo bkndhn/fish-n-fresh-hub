@@ -3094,12 +3094,14 @@ export type Database = {
       }
       yield_cutting_logs: {
         Row: {
+          batch_ref: string | null
           branch_id: string | null
           byproduct_revenue: number
           cleaned_weight_kg: number
           created_at: string
           current_selling_price: number
           cutting_loss_pct: number
+          delivery_date: string | null
           id: string
           logged_by: string | null
           notes: string | null
@@ -3112,12 +3114,14 @@ export type Database = {
           true_cost_per_kg: number
         }
         Insert: {
+          batch_ref?: string | null
           branch_id?: string | null
           byproduct_revenue?: number
           cleaned_weight_kg: number
           created_at?: string
           current_selling_price?: number
           cutting_loss_pct: number
+          delivery_date?: string | null
           id?: string
           logged_by?: string | null
           notes?: string | null
@@ -3130,12 +3134,14 @@ export type Database = {
           true_cost_per_kg: number
         }
         Update: {
+          batch_ref?: string | null
           branch_id?: string | null
           byproduct_revenue?: number
           cleaned_weight_kg?: number
           created_at?: string
           current_selling_price?: number
           cutting_loss_pct?: number
+          delivery_date?: string | null
           id?: string
           logged_by?: string | null
           notes?: string | null
