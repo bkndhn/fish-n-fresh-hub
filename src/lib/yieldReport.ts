@@ -45,7 +45,7 @@ export function buildYieldReport(logs: YieldLogRow[], products: YieldProductRow[
     if (!list?.length) continue;
     const latest = [...list].sort((a, b) =>
       (b.delivery_date ?? b.created_at).localeCompare(a.delivery_date ?? a.created_at) || b.created_at.localeCompare(a.created_at),
-    )[0];
+    )[0]!;
     const nominal = Number(latest.purchase_cost_per_kg);
     const trueCost = Number(latest.true_cost_per_kg);
     const price = Number(p.price);
