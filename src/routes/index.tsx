@@ -184,44 +184,6 @@ function Home() {
 
       <BannerCarousel banners={banners ?? []} />
 
-      {salesMode !== "retail" && (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-3">
-          <div className="min-w-0">
-            <p className="text-sm font-bold">
-              {salesMode === "wholesale" ? "Bulk orders only" : "Buying in bulk?"}
-            </p>
-            <p className="text-xs text-muted-foreground break-words">
-              {salesMode === "wholesale"
-                ? "This shop supplies shops, hotels and caterers. Register once to order at trade rates."
-                : "Shops, hotels and caterers get trade rates that drop as the quantity goes up."}
-            </p>
-          </div>
-          <Button asChild size="sm" variant="outline" className="rounded-xl shrink-0">
-            <Link to="/wholesale">{isWholesaleBuyer ? "My trade account" : "Get trade rates"}</Link>
-          </Button>
-        </div>
-      )}
-
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-3.5 py-3">
-        <div className="min-w-0">
-          <p className="text-sm font-bold">Not sure what to buy?</p>
-          <p className="text-xs text-muted-foreground break-words">Tell us your taste and we&apos;ll pick from today&apos;s stock.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <AiPicksDialog products={products ?? []} branchId={activeBranch?.id ?? null} />
-          {whatsAppNumber && (
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => (cartItems.length > 0 ? setWhatsAppOpen(true) : navigate({ to: "/catalog" }))}
-              className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shrink-0"
-            >
-              <MessageSquare className="size-4 shrink-0" />
-              Order on WhatsApp
-            </Button>
-          )}
-        </div>
-      </div>
 
       {whatsAppNumber && (
         <WhatsAppOrderDialog
@@ -407,6 +369,46 @@ function Home() {
           ))}
         </div>
       </section>
+      <div className="mt-10 space-y-3 border-t pt-6">
+      {salesMode !== "retail" && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-3">
+          <div className="min-w-0">
+            <p className="text-sm font-bold">
+              {salesMode === "wholesale" ? "Bulk orders only" : "Buying in bulk?"}
+            </p>
+            <p className="text-xs text-muted-foreground break-words">
+              {salesMode === "wholesale"
+                ? "This shop supplies shops, hotels and caterers. Register once to order at trade rates."
+                : "Shops, hotels and caterers get trade rates that drop as the quantity goes up."}
+            </p>
+          </div>
+          <Button asChild size="sm" variant="outline" className="rounded-xl shrink-0">
+            <Link to="/wholesale">{isWholesaleBuyer ? "My trade account" : "Get trade rates"}</Link>
+          </Button>
+        </div>
+      )}
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-3.5 py-3">
+        <div className="min-w-0">
+          <p className="text-sm font-bold">Not sure what to buy?</p>
+          <p className="text-xs text-muted-foreground break-words">Tell us your taste and we&apos;ll pick from today&apos;s stock.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <AiPicksDialog products={products ?? []} branchId={activeBranch?.id ?? null} />
+          {whatsAppNumber && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => (cartItems.length > 0 ? setWhatsAppOpen(true) : navigate({ to: "/catalog" }))}
+              className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shrink-0"
+            >
+              <MessageSquare className="size-4 shrink-0" />
+              Order on WhatsApp
+            </Button>
+          )}
+        </div>
+      </div>
+      </div>
     </AppShell>
   );
 }

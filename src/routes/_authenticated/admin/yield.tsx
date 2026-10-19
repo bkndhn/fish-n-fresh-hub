@@ -35,6 +35,8 @@ function YieldPage() {
   const [notes, setNotes] = useState("");
   const [updateCost, setUpdateCost] = useState(true);
   const [logWaste, setLogWaste] = useState(true);
+  const [batchRef, setBatchRef] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   const { data: products = [] } = useQuery({
     queryKey: ["yield-products"],
@@ -69,6 +71,7 @@ function YieldPage() {
         cleaned_weight_kg: +cleanKg, byproduct_revenue: +byp || 0, cutting_loss_pct: result.lossPct,
         true_cost_per_kg: result.trueCostPerKg, current_selling_price: Number(product.price ?? 0),
         realized_margin_pct: result.marginPct, notes: notes || null,
+        batch_ref: batchRef.trim() || `${product.name.slice(0, 4).toUpperCase()}-${deliveryDate}`, delivery_date: deliveryDate,
       });
       if (error) throw error;
       let costUpdated = false;
@@ -127,6 +130,8 @@ function YieldPage() {
               ))}
             </div>
           </div>
+          <label className="space-y-1 text-sm">Delivery batch no. (optional)<Input placeholder="e.g. SEER-19OCT" value={batchRef} onChange={(e) => setBatchRef(e.target.value)} /></label>
+          <label className="space-y-1 text-sm">Delivery date<Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} /></label>
           <label className="space-y-1 text-sm md:col-span-2">Notes<Input value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
         </div>
 
