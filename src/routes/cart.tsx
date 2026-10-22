@@ -141,7 +141,7 @@ function CartPage() {
       <div className="pb-36">
       <h1 className="text-2xl font-bold">Your cart</h1>
       {subtotal < freeOver && (
-        <div className="mt-4 rounded-2xl border border-border bg-card p-3">
+        <div className="mt-4 surface-card p-3">
           <p className="text-sm">Add {inr(freeOver - subtotal)} more for free delivery</p>
           <Progress value={progress} className="mt-2" />
         </div>
@@ -327,7 +327,7 @@ function CartPage() {
           );
         })}
       </ul>
-      <div className="mt-5 space-y-2 rounded-2xl border border-border bg-card p-4">
+      <div className="mt-5 space-y-2 surface-card p-4">
         <div className="flex items-center justify-between gap-2">
           <span className="text-muted-foreground">Subtotal</span>
           <span className="font-display text-xl font-bold">{inr(subtotal)}</span>

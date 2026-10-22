@@ -178,7 +178,7 @@ function MyOrders() {
         const canComplain = isDelivered && Date.now() < orderTime + windowHours * 3600000;
 
         return (
-          <li key={o.id} className="rounded-2xl border border-border bg-card p-4">
+          <li key={o.id} className="surface-card p-4">
             <div className="flex items-center justify-between gap-2">
               <p className="font-semibold">#{o.order_number ?? o.id.slice(0, 8)}</p>
               <Badge variant="secondary" className="capitalize">
@@ -345,7 +345,7 @@ function GuestLookup() {
       </Button>
 
       {order && (
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="surface-card p-4">
           <div className="flex items-center justify-between">
             <p className="font-semibold">#{order.order_number ?? order.id.slice(0, 8)}</p>
             <Badge variant="secondary" className="capitalize">

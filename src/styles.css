@@ -251,3 +251,23 @@ html {
   .print-all-standees-container, .print-all-standees-container * { visibility: visible !important; }
   .page-standee { break-inside: avoid; break-after: page; }
 }
+
+/* ---- Elegant storefront surfaces ---- */
+:root {
+  --shadow-soft: 0 1px 2px color-mix(in oklab, var(--foreground) 4%, transparent), 0 8px 24px -12px color-mix(in oklab, var(--primary) 22%, transparent);
+  --shadow-lift: 0 2px 4px color-mix(in oklab, var(--foreground) 5%, transparent), 0 18px 40px -16px color-mix(in oklab, var(--primary) 35%, transparent);
+  --gradient-hero: radial-gradient(120% 140% at 0% 0%, color-mix(in oklab, var(--primary) 16%, transparent) 0%, transparent 55%), radial-gradient(120% 140% at 100% 0%, color-mix(in oklab, var(--accent) 18%, transparent) 0%, transparent 55%);
+}
+@utility surface-card {
+  border-radius: calc(var(--radius) + 8px);
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  background-color: var(--card);
+  box-shadow: var(--shadow-soft);
+}
+@utility shadow-soft { box-shadow: var(--shadow-soft); }
+@utility shadow-lift { box-shadow: var(--shadow-lift); }
+@utility page-hero {
+  background-image: var(--gradient-hero);
+  border-radius: calc(var(--radius) + 12px);
+  border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+}
