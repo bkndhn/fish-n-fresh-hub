@@ -1353,6 +1353,11 @@ export function RetailPosCounterPage() {
           name: it.name,
           price: it.pricePerKg,
           qty: it.weightKg > 0 ? it.weightKg : it.qty,
+          // Snapshot true (yield) cost at sale time so historical P&L stays accurate
+          unit_cost: (() => {
+            const c = Number((products.find((p) => p.id === it.productId) as any)?.cost_price);
+            return c > 0 ? c : null;
+          })(),
           unit: it.unit,
           cutting_style: it.cuttingStyle,
           line_total: it.totalPrice,
