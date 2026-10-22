@@ -127,7 +127,7 @@ export function ProductCard({ product }: { product: Product }) {
         )}
 
         {/* Status / Discount Badges */}
-        <div className="absolute top-2 left-2 flex flex-col gap-1 pointer-events-none">
+        <div className="absolute top-3.5 left-3.5 flex flex-col gap-1 pointer-events-none">
           {isOutOfStock ? (
             <span className="rounded-md bg-rose-600/90 backdrop-blur-xs px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
               Sold Out
@@ -145,7 +145,7 @@ export function ProductCard({ product }: { product: Product }) {
         </div>
 
         {/* Top Right: Wishlist Button & In-Cart Badge / Express SLA */}
-        <div className="absolute top-2 right-2 z-10 flex flex-col gap-1.5 items-end">
+        <div className="absolute top-3.5 right-3.5 z-10 flex flex-col gap-1.5 items-end">
           <button
             type="button"
             onClick={(e) => {

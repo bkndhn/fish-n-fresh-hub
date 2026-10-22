@@ -211,9 +211,9 @@ function Home() {
 
 
       {/* Category Showcase with Horizontal Smooth Scrolling */}
-      <section className="sticky top-14 z-30 -mx-4 mt-6 border-b border-border/60 bg-background/90 px-4 pt-3 backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
+      <section className="sticky top-14 z-30 -mx-4 mt-6 border-b border-border/50 bg-background/80 px-4 pt-3 shadow-soft backdrop-blur-xl">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold">{t("home.categories")}</h2>
+          <h2 className="text-lg font-extrabold tracking-tight">{t("home.categories")}</h2>
           <Link to="/catalog" preload="intent" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
             <span>{t("home.view_all")}</span>
             <span>&rarr;</span>
@@ -288,12 +288,12 @@ function Home() {
         return (
           <section key={col.id} className="mt-8">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-bold">{col.name}</h2>
+              <h2 className="text-lg font-extrabold tracking-tight">{col.name}</h2>
               <Link to="/catalog" className="text-sm font-semibold text-primary">
                 {t("home.view_all")} &rarr;
               </Link>
             </div>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {colProducts.map((p: any) => (
                 <ProductCard key={p.id} product={p} />
               ))}
@@ -304,12 +304,12 @@ function Home() {
 
       <section className="mt-8">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold">{t("home.featured")}</h2>
+          <h2 className="text-lg font-extrabold tracking-tight">{t("home.featured")}</h2>
           <Link to="/catalog" className="text-sm font-semibold text-primary">
             {t("home.view_all")} &rarr;
           </Link>
         </div>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {featured.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
@@ -319,7 +319,7 @@ function Home() {
       <section className="mt-8">
         <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold">Top Customer Rated</h2>
+            <h2 className="text-lg font-extrabold tracking-tight">Top Customer Rated</h2>
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
               Verified Reviews
             </span>
@@ -349,7 +349,7 @@ function Home() {
             </Link>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {topRated.map((p: Product) => (
             <ProductCard key={p.id} product={p} />
           ))}
@@ -358,12 +358,12 @@ function Home() {
 
       <section className="mt-8">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold">{t("home.bestsellers")}</h2>
+          <h2 className="text-lg font-extrabold tracking-tight">{t("home.bestsellers")}</h2>
           <Link to="/catalog" className="text-sm font-semibold text-primary">
             {t("home.view_all")} &rarr;
           </Link>
         </div>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {bestsellers.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
