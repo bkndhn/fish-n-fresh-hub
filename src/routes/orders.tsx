@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { RotateCcw, FileText } from "lucide-react";
+import { RotateCcw, FileText, Package } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { AppShell } from "@/components/layout/AppShell";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,7 +46,7 @@ function OrdersPage() {
 
   return (
     <AppShell>
-      <h1 className="text-2xl font-bold">My orders</h1>
+      <PageHeader eyebrow="Your account" title="My orders" subtitle="Track, reorder and download bills" icon={<Package className="size-5" />} />
       {loading ? (
         <p className="mt-6 text-sm text-muted-foreground">Loading…</p>
       ) : user ? (

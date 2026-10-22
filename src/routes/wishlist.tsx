@@ -6,12 +6,17 @@ import { ProductCard } from "@/components/ProductCard";
 import { useWishlist } from "@/hooks/useWishlist";
 import { productsQuery } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export const Route = createFileRoute("/wishlist")({
   head: () => ({
     meta: [
-      { title: "Your Wishlist" },
-      { name: "description", content: "View your saved products." },
+      { title: "Saved Items | Fish N Fresh" },
+      { name: "description", content: "Your saved fresh seafood favourites, ready to order." },
+      { property: "og:title", content: "Saved Items | Fish N Fresh" },
+      { property: "og:description", content: "Your saved fresh seafood favourites, ready to order." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: WishlistPage,
@@ -25,13 +30,10 @@ function WishlistPage() {
 
   return (
     <AppShell>
-      <div className="flex items-center gap-2 mb-6">
-        <Heart className="size-6 text-rose-500 fill-rose-500" />
-        <h1 className="text-2xl font-bold">Your Saved Items</h1>
-      </div>
+      <PageHeader eyebrow="Saved for later" title="Your saved items" subtitle={wishlistProducts.length ? `${wishlistProducts.length} favourite${wishlistProducts.length === 1 ? "" : "s"} ready to order` : "Tap the heart on any product to save it"} icon={<Heart className="size-5 fill-current" />} />
 
       {isLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 animate-pulse">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 animate-pulse">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="aspect-[3/4] bg-muted rounded-2xl" />
           ))}
@@ -53,7 +55,7 @@ function WishlistPage() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {wishlistProducts.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
