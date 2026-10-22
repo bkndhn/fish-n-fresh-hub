@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { Minus, Plus, Trash2, AlertTriangle, Zap, MessageSquare, Store, Eye } from "lucide-react";
+import { Minus, Plus, Trash2, AlertTriangle, Zap, MessageSquare, Store, Eye, ShoppingBag } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -139,9 +140,9 @@ function CartPage() {
   return (
     <AppShell>
       <div className="pb-36">
-      <h1 className="text-2xl font-bold">Your cart</h1>
+      <PageHeader eyebrow="Checkout" title="Your cart" subtitle={`${items.length} item${items.length === 1 ? "" : "s"} · fresh, cut to order`} icon={<ShoppingBag className="size-5" />} />
       {subtotal < freeOver && (
-        <div className="mt-4 rounded-2xl border border-border bg-card p-3">
+        <div className="mt-4 surface-card p-3">
           <p className="text-sm">Add {inr(freeOver - subtotal)} more for free delivery</p>
           <Progress value={progress} className="mt-2" />
         </div>
@@ -327,7 +328,7 @@ function CartPage() {
           );
         })}
       </ul>
-      <div className="mt-5 space-y-2 rounded-2xl border border-border bg-card p-4">
+      <div className="mt-5 space-y-2 surface-card p-4">
         <div className="flex items-center justify-between gap-2">
           <span className="text-muted-foreground">Subtotal</span>
           <span className="font-display text-xl font-bold">{inr(subtotal)}</span>

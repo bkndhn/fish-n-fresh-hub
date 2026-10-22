@@ -65,12 +65,12 @@ export function ProductCard({ product }: { product: Product }) {
   return (
     <div
       className={cn(
-        "group flex h-full flex-col overflow-hidden rounded-2xl border shadow-sm transition-all duration-200 relative",
+        "group relative flex h-full flex-col overflow-hidden rounded-[1.4rem] border shadow-soft transition-all duration-300 hover:-translate-y-0.5",
         isOutOfStock
           ? "opacity-75 bg-muted/20 border-border"
           : cartItem
           ? "border-primary ring-2 ring-primary/50 bg-primary/5 dark:bg-primary/10 shadow-md"
-          : "border-border bg-card hover:border-primary/40 hover:shadow-md"
+          : "border-border/60 bg-card hover:border-primary/30 hover:shadow-lift"
       )}
     >
       <div className="block relative">
@@ -79,7 +79,7 @@ export function ProductCard({ product }: { product: Product }) {
             to="/product/$id"
             params={{ id: product.id }}
             preload="intent"
-            className="block aspect-square overflow-hidden bg-muted"
+            className="m-1.5 block aspect-square overflow-hidden rounded-[1.1rem] bg-muted"
           >
             {product.image_url ? (
               <img
@@ -88,7 +88,7 @@ export function ProductCard({ product }: { product: Product }) {
                 loading="lazy"
                 decoding="async"
                 className={cn(
-                  "size-full object-cover transition-transform duration-300",
+                  "size-full object-cover transition-transform duration-500",
                   !isOutOfStock && "group-hover:scale-105",
                   isOutOfStock && "grayscale-30"
                 )}
@@ -127,7 +127,7 @@ export function ProductCard({ product }: { product: Product }) {
         )}
 
         {/* Status / Discount Badges */}
-        <div className="absolute top-2 left-2 flex flex-col gap-1 pointer-events-none">
+        <div className="absolute top-3.5 left-3.5 flex flex-col gap-1 pointer-events-none">
           {isOutOfStock ? (
             <span className="rounded-md bg-rose-600/90 backdrop-blur-xs px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
               Sold Out
@@ -145,7 +145,7 @@ export function ProductCard({ product }: { product: Product }) {
         </div>
 
         {/* Top Right: Wishlist Button & In-Cart Badge / Express SLA */}
-        <div className="absolute top-2 right-2 z-10 flex flex-col gap-1.5 items-end">
+        <div className="absolute top-3.5 right-3.5 z-10 flex flex-col gap-1.5 items-end">
           <button
             type="button"
             onClick={(e) => {
@@ -158,7 +158,7 @@ export function ProductCard({ product }: { product: Product }) {
                 });
               }
             }}
-            className="flex size-8 items-center justify-center rounded-full bg-background/80 backdrop-blur-sm border shadow-sm transition-colors hover:bg-background cursor-pointer"
+            className="flex size-8 items-center justify-center rounded-full bg-background/85 backdrop-blur-md border border-border/50 shadow-soft transition-colors hover:bg-background cursor-pointer"
             aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
           >
             <Heart 
