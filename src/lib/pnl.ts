@@ -146,7 +146,10 @@ export function calculatePnlStatement(
 
       const prodId = (it.product_id || "").toLowerCase().trim();
       const prodName = (it.name || "").toLowerCase().trim();
-      const unitCost = productCostMap.get(prodId) ?? productNameCostMap.get(prodName) ?? Math.round(price * 0.68);
+      const snap = Number(it.unit_cost);
+      const unitCost = snap > 0
+        ? snap
+        : productCostMap.get(prodId) ?? productNameCostMap.get(prodName) ?? Math.round(price * 0.68);
 
       totalCogs += Math.round(unitCost * qty);
     }
