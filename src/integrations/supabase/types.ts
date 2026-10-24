@@ -1505,6 +1505,8 @@ export type Database = {
           calories: number | null
           catch_date: string | null
           category: string | null
+          combo_items: string | null
+          combo_mrp: number | null
           cost_price: number | null
           created_at: string
           description: string | null
@@ -1516,6 +1518,7 @@ export type Database = {
           is_active: boolean | null
           is_available: boolean
           is_bestseller: boolean
+          is_combo: boolean
           is_featured: boolean
           is_returnable: boolean
           lab_tested: boolean
@@ -1558,6 +1561,8 @@ export type Database = {
           calories?: number | null
           catch_date?: string | null
           category?: string | null
+          combo_items?: string | null
+          combo_mrp?: number | null
           cost_price?: number | null
           created_at?: string
           description?: string | null
@@ -1569,6 +1574,7 @@ export type Database = {
           is_active?: boolean | null
           is_available?: boolean
           is_bestseller?: boolean
+          is_combo?: boolean
           is_featured?: boolean
           is_returnable?: boolean
           lab_tested?: boolean
@@ -1611,6 +1617,8 @@ export type Database = {
           calories?: number | null
           catch_date?: string | null
           category?: string | null
+          combo_items?: string | null
+          combo_mrp?: number | null
           cost_price?: number | null
           created_at?: string
           description?: string | null
@@ -1622,6 +1630,7 @@ export type Database = {
           is_active?: boolean | null
           is_available?: boolean
           is_bestseller?: boolean
+          is_combo?: boolean
           is_featured?: boolean
           is_returnable?: boolean
           lab_tested?: boolean
@@ -1693,6 +1702,60 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      promo_popups: {
+        Row: {
+          badge: string | null
+          created_at: string
+          delay_seconds: number
+          headline: string
+          id: string
+          is_active: boolean
+          kind: string
+          product_id: string | null
+          subtext: string | null
+          updated_at: string
+        }
+        Insert: {
+          badge?: string | null
+          created_at?: string
+          delay_seconds?: number
+          headline: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          product_id?: string | null
+          subtext?: string | null
+          updated_at?: string
+        }
+        Update: {
+          badge?: string | null
+          created_at?: string
+          delay_seconds?: number
+          headline?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          product_id?: string | null
+          subtext?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_popups_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_popups_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_public"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       promotions: {
         Row: {
