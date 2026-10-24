@@ -109,7 +109,7 @@ function YieldPage() {
           <p className="text-sm text-muted-foreground">Enter raw weight bought and cleaned weight after cutting to see your real cost per kg.</p>
         </div>
 
-        <div className="grid gap-4 rounded-xl border bg-card p-4 md:grid-cols-2">
+        <div className="grid gap-4 rounded-3xl border bg-card p-5 shadow-sm md:grid-cols-2">
           <label className="space-y-1 text-sm md:col-span-2">Product
             <select className="h-10 w-full rounded-md border bg-background px-2" value={productId}
               onChange={(e) => { setProductId(e.target.value); const p = products.find((x) => x.id === e.target.value); if (p?.cost_price && !cost) setCost(String(p.cost_price)); }}>

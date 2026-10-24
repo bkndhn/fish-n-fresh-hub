@@ -76,15 +76,15 @@ function DuesPage() {
     <AdminShell title="Supplier Dues">
       <div className="mx-auto max-w-4xl space-y-6 p-4">
         <div>
-          <h1 className="text-2xl font-bold">Supplier Dues Radar</h1>
+          <h1 className="font-display text-2xl font-bold">Supplier Dues Radar</h1>
           <p className="text-sm text-muted-foreground">Record supplier bills and payments. Balances and due dates update instantly.</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl border bg-card p-4"><p className="text-xs text-muted-foreground">Total you owe</p><p className="text-2xl font-bold">{inr(totalDue)}</p></div>
-          <div className="rounded-xl border bg-card p-4"><p className="text-xs text-muted-foreground">Overdue</p><p className="text-2xl font-bold text-destructive">{inr(overdue)}</p></div>
+          <div className="rounded-3xl border bg-card p-5 shadow-sm"><p className="text-xs text-muted-foreground">Total you owe</p><p className="text-2xl font-bold">{inr(totalDue)}</p></div>
+          <div className="rounded-3xl border bg-card p-5 shadow-sm"><p className="text-xs text-muted-foreground">Overdue</p><p className="text-2xl font-bold text-destructive">{inr(overdue)}</p></div>
         </div>
 
-        <div className="grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-2">
+        <div className="grid gap-3 rounded-3xl border bg-card p-5 shadow-sm md:grid-cols-2">
           <div className="flex gap-2 md:col-span-2">
             {(["bill", "payment"] as const).map((t) => (
               <Button key={t} type="button" variant={f.type === t ? "default" : "outline"} onClick={() => setF((s) => ({ ...s, type: t }))}>
