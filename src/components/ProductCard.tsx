@@ -243,6 +243,14 @@ export function ProductCard({ product }: { product: Product }) {
           })()}
           <span>· {product.unit}</span>
         </div>
+        {(product as { is_combo?: boolean }).is_combo && (
+          <div className="mt-1 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary leading-tight">
+            🎁 Combo{(product as { combo_items?: string | null }).combo_items ? `: ${(product as { combo_items?: string | null }).combo_items}` : ""}
+            {Number((product as { combo_mrp?: number | null }).combo_mrp) > Number(product.price) && (
+              <span className="block text-muted-foreground">Save {inr(Number((product as { combo_mrp?: number | null }).combo_mrp) - Number(product.price))}</span>
+            )}
+          </div>
+        )}
         <div className="mt-auto pt-2 flex flex-col gap-2 w-full">
           {/* Price Block */}
           <div className="min-w-0 min-h-[38px] sm:min-h-[42px]">
