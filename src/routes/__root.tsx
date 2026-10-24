@@ -319,6 +319,7 @@ import { AnalyticsTracker } from "@/components/AnalyticsTracker";
 import { CustomerBranchProvider } from "@/lib/customerBranchContext";
 import { BranchPickerModal } from "@/components/BranchPickerModal";
 import { PwaPrompt } from "@/components/PwaPrompt";
+import { PromoPopup } from "@/components/PromoPopup";
 import { PageGate } from "@/components/PageGate";
 
 function RootComponent() {
@@ -371,6 +372,7 @@ function RootComponent() {
               </Suspense>
               <BranchPickerModal />
               <PwaPrompt />
+              <PromoPopup />
               <Toaster position="top-center" />
             </CustomerBranchProvider>
           </CartProvider>
