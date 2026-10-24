@@ -112,6 +112,9 @@ const DEFAULT_NEW_PRODUCT = {
   is_available: true,
   is_featured: false,
   is_bestseller: false,
+  is_combo: false,
+  combo_items: "",
+  combo_mrp: "",
   allow_custom_qty: true,
   rating: "4.8",
   reviews_count: "124",
@@ -294,6 +297,9 @@ function ProductsAdmin() {
         allow_custom_qty: newProduct.allow_custom_qty,
         is_featured: newProduct.is_featured,
         is_bestseller: newProduct.is_bestseller,
+        is_combo: newProduct.is_combo,
+        combo_items: newProduct.is_combo ? newProduct.combo_items.trim() || null : null,
+        combo_mrp: newProduct.is_combo && newProduct.combo_mrp ? Number(newProduct.combo_mrp) : null,
         image_url: newProduct.image_url || null,
         description: newProduct.description.trim() || null,
         branch_id: selectedBranchId || null,
@@ -1352,6 +1358,21 @@ function ProductsAdmin() {
                     onCheckedChange={(is_bestseller) => setNewProduct({ ...newProduct, is_bestseller })}
                   />
                   <span>🔥 Best Seller</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-primary">
+                  <Switch
+                    checked={newProduct.is_combo}
+                    onCheckedChange={(is_combo) => setNewProduct({ ...newProduct, is_combo })}
+                  />
+                  <span>🎁 Combo pack</span>
+                </label>
+                {newProduct.is_combo && (
+                  <div className="col-span-full grid gap-2 rounded-xl border border-primary/30 bg-primary/5 p-3 sm:grid-cols-2">
+                    <Input placeholder="What's inside (e.g. 1kg Prawns + 500g Squid)" value={newProduct.combo_items} onChange={(e) => setNewProduct({ ...newProduct, combo_items: e.target.value })} />
+                    <Input type="number" placeholder="Total if bought separately (₹)" value={newProduct.combo_mrp} onChange={(e) => setNewProduct({ ...newProduct, combo_mrp: e.target.value })} />
+                  </div>
+                )}
+                <label className="hidden">
                 </label>
                 <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
                   <Switch
