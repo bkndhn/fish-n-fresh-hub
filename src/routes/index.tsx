@@ -19,6 +19,7 @@ import { useCustomerBranch } from "@/lib/customerBranchContext";
 import { useCart } from "@/lib/cart";
 import type { SiteSettings, Product } from "@/lib/types";
 import { supabase } from "@/integrations/supabase/client";
+import { StickyCategoryBar } from "@/components/StickyCategoryBar";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -211,7 +212,7 @@ function Home() {
 
 
       {/* Category Showcase with Horizontal Smooth Scrolling */}
-      <section className="sticky top-14 z-30 -mx-4 mt-6 border-b border-border/50 bg-background/80 px-4 pt-3 shadow-soft backdrop-blur-xl">
+      <section className="mt-6 pt-3">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-extrabold tracking-tight">{t("home.categories")}</h2>
           <Link to="/catalog" preload="intent" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
@@ -273,6 +274,16 @@ function Home() {
             ))}
         </div>
       </section>
+
+      {/* Slim pill bar that stays pinned at top while scrolling (same as Catalog) */}
+      <StickyCategoryBar
+        className="-mx-4 px-4"
+        categories={categories ?? []}
+        selectedCategory={undefined}
+        onSelectCategory={(catName) =>
+          navigate({ to: "/catalog", search: catName ? { category: catName } : {} } as any)
+        }
+      />
 
       {/* Dynamic Custom Collections */}
       {customCollections?.map(col => {
