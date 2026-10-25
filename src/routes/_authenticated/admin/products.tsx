@@ -1,3 +1,4 @@
+import { ProductScheduleFields } from "@/components/admin/ProductScheduleFields";
 import { escapeHtml } from "@/lib/htmlEscape";
 import { createFileRoute } from "@tanstack/react-router";
 import type { Database } from "@/integrations/supabase/types";
@@ -315,6 +316,10 @@ function ProductsAdmin() {
         cost_price: newProduct.cost_price ? Number(newProduct.cost_price) : null,
         is_returnable: newProduct.is_returnable,
         return_window_days: Number(newProduct.return_window_days) || 0,
+        available_from: (newProduct as any).available_from || null,
+        available_to: (newProduct as any).available_to || null,
+        available_days: (newProduct as any).available_days?.length ? (newProduct as any).available_days : null,
+        expiry_date: (newProduct as any).expiry_date || null,
       });
       if (error) throw error;
     },
@@ -384,6 +389,10 @@ function ProductsAdmin() {
           : null,
         is_returnable: editingProduct.is_returnable ?? false,
         return_window_days: Number(editingProduct.return_window_days) || 0,
+        available_from: editingProduct.available_from || null,
+        available_to: editingProduct.available_to || null,
+        available_days: editingProduct.available_days?.length ? editingProduct.available_days : null,
+        expiry_date: editingProduct.expiry_date || null,
       }).eq("id", editingProduct.id);
       if (error) throw error;
     },
@@ -1337,6 +1346,8 @@ function ProductsAdmin() {
                   </div>
                 )}
               </div>
+              <ProductScheduleFields value={newProduct as any} onChange={(p) => setNewProduct({ ...newProduct, ...(p as any) })} />
+
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 rounded-2xl border border-border/80 bg-muted/20 p-3">
                 <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
@@ -2227,6 +2238,8 @@ function ProductsAdmin() {
                   </div>
                 )}
               </div>
+              <ProductScheduleFields value={editingProduct} onChange={(p) => setEditingProduct({ ...editingProduct, ...p })} />
+
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 rounded-2xl border border-border/80 bg-muted/20 p-3">
                 <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">

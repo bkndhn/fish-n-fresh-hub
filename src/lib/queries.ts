@@ -1,3 +1,4 @@
+import { isProductSellableNow } from "@/lib/productSchedule";
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Banner, Category, Product } from "./types";
@@ -56,7 +57,9 @@ export function getProductsQuery(branchId?: string) {
 
       const { data, error } = await q;
       if (error) throw error;
-      const list = ((data ?? []) as unknown as Product[]).map(sanitizeProduct);
+      const list = ((data ?? []) as unknown as Product[])
+        .filter((p) => isProductSellableNow(p as any))
+        .map(sanitizeProduct);
 
       // If branch has no products yet, fallback to all available products (still excluding hidden)
       if (branchId && list.length === 0) {
@@ -69,7 +72,9 @@ export function getProductsQuery(branchId?: string) {
           fallbackQ = fallbackQ.neq("category", cat);
         }
         const { data: fallbackData } = await fallbackQ;
-        return ((fallbackData ?? []) as unknown as Product[]).map(sanitizeProduct);
+        return ((fallbackData ?? []) as unknown as Product[])
+          .filter((p) => isProductSellableNow(p as any))
+          .map(sanitizeProduct);
       }
 
       return list;
