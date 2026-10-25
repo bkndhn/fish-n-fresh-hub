@@ -1,3 +1,4 @@
+import { isProductSellableNow } from "@/lib/productSchedule";
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Banner, Category, Product } from "./types";
