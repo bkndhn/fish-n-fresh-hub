@@ -169,6 +169,13 @@
       "when": 1792869033899,
       "tag": "0023_combo_and_promo_popups",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792905481821,
+      "tag": "0024_product_schedule_expiry",
+      "breakpoints": true
     }
   ]
 }

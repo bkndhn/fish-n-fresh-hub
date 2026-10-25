@@ -1,0 +1,1 @@
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS available_from time, ADD COLUMN IF NOT EXISTS available_to time, ADD COLUMN IF NOT EXISTS available_days smallint[], ADD COLUMN IF NOT EXISTS expiry_date date;
