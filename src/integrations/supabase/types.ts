@@ -3246,6 +3246,9 @@ export type Database = {
         Row: {
           aisle_location: string | null
           allow_custom_qty: boolean | null
+          available_days: number[] | null
+          available_from: string | null
+          available_to: string | null
           benefits: string[] | null
           best_for: string | null
           branch_id: string | null
@@ -3256,6 +3259,7 @@ export type Database = {
           cost_price: number | null
           created_at: string | null
           description: string | null
+          expiry_date: string | null
           gst_included: boolean | null
           gst_percent: number | null
           hsn_code: string | null
@@ -3298,6 +3302,9 @@ export type Database = {
         Insert: {
           aisle_location?: string | null
           allow_custom_qty?: boolean | null
+          available_days?: number[] | null
+          available_from?: string | null
+          available_to?: string | null
           benefits?: string[] | null
           best_for?: string | null
           branch_id?: string | null
@@ -3308,6 +3315,7 @@ export type Database = {
           cost_price?: never
           created_at?: string | null
           description?: string | null
+          expiry_date?: string | null
           gst_included?: boolean | null
           gst_percent?: number | null
           hsn_code?: string | null
@@ -3350,6 +3358,9 @@ export type Database = {
         Update: {
           aisle_location?: string | null
           allow_custom_qty?: boolean | null
+          available_days?: number[] | null
+          available_from?: string | null
+          available_to?: string | null
           benefits?: string[] | null
           best_for?: string | null
           branch_id?: string | null
@@ -3360,6 +3371,7 @@ export type Database = {
           cost_price?: never
           created_at?: string | null
           description?: string | null
+          expiry_date?: string | null
           gst_included?: boolean | null
           gst_percent?: number | null
           hsn_code?: string | null
