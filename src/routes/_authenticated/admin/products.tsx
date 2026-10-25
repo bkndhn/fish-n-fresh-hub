@@ -1,3 +1,4 @@
+import { ProductScheduleFields } from "@/components/admin/ProductScheduleFields";
 import { escapeHtml } from "@/lib/htmlEscape";
 import { createFileRoute } from "@tanstack/react-router";
 import type { Database } from "@/integrations/supabase/types";
