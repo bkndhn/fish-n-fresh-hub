@@ -183,6 +183,20 @@
       "when": 1792905508910,
       "tag": "0025_products_public_schedule",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793024374755,
+      "tag": "0026_promo_popups_anon_read",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1793024498757,
+      "tag": "0027_products_public_combo_fields",
+      "breakpoints": true
     }
   ]
 }
