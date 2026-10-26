@@ -27,7 +27,7 @@ export function PromoPopup() {
       if (!p) return null;
       let product: Product | null = null;
       if (p.product_id) {
-        const { data: prod } = await supabase.from("products").select("*").eq("id", p.product_id).maybeSingle();
+        const { data: prod } = await supabase.from("products_public").select("*").eq("id", p.product_id).maybeSingle();
         product = (prod as unknown as Product) ?? null;
       }
       return { popup: p, product };
