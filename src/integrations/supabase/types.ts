@@ -3256,6 +3256,8 @@ export type Database = {
           calories: number | null
           catch_date: string | null
           category: string | null
+          combo_items: string | null
+          combo_mrp: number | null
           cost_price: number | null
           created_at: string | null
           description: string | null
@@ -3267,6 +3269,7 @@ export type Database = {
           image_url: string | null
           is_available: boolean | null
           is_bestseller: boolean | null
+          is_combo: boolean | null
           is_featured: boolean | null
           is_returnable: boolean | null
           lab_tested: boolean | null
@@ -3312,6 +3315,8 @@ export type Database = {
           calories?: number | null
           catch_date?: string | null
           category?: string | null
+          combo_items?: string | null
+          combo_mrp?: number | null
           cost_price?: never
           created_at?: string | null
           description?: string | null
@@ -3323,6 +3328,7 @@ export type Database = {
           image_url?: string | null
           is_available?: boolean | null
           is_bestseller?: boolean | null
+          is_combo?: boolean | null
           is_featured?: boolean | null
           is_returnable?: boolean | null
           lab_tested?: boolean | null
@@ -3368,6 +3374,8 @@ export type Database = {
           calories?: number | null
           catch_date?: string | null
           category?: string | null
+          combo_items?: string | null
+          combo_mrp?: number | null
           cost_price?: never
           created_at?: string | null
           description?: string | null
@@ -3379,6 +3387,7 @@ export type Database = {
           image_url?: string | null
           is_available?: boolean | null
           is_bestseller?: boolean | null
+          is_combo?: boolean | null
           is_featured?: boolean | null
           is_returnable?: boolean | null
           lab_tested?: boolean | null
