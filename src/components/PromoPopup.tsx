@@ -38,7 +38,13 @@ export function PromoPopup() {
     if (skip || !data?.popup) return;
     const key = `promo_seen_${data.popup.id}_${data.popup.updated_at}`;
     if (sessionStorage.getItem(key)) return;
-    const t = setTimeout(() => { setOpen(true); sessionStorage.setItem(key, "1"); }, data.popup.delay_seconds * 1000);
+    let t: ReturnType<typeof setTimeout>;
+    // Wait for any other pop-up (e.g. install prompt) to close so the offer isn't hidden behind it.
+    const tryOpen = () => {
+      if (document.querySelector('[role="dialog"]')) { t = setTimeout(tryOpen, 10_000); return; }
+      setOpen(true); sessionStorage.setItem(key, "1");
+    };
+    t = setTimeout(tryOpen, data.popup.delay_seconds * 1000);
     return () => clearTimeout(t);
   }, [data, skip]);
 
