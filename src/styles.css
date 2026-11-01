@@ -275,17 +275,16 @@ html {
 /* ---- Modern admin pages (Products, Purchases, Yield) ---- */
 .admin-modern { display: flex; flex-direction: column; gap: 1.25rem; }
 .admin-modern .admin-hero { background-image: var(--gradient-hero); border-radius: calc(var(--radius) + 12px); border: 1px solid color-mix(in oklab, var(--border) 60%, transparent); padding: 1.1rem 1.25rem; }
-.admin-modern [data-slot="card"], .admin-modern .rounded-xl.border, .admin-modern .rounded-2xl.border, .admin-modern .rounded-3xl.border {
+.admin-modern .bg-card.border, .admin-modern .rounded-xl.border, .admin-modern .rounded-2xl.border, .admin-modern .rounded-3xl.border {
   border-radius: calc(var(--radius) + 8px);
   border-color: color-mix(in oklab, var(--border) 70%, transparent);
   box-shadow: var(--shadow-soft);
   transition: box-shadow .2s ease, transform .2s ease;
 }
-.admin-modern [data-slot="card"]:hover { box-shadow: var(--shadow-lift); }
+.admin-modern .bg-card.border:hover { box-shadow: var(--shadow-lift); }
 .admin-modern table thead { background: color-mix(in oklab, var(--muted) 60%, transparent); }
 .admin-modern table thead th { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; }
 .admin-modern table tbody tr:hover { background: color-mix(in oklab, var(--primary) 5%, transparent); }
-.admin-modern input, .admin-modern select, .admin-modern textarea, .admin-modern [data-slot="select-trigger"] { border-radius: calc(var(--radius) + 2px); }
-.admin-modern [data-slot="tabs-list"] { border-radius: 9999px; padding: .25rem; }
-.admin-modern [data-slot="tabs-trigger"] { border-radius: 9999px; }
-.admin-modern [data-slot="badge"] { border-radius: 9999px; }
+.admin-modern input, .admin-modern select, .admin-modern textarea { border-radius: calc(var(--radius) + 2px); }
+.admin-modern [role="tablist"] { border-radius: 9999px; padding: .25rem; }
+.admin-modern [role="tab"] { border-radius: 9999px; }
