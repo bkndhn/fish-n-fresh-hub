@@ -1056,8 +1056,13 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
 
   return (
     <AdminShell title={`${storeVertical.shortName} Inward & Suppliers`} allow={["admin", "manager", "inventory_manager", "staff"]}>
+      <div className="admin-modern">
+      <div className="admin-hero">
+        <h1 className="font-display text-2xl font-bold">Purchases & Suppliers</h1>
+        <p className="text-sm text-muted-foreground">Record stock coming in, track suppliers and send orders.</p>
+      </div>
       {/* Top Level Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className="rounded-2xl border-border/80 p-3.5 shadow-2xs">
           <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Purchases</p>
           <p className="text-xl font-extrabold text-foreground mt-0.5">{formatINR(totalInwardAmount)}</p>
@@ -3342,6 +3347,7 @@ _Generated via ${settings?.store_name || "Store"} Purchasing System_`;
           </div>
         </DialogContent>
       </Dialog>
+      </div>
     </AdminShell>
   );
 }

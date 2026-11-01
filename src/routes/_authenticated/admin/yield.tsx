@@ -103,9 +103,9 @@ function YieldPage() {
 
   return (
     <AdminShell title="Yield & Cutting Loss">
-      <div className="mx-auto max-w-4xl space-y-6 p-4">
-        <div>
-          <h1 className="text-2xl font-bold">Yield & Cutting Loss</h1>
+      <div className="admin-modern mx-auto max-w-4xl p-4">
+        <div className="admin-hero">
+          <h1 className="font-display text-2xl font-bold">Yield & Cutting Loss</h1>
           <p className="text-sm text-muted-foreground">Enter raw weight bought and cleaned weight after cutting to see your real cost per kg.</p>
         </div>
 
