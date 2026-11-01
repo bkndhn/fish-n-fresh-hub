@@ -772,6 +772,11 @@ function ProductsAdmin() {
         </div>
       }
     >
+      <div className="admin-modern">
+      <div className="admin-hero">
+        <h1 className="font-display text-2xl font-bold">Products & Inventory</h1>
+        <p className="text-sm text-muted-foreground">Add items, set prices and keep stock in check.</p>
+      </div>
       {/* Top Admin Sub-Navigation Tabs */}
       <div className="w-full min-w-0 overflow-x-auto no-scrollbar touch-pan-x pb-1 mb-3">
         <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-2xl w-max border border-border/60 shrink-0">
@@ -2776,6 +2781,7 @@ function ProductsAdmin() {
         onOpenChange={(open) => !open && setLedgerProduct(null)} 
         branchId={selectedBranchId}
       />
+      </div>
     </AdminShell>
     </>
   );
