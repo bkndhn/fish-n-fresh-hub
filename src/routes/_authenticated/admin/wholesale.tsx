@@ -53,6 +53,7 @@ function AdminWholesale() {
   return (
     <AdminShell title="Wholesale rates" allow={["admin", "manager"]}>
       <SalesModeCard />
+      <WholesaleDeliveryCard />
       <Tabs defaultValue="prices">
         <TabsList className="mb-4 flex w-full min-w-0 flex-wrap gap-1 h-auto">
           <TabsTrigger value="prices">Bulk price list</TabsTrigger>
