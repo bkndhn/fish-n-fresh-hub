@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Plus, Trash2, Save } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { WholesaleDeliveryCard } from "@/components/admin/WholesaleDeliveryCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +54,7 @@ function AdminWholesale() {
   return (
     <AdminShell title="Wholesale rates" allow={["admin", "manager"]}>
       <SalesModeCard />
+      <WholesaleDeliveryCard />
       <Tabs defaultValue="prices">
         <TabsList className="mb-4 flex w-full min-w-0 flex-wrap gap-1 h-auto">
           <TabsTrigger value="prices">Bulk price list</TabsTrigger>

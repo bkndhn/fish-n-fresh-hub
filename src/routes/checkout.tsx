@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import type { Database } from "@/integrations/supabase/types";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import { wholesaleDeliveryCharge } from "@/lib/wholesaleDelivery";
 import { MapPin, Copy, QrCode, Smartphone, Tag, MessageCircle, MessageSquare, AlertTriangle, CheckCircle2, Zap, Clock, Gift, Wallet, Sparkles, Upload, X, Check, Store, Globe, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
@@ -263,7 +264,16 @@ function Checkout() {
     selectedTierOverride: shippingTierOverride,
   });
 
-  const deliveryFee = fulfillment === "delivery" ? shippingEval.fee : 0;
+  const wholesaleDeliveryMode = (settings as { wholesale_delivery_mode?: string } | null)?.wholesale_delivery_mode ?? "charged";
+  const wholesaleDeliveryFee = Number((settings as { wholesale_delivery_fee?: number } | null)?.wholesale_delivery_fee ?? 0);
+  const deliveryFee = fulfillment !== "delivery"
+    ? 0
+    : isWholesale
+      ? wholesaleDeliveryCharge(wholesaleDeliveryMode, wholesaleDeliveryFee, shippingEval.fee)
+      : shippingEval.fee;
+  useEffect(() => {
+    if (isWholesale && wholesaleDeliveryMode === "pickup_only" && fulfillment === "delivery") setFulfillment("pickup");
+  }, [isWholesale, wholesaleDeliveryMode, fulfillment]);
 
   // Smart GST Calculation (Strict ₹0 when disabled)
   const isGstActive = isGstEnabled(settings as SiteSettings);

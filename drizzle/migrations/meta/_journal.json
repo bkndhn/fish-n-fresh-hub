@@ -197,6 +197,13 @@
       "when": 1793024498757,
       "tag": "0027_products_public_combo_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1793705535906,
+      "tag": "0028_wholesale_delivery_options",
+      "breakpoints": true
     }
   ]
 }

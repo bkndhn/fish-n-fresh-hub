@@ -2186,6 +2186,8 @@ export type Database = {
           weekly_holidays: string[]
           whatsapp_number: string | null
           whatsapp_order_phone: string | null
+          wholesale_delivery_fee: number
+          wholesale_delivery_mode: string
           wholesale_min_order_value: number
           working_days: Json | null
         }
@@ -2344,6 +2346,8 @@ export type Database = {
           weekly_holidays?: string[]
           whatsapp_number?: string | null
           whatsapp_order_phone?: string | null
+          wholesale_delivery_fee?: number
+          wholesale_delivery_mode?: string
           wholesale_min_order_value?: number
           working_days?: Json | null
         }
@@ -2502,6 +2506,8 @@ export type Database = {
           weekly_holidays?: string[]
           whatsapp_number?: string | null
           whatsapp_order_phone?: string | null
+          wholesale_delivery_fee?: number
+          wholesale_delivery_mode?: string
           wholesale_min_order_value?: number
           working_days?: Json | null
         }
