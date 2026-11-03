@@ -221,7 +221,11 @@ function Dashboard() {
         </div>
       }
     >
-      <div className="space-y-5">
+      <div className="admin-modern">
+        <div className="admin-hero">
+          <h1 className="font-display text-2xl font-bold">Today at a glance</h1>
+          <p className="text-sm text-muted-foreground">Sales, orders, stock and customers — live.</p>
+        </div>
         {/* Active Branch Operational Scope Banner */}
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/80 bg-card/70 px-4 py-2.5 text-xs shadow-2xs backdrop-blur-sm">
           <div className="flex items-center gap-2">

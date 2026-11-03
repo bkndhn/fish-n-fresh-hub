@@ -297,7 +297,11 @@ export function AdminPnlReport() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="admin-modern">
+      <div className="admin-hero">
+        <h2 className="font-display text-2xl font-bold">Profit & Loss</h2>
+        <p className="text-sm text-muted-foreground">Sales, true cost and margin in one view.</p>
+      </div>
       {/* Scope Banner: Client & Branch Isolation */}
       <div className="rounded-2xl bg-card border border-border/80 p-4 shadow-2xs flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">

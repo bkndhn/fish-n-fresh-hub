@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import type { Database } from "@/integrations/supabase/types";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import { wholesaleDeliveryCharge } from "@/lib/wholesaleDelivery";
 import { MapPin, Copy, QrCode, Smartphone, Tag, MessageCircle, MessageSquare, AlertTriangle, CheckCircle2, Zap, Clock, Gift, Wallet, Sparkles, Upload, X, Check, Store, Globe, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
