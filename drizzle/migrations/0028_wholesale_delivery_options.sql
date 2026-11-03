@@ -1,0 +1,2 @@
+ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS wholesale_delivery_mode text NOT NULL DEFAULT 'charged' CHECK (wholesale_delivery_mode IN ('pickup_only','free','charged'));
+ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS wholesale_delivery_fee numeric NOT NULL DEFAULT 0;
