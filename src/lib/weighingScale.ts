@@ -14,13 +14,6 @@ declare global {
   interface Window {
     webkitAudioContext: typeof AudioContext;
   }
-  interface Navigator {
-    serial: {
-      addEventListener(type: string, listener: (e: Event) => void): void;
-      getPorts(): Promise<any[]>;
-      requestPort(): Promise<any>;
-    };
-  }
 }
 
 export type ScaleProtocol = "auto" | "essae" | "cas" | "toledo" | "nci" | "avery";
