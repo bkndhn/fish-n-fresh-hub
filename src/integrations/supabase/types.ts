@@ -56,6 +56,45 @@ export type Database = {
         }
         Relationships: []
       }
+      bill_void_logs: {
+        Row: {
+          action: string
+          amount: number
+          created_at: string
+          done_by: string
+          done_by_name: string | null
+          id: string
+          order_id: string
+          order_number: string | null
+          payment_method: string | null
+          reason: string
+        }
+        Insert: {
+          action: string
+          amount?: number
+          created_at?: string
+          done_by: string
+          done_by_name?: string | null
+          id?: string
+          order_id: string
+          order_number?: string | null
+          payment_method?: string | null
+          reason: string
+        }
+        Update: {
+          action?: string
+          amount?: number
+          created_at?: string
+          done_by?: string
+          done_by_name?: string | null
+          id?: string
+          order_id?: string
+          order_number?: string | null
+          payment_method?: string | null
+          reason?: string
+        }
+        Relationships: []
+      }
       branches: {
         Row: {
           address: string | null
@@ -1292,6 +1331,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      owner_pin: {
+        Row: {
+          id: boolean
+          pin_hash: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          pin_hash: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: boolean
+          pin_hash?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       payment_gateway_credentials: {
         Row: {
@@ -3912,6 +3972,7 @@ export type Database = {
               total: number
             }[]
           }
+      guard_auto_assign_caller: { Args: never; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -3926,6 +3987,7 @@ export type Database = {
       is_super_admin: { Args: never; Returns: boolean }
       is_team_member: { Args: never; Returns: boolean }
       is_wholesale_buyer: { Args: { _user_id: string }; Returns: boolean }
+      owner_pin_is_set: { Args: never; Returns: boolean }
       place_dine_in_order: {
         Args: {
           p_customer_name: string
@@ -3944,6 +4006,10 @@ export type Database = {
       }
       restore_order_stock_atomic: {
         Args: { p_order_id: string }
+        Returns: Json
+      }
+      set_owner_pin: {
+        Args: { p_new_pin: string; p_old_pin?: string }
         Returns: Json
       }
       settle_driver_cod_orders_atomic: {
@@ -3977,6 +4043,15 @@ export type Database = {
           p_is_admin_override?: boolean
           p_order_id: string
           p_override_reason?: string
+        }
+        Returns: Json
+      }
+      void_bill_with_pin: {
+        Args: {
+          p_action: string
+          p_order_id: string
+          p_pin: string
+          p_reason: string
         }
         Returns: Json
       }

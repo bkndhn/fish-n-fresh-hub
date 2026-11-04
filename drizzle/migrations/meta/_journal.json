@@ -211,6 +211,13 @@
       "when": 1793767784637,
       "tag": "0029_harden_admin_claim_settlement_delivery_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1793769645476,
+      "tag": "0030_security_fixes_owner_pin_void_log",
+      "breakpoints": true
     }
   ]
 }
