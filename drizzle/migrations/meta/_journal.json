@@ -204,6 +204,13 @@
       "when": 1793705535906,
       "tag": "0028_wholesale_delivery_options",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793767784637,
+      "tag": "0029_harden_admin_claim_settlement_delivery_tokens",
+      "breakpoints": true
     }
   ]
 }
