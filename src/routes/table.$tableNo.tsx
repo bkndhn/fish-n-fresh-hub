@@ -164,11 +164,12 @@ function TableOrderingPage() {
 
   // ─── 1. QUERY & REALTIME: Active Orders for this Table ───
   const { data: tableOrders = [], refetch: refetchTableOrders } = useQuery<any[]>({
-    queryKey: ["table_active_orders", tableNo],
+    queryKey: ["table_active_orders", tableNo, sessionId],
     queryFn: async () => {
       try {
         const { data: rpcData, error: rpcErr } = await supabase.rpc("get_table_active_orders", {
           p_table: String(tableNo),
+          p_session_id: sessionId,
         });
         if (!rpcErr && Array.isArray(rpcData)) {
           return rpcData;
