@@ -1320,6 +1320,9 @@ function AdminSettings() {
               </div>
 
               <CounterOnlyToggle />
+              {/* Owner PIN — Void & Refund Gate */}
+              <OwnerPinSettingsCard />
+
 
               {/* Quick Apply Industry Presets Button */}
               {(() => {
@@ -1620,7 +1623,7 @@ function AdminSettings() {
                             isSelected ? "font-bold text-primary" : "text-muted-foreground"
                           }
                         >
-                          {isSelected ? "● Selected Mode" : "Select"}
+                          {isSelected ? "?—? Selected Mode" : "Select"}
                         </span>
                         {isSelected && <CheckCircle2 className="size-4 text-primary" />}
                       </div>
@@ -2430,7 +2433,7 @@ If you need any cut modifications, please reply here. Thank you!`}
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5 pr-2">
                       <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                        <span>🥗 Nutritional Highlights (Calories &amp; Protein)</span>
+                        <span>???— Nutritional Highlights (Calories &amp; Protein)</span>
                       </Label>
                       <p className="text-[11px] text-muted-foreground">
                         Display calories (kcal) and protein count per 100g.
@@ -2508,7 +2511,7 @@ If you need any cut modifications, please reply here. Thank you!`}
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5 pr-2">
                       <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                        <span>⚖️ Quick Portion / Weight Selection Chips</span>
+                        <span>??–️ Quick Portion / Weight Selection Chips</span>
                       </Label>
                       <p className="text-[11px] text-muted-foreground">
                         Show quick-tap portion buttons (250g, 500g, 1kg, 2kg) above Add to Cart.
@@ -2771,14 +2774,14 @@ If you need any cut modifications, please reply here. Thank you!`}
                   <div className="flex items-center gap-2">
                     {(form.daily_atmosphere_enabled ?? true) ? (
                       <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                        ● Active (Dynamic)
+                        ?—? Active (Dynamic)
                       </Badge>
                     ) : (
                       <Badge
                         variant="outline"
                         className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5"
                       >
-                        ○ Disabled (Static)
+                        ?—? Disabled (Static)
                       </Badge>
                     )}
                     <Switch
@@ -3200,7 +3203,7 @@ If you need any cut modifications, please reply here. Thank you!`}
                 >
                   {shippingScope.scope_mode === "local" && "📍 Local / City Radius"}
                   {shippingScope.scope_mode === "state" &&
-                    `🗺️ State-Wide (${shippingScope.state_name})`}
+                    `??—?️ State-Wide (${shippingScope.state_name})`}
                   {shippingScope.scope_mode === "national" && "🇮🇳 Pan-India Domestic"}
                   {shippingScope.scope_mode === "international" && "🌍 Worldwide Export"}
                   {shippingScope.scope_mode === "hybrid" && "🌐 Multi-Tier Hybrid (All Active)"}
@@ -3250,7 +3253,7 @@ If you need any cut modifications, please reply here. Thank you!`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-base font-bold text-foreground flex items-center gap-1.5">
-                        🗺️ All {shippingScope.state_name || "Tamil Nadu"}
+                        ??—?️ All {shippingScope.state_name || "Tamil Nadu"}
                       </span>
                       {shippingScope.scope_mode === "state" && (
                         <CheckCircle2 className="size-4 text-indigo-600 dark:text-indigo-400" />
@@ -3778,14 +3781,14 @@ If you need any cut modifications, please reply here. Thank you!`}
                 <div className="flex items-center gap-2.5">
                   {(form.express_delivery_enabled ?? true) ? (
                     <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                      ● Enabled
+                      ?—? Enabled
                     </Badge>
                   ) : (
                     <Badge
                       variant="outline"
                       className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5"
                     >
-                      ○ Disabled
+                      ?—? Disabled
                     </Badge>
                   )}
                   <Switch
@@ -3908,14 +3911,14 @@ If you need any cut modifications, please reply here. Thank you!`}
                 <div className="flex items-center gap-2">
                   {(form.live_alerts_enabled ?? true) ? (
                     <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                      ● Banner Active
+                      ?—? Banner Active
                     </Badge>
                   ) : (
                     <Badge
                       variant="outline"
                       className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5"
                     >
-                      ○ Banner Disabled
+                      ?—? Banner Disabled
                     </Badge>
                   )}
                   <Switch
@@ -4308,14 +4311,14 @@ If you need any cut modifications, please reply here. Thank you!`}
                           <div className="flex items-center gap-2">
                             {cm.isEnabled ? (
                               <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                                ● Active
+                                ?—? Active
                               </Badge>
                             ) : (
                               <Badge
                                 variant="outline"
                                 className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5"
                               >
-                                ○ Disabled
+                                ?—? Disabled
                               </Badge>
                             )}
                             <Switch
@@ -4383,14 +4386,14 @@ If you need any cut modifications, please reply here. Thank you!`}
                     <div className="flex items-center gap-2">
                       {newMethodRequiresRef ? (
                         <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                          ● Mandatory
+                          ?—? Mandatory
                         </Badge>
                       ) : (
                         <Badge
                           variant="outline"
                           className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5"
                         >
-                          ○ Optional
+                          ?—? Optional
                         </Badge>
                       )}
                       <Switch
@@ -4467,14 +4470,14 @@ If you need any cut modifications, please reply here. Thank you!`}
                     </Label>
                     {form.gst_enabled !== false ? (
                       <Badge className="bg-emerald-600 hover:bg-emerald-700 text-[10px] text-white">
-                        ● Active (Standard Tax)
+                        ?—? Active (Standard Tax)
                       </Badge>
                     ) : (
                       <Badge
                         variant="secondary"
                         className="text-[10px] text-muted-foreground bg-muted"
                       >
-                        ○ Disabled (₹0 Tax Rate)
+                        ?—? Disabled (₹0 Tax Rate)
                       </Badge>
                     )}
                   </div>
@@ -4752,14 +4755,14 @@ If you need any cut modifications, please reply here. Thank you!`}
                 <div className="flex items-center gap-2.5">
                   {(form.wallet_enabled ?? true) ? (
                     <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                      ● Active
+                      ?—? Active
                     </Badge>
                   ) : (
                     <Badge
                       variant="outline"
                       className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5"
                     >
-                      ○ Disabled
+                      ?—? Disabled
                     </Badge>
                   )}
                   <Switch
@@ -4780,14 +4783,14 @@ If you need any cut modifications, please reply here. Thank you!`}
                 <div className="flex items-center gap-2.5">
                   {((form as any).referral_program_enabled ?? form.wallet_enabled ?? true) ? (
                     <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                      ● Active
+                      ?—? Active
                     </Badge>
                   ) : (
                     <Badge
                       variant="outline"
                       className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5"
                     >
-                      ○ Disabled
+                      ?—? Disabled
                     </Badge>
                   )}
                   <Switch
@@ -5130,14 +5133,14 @@ If you need any cut modifications, please reply here. Thank you!`}
                   <div className="flex items-center gap-2 shrink-0">
                     {(form.feature_pos_enabled ?? true) ? (
                       <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                        ● Enabled
+                        ?—? Enabled
                       </Badge>
                     ) : (
                       <Badge
                         variant="outline"
                         className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5"
                       >
-                        ○ Disabled
+                        ?—? Disabled
                       </Badge>
                     )}
                     <Switch
@@ -5170,14 +5173,14 @@ If you need any cut modifications, please reply here. Thank you!`}
                   <div className="flex items-center gap-2 shrink-0">
                     {(form.feature_live_chat_enabled ?? true) ? (
                       <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                        ● Enabled
+                        ?—? Enabled
                       </Badge>
                     ) : (
                       <Badge
                         variant="outline"
                         className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5"
                       >
-                        ○ Disabled
+                        ?—? Disabled
                       </Badge>
                     )}
                     <Switch
@@ -5209,14 +5212,14 @@ If you need any cut modifications, please reply here. Thank you!`}
                   <div className="flex items-center gap-2 shrink-0">
                     {(form.feature_wallet_enabled ?? true) ? (
                       <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                        ● Enabled
+                        ?—? Enabled
                       </Badge>
                     ) : (
                       <Badge
                         variant="outline"
                         className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5"
                       >
-                        ○ Disabled
+                        ?—? Disabled
                       </Badge>
                     )}
                     <Switch
@@ -5249,14 +5252,14 @@ If you need any cut modifications, please reply here. Thank you!`}
                   <div className="flex items-center gap-2 shrink-0">
                     {(form.feature_ai_benefits_enabled ?? true) ? (
                       <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                        ● Enabled
+                        ?—? Enabled
                       </Badge>
                     ) : (
                       <Badge
                         variant="outline"
                         className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5"
                       >
-                        ○ Disabled
+                        ?—? Disabled
                       </Badge>
                     )}
                     <Switch
@@ -5592,14 +5595,14 @@ If you need any cut modifications, please reply here. Thank you!`}
               <span className="text-xs font-semibold text-muted-foreground">Store Open:</span>
               {(form.is_open ?? true) ? (
                 <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
-                  ● Open
+                  ?—? Open
                 </Badge>
               ) : (
                 <Badge
                   variant="outline"
                   className="bg-muted/50 text-muted-foreground border-border text-[10px] font-medium px-2 py-0.5"
                 >
-                  ○ Paused
+                  ?—? Paused
                 </Badge>
               )}
               <Switch
@@ -5934,6 +5937,135 @@ function CounterOnlyToggle() {
         </p>
       </div>
       <Switch checked={on} disabled={m.isPending} onCheckedChange={(v) => m.mutate(v)} aria-label="Counter only" />
+    </div>
+  );
+}
+
+function OwnerPinSettingsCard() {
+  const [pinIsSet, setPinIsSet] = useState<boolean | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [oldPin, setOldPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .rpc("owner_pin_is_set")
+      .then(({ data }) => setPinIsSet(Boolean(data)));
+  }, []);
+
+  const handleSave = async () => {
+    if (newPin.length < 4 || newPin.length > 8 || !/^\d+$/.test(newPin)) {
+      toast.error("PIN must be 4–8 digits");
+      return;
+    }
+    if (newPin !== confirmPin) {
+      toast.error("PINs do not match");
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await supabase.rpc("set_owner_pin", {
+        p_new_pin: newPin,
+        p_old_pin: pinIsSet ? oldPin : "",
+      });
+      if (error) {
+        toast.error(error.message || "Failed to set PIN");
+        return;
+      }
+      toast.success(pinIsSet ? "Owner PIN changed successfully" : "Owner PIN set successfully");
+      setPinIsSet(true);
+      setDialogOpen(false);
+      setOldPin("");
+      setNewPin("");
+      setConfirmPin("");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-3 flex items-center justify-between gap-3">
+      <div className="text-xs">
+        <p className="font-bold text-foreground flex items-center gap-1.5">
+          ?? Owner PIN (Void &amp; Refund Gate)
+          {pinIsSet && <span className="text-green-600 text-[10px] font-normal ml-1">? Active</span>}
+        </p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">
+          Require a 4–8 digit PIN to cancel or refund orders. Prevents unauthorized voids.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => setDialogOpen(true)}
+        className="shrink-0 text-xs font-semibold text-primary underline underline-offset-2"
+      >
+        {pinIsSet === null ? "?" : pinIsSet ? "Change PIN" : "Set PIN"}
+      </button>
+
+      {dialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-2xl shadow-xl p-6 w-full max-w-sm space-y-4">
+            <h3 className="font-bold text-base">{pinIsSet ? "Change Owner PIN" : "Set Owner PIN"}</h3>
+            {pinIsSet && (
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Current PIN</label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={8}
+                  value={oldPin}
+                  onChange={(e) => setOldPin(e.target.value.replace(/\D/g, ""))}
+                  placeholder="Current 4–8 digit PIN"
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+            )}
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">New PIN</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={8}
+                value={newPin}
+                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
+                placeholder="4–8 digits"
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Confirm New PIN</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={8}
+                value={confirmPin}
+                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
+                placeholder="Repeat new PIN"
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="flex gap-2 justify-end pt-1">
+              <button
+                type="button"
+                onClick={() => { setDialogOpen(false); setOldPin(""); setNewPin(""); setConfirmPin(""); }}
+                className="text-sm px-4 py-2 rounded-lg border hover:bg-muted"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="text-sm px-4 py-2 rounded-lg bg-primary text-primary-foreground font-semibold disabled:opacity-60"
+              >
+                {saving ? "Saving?" : "Save PIN"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

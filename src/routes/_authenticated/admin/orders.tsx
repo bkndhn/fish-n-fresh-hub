@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { CartItem } from "@/lib/types";
 import type { Database } from "@/integrations/supabase/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, lazy, Suspense } from "react";
 import { ExportDropdown, type ExportColumn, type ExportOptions } from "@/lib/exportUtils";
 import { toast } from "sonner";
 import {
@@ -39,9 +39,9 @@ import { generateDueSubscriptionOrders } from "@/lib/subscriptions.functions";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { useAdminBranch } from "@/lib/branchContext";
 import { adminOrdersQuery, ORDER_STATUSES, type OrderRow } from "@/lib/admin";
-import { DeliveryRouteModal } from "@/components/DeliveryRouteModal";
-import { DeliveryPinVerificationModal } from "@/components/DeliveryPinVerificationModal";
-import { TaxInvoiceModal } from "@/components/TaxInvoiceModal";
+const DeliveryRouteModal = lazy(() => import("@/components/DeliveryRouteModal").then(m => ({ default: m.DeliveryRouteModal })));
+const DeliveryPinVerificationModal = lazy(() => import("@/components/DeliveryPinVerificationModal").then(m => ({ default: m.DeliveryPinVerificationModal })));
+const TaxInvoiceModal = lazy(() => import("@/components/TaxInvoiceModal").then(m => ({ default: m.TaxInvoiceModal })));
 import { getGoogleMapsDirUrl } from "@/lib/maps";
 import { settingsQuery } from "@/lib/queries";
 import { formatINR, formatIST, formatInvoiceDateTime } from "@/lib/format";
@@ -69,6 +69,7 @@ import {
 import { Label } from "@/components/ui/label";
 import type { SiteSettings } from '@/lib/types';
 import { extractScopeBadge } from "@/lib/shippingScope";
+import { OwnerPinVoidModal } from "@/components/admin/OwnerPinVoidModal";
 
 export const Route = createFileRoute("/_authenticated/admin/orders")({
   head: () => ({
@@ -114,6 +115,7 @@ function OrdersAdmin() {
   const [weightForm, setWeightForm] = useState({ weight: "", price: "" });
   const [shippingForm, setShippingForm] = useState({ partner: "", awb: "", url: "" });
   const [shippedOrderData, setShippedOrderData] = useState<{ order: OrderRow; partner: string; awb: string; url: string } | null>(null);
+  const [voidModalOrder, setVoidModalOrder] = useState<{ id: string; order_number: string | null } | null>(null);
 
   // Subscriptions & MRR Pipeline State
   const { data: adminSubscriptions = [], refetch: refetchAdminSubs } = useQuery({
@@ -1218,6 +1220,25 @@ function OrdersAdmin() {
                           <KeyRound className="size-3" /> Deliver
                         </Button>
                       )}
+
+                      {/* Google Review WhatsApp Request — only for delivered/completed orders */}
+                      {(o.status === "delivered" || o.status === "completed") &&
+                        (settings as any)?.google_review_link && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Send Google Review Request via WhatsApp"
+                            onClick={() => {
+                              const reviewLink = (settings as any).google_review_link as string;
+                              const customerName = (o.customer_name || "").split(" ")[0] || "Customer";
+                              const message = `Hi ${customerName}, thank you for shopping with ${settings?.store_name || "us"}! If you enjoyed our fresh seafood, please take 30 seconds to rate us on Google: ${reviewLink} 🙏 It means the world to our local shop!`;
+                              const url = getWhatsAppUrl(o.customer_phone || "", message);
+                              window.open(url, "_blank");
+                            }}
+                          >
+                            ⭐
+                          </Button>
+                        )}
                     </div>
                   </div>
                 </div>
@@ -1756,7 +1777,21 @@ function OrdersAdmin() {
           </div>
         </DialogContent>
       </Dialog>
-    </AdminShell>
+
+      {/* Owner PIN Void Modal */}
+      {voidModalOrder && (
+        <OwnerPinVoidModal
+          open={!!voidModalOrder}
+          onOpenChange={(open) => !open && setVoidModalOrder(null)}
+          orderId={voidModalOrder.id}
+          orderNumber={voidModalOrder.order_number}
+          onSuccess={() => {
+            setVoidModalOrder(null);
+            qc.invalidateQueries({ queryKey: ["admin_orders"] });
+            toast.success("Order voided");
+          }}
+        />
+      )}    </AdminShell>
   );
 }
 

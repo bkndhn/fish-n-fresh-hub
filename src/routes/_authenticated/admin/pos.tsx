@@ -569,6 +569,8 @@ export function RetailPosCounterPage() {
   );
   const [simWeightInput, setSimWeightInput] = useState<string>("0.350");
   const [autoCapturedNotice, setAutoCapturedNotice] = useState<string | null>(null);
+  // Manual weight override — lets cashier bypass the physical scale
+  const [manualWeightMode, setManualWeightMode] = useState(false);
   const [rawStreamLog, setRawStreamLog] = useState<string[]>([]);
   const isScaleSupported = weighingScaleDriver.isSerialSupported();
 
@@ -738,7 +740,7 @@ export function RetailPosCounterPage() {
         setCart((prev) => [...prev, newItem]);
         setSearchQuery("");
         setQuickCodeInput("");
-        toast.success(`Scale item added: ${matched.name} (${weight} kg - ₹${totalPrice})`, { icon: "⚖️" });
+        toast.success(`Scale item added: ${matched.name} (${weight} kg - ₹${totalPrice})`, { icon: "??–️" });
         return;
       }
     }
@@ -1895,7 +1897,7 @@ export function RetailPosCounterPage() {
               <Scale className={`size-3.5 ${scaleStatus === "streaming" ? "text-emerald-600 animate-pulse" : "text-primary"}`} />
               <span>
                 {scaleStatus === "streaming"
-                  ? `⚖️ ${scaleReading.weightKg.toFixed(3)} kg ${scaleReading.isStable ? "STABLE" : "MOTION"}`
+                  ? `??–️ ${scaleReading.weightKg.toFixed(3)} kg ${scaleReading.isStable ? "STABLE" : "MOTION"}`
                   : scaleStatus === "connected"
                   ? "Scale: Ready"
                   : scaleStatus === "connecting"
@@ -1933,8 +1935,8 @@ export function RetailPosCounterPage() {
                 >
                   {scaleStatus === "streaming"
                     ? scaleReading.isStable
-                      ? "● STABLE"
-                      : "○ MOTION"
+                      ? "?—? STABLE"
+                      : "?—? MOTION"
                     : scaleStatus === "connected"
                     ? "READY"
                     : "STANDBY"}
@@ -3153,8 +3155,8 @@ export function RetailPosCounterPage() {
                     <p className="text-[10px] text-muted-foreground">
                       {scaleStatus === "streaming"
                         ? scaleReading.isStable
-                          ? "● Stable reading locked to plate"
-                          : "○ Weight reading in motion..."
+                          ? "?—? Stable reading locked to plate"
+                          : "?—? Weight reading in motion..."
                         : "Connect physical RS-232 / USB scale or simulator"}
                     </p>
                   </div>
@@ -3191,6 +3193,18 @@ export function RetailPosCounterPage() {
                     <Scale className="size-3.5 text-primary" /> Setup Scale
                   </Button>
                 )}
+                {/* Manual weight override — no physical scale needed */}
+                <Button
+                  type="button"
+                  tabIndex={-1}
+                  variant={manualWeightMode ? "default" : "ghost"}
+                  size="sm"
+                  className="h-8 rounded-xl text-xs font-semibold gap-1 shrink-0"
+                  onClick={() => setManualWeightMode(!manualWeightMode)}
+                  title="Enter weight manually without connecting a scale"
+                >
+                  ?? {manualWeightMode ? "Manual ?" : "Enter Manually"}
+                </Button>
               </div>
 
               {/* Decimal Weighing Scale Input */}
@@ -3371,7 +3385,7 @@ export function RetailPosCounterPage() {
                         </Button>
                       </div>
                       <div className="flex justify-between items-center pt-1 border-t border-border/40 text-[10px]">
-                        <span className="text-muted-foreground">Click (×) on any chip to remove</span>
+                        <span className="text-muted-foreground">Click (?—) on any chip to remove</span>
                         <button
                           type="button"
                           onClick={handleResetDefaultChips}
@@ -4067,7 +4081,7 @@ export function RetailPosCounterPage() {
                     scaleReading.isStable ? "text-emerald-400 font-bold" : "text-amber-400 animate-pulse"
                   }
                 >
-                  {scaleReading.isStable ? "● STABLE" : "○ MOTION"}
+                  {scaleReading.isStable ? "?—? STABLE" : "?—? MOTION"}
                 </span>
                 <span>NET WEIGHT</span>
               </div>

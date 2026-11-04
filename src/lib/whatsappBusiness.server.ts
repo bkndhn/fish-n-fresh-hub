@@ -144,6 +144,26 @@ export function buildWhatsAppTextMessage(payload: WhatsAppNotificationPayload): 
 export async function sendWhatsAppNotification(
   payload: WhatsAppNotificationPayload
 ): Promise<WhatsAppSendResult> {
+  // Security: validate destination phone against known verified records
+  const cleanRecipient = payload.recipientPhone.replace(/\D/g, "");
+  if (cleanRecipient.length < 10) {
+    return { success: false, error: "Invalid recipient phone number", fallbackUrl: "" };
+  }
+  // Verify this is a known customer/supplier/profile phone
+  const [orderMatch, profileMatch, supplierMatch] = await Promise.all([
+    supabaseAdmin.from("orders").select("id").eq("customer_phone", cleanRecipient).limit(1),
+    supabaseAdmin.from("profiles").select("id").eq("phone", cleanRecipient).limit(1),
+    Promise.resolve(supabaseAdmin.from("suppliers").select("id").eq("phone", cleanRecipient).limit(1).maybeSingle()).catch(() => ({ data: null })),
+  ]);
+  const isKnownRecipient =
+    (orderMatch.data && orderMatch.data.length > 0) ||
+    (profileMatch.data && profileMatch.data.length > 0) ||
+    (supplierMatch.data !== null && supplierMatch.data !== undefined);
+  if (!isKnownRecipient) {
+    console.warn("[WhatsApp] Blocked send to unknown phone:", cleanRecipient.slice(-4).padStart(cleanRecipient.length, "*"));
+    return { success: false, skipped: true, reason: "Recipient not in verified contacts", fallbackUrl: "" };
+  }
+
   const formattedPhone = formatWhatsAppPhone(payload.recipientPhone);
   const fallbackText = buildWhatsAppTextMessage(payload);
   const fallbackUrl = getWhatsAppUrl(formattedPhone, fallbackText);

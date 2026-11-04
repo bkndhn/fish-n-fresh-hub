@@ -52,6 +52,7 @@ import { Route as AuthenticatedAdminOrdersRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAdminPagesRouteImport } from './routes/_authenticated/admin/pages'
 import { Route as AuthenticatedAdminPaymentsRouteImport } from './routes/_authenticated/admin/payments'
 import { Route as AuthenticatedAdminPosRouteImport } from './routes/_authenticated/admin/pos'
+import { Route as AuthenticatedAdminPriceBoardRouteImport } from './routes/_authenticated/admin/price-board'
 import { Route as AuthenticatedAdminPricingRouteImport } from './routes/_authenticated/admin/pricing'
 import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authenticated/admin/products'
 import { Route as AuthenticatedAdminPromotionsRouteImport } from './routes/_authenticated/admin/promotions'
@@ -66,6 +67,7 @@ import { Route as AuthenticatedAdminSuperRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminSupplierDuesRouteImport } from './routes/_authenticated/admin/supplier-dues'
 import { Route as AuthenticatedAdminSupportRouteImport } from './routes/_authenticated/admin/support'
 import { Route as AuthenticatedAdminTablesRouteImport } from './routes/_authenticated/admin/tables'
+import { Route as AuthenticatedAdminVoidLogsRouteImport } from './routes/_authenticated/admin/void-logs'
 import { Route as AuthenticatedAdminWasteRouteImport } from './routes/_authenticated/admin/waste'
 import { Route as AuthenticatedAdminWholesaleRouteImport } from './routes/_authenticated/admin/wholesale'
 import { Route as AuthenticatedAdminYieldRouteImport } from './routes/_authenticated/admin/yield'
@@ -305,6 +307,12 @@ const AuthenticatedAdminPosRoute = AuthenticatedAdminPosRouteImport.update({
   path: '/admin/pos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminPriceBoardRoute =
+  AuthenticatedAdminPriceBoardRouteImport.update({
+    id: '/admin/price-board',
+    path: '/admin/price-board',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminPricingRoute =
   AuthenticatedAdminPricingRouteImport.update({
     id: '/admin/pricing',
@@ -385,6 +393,12 @@ const AuthenticatedAdminTablesRoute =
   AuthenticatedAdminTablesRouteImport.update({
     id: '/admin/tables',
     path: '/admin/tables',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminVoidLogsRoute =
+  AuthenticatedAdminVoidLogsRouteImport.update({
+    id: '/admin/void-logs',
+    path: '/admin/void-logs',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAdminWasteRoute = AuthenticatedAdminWasteRouteImport.update({
@@ -474,6 +488,7 @@ export interface FileRoutesByFullPath {
   '/admin/pages': typeof AuthenticatedAdminPagesRoute
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/pos': typeof AuthenticatedAdminPosRoute
+  '/admin/price-board': typeof AuthenticatedAdminPriceBoardRoute
   '/admin/pricing': typeof AuthenticatedAdminPricingRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/promotions': typeof AuthenticatedAdminPromotionsRoute
@@ -488,6 +503,7 @@ export interface FileRoutesByFullPath {
   '/admin/supplier-dues': typeof AuthenticatedAdminSupplierDuesRoute
   '/admin/support': typeof AuthenticatedAdminSupportRoute
   '/admin/tables': typeof AuthenticatedAdminTablesRoute
+  '/admin/void-logs': typeof AuthenticatedAdminVoidLogsRoute
   '/admin/waste': typeof AuthenticatedAdminWasteRoute
   '/admin/wholesale': typeof AuthenticatedAdminWholesaleRoute
   '/admin/yield': typeof AuthenticatedAdminYieldRoute
@@ -540,6 +556,7 @@ export interface FileRoutesByTo {
   '/admin/pages': typeof AuthenticatedAdminPagesRoute
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/pos': typeof AuthenticatedAdminPosRoute
+  '/admin/price-board': typeof AuthenticatedAdminPriceBoardRoute
   '/admin/pricing': typeof AuthenticatedAdminPricingRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/promotions': typeof AuthenticatedAdminPromotionsRoute
@@ -554,6 +571,7 @@ export interface FileRoutesByTo {
   '/admin/supplier-dues': typeof AuthenticatedAdminSupplierDuesRoute
   '/admin/support': typeof AuthenticatedAdminSupportRoute
   '/admin/tables': typeof AuthenticatedAdminTablesRoute
+  '/admin/void-logs': typeof AuthenticatedAdminVoidLogsRoute
   '/admin/waste': typeof AuthenticatedAdminWasteRoute
   '/admin/wholesale': typeof AuthenticatedAdminWholesaleRoute
   '/admin/yield': typeof AuthenticatedAdminYieldRoute
@@ -608,6 +626,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/pages': typeof AuthenticatedAdminPagesRoute
   '/_authenticated/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/_authenticated/admin/pos': typeof AuthenticatedAdminPosRoute
+  '/_authenticated/admin/price-board': typeof AuthenticatedAdminPriceBoardRoute
   '/_authenticated/admin/pricing': typeof AuthenticatedAdminPricingRoute
   '/_authenticated/admin/products': typeof AuthenticatedAdminProductsRoute
   '/_authenticated/admin/promotions': typeof AuthenticatedAdminPromotionsRoute
@@ -622,6 +641,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/supplier-dues': typeof AuthenticatedAdminSupplierDuesRoute
   '/_authenticated/admin/support': typeof AuthenticatedAdminSupportRoute
   '/_authenticated/admin/tables': typeof AuthenticatedAdminTablesRoute
+  '/_authenticated/admin/void-logs': typeof AuthenticatedAdminVoidLogsRoute
   '/_authenticated/admin/waste': typeof AuthenticatedAdminWasteRoute
   '/_authenticated/admin/wholesale': typeof AuthenticatedAdminWholesaleRoute
   '/_authenticated/admin/yield': typeof AuthenticatedAdminYieldRoute
@@ -676,6 +696,7 @@ export interface FileRouteTypes {
     | '/admin/pages'
     | '/admin/payments'
     | '/admin/pos'
+    | '/admin/price-board'
     | '/admin/pricing'
     | '/admin/products'
     | '/admin/promotions'
@@ -690,6 +711,7 @@ export interface FileRouteTypes {
     | '/admin/supplier-dues'
     | '/admin/support'
     | '/admin/tables'
+    | '/admin/void-logs'
     | '/admin/waste'
     | '/admin/wholesale'
     | '/admin/yield'
@@ -742,6 +764,7 @@ export interface FileRouteTypes {
     | '/admin/pages'
     | '/admin/payments'
     | '/admin/pos'
+    | '/admin/price-board'
     | '/admin/pricing'
     | '/admin/products'
     | '/admin/promotions'
@@ -756,6 +779,7 @@ export interface FileRouteTypes {
     | '/admin/supplier-dues'
     | '/admin/support'
     | '/admin/tables'
+    | '/admin/void-logs'
     | '/admin/waste'
     | '/admin/wholesale'
     | '/admin/yield'
@@ -809,6 +833,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/pages'
     | '/_authenticated/admin/payments'
     | '/_authenticated/admin/pos'
+    | '/_authenticated/admin/price-board'
     | '/_authenticated/admin/pricing'
     | '/_authenticated/admin/products'
     | '/_authenticated/admin/promotions'
@@ -823,6 +848,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/supplier-dues'
     | '/_authenticated/admin/support'
     | '/_authenticated/admin/tables'
+    | '/_authenticated/admin/void-logs'
     | '/_authenticated/admin/waste'
     | '/_authenticated/admin/wholesale'
     | '/_authenticated/admin/yield'
@@ -1167,6 +1193,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/price-board': {
+      id: '/_authenticated/admin/price-board'
+      path: '/admin/price-board'
+      fullPath: '/admin/price-board'
+      preLoaderRoute: typeof AuthenticatedAdminPriceBoardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/pricing': {
       id: '/_authenticated/admin/pricing'
       path: '/admin/pricing'
@@ -1265,6 +1298,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminTablesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/void-logs': {
+      id: '/_authenticated/admin/void-logs'
+      path: '/admin/void-logs'
+      fullPath: '/admin/void-logs'
+      preLoaderRoute: typeof AuthenticatedAdminVoidLogsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/waste': {
       id: '/_authenticated/admin/waste'
       path: '/admin/waste'
@@ -1344,6 +1384,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminPagesRoute: typeof AuthenticatedAdminPagesRoute
   AuthenticatedAdminPaymentsRoute: typeof AuthenticatedAdminPaymentsRoute
   AuthenticatedAdminPosRoute: typeof AuthenticatedAdminPosRoute
+  AuthenticatedAdminPriceBoardRoute: typeof AuthenticatedAdminPriceBoardRoute
   AuthenticatedAdminPricingRoute: typeof AuthenticatedAdminPricingRoute
   AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
   AuthenticatedAdminPromotionsRoute: typeof AuthenticatedAdminPromotionsRoute
@@ -1358,6 +1399,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminSupplierDuesRoute: typeof AuthenticatedAdminSupplierDuesRoute
   AuthenticatedAdminSupportRoute: typeof AuthenticatedAdminSupportRoute
   AuthenticatedAdminTablesRoute: typeof AuthenticatedAdminTablesRoute
+  AuthenticatedAdminVoidLogsRoute: typeof AuthenticatedAdminVoidLogsRoute
   AuthenticatedAdminWasteRoute: typeof AuthenticatedAdminWasteRoute
   AuthenticatedAdminWholesaleRoute: typeof AuthenticatedAdminWholesaleRoute
   AuthenticatedAdminYieldRoute: typeof AuthenticatedAdminYieldRoute
@@ -1385,6 +1427,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminPagesRoute: AuthenticatedAdminPagesRoute,
   AuthenticatedAdminPaymentsRoute: AuthenticatedAdminPaymentsRoute,
   AuthenticatedAdminPosRoute: AuthenticatedAdminPosRoute,
+  AuthenticatedAdminPriceBoardRoute: AuthenticatedAdminPriceBoardRoute,
   AuthenticatedAdminPricingRoute: AuthenticatedAdminPricingRoute,
   AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
   AuthenticatedAdminPromotionsRoute: AuthenticatedAdminPromotionsRoute,
@@ -1399,6 +1442,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminSupplierDuesRoute: AuthenticatedAdminSupplierDuesRoute,
   AuthenticatedAdminSupportRoute: AuthenticatedAdminSupportRoute,
   AuthenticatedAdminTablesRoute: AuthenticatedAdminTablesRoute,
+  AuthenticatedAdminVoidLogsRoute: AuthenticatedAdminVoidLogsRoute,
   AuthenticatedAdminWasteRoute: AuthenticatedAdminWasteRoute,
   AuthenticatedAdminWholesaleRoute: AuthenticatedAdminWholesaleRoute,
   AuthenticatedAdminYieldRoute: AuthenticatedAdminYieldRoute,

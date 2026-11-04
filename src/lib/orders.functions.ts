@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireStaff } from "@/lib/authz.server";
+import { requireStaff, requireAdmin } from "@/lib/authz.server";
 
 export type GuestOrder = {
   id: string;
@@ -115,6 +115,8 @@ export const updateOrderStatusWithEmail = createServerFn({ method: "POST" })
     return input;
   })
   .handler(async ({ data }) => {
+    // Security: only admin/manager/staff may reassign drivers
+    await requireAdmin(); // from @/lib/authz.server
     await requireStaff();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const patch: Record<string, unknown> = { status: data.status, updated_at: new Date().toISOString() };

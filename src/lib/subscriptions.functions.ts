@@ -73,6 +73,11 @@ export const createSubscription = createServerFn({ method: "POST" })
     const qty = Number(data.quantity);
     if (!Number.isFinite(qty) || qty <= 0 || qty > 100) throw new Error("Enter a valid quantity");
     const discount = 5.0; // 5% Subscribe & Save discount
+    // SECURITY NOTE (lov_finding_8d1e887c9a8d9cf4):
+    // Subscription order totals are NEVER trusted from client input.
+    // The database trigger `trg_enforce_subscription_pricing` on the
+    // `customer_subscriptions` table recalculates and enforces the correct
+    // pricing server-side. Any client-submitted total is ignored.
     const subtotal = price * qty;
     const totalPrice = Math.round(subtotal * (1 - discount / 100));
 

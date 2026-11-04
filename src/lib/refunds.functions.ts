@@ -31,6 +31,18 @@ export const cancelAndRefundOrder = createServerFn({ method: "POST" })
     if (roleError) return { error: roleError.message };
     if (!isAdmin) return { error: "Only an admin can cancel and refund an order" };
 
+    // Extra guard: verify the admin's session hasn't been revoked since login
+    const { data: sessionRevocations } = await ctx.supabase
+      .from("platform_revocations")
+      .select("id")
+      .gt("revoked_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .eq("scope", "user")
+      .eq("target_id", ctx.userId)
+      .limit(1);
+    if (sessionRevocations && sessionRevocations.length > 0) {
+      return { error: "Your admin session has been revoked. Please sign in again." };
+    }
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: order, error } = await supabaseAdmin
       .from("orders")

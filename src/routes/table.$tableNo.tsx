@@ -182,7 +182,8 @@ function TableOrderingPage() {
         .from("orders")
         .select("*")
         .eq("fulfillment_type", "dine_in")
-        .or(`table_number.eq.${tableNo},customer_address.ilike.%Table #${tableNo}%,notes.ilike.%Table #${tableNo}%`)
+        .eq("table_number", String(tableNo))
+        .eq("session_id", sessionId)
         .in("status", ["pending", "confirmed", "packed", "ready", "preparing"])
         .order("created_at", { ascending: false });
 
