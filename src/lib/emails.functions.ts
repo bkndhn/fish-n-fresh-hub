@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireAdmin, requireOrderAccess } from "@/lib/authz.server";
+import { requireAdmin, requirePaymentOrderAccess } from "@/lib/authz.server";
 import { sendTestStoreEmail } from "./emails.server";
 
 export const testEmailDispatch = createServerFn({ method: "POST" })

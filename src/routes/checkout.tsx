@@ -689,7 +689,7 @@ function Checkout() {
         customerName: cleanName,
       });
       // Trigger Admin/Staff push on order placement
-      void triggerOrderAlert({ data: { orderId: data.id, eventType: 'INSERT', guestPhone: cleanPhone } });
+      void triggerOrderAlert({ data: { orderId: data.id, eventType: 'INSERT', guestToken } });
     } catch (fcmErr) {
       console.warn("FCM push notice:", fcmErr);
     }
@@ -703,7 +703,7 @@ function Checkout() {
       localStorage.setItem("fnf_email", cleanEmail);
       try {
         void sendOrderConfirmedEmailServer({
-          data: { orderId: data.id, guestPhone: cleanPhone },
+          data: { orderId: data.id, guestToken },
         });
       } catch (emailErr) {
         console.warn("Order confirmation email notice:", emailErr);
