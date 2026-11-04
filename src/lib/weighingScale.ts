@@ -239,13 +239,13 @@ class WeighingScaleDriver {
   private initHotPlugListeners() {
     if (typeof navigator !== "undefined" && "serial" in navigator) {
       try {
-        navigator.serial.addEventListener("connect", (e: Event) => {
+        (navigator as any).serial.addEventListener("connect", (e: Event) => {
           console.info("[Scale Driver] USB scale device plugged in:", e);
           if (this.config.autoReconnect && this.connectionState === "disconnected") {
             this.autoConnect();
           }
         });
-        navigator.serial.addEventListener("disconnect", (e: Event) => {
+        (navigator as any).serial.addEventListener("disconnect", (e: Event) => {
           console.warn("[Scale Driver] USB scale device unplugged:", e);
           this.disconnect();
         });
@@ -259,7 +259,7 @@ class WeighingScaleDriver {
   async autoConnect(): Promise<boolean> {
     if (!this.isSerialSupported()) return false;
     try {
-      const ports = await navigator.serial.getPorts();
+      const ports = await (navigator as any).serial.getPorts();
       if (ports && ports.length > 0) {
         console.info(`[Scale Driver] Found ${ports.length} remembered serial port(s). Auto-connecting...`);
         return await this.openPort(ports[0]);
@@ -292,7 +292,7 @@ class WeighingScaleDriver {
     try {
       this.setStatus("connecting");
       // Request user to pick physical serial COM port
-      const port = await navigator.serial.requestPort();
+      const port = await (navigator as any).serial.requestPort();
       return await this.openPort(port);
     } catch (err: any) {
       console.warn("[Scale Driver] Connection cancelled or port request error:", err);
