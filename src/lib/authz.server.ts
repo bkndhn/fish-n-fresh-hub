@@ -59,7 +59,34 @@ export async function getCallerUserId(): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin.auth.getUser(token);
   if (error || !data?.user?.id) return null;
+  if (await isSessionRevoked(data.user.id, token)) return null;
   return data.user.id;
+}
+
+/** True when an admin kill-switch (global, branch or user) was issued after this token was minted. */
+async function isSessionRevoked(userId: string, token: string): Promise<boolean> {
+  let issuedAt = 0;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]!.replace(/-/g, "+").replace(/_/g, "/")));
+    issuedAt = Number(payload?.iat ?? 0) * 1000;
+  } catch {
+    return true;
+  }
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: roleRows } = await supabaseAdmin.from("user_roles").select("branch_id").eq("user_id", userId);
+  const branchIds = (roleRows ?? []).map((r) => r.branch_id).filter((b): b is string => Boolean(b));
+  const { data: revs, error } = await supabaseAdmin
+    .from("platform_revocations")
+    .select("scope, target_id")
+    .gt("revoked_at", new Date(issuedAt).toISOString())
+    .limit(200);
+  if (error) return false;
+  return (revs ?? []).some(
+    (r) =>
+      r.scope === "global" ||
+      (r.scope === "user" && r.target_id === userId) ||
+      (r.scope === "branch" && r.target_id != null && branchIds.includes(r.target_id)),
+  );
 }
 
 export async function getCallerRoles(userId: string): Promise<CallerRole[]> {

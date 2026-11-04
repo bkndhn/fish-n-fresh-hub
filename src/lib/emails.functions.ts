@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireAdmin, requireOrderAccess } from "@/lib/authz.server";
+import { requireAdmin, requirePaymentOrderAccess } from "@/lib/authz.server";
 import { sendTestStoreEmail } from "./emails.server";
 
 export const testEmailDispatch = createServerFn({ method: "POST" })
@@ -22,10 +22,10 @@ export const testEmailDispatch = createServerFn({ method: "POST" })
   });
 
 export const sendOrderConfirmedEmailServer = createServerFn({ method: "POST" })
-  .inputValidator((data: { orderId: string; guestPhone?: string | undefined }) => data)
+  .inputValidator((data: { orderId: string; guestToken?: string | undefined }) => data)
   .handler(async ({ data }) => {
     // The recipient always comes from the order record itself, never from the caller.
-    await requireOrderAccess(data.orderId, data.guestPhone ?? null);
+    await requirePaymentOrderAccess(data.orderId, data.guestToken ?? null);
     const { sendOrderConfirmedEmail } = await import("./emails.server");
     const { recipient: _r, ...rest } = await sendOrderConfirmedEmail(data.orderId);
     // Never echo the customer's email address back to the caller.

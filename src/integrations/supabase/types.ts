@@ -3885,19 +3885,33 @@ export type Database = {
         }
       }
       get_auth_branch_id: { Args: never; Returns: string }
-      get_table_active_orders: {
-        Args: { p_table: string }
-        Returns: {
-          created_at: string
-          id: string
-          items: Json
-          order_number: string
-          round_number: number
-          status: string
-          table_number: string
-          total: number
-        }[]
-      }
+      get_table_active_orders:
+        | {
+            Args: { p_table: string }
+            Returns: {
+              created_at: string
+              id: string
+              items: Json
+              order_number: string
+              round_number: number
+              status: string
+              table_number: string
+              total: number
+            }[]
+          }
+        | {
+            Args: { p_session_id: string; p_table: string }
+            Returns: {
+              created_at: string
+              id: string
+              items: Json
+              order_number: string
+              round_number: number
+              status: string
+              table_number: string
+              total: number
+            }[]
+          }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
