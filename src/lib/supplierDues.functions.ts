@@ -7,9 +7,10 @@ const Input = z.object({ phone: z.string().trim().min(8).max(20), message: z.str
 export const sendDueReceipt = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => Input.parse(i))
   .handler(async ({ data }) => {
-    const { requireAdmin } = await import("./authz.server");
+    const { requireAdmin, requireSupplierPhone } = await import("./authz.server");
     await requireAdmin();
+    const verifiedPhone = await requireSupplierPhone(data.phone);
     const { sendWhatsAppNotification } = await import("./whatsappBusiness.server");
-    const r = await sendWhatsAppNotification({ type: "order_confirmed", recipientPhone: data.phone, customMessage: data.message } as never);
+    const r = await sendWhatsAppNotification({ type: "order_confirmed", recipientPhone: verifiedPhone, customMessage: data.message } as never);
     return { sent: !!r.success, fallbackUrl: r.fallbackUrl ?? null };
   });

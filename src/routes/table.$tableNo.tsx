@@ -82,7 +82,9 @@ function TableOrderingPage() {
     try {
       const existing = window.sessionStorage.getItem(sessionKey);
       if (existing && existing.trim()) return existing;
-      const newId = `sess_${tableNo}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const rnd = new Uint8Array(24);
+      window.crypto.getRandomValues(rnd);
+      const newId = `sess_${Array.from(rnd, (b) => b.toString(16).padStart(2, "0")).join("")}`;
       window.sessionStorage.setItem(sessionKey, newId);
       return newId;
     } catch {

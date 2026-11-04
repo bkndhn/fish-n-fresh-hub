@@ -11,12 +11,13 @@ const Input = z.object({
 export const dispatchPoWhatsApp = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => Input.parse(i))
   .handler(async ({ data }) => {
-    const { requireAdmin } = await import("./authz.server");
+    const { requireAdmin, requireSupplierPhone } = await import("./authz.server");
     await requireAdmin();
+    const verifiedPhone = await requireSupplierPhone(data.phone);
     const { sendWhatsAppNotification } = await import("./whatsappBusiness.server");
     const r = await sendWhatsAppNotification({
       type: "order_confirmed",
-      recipientPhone: data.phone,
+      recipientPhone: verifiedPhone,
       customerName: data.supplierName,
       customMessage: data.message,
     } as never);
