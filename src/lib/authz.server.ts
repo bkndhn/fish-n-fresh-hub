@@ -208,3 +208,18 @@ export async function requirePaymentOrderAccess(
   }
   throw new AuthorizationError("You are not allowed to access this order");
 }
+
+/** Throws unless the phone number belongs to a supplier on record (matches last 10 digits of phone or WhatsApp). Returns the stored number. */
+export async function requireSupplierPhone(phone: string): Promise<string> {
+  const digits = String(phone ?? "").replace(/\D/g, "");
+  if (digits.length < 10) throw new AuthorizationError("Invalid phone number");
+  const tail = digits.slice(-10);
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin.from("suppliers").select("phone, whatsapp").limit(1000);
+  for (const s of data ?? []) {
+    for (const p of [s.whatsapp, s.phone]) {
+      if (p && String(p).replace(/\D/g, "").slice(-10) === tail) return String(p);
+    }
+  }
+  throw new AuthorizationError("This number is not a saved supplier. Add it to Suppliers first.");
+}

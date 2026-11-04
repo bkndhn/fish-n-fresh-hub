@@ -24,23 +24,18 @@ export const cancelAndRefundOrder = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }): Promise<RefundResult> => {
     const ctx = context as unknown as { supabase: any; userId: string };
-    const { data: isAdmin, error: roleError } = await ctx.supabase.rpc("has_role", {
-      _user_id: ctx.userId,
-      _role: "admin",
-    });
-    if (roleError) return { error: roleError.message };
-    if (!isAdmin) return { error: "Only an admin can cancel and refund an order" };
-
-    // Extra guard: verify the admin's session hasn't been revoked since login
-    const { data: sessionRevocations } = await ctx.supabase
-      .from("platform_revocations")
-      .select("id")
-      .gt("revoked_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-      .eq("scope", "user")
-      .eq("target_id", ctx.userId)
-      .limit(1);
-    if (sessionRevocations && sessionRevocations.length > 0) {
-      return { error: "Your admin session has been revoked. Please sign in again." };
+    // Fresh server-side check: validates the token, rejects revoked sessions
+    // (global/branch/user kill-switch issued after login) and re-reads roles from the DB.
+    try {
+      const { requireUser, getCallerRoles } = await import("@/lib/authz.server");
+      const uid = await requireUser();
+      if (uid !== ctx.userId) return { error: "Session mismatch. Please sign in again." };
+      const roles = await getCallerRoles(uid);
+      if (!roles.includes("admin") && !roles.includes("super_admin")) {
+        return { error: "Only an admin can cancel and refund an order" };
+      }
+    } catch {
+      return { error: "Your admin session is no longer valid. Please sign in again." };
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
