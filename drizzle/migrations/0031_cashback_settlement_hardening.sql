@@ -1,4 +1,3 @@
--- Cashback only on paid or fulfilled orders
 CREATE OR REPLACE FUNCTION public.credit_wallet_cashback(p_order_id uuid)
  RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
 AS $function$
@@ -36,5 +35,4 @@ BEGIN
 END;
 $function$;
 
--- Driver cash settlements are written only by the validated atomic function
 DROP POLICY IF EXISTS "Staff and admin insert settlements" ON public.driver_cash_settlements;
