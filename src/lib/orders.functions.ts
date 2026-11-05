@@ -116,9 +116,11 @@ export const updateOrderStatusWithEmail = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) => {
     // Security: only admin/manager/staff may reassign drivers
-    await requireAdmin(); // from @/lib/authz.server
-    await requireStaff();
+    const { userId } = await requireAdmin(); // from @/lib/authz.server
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: target } = await supabaseAdmin.from("orders").select("branch_id").eq("id", data.orderId).maybeSingle();
+    if (!target) throw new Error("Order not found");
+    await requireBranchAccess(userId, (target as any).branch_id);
     const patch: Record<string, unknown> = { status: data.status, updated_at: new Date().toISOString() };
     if (data.status === "delivered") {
       patch['delivered_at'] = new Date().toISOString();
