@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireStaff } from "@/lib/authz.server";
+import { requireStaff, requireBranchAccess, getCallerBranchId } from "@/lib/authz.server";
 
 export interface CreateBatchInput {
   batchNumber: string;
@@ -38,15 +38,21 @@ export interface BatchRecallReport {
 export const createInwardBatch = createServerFn({ method: "POST" })
   .inputValidator((input: CreateBatchInput) => input)
   .handler(async ({ data }) => {
-    await requireStaff();
+    const { userId } = await requireStaff();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const batchNo = data.batchNumber.trim().toUpperCase();
+    const { data: existing } = await supabaseAdmin
+      .from("inventory_batches").select("branch_id").eq("batch_number", batchNo).maybeSingle();
+    if (existing) await requireBranchAccess(userId, (existing as any).branch_id);
+    const callerBranch = await getCallerBranchId(userId);
 
     const shelfLife = Number(data.shelfLifeHours) || 72;
     const catchDateObj = new Date(data.catchDate || new Date().toISOString());
     const expiryDate = new Date(catchDateObj.getTime() + shelfLife * 3600 * 1000).toISOString();
 
     const payload = {
-      batch_number: data.batchNumber.trim().toUpperCase(),
+      batch_number: batchNo,
+      branch_id: (existing as any)?.branch_id ?? callerBranch,
       product_id: data.productId,
       product_name: data.productName,
       supplier_name: data.supplierName || "Harbour Cooperative",
@@ -77,8 +83,12 @@ export const createInwardBatch = createServerFn({ method: "POST" })
 export const updateBatchStatus = createServerFn({ method: "POST" })
   .inputValidator((input: { batchId: string; status: "active" | "depleted" | "recalled" | "expired" }) => input)
   .handler(async ({ data }) => {
-    await requireStaff();
+    const { userId } = await requireStaff();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: target } = await supabaseAdmin
+      .from("inventory_batches").select("branch_id").eq("id", data.batchId).maybeSingle();
+    if (!target) throw new Error("Batch not found");
+    await requireBranchAccess(userId, (target as any).branch_id);
 
     const { error } = await supabaseAdmin
       .from("inventory_batches")
@@ -92,7 +102,7 @@ export const updateBatchStatus = createServerFn({ method: "POST" })
 export const executeBatchRecall = createServerFn({ method: "POST" })
   .inputValidator((input: { batchNumber: string }) => input)
   .handler(async ({ data }): Promise<BatchRecallReport> => {
-    await requireStaff();
+    const { userId } = await requireStaff();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // 1. Fetch batch details
@@ -105,6 +115,7 @@ export const executeBatchRecall = createServerFn({ method: "POST" })
     if (bErr || !batch) {
       throw new Error(`Batch ${data.batchNumber} not found.`);
     }
+    await requireBranchAccess(userId, batch.branch_id);
 
     // Mark batch as recalled
     await supabaseAdmin
@@ -118,9 +129,10 @@ export const executeBatchRecall = createServerFn({ method: "POST" })
 
     const { data: orders = [] } = await supabaseAdmin
       .from("orders")
-      .select("id, order_number, customer_name, customer_phone, customer_email, created_at, total, items")
+      .select("id, order_number, customer_name, customer_phone, customer_email, created_at, total, items, branch_id")
       .gte("created_at", catchStart)
-      .lte("created_at", expiryEnd);
+      .lte("created_at", expiryEnd)
+      .or(batch.branch_id ? `branch_id.eq.${batch.branch_id},branch_id.is.null` : "branch_id.is.null");
 
     const impactedOrders: BatchRecallReport["impactedOrders"] = [];
     const customerPhoneSet = new Set<string>();

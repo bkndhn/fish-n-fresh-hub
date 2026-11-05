@@ -41,6 +41,7 @@ import { Route as AuthenticatedAdminBroadcastsRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminCollectionsRouteImport } from './routes/_authenticated/admin/collections'
 import { Route as AuthenticatedAdminComplaintsRouteImport } from './routes/_authenticated/admin/complaints'
 import { Route as AuthenticatedAdminCustomersRouteImport } from './routes/_authenticated/admin/customers'
+import { Route as AuthenticatedAdminDailyPricesRouteImport } from './routes/_authenticated/admin/daily-prices'
 import { Route as AuthenticatedAdminDeliveryRouteImport } from './routes/_authenticated/admin/delivery'
 import { Route as AuthenticatedAdminDriverRouteImport } from './routes/_authenticated/admin/driver'
 import { Route as AuthenticatedAdminExpensesRouteImport } from './routes/_authenticated/admin/expenses'
@@ -241,6 +242,12 @@ const AuthenticatedAdminCustomersRoute =
   AuthenticatedAdminCustomersRouteImport.update({
     id: '/admin/customers',
     path: '/admin/customers',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminDailyPricesRoute =
+  AuthenticatedAdminDailyPricesRouteImport.update({
+    id: '/admin/daily-prices',
+    path: '/admin/daily-prices',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAdminDeliveryRoute =
@@ -477,6 +484,7 @@ export interface FileRoutesByFullPath {
   '/admin/collections': typeof AuthenticatedAdminCollectionsRoute
   '/admin/complaints': typeof AuthenticatedAdminComplaintsRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
+  '/admin/daily-prices': typeof AuthenticatedAdminDailyPricesRoute
   '/admin/delivery': typeof AuthenticatedAdminDeliveryRoute
   '/admin/driver': typeof AuthenticatedAdminDriverRoute
   '/admin/expenses': typeof AuthenticatedAdminExpensesRoute
@@ -545,6 +553,7 @@ export interface FileRoutesByTo {
   '/admin/collections': typeof AuthenticatedAdminCollectionsRoute
   '/admin/complaints': typeof AuthenticatedAdminComplaintsRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
+  '/admin/daily-prices': typeof AuthenticatedAdminDailyPricesRoute
   '/admin/delivery': typeof AuthenticatedAdminDeliveryRoute
   '/admin/driver': typeof AuthenticatedAdminDriverRoute
   '/admin/expenses': typeof AuthenticatedAdminExpensesRoute
@@ -615,6 +624,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/collections': typeof AuthenticatedAdminCollectionsRoute
   '/_authenticated/admin/complaints': typeof AuthenticatedAdminComplaintsRoute
   '/_authenticated/admin/customers': typeof AuthenticatedAdminCustomersRoute
+  '/_authenticated/admin/daily-prices': typeof AuthenticatedAdminDailyPricesRoute
   '/_authenticated/admin/delivery': typeof AuthenticatedAdminDeliveryRoute
   '/_authenticated/admin/driver': typeof AuthenticatedAdminDriverRoute
   '/_authenticated/admin/expenses': typeof AuthenticatedAdminExpensesRoute
@@ -685,6 +695,7 @@ export interface FileRouteTypes {
     | '/admin/collections'
     | '/admin/complaints'
     | '/admin/customers'
+    | '/admin/daily-prices'
     | '/admin/delivery'
     | '/admin/driver'
     | '/admin/expenses'
@@ -753,6 +764,7 @@ export interface FileRouteTypes {
     | '/admin/collections'
     | '/admin/complaints'
     | '/admin/customers'
+    | '/admin/daily-prices'
     | '/admin/delivery'
     | '/admin/driver'
     | '/admin/expenses'
@@ -822,6 +834,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/collections'
     | '/_authenticated/admin/complaints'
     | '/_authenticated/admin/customers'
+    | '/_authenticated/admin/daily-prices'
     | '/_authenticated/admin/delivery'
     | '/_authenticated/admin/driver'
     | '/_authenticated/admin/expenses'
@@ -1116,6 +1129,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCustomersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/daily-prices': {
+      id: '/_authenticated/admin/daily-prices'
+      path: '/admin/daily-prices'
+      fullPath: '/admin/daily-prices'
+      preLoaderRoute: typeof AuthenticatedAdminDailyPricesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/delivery': {
       id: '/_authenticated/admin/delivery'
       path: '/admin/delivery'
@@ -1373,6 +1393,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminCollectionsRoute: typeof AuthenticatedAdminCollectionsRoute
   AuthenticatedAdminComplaintsRoute: typeof AuthenticatedAdminComplaintsRoute
   AuthenticatedAdminCustomersRoute: typeof AuthenticatedAdminCustomersRoute
+  AuthenticatedAdminDailyPricesRoute: typeof AuthenticatedAdminDailyPricesRoute
   AuthenticatedAdminDeliveryRoute: typeof AuthenticatedAdminDeliveryRoute
   AuthenticatedAdminDriverRoute: typeof AuthenticatedAdminDriverRoute
   AuthenticatedAdminExpensesRoute: typeof AuthenticatedAdminExpensesRoute
@@ -1416,6 +1437,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminCollectionsRoute: AuthenticatedAdminCollectionsRoute,
   AuthenticatedAdminComplaintsRoute: AuthenticatedAdminComplaintsRoute,
   AuthenticatedAdminCustomersRoute: AuthenticatedAdminCustomersRoute,
+  AuthenticatedAdminDailyPricesRoute: AuthenticatedAdminDailyPricesRoute,
   AuthenticatedAdminDeliveryRoute: AuthenticatedAdminDeliveryRoute,
   AuthenticatedAdminDriverRoute: AuthenticatedAdminDriverRoute,
   AuthenticatedAdminExpensesRoute: AuthenticatedAdminExpensesRoute,

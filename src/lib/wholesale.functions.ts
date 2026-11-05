@@ -189,6 +189,8 @@ const BAND_FIELDS = "id, label, min_order_value, discount_percent, active";
 /** Active order-value discount bands plus the minimum bulk order value. */
 export const listWholesaleBands = createServerFn({ method: "GET" }).handler(
   async (): Promise<{ bands: WholesaleBand[]; minOrderValue: number }> => {
+    const { requireStaff } = await import("@/lib/authz.server");
+    await requireStaff();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [{ data: bands }, { data: settings }] = await Promise.all([
       supabaseAdmin

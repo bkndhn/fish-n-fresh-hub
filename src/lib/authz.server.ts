@@ -223,3 +223,28 @@ export async function requireSupplierPhone(phone: string): Promise<string> {
   }
   throw new AuthorizationError("This number is not a saved supplier. Add it to Suppliers first.");
 }
+
+/**
+ * Throws unless the caller may act on records of `branchId`.
+ * admin/super_admin pass everywhere; staff with a branch-less role row are
+ * shop-wide; otherwise the caller needs a role row for that exact branch.
+ */
+export async function requireBranchAccess(userId: string, branchId: string | null | undefined): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin.from("user_roles").select("role, branch_id").eq("user_id", userId);
+  const rows = (data ?? []) as { role: string; branch_id: string | null }[];
+  if (rows.some((r) => r.role === "admin" || r.role === "super_admin")) return;
+  const staffRows = rows.filter((r) => STAFF_ROLES.includes(r.role as CallerRole));
+  if (staffRows.some((r) => r.branch_id == null)) return;
+  if (branchId && staffRows.some((r) => r.branch_id === branchId)) return;
+  throw new AuthorizationError("Forbidden: no access to this branch");
+}
+
+/** First branch the caller is assigned to (null = shop-wide). */
+export async function getCallerBranchId(userId: string): Promise<string | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin.from("user_roles").select("branch_id").eq("user_id", userId);
+  const rows = (data ?? []) as { branch_id: string | null }[];
+  if (rows.some((r) => r.branch_id == null)) return null;
+  return rows[0]?.branch_id ?? null;
+}

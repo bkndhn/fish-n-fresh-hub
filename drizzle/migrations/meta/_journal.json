@@ -218,6 +218,13 @@
       "when": 1793769645476,
       "tag": "0030_security_fixes_owner_pin_void_log",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793855549949,
+      "tag": "0031_cashback_settlement_hardening",
+      "breakpoints": true
     }
   ]
 }
