@@ -150,42 +150,8 @@ export function DriverCashSettlementModal({
         // RPC might not exist on remote db yet, fallback to client transaction
       }
 
-      // 2. Fallback transaction if RPC not yet deployed
       if (!record) {
-        const { data: insertRec, error: insertError } = await supabase
-          .from("driver_cash_settlements")
-          .insert({
-            settlement_number: settlementNumber,
-            driver_name: driverName,
-            driver_phone: driverPhone || "",
-            driver_id: driverId || "",
-            amount_collected: selectedTotal,
-            amount_settled: settledNum,
-            balance_remaining: balanceRemaining,
-            orders_count: selectedOrderIds.length,
-            order_ids: selectedOrderIds,
-            settled_by_name: collectorName.trim() || "Store Admin",
-            settled_by_id: user?.id || "",
-            payment_mode: paymentMode,
-            notes: notes.trim() || "",
-            settled_at: new Date().toISOString(),
-          })
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-        record = insertRec;
-
-        const { error: updateOrdersError } = await supabase
-          .from("orders")
-          .update({
-            cod_settled: true,
-            settlement_id: record.id,
-            settled_at: new Date().toISOString(),
-          })
-          .in("id", selectedOrderIds);
-
-        if (updateOrdersError) throw updateOrdersError;
+        throw new Error("Could not record the cash handover. Please try again.");
       }
 
       return record;

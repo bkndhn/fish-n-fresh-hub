@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireStaff, requireAdmin } from "@/lib/authz.server";
+import { requireStaff, requireAdmin, requireBranchAccess } from "@/lib/authz.server";
 
 export type GuestOrder = {
   id: string;
