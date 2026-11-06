@@ -213,8 +213,12 @@ function RealtimeSubscriber({ queryClient }: { queryClient: QueryClient }) {
         "postgres_changes",
         { event: "*", schema: "public", table: "products" },
         () => {
-          console.log("Products changed, invalidating cache...");
+          // Daily Price Board → storefront, POS, admin lists and wholesale tiers.
           queryClient.invalidateQueries({ queryKey: ["products"] });
+          queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
+          queryClient.invalidateQueries({ queryKey: ["price_board_products"] });
+          queryClient.invalidateQueries({ queryKey: ["wholesale-preview"] });
+          queryClient.invalidateQueries({ queryKey: ["wholesale"] });
         }
       )
       .on(
