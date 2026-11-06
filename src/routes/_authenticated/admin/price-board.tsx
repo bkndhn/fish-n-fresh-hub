@@ -110,6 +110,9 @@ function PriceBoardPage() {
       });
       qc.invalidateQueries({ queryKey: ["products"] });
       qc.invalidateQueries({ queryKey: ["price_board_products"] });
+      qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      qc.invalidateQueries({ queryKey: ["wholesale-preview"] });
+      qc.invalidateQueries({ queryKey: ["wholesale"] });
     },
     onError: (err: unknown) => {
       toast.error((err as Error).message || "Failed to save prices");
