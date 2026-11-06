@@ -100,6 +100,8 @@ export const Route = createFileRoute("/checkout")({
       { property: "og:description", content: "Delivery or pickup, COD or UPI — checkout in seconds." },
     ],
   }),
+  // The session lives in the browser; checking on the server always looks signed out.
+  ssr: false,
   beforeLoad: async () => {
     const { data } = await supabase.auth.getSession();
     if (!data.session) {

@@ -207,20 +207,26 @@ import { confirmSecurityRevocation } from "@/lib/security.functions";
 
 function RealtimeSubscriber({ queryClient }: { queryClient: QueryClient }) {
   useEffect(() => {
-    const channel = supabase
-      .channel("public-db-changes")
+    // Prices get their own channel: one bad table binding on a shared channel
+    // silently stops every listener on it.
+    const priceChannel = supabase
+      .channel(`price-board-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "products" },
         () => {
           // Daily Price Board → storefront, POS, admin lists and wholesale tiers.
           queryClient.invalidateQueries({ queryKey: ["products"] });
+          queryClient.invalidateQueries({ queryKey: ["product"] });
           queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
           queryClient.invalidateQueries({ queryKey: ["price_board_products"] });
           queryClient.invalidateQueries({ queryKey: ["wholesale-preview"] });
           queryClient.invalidateQueries({ queryKey: ["wholesale"] });
         }
       )
+      .subscribe();
+    const channel = supabase
+      .channel("public-db-changes")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "store_settings" },
@@ -309,6 +315,7 @@ function RealtimeSubscriber({ queryClient }: { queryClient: QueryClient }) {
 
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(priceChannel);
       supabase.removeChannel(killswitchChannel);
     };
   }, [queryClient]);
