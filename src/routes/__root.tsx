@@ -215,6 +215,7 @@ function RealtimeSubscriber({ queryClient }: { queryClient: QueryClient }) {
         () => {
           // Daily Price Board → storefront, POS, admin lists and wholesale tiers.
           queryClient.invalidateQueries({ queryKey: ["products"] });
+          queryClient.invalidateQueries({ queryKey: ["product"] });
           queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
           queryClient.invalidateQueries({ queryKey: ["price_board_products"] });
           queryClient.invalidateQueries({ queryKey: ["wholesale-preview"] });
