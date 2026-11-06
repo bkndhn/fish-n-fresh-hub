@@ -207,8 +207,10 @@ import { confirmSecurityRevocation } from "@/lib/security.functions";
 
 function RealtimeSubscriber({ queryClient }: { queryClient: QueryClient }) {
   useEffect(() => {
-    const channel = supabase
-      .channel("public-db-changes")
+    // Prices get their own channel: one bad table binding on a shared channel
+    // silently stops every listener on it.
+    const priceChannel = supabase
+      .channel(`price-board-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "products" },
@@ -222,6 +224,9 @@ function RealtimeSubscriber({ queryClient }: { queryClient: QueryClient }) {
           queryClient.invalidateQueries({ queryKey: ["wholesale"] });
         }
       )
+      .subscribe();
+    const channel = supabase
+      .channel("public-db-changes")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "store_settings" },
