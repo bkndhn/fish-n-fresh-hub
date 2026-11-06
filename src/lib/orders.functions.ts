@@ -196,8 +196,14 @@ export const updateOrderStatusWithEmail = createServerFn({ method: "POST" })
 export const updateOrderWeightAndPrice = createServerFn({ method: "POST" })
   .inputValidator((input: { orderId: string; total: number; weight: number }) => input)
   .handler(async ({ data }) => {
-    await requireStaff();
+    const { userId } = await requireStaff();
+    if (!Number.isFinite(data.total) || data.total < 0 || !Number.isFinite(data.weight) || data.weight < 0) {
+      throw new Error("Invalid total or weight");
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: target } = await supabaseAdmin.from("orders").select("branch_id").eq("id", data.orderId).maybeSingle();
+    if (!target) throw new Error("Order not found");
+    await requireBranchAccess(userId, (target as any).branch_id);
     const { error } = await supabaseAdmin
       .from("orders")
       .update({
