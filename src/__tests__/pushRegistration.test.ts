@@ -7,7 +7,7 @@ import { registerPushNotification } from "@/lib/fcm";
 describe("push subscription persistence", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    vi.stubGlobal("window", {});
+    vi.stubGlobal("window", { Notification: { permission: "granted" } });
     vi.stubGlobal("Notification", { permission: "granted" });
     upsert.mockReset();
   });
