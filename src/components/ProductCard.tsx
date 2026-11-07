@@ -282,7 +282,7 @@ export function ProductCard({ product }: { product: Product }) {
                 Sold Out
               </Button>
             ) : cartItem ? (
-              <div className="flex w-full justify-between items-center gap-0.5 rounded-full border border-primary/40 bg-primary/10 dark:bg-primary/20 p-0.5 shadow-2xs">
+              <div className="flex w-full justify-between items-center gap-0.5 rounded-full border border-primary bg-primary p-0.5 shadow-md">
                 {(() => {
                   const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
                   const fallbackMin = isWeighted ? 0.25 : 1;
@@ -298,7 +298,7 @@ export function ProductCard({ product }: { product: Product }) {
                       className={`size-5.5 sm:size-6 rounded-full flex items-center justify-center transition-all active:scale-85 shadow-2xs cursor-pointer ${
                         isAtMin
                           ? "bg-rose-500 text-white hover:bg-rose-600 shadow-rose-500/30"
-                          : "bg-primary text-primary-foreground hover:bg-primary/90"
+                          : "bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/30"
                       }`}
                       onClick={() => {
                         if (isAtMin) {
@@ -366,7 +366,7 @@ export function ProductCard({ product }: { product: Product }) {
                         }
                       }}
                       className={cn(
-                        "w-full min-w-0 flex-1 bg-transparent text-center text-[11px] sm:text-xs font-black font-mono outline-none text-primary dark:text-primary-foreground select-all p-0 leading-none",
+                        "w-full min-w-0 flex-1 bg-transparent text-center text-[11px] sm:text-xs font-black font-mono outline-none text-primary-foreground select-all p-0 leading-none",
                         isStepEnforced && "cursor-default select-none"
                       )}
                       title={isStepEnforced ? "Use + / - buttons to adjust quantity" : "Type custom quantity"}
@@ -381,7 +381,7 @@ export function ProductCard({ product }: { product: Product }) {
                     "size-5.5 sm:size-6 rounded-full flex items-center justify-center transition-all shadow-2xs",
                     product.max_order_qty != null && cartItem.qty >= product.max_order_qty
                       ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
-                      : "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-85 cursor-pointer"
+                      : "bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/30 active:scale-85 cursor-pointer"
                   )}
                   onClick={() => {
                     const isWeighted = (product.unit || "").toLowerCase().includes("kg") || (product.unit || "").toLowerCase() === "g";
@@ -410,7 +410,8 @@ export function ProductCard({ product }: { product: Product }) {
             ) : (
               <Button
                 size="sm"
-                className="h-8 w-full rounded-full px-2.5 text-xs font-bold shadow-2xs hover:shadow-xs active:scale-95 transition-all"
+                variant="outline"
+                className="h-8 w-full rounded-full border-primary/30 bg-primary/10 px-2.5 text-xs font-bold text-primary shadow-2xs transition-all hover:bg-primary/15 hover:text-primary active:scale-95 active:bg-primary active:text-primary-foreground"
                 onClick={() => {
                   if (!isUnlimited && !hideOutOfStockBadges && product.stock !== null && Number(product.stock) <= 0) {
                     toast.error("This product is currently out of stock");
