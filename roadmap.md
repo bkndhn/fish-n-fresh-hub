@@ -15,6 +15,8 @@
 - [x] Payments & refunds audit page + phone-friendly driver cards
 
 ## Open
+- [ ] Continue authenticated Test Trade Buyer checkout with typed weight; verify saved totals and P&L
+- [ ] Verify staff web push setup (physical phone delivery requires the user's device)
 - [x] Yield-linked P&L and closing profit totals, without counting cutting loss twice (23 tests passed; authenticated UI verification blocked by sign-in)
 - [ ] Automatic WhatsApp reports/POs/receipts (blocked: WhatsApp Business connection and approved templates)
 - [ ] Real delivery yield entry (blocked: raw weight, purchase rate and cleaned weight from user)
