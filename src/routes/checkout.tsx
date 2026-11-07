@@ -98,6 +98,8 @@ export const Route = createFileRoute("/checkout")({
       { name: "description", content: "Place your seafood order with cash on delivery or UPI." },
       { property: "og:title", content: "Checkout — Fish N Fresh" },
       { property: "og:description", content: "Delivery or pickup, COD or UPI — checkout in seconds." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   // The session lives in the browser; checking on the server always looks signed out.
