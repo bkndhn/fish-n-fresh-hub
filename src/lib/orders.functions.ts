@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireStaff, requireAdmin, requireBranchAccess } from "@/lib/authz.server";
+import { requireStaff, requireAdmin, requireBranchAccess, getCallerUserId } from "@/lib/authz.server";
+import { applyAccountDiscount, resolveWholesaleUnitPrice } from "@/lib/wholesale";
 
 export type GuestOrder = {
   id: string;
@@ -254,20 +255,35 @@ export const verifyOrderPriceServerFn = createServerFn({ method: "POST" })
       if (!item.product_id || typeof item.product_id !== "string") {
         throw new Error("Invalid product in order items");
       }
-      if (typeof item.qty !== "number" || item.qty <= 0) {
+      if (typeof item.qty !== "number" || !Number.isFinite(item.qty) || item.qty <= 0) {
         throw new Error("Invalid quantity in order items");
       }
     }
     return input;
   })
   .handler(async ({ data }): Promise<VerifyOrderPriceResult> => {
+    const userId = await getCallerUserId();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: policy, error: policyError } = await supabaseAdmin
+      .from("store_settings")
+      .select("sales_mode")
+      .limit(1).maybeSingle();
+    if (policyError) throw new Error("Could not verify store pricing policy");
+    let tradeDiscount: number | null = null;
+    if (userId && policy?.sales_mode !== "retail") {
+      const { data: account, error: accountError } = await supabaseAdmin
+        .from("wholesale_accounts")
+        .select("status, extra_discount_percent")
+        .eq("user_id", userId).maybeSingle();
+      if (accountError) throw new Error("Could not verify trade account");
+      if (account?.status === "approved") tradeDiscount = Number(account.extra_discount_percent ?? 0);
+    }
 
     // Fetch live product prices from database
     const productIds = Array.from(new Set(data.items.map((i) => i.product_id)));
     const { data: dbProducts, error: prodErr } = await supabaseAdmin
       .from("products")
-      .select("id, name, price, wholesale_price, gst_percent, gst_included, is_available")
+      .select("id, name, price, wholesale_price, wholesale_min_qty, wholesale_tiers, gst_percent, gst_included, is_available")
       .in("id", productIds);
 
     if (prodErr || !dbProducts) {
@@ -276,13 +292,17 @@ export const verifyOrderPriceServerFn = createServerFn({ method: "POST" })
 
     const productMap = new Map(dbProducts.map((p) => [p.id, p]));
 
+    const unitPrices = new Map<string, number>();
     let serverSubtotal = 0;
     for (const item of data.items) {
       const liveProduct = productMap.get(item.product_id);
       if (!liveProduct) {
         throw new Error(`Product ${item.product_id} is no longer available in store catalog`);
       }
-      const unitPrice = Number(liveProduct.price || 0);
+      const unitPrice = tradeDiscount === null
+        ? Number(liveProduct.price || 0)
+        : applyAccountDiscount(resolveWholesaleUnitPrice(liveProduct, item.qty), tradeDiscount);
+      unitPrices.set(item.product_id, unitPrice);
       serverSubtotal += unitPrice * item.qty;
     }
 
@@ -299,7 +319,7 @@ export const verifyOrderPriceServerFn = createServerFn({ method: "POST" })
       for (const item of data.items) {
         const liveProduct = productMap.get(item.product_id);
         if (liveProduct && Number(liveProduct.gst_percent || 0) > 0 && !liveProduct.gst_included) {
-          serverGstAmount += ((Number(liveProduct.price || 0) * item.qty) * Number(liveProduct.gst_percent || 0)) / 100;
+          serverGstAmount += (((unitPrices.get(item.product_id) ?? 0) * item.qty) * Number(liveProduct.gst_percent || 0)) / 100;
         }
       }
       serverGstAmount = Math.round(serverGstAmount);

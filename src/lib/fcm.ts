@@ -96,9 +96,8 @@ export async function registerPushNotification(
       }
     }
 
-    const tokenStr = sub
-      ? JSON.stringify(sub.toJSON())
-      : `web_push_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+    if (!sub) return null;
+    const tokenStr = JSON.stringify(sub.toJSON());
 
     // Store/refresh in Supabase fcm_tokens
     const upsertData: Record<string, unknown> = {
@@ -114,10 +113,11 @@ export async function registerPushNotification(
       upsertData["branch_id"] = branchId || null;
     }
 
-    await supabase.from("fcm_tokens").upsert(
+    const { error } = await supabase.from("fcm_tokens").upsert(
       upsertData as any,
       { onConflict: "token" }
     );
+    if (error) throw new Error("Could not save push notification subscription");
 
     return tokenStr;
   } catch (err) {
