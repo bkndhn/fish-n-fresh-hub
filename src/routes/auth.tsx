@@ -218,6 +218,8 @@ function AuthPage() {
         navigate({ to: "/admin/products" });
       } else if (roles.includes("support_staff")) {
         navigate({ to: "/admin/support" });
+      } else if (roles.includes("staff")) {
+        navigate({ to: "/admin/kitchen" });
       } else {
         navigate({ to: "/orders" });
       }
