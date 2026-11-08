@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
-import { ShoppingCart, ArrowRight } from "lucide-react";
+import { ShoppingCart, ArrowRight, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/lib/cart";
 import { inr } from "@/lib/format";
@@ -10,7 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export function FloatingCart() {
-  const { items, count, subtotal } = useCart();
+  const { items, count, subtotal, clear } = useCart();
   const location = useLocation();
   const [waOpen, setWaOpen] = useState(false);
 
@@ -56,6 +57,17 @@ export function FloatingCart() {
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => { clear(); toast.success("Cart cleared"); }}
+              aria-label="Clear cart"
+              title="Clear cart"
+              className="shrink-0 rounded-xl size-8.5 sm:size-10 bg-white/15 text-primary-foreground hover:bg-white/25 hover:text-primary-foreground"
+            >
+              <Trash2 className="size-4" />
+            </Button>
             <Button
               type="button"
               variant="outline"
