@@ -599,6 +599,25 @@ function AuthPage() {
                   {loading ? "Signing in..." : signinLockout > 0 ? `Locked (${signinLockout}s)` : "Sign In"}
                 </Button>
               </form>
+              {/* TEMPORARY demo accounts for testing — remove before launch */}
+              <div className="mt-4 rounded-xl border border-dashed border-border p-3">
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Demo accounts (tap to fill, password FishFresh@2026)</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    ["Admin", "admin@fishnfresh.app"], ["Manager", "manager@fishnfresh.app"],
+                    ["Cashier", "cashier@fishnfresh.app"], ["Kitchen", "kitchen@fishnfresh.app"],
+                    ["Driver", "driver@fishnfresh.app"], ["Inventory", "inventory@fishnfresh.app"],
+                    ["Support", "support@fishnfresh.app"], ["Customer", "customer@fishnfresh.app"],
+                    ["Trade buyer", "bknqwe19@gmail.com"],
+                  ].map(([label, mail]) => (
+                    <button key={mail} type="button"
+                      onClick={() => { setEmail(mail); setPassword("FishFresh@2026"); }}
+                      className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground hover:bg-accent">
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </TabsContent>
 
             {/* ── Sign Up Tab ── */}
