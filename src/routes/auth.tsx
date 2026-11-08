@@ -611,7 +611,7 @@ function AuthPage() {
                     ["Driver", "driver@fishnfresh.app"], ["Inventory", "inventory@fishnfresh.app"],
                     ["Support", "support@fishnfresh.app"], ["Customer", "customer@fishnfresh.app"],
                     ["Trade buyer", "bknqwe19@gmail.com"],
-                  ].map(([label, mail]) => (
+                  ].map(([label, mail = ""]) => (
                     <button key={mail} type="button"
                       onClick={() => { setEmail(mail); setPassword("FishFresh@2026"); }}
                       className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground hover:bg-accent">
