@@ -8,12 +8,17 @@ import { inr } from "@/lib/format";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { WhatsAppOrderDialog } from "@/components/WhatsAppOrderDialog";
 import { useQuery } from "@tanstack/react-query";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 
 export function FloatingCart() {
   const { items, count, subtotal, clear } = useCart();
   const location = useLocation();
   const [waOpen, setWaOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const { data: settings } = useQuery({
     queryKey: ["site-settings"],
@@ -61,7 +66,7 @@ export function FloatingCart() {
               type="button"
               variant="ghost"
               size="icon"
-              onClick={() => { clear(); toast.success("Cart cleared"); }}
+              onClick={() => setConfirmOpen(true)}
               aria-label="Clear cart"
               title="Clear cart"
               className="shrink-0 rounded-xl size-8.5 sm:size-10 bg-white/15 text-primary-foreground hover:bg-white/25 hover:text-primary-foreground"
@@ -87,6 +92,26 @@ export function FloatingCart() {
           </div>
         </div>
       </div>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent className="max-w-sm rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear your cart?</AlertDialogTitle>
+            <AlertDialogDescription>
+              All {items.length} {items.length === 1 ? "item" : "items"} will be removed. This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep items</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { clear(); toast.success("Cart cleared"); }}
+            >
+              Clear cart
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <WhatsAppOrderDialog
         open={waOpen}
