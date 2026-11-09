@@ -10,7 +10,15 @@ import type { SiteSettings } from '@/lib/types';
 
 export const Route = createFileRoute("/terms")({
   head: () => ({
-    meta: [{ title: "Terms and Conditions & Statutory Policies" }],
+    meta: [
+      { title: "Terms & Refund Policy — Fish N Fresh" },
+      { name: "description", content: "Terms of sale, freshness guarantee, weighing, refunds and delivery policies for Fish N Fresh orders." },
+      { property: "og:title", content: "Terms & Refund Policy — Fish N Fresh" },
+      { property: "og:description", content: "Terms of sale, freshness, refunds and delivery policies." },
+      { property: "og:type", content: "article" },
+      { name: "twitter:card", content: "summary" },
+    ],
+    links: [{ rel: "canonical", href: "https://fishnfresh.lovable.app/terms" }],
   }),
   component: TermsPage,
 });
