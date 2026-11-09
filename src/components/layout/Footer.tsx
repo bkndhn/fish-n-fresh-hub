@@ -407,6 +407,10 @@ export function Footer() {
               Refund Policy
             </Link>
             <span>·</span>
+            <Link to="/privacy" className="hover:text-primary transition-colors">
+              Privacy Policy
+            </Link>
+            <span>·</span>
             <Link to="/licence" className="hover:text-primary transition-colors">
               Software License
             </Link>

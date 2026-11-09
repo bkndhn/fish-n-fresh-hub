@@ -5,6 +5,7 @@ Allow: /catalog
 Allow: /product/
 Allow: /terms
 Allow: /licence
+Allow: /privacy
 Disallow: /admin
 Disallow: /admin/*
 Disallow: /account
@@ -13,4 +14,4 @@ Disallow: /checkout
 Disallow: /api/
 
 # Dynamic XML Sitemap
-Sitemap: /sitemap.xml
+Sitemap: https://fishnfresh.lovable.app/sitemap.xml

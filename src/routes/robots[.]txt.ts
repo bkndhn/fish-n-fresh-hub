@@ -16,6 +16,7 @@ Allow: /catalog
 Allow: /product/
 Allow: /terms
 Allow: /licence
+Allow: /privacy
 Disallow: /admin
 Disallow: /admin/*
 Disallow: /account
