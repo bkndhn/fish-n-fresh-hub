@@ -20,6 +20,7 @@ import { Route as LicenceRouteImport } from './routes/licence'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as PaymentStatusRouteImport } from './routes/payment-status'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
@@ -130,6 +131,11 @@ const OrdersRoute = OrdersRouteImport.update({
 const PaymentStatusRoute = PaymentStatusRouteImport.update({
   id: '/payment-status',
   path: '/payment-status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
@@ -464,6 +470,7 @@ export interface FileRoutesByFullPath {
   '/mcp': typeof McpRoute
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
+  '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -533,6 +540,7 @@ export interface FileRoutesByTo {
   '/mcp': typeof McpRoute
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
+  '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -604,6 +612,7 @@ export interface FileRoutesById {
   '/mcp': typeof McpRoute
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
+  '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -675,6 +684,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/orders'
     | '/payment-status'
+    | '/privacy'
     | '/robots.txt'
     | '/settings'
     | '/sitemap.xml'
@@ -744,6 +754,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/orders'
     | '/payment-status'
+    | '/privacy'
     | '/robots.txt'
     | '/settings'
     | '/sitemap.xml'
@@ -814,6 +825,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/orders'
     | '/payment-status'
+    | '/privacy'
     | '/robots.txt'
     | '/settings'
     | '/sitemap.xml'
@@ -885,6 +897,7 @@ export interface RootRouteChildren {
   McpRoute: typeof McpRoute
   OrdersRoute: typeof OrdersRoute
   PaymentStatusRoute: typeof PaymentStatusRoute
+  PrivacyRoute: typeof PrivacyRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SettingsRoute: typeof SettingsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -980,6 +993,13 @@ declare module '@tanstack/react-router' {
       path: '/payment-status'
       fullPath: '/payment-status'
       preLoaderRoute: typeof PaymentStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/robots.txt': {
@@ -1487,6 +1507,7 @@ const rootRouteChildren: RootRouteChildren = {
   McpRoute: McpRoute,
   OrdersRoute: OrdersRoute,
   PaymentStatusRoute: PaymentStatusRoute,
+  PrivacyRoute: PrivacyRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
   SettingsRoute: SettingsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
