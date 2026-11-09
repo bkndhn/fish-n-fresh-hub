@@ -327,6 +327,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { SeoStructuredData } from "@/components/SeoStructuredData";
 import { AnalyticsTracker } from "@/components/AnalyticsTracker";
+import { CookieBanner } from "@/components/CookieBanner";
 import { CustomerBranchProvider } from "@/lib/customerBranchContext";
 import { BranchPickerModal } from "@/components/BranchPickerModal";
 import { PwaPrompt } from "@/components/PwaPrompt";
@@ -376,6 +377,7 @@ function RootComponent() {
               <OfflineBanner />
               <SeoStructuredData />
               <AnalyticsTracker />
+              <CookieBanner />
               <RealtimeSubscriber queryClient={queryClient} />
               {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
               <Suspense fallback={<div className="flex items-center justify-center min-h-screen text-muted-foreground"><span className="animate-pulse">Loading App...</span></div>}>

@@ -40,25 +40,26 @@ export const Route = createFileRoute("/sitemap.xml")({
   <!-- Core Storefront Pages -->
   <url>
     <loc>${origin}/</loc>
-    <lastmod>${now}</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>${origin}/catalog</loc>
-    <lastmod>${now}</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>${origin}/terms</loc>
-    <lastmod>${now}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
+    <loc>${origin}/privacy</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
     <loc>${origin}/licence</loc>
-    <lastmod>${now}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
