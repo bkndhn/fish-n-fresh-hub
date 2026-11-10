@@ -3,7 +3,7 @@
 ## Demo login repair
 - [x] Clear previous-account role caches and avoid auth callback deadlocks.
 - [x] Make demo account buttons sign in directly and route by saved roles without weakening permissions.
-- [ ] Verify all demo account sign-ins and same-browser role switching.
+- [x] Verify all nine demo account sign-ins and same-browser role switching on mobile; Admin also checked on desktop (10 focused tests passed).
 
 - [x] Admin dashboard, products, orders, customers, promotions pages
 - [x] Driver map page with realtime order updates
