@@ -225,6 +225,13 @@
       "when": 1793855549949,
       "tag": "0031_cashback_settlement_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1794291914848,
+      "tag": "0032_orders_manager_cashier_update",
+      "breakpoints": true
     }
   ]
 }
