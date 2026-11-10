@@ -21,6 +21,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { checkRateLimit, recordRateLimitAttempt, resetRateLimit } from "@/lib/rateLimiter";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from '@tanstack/react-query';
+import { workspaceForRoles } from '@/lib/authWorkspace';
 
 function safeNext(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -40,6 +42,10 @@ export const Route = createFileRoute("/auth")({
     meta: [
       { title: "Sign In | Fish N Fresh" },
       { name: "description", content: "Sign in to the Fish N Fresh store." },
+      { property: 'og:title', content: 'Sign In | Fish N Fresh' },
+      { property: 'og:description', content: 'Access your Fish N Fresh customer account or team workspace.' },
+      { property: 'og:type', content: 'website' },
+      { name: 'twitter:card', content: 'summary' },
     ],
   }),
   component: AuthPage,
@@ -119,6 +125,7 @@ function isValidEmail(e: string) {
 // ─── Main component ────────────────────────────────────────────────────────────
 function AuthPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const searchParams = Route.useSearch();
   const next = searchParams.next;
 
@@ -167,17 +174,13 @@ function AuthPage() {
       setForgotStep(3);
     }
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (event) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         setViewMode("forgot");
         setForgotStep(3);
       }
-      if (event === "SIGNED_IN") {
-        // Only auto-route if not in password recovery flow
-        if (!window.location.hash.includes("type=recovery") && searchParams.mode !== "reset") {
-          await routeAfterLogin();
-        }
-      }
+      // Sign-in navigation runs after signInWithPassword resolves. Auth callbacks
+      // must not await another auth method: that can deadlock the session lock.
     });
 
     supabase.auth.getSession().then(({ data }) => {
@@ -206,40 +209,34 @@ function AuthPage() {
       const { data: sessionData } = await supabase.auth.getSession();
       const uid = sessionData.session?.user?.id;
       if (!uid) { navigate({ to: "/orders" }); return; }
-      const { data: rolesData } = await supabase.from("user_roles").select("role").eq("user_id", uid);
-      const roles = (rolesData ?? []).map((r) => r.role as string);
-      if (roles.includes("super_admin") || roles.includes("admin") || roles.includes("manager")) {
-        navigate({ to: "/admin" });
-      } else if (roles.includes("cashier")) {
-        navigate({ to: "/admin/pos" });
-      } else if (roles.includes("driver")) {
-        navigate({ to: "/admin/driver" });
-      } else if (roles.includes("inventory_manager")) {
-        navigate({ to: "/admin/products" });
-      } else if (roles.includes("support_staff")) {
-        navigate({ to: "/admin/support" });
-      } else if (roles.includes("staff")) {
-        navigate({ to: "/admin/kitchen" });
-      } else {
-        navigate({ to: "/orders" });
-      }
-    } catch { navigate({ to: "/orders" }); }
+      const { data: rolesData, error } = await supabase.from("user_roles").select("role").eq("user_id", uid);
+      if (error) throw error;
+      const roles = (rolesData ?? []).map((r) => r.role);
+      queryClient.setQueryData(['admin', 'my-roles'], roles);
+      await navigate({ to: workspaceForRoles(roles), replace: true });
+    } catch { toast.error('Could not load account access. Please try signing in again.'); }
   }
 
   // ─── SIGN IN ───────────────────────────────────────────────────────────────
   async function signIn(e: React.FormEvent) {
     e.preventDefault();
-    const rlCheck = checkRateLimit("auth_signin", email || "guest");
+    await signInAccount(email, password);
+  }
+
+  async function signInAccount(accountEmail: string, accountPassword: string) {
+    const rlCheck = checkRateLimit("auth_signin", accountEmail || "guest");
     if (!rlCheck.allowed) {
       setSigninLockout(rlCheck.retryAfterSeconds);
       toast.error(rlCheck.errorMessage || "Too many sign in attempts. Please wait.");
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    const { error } = await supabase.auth.signInWithPassword({ email: accountEmail, password: accountPassword });
     setLoading(false);
     if (error) {
-      const res = recordRateLimitAttempt("auth_signin", email || "guest");
+      const res = recordRateLimitAttempt("auth_signin", accountEmail || "guest");
       if (!res.allowed && res.retryAfterSeconds > 0) setSigninLockout(res.retryAfterSeconds);
       toast.error(error.message);
       return;
@@ -603,7 +600,7 @@ function AuthPage() {
               </form>
               {/* TEMPORARY demo accounts for testing — remove before launch */}
               <div className="mt-4 rounded-xl border border-dashed border-border p-3">
-                <p className="text-xs font-semibold text-muted-foreground mb-2">Demo accounts (tap to fill, password FishFresh@2026)</p>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Demo accounts</p>
                 <div className="flex flex-wrap gap-1.5">
                   {[
                     ["Admin", "admin@fishnfresh.app"], ["Manager", "manager@fishnfresh.app"],
@@ -612,11 +609,11 @@ function AuthPage() {
                     ["Support", "support@fishnfresh.app"], ["Customer", "customer@fishnfresh.app"],
                     ["Trade buyer", "bknqwe19@gmail.com"],
                   ].map(([label, mail = ""]) => (
-                    <button key={mail} type="button"
-                      onClick={() => { setEmail(mail); setPassword("FishFresh@2026"); }}
-                      className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground hover:bg-accent">
+                    <Button key={mail} type="button" variant="secondary" size="sm" disabled={loading || signinLockout > 0}
+                      onClick={() => { setEmail(mail); setPassword("FishFresh@2026"); void signInAccount(mail, "FishFresh@2026"); }}
+                      className="h-8 px-2.5 text-xs font-medium">
                       {label}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>

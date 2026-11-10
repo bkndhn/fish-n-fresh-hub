@@ -336,6 +336,19 @@ import { PageGate } from "@/components/PageGate";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
+
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event !== 'SIGNED_IN' && event !== 'SIGNED_OUT' && event !== 'USER_UPDATED') return;
+      // Drop the previous account's cached roles and private rows before routing.
+      // Do not call auth methods from inside the auth callback.
+      void queryClient.cancelQueries();
+      queryClient.clear();
+      void router.invalidate();
+    });
+    return () => data.subscription.unsubscribe();
+  }, [queryClient, router]);
 
   useEffect(() => {
     // Purge stale caches if a stylesheet fails to load (FOUC recovery)
