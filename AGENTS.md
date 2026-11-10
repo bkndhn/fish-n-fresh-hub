@@ -13,3 +13,4 @@
 - Yield waste marked `[yield-cost-absorbed]` is physical waste only in P&L; use current product cost for unsnapshotted sales and label closing COGS accordingly — why: avoid charging cleaning loss twice without fabricating historical costs.
 - Checkout preflight derives trade eligibility from the verified caller and saved account, then shares tier/discount calculations with the cart; never trust submitted trade status or item prices.
 - Push enrollment succeeds only with a real subscription and a successful token write; failed subscription or persistence returns null rather than a placeholder token.
+- Clear query caches on auth identity transitions and resolve sign-in workspaces from saved roles; never await auth methods inside an auth callback, to prevent stale permissions and session-lock deadlocks.
