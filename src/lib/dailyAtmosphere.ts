@@ -300,23 +300,35 @@ export function applyDailyAtmosphere(enabled: boolean, isDark: boolean): DailyAt
 /**
  * Sets <meta name="theme-color"> across all browser engines with light/dark support
  */
-export function updateStatusBarColor(lightHex: string, darkHex: string = "#0b1120") {
+export function updateStatusBarColor(_lightHex?: string, _darkHex?: string) {
   if (typeof document === "undefined") return;
-
-  const lightMeta = document.querySelector("meta[name='theme-color'][media*='light']");
-  if (lightMeta) lightMeta.setAttribute("content", lightHex);
-
-  const darkMeta = document.querySelector("meta[name='theme-color'][media*='dark']");
-  if (darkMeta) darkMeta.setAttribute("content", darkHex);
-
-  const defaultMeta = document.querySelector("meta[name='theme-color']:not([media])");
-  if (defaultMeta) {
-    const isDark = document.documentElement.classList.contains("dark");
-    defaultMeta.setAttribute("content", isDark ? darkHex : lightHex);
-  } else {
-    const newTag = document.createElement("meta");
-    newTag.name = "theme-color";
-    newTag.content = lightHex;
-    document.head.appendChild(newTag);
+  // Match phone status bar / navigation bar to the app's actual page background,
+  // so the top notch area and bottom gesture bar blend with the app surface.
+  const toHex = (css: string, fallback: string) => {
+    try {
+      const c = document.createElement("canvas");
+      c.width = c.height = 1;
+      const ctx = c.getContext("2d");
+      if (!ctx) return fallback;
+      ctx.fillStyle = fallback;
+      ctx.fillStyle = css;
+      ctx.fillRect(0, 0, 1, 1);
+      const [r, g, b] = Array.from(ctx.getImageData(0, 0, 1, 1).data);
+      return "#" + [r, g, b].map((v) => (v ?? 0).toString(16).padStart(2, "0")).join("");
+    } catch {
+      return fallback;
+    }
+  };
+  const isDark = document.documentElement.classList.contains("dark");
+  const bg = getComputedStyle(document.body).backgroundColor;
+  const hex = toHex(bg, isDark ? "#020618" : "#f8fbfd");
+  document.documentElement.style.backgroundColor = hex;
+  const metas = document.querySelectorAll("meta[name='theme-color']");
+  if (metas.length === 0) {
+    const t = document.createElement("meta");
+    t.name = "theme-color";
+    t.content = hex;
+    document.head.appendChild(t);
   }
+  metas.forEach((m) => m.setAttribute("content", hex));
 }
