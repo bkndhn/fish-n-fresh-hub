@@ -1,5 +1,11 @@
 # Roadmap
 
+## Launch continuation
+- [ ] Verify Cashier → Kitchen → Ready → Driver → Delivered using saved orders and role logins.
+- [ ] Verify mobile theme and layout across all demo roles; fix observed small-screen issues.
+- [ ] Confirm WhatsApp receipt (blocked until Business connection is available).
+- [ ] Run regression tests and summarize remaining launch blockers.
+
 ## Demo login repair
 - [x] Clear previous-account role caches and avoid auth callback deadlocks.
 - [x] Make demo account buttons sign in directly and route by saved roles without weakening permissions.

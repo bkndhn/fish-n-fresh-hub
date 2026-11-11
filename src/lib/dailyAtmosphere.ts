@@ -322,7 +322,9 @@ export function updateStatusBarColor(_lightHex?: string, _darkHex?: string) {
   const isDark = document.documentElement.classList.contains("dark");
   const bg = getComputedStyle(document.body).backgroundColor;
   const hex = toHex(bg, isDark ? "#020618" : "#f8fbfd");
-  document.documentElement.style.backgroundColor = hex;
+  // Leave the root background token-controlled so switching themes cannot retain
+  // an inline light surface around the phone's safe areas.
+  document.documentElement.style.removeProperty("background-color");
   const metas = document.querySelectorAll("meta[name='theme-color']");
   if (metas.length === 0) {
     const t = document.createElement("meta");
