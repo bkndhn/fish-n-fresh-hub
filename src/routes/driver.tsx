@@ -18,6 +18,7 @@ import {
   type DriverGeoCoordinate
 } from "@/lib/driverLocation";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
+import { isCounterHandover } from "@/lib/driverDelivery";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { getGoogleMapsDirUrl } from "@/lib/maps";
 import { formatINR } from "@/lib/format";
@@ -30,6 +31,14 @@ import {
 
 // @ts-ignore
 export const Route = createFileRoute("/driver")({
+  head: () => ({ meta: [
+    { title: "Driver Deliveries | Fish N Fresh" },
+    { name: "description", content: "Manage assigned Fish N Fresh deliveries, navigation and secure customer handover." },
+    { property: "og:title", content: "Driver Deliveries | Fish N Fresh" },
+    { property: "og:description", content: "Assigned orders, delivery progress and secure customer handover." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: DriverPanel,
 });
 
@@ -81,7 +90,7 @@ function DriverPanel() {
         .from("orders")
         .select("*")
         .or(`driver_id.eq.${session.user.id},driver_name.ilike.%${driverName}%`)
-        .not("status", "in", "('delivered','cancelled')")
+        .not("status", "in", "(delivered,cancelled)")
         .order("created_at", { ascending: false });
       
       if (error) throw error;
@@ -180,13 +189,14 @@ function DriverPanel() {
       toast.error("Failed to update status");
     } else {
       toast.success(`Order marked as ${status.replace(/_/g, " ")}`);
+      await qc.invalidateQueries({ queryKey: ["driver_active_orders"] });
       // Trigger background push alert via Server Action
       void triggerOrderAlert({ data: { orderId, eventType: 'UPDATE', ...(oldStatus ? { oldStatus } : {}) } });
     }
   };
 
   const verifyPin = async () => {
-    if (!pinDialogOrder || !enteredPin) return;
+    if (!pinDialogOrder || (!isCounterHandover(pinDialogOrder.fulfillment_type) && enteredPin.length !== 4)) return;
     setIsVerifying(true);
     
     const { data, error } = await supabase.rpc("verify_and_deliver_order", {
@@ -198,7 +208,7 @@ function DriverPanel() {
     setIsVerifying(false);
     
     if (error || (data as any)?.success === false) {
-      toast.error("Wrong PIN — ask customer to show their PIN");
+      toast.error(error?.message || (data as { message?: string })?.message || "Delivery could not be confirmed");
     } else {
       toast.success("Order Delivered Successfully!");
       setPinDialogOrder(null);
@@ -339,10 +349,10 @@ function DriverPanel() {
                       
                       {order.status === "out_for_delivery" && (
                         <Button 
-                          className="w-full rounded-xl font-bold bg-primary hover:bg-primary/90 text-white" 
+                          className="w-full rounded-xl font-bold" 
                           onClick={() => setPinDialogOrder(order)}
                         >
-                          <CheckCircle2 className="shrink-0 size-4" /> Mark Delivered (Enter PIN)
+                          <CheckCircle2 className="shrink-0 size-4" /> {isCounterHandover(order.fulfillment_type) ? "Confirm Handover" : "Mark Delivered (Enter PIN)"}
                         </Button>
                       )}
                     </div>
@@ -373,10 +383,10 @@ function DriverPanel() {
       <Dialog open={!!pinDialogOrder} onOpenChange={(open) => !open && setPinDialogOrder(null)}>
         <DialogContent className="rounded-3xl sm:max-w-md p-6 text-center">
           <DialogHeader>
-            <DialogTitle className="text-center text-xl">Enter Delivery PIN</DialogTitle>
+            <DialogTitle className="text-center text-xl">{isCounterHandover(pinDialogOrder?.fulfillment_type) ? "Confirm Counter Bill Handover" : "Enter Delivery PIN"}</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-4">
-            <p className="text-sm text-muted-foreground">
+            {isCounterHandover(pinDialogOrder?.fulfillment_type) ? <p className="text-sm text-muted-foreground">Confirm the customer has received this prepaid counter order.</p> : <><p className="text-sm text-muted-foreground">
               Ask the customer for the 4-digit PIN shown on their order tracking page.
             </p>
             <Input 
@@ -387,6 +397,7 @@ function DriverPanel() {
               maxLength={4}
               type="tel"
             />
+            </>}
             {pinDialogOrder?.payment_method === "cod" && (
               <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-700 font-semibold flex items-center justify-center gap-2">
                 <AlertTriangle className="size-4" />
@@ -396,7 +407,7 @@ function DriverPanel() {
             <Button 
               className="w-full rounded-xl h-12 text-lg font-bold mt-2" 
               onClick={verifyPin}
-              disabled={enteredPin.length !== 4 || isVerifying}
+              disabled={(!isCounterHandover(pinDialogOrder?.fulfillment_type) && enteredPin.length !== 4) || isVerifying}
             >
               {isVerifying ? "Verifying..." : "Confirm Delivery"}
             </Button>
