@@ -61,3 +61,8 @@
 - [x] Auto-drafted supplier PO on low stock, saved online, 1-tap WhatsApp marks sent
 - [x] Product photo + description suggestions (free option + smart AI), Use it / Leave it / New
 - [ ] Physical USB scale test and live 10 PM close on published site (needs your device / publish)
+
+## Nov 12 home tidy
+- [x] Remove Daily catch / Same-day delivery strip on home
+- [x] Show photo categories only; text category pills appear only after scrolling past them
+- [x] Generate new seafood photos for the owner to choose from
