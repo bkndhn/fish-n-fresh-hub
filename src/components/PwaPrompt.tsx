@@ -341,64 +341,62 @@ export function PwaPrompt() {
         </DialogContent>
       </Dialog>
 
-      {/* Native App Install Presentation Modal */}
+      {/* Native App Install Presentation Modal — premium */}
       <Dialog open={showDesktopGuide} onOpenChange={setShowDesktopGuide}>
-        <DialogContent className="rounded-3xl max-w-sm p-5 sm:p-6 border-border/80 shadow-2xl">
-          <div className="flex flex-col items-center text-center space-y-3">
+        <DialogContent className="max-w-sm overflow-hidden rounded-[28px] border-border/60 p-0 shadow-2xl">
+          <div className="relative bg-gradient-to-br from-primary via-primary/90 to-primary/70 px-6 pb-14 pt-8 text-center text-primary-foreground">
+            <div className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-primary-foreground/10 blur-2xl" />
+            <div className="pointer-events-none absolute -bottom-12 -left-8 size-36 rounded-full bg-primary-foreground/10 blur-2xl" />
+            <span className="relative inline-flex items-center gap-1 rounded-full bg-primary-foreground/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] backdrop-blur">
+              Free · No app store
+            </span>
+            <DialogTitle className="relative mt-3 text-2xl font-extrabold tracking-tight text-primary-foreground">
+              Fish N Fresh on your phone
+            </DialogTitle>
+            <p className="relative mt-1 text-xs text-primary-foreground/80">One tap to open. Fresh catch, faster.</p>
+          </div>
+          <div className="relative -mt-10 flex justify-center">
             <img
               src="/logo-sm.webp"
-              alt="Fish N Fresh Hub"
-              className="size-16 rounded-2xl object-contain shadow-md border border-border/60 p-1 bg-background"
+              alt="Fish N Fresh app icon"
+              className="size-20 rounded-[22px] border-4 border-background bg-background object-contain p-1.5 shadow-xl"
             />
-            <div>
-              <DialogTitle className="text-lg font-bold text-foreground">
-                Install Fish N Fresh Hub
-              </DialogTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Official PWA · Fast, lightweight &amp; secure
-              </p>
-            </div>
           </div>
-
-          <div className="space-y-2.5 my-3 text-xs bg-muted/40 p-3.5 rounded-2xl border border-border/60">
-            <div className="flex items-center gap-2 text-foreground font-medium">
-              <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
-              <span>Express 35-min fresh catch checkout</span>
+          <div className="space-y-4 px-6 pb-6 pt-4">
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {[
+                { t: "35 min", s: "Express checkout" },
+                { t: "Live", s: "Boat arrival alerts" },
+                { t: "Offline", s: "Works on weak net" },
+              ].map((f) => (
+                <div key={f.t} className="rounded-2xl border border-border/60 bg-muted/40 px-2 py-3">
+                  <p className="text-sm font-bold text-primary">{f.t}</p>
+                  <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground">{f.s}</p>
+                </div>
+              ))}
             </div>
-            <div className="flex items-center gap-2 text-foreground font-medium">
-              <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
-              <span>Real-time morning boat arrival alerts</span>
-            </div>
-            <div className="flex items-center gap-2 text-foreground font-medium">
-              <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
-              <span>Works seamlessly even with spotty internet</span>
-            </div>
-          </div>
-
-          {getActivePrompt() ? (
             <Button
-              className="w-full rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm h-10"
+              className="h-12 w-full rounded-2xl text-base font-bold shadow-lg transition-transform active:scale-[0.98]"
               onClick={handleNativeInstall}
             >
-              <Download className="shrink-0 size-4" />
-              Install App Now
+              <Download className="size-5 shrink-0" />
+              {getActivePrompt() ? "Install App Now" : "Install App"}
             </Button>
-          ) : (
-            <div className="space-y-2.5">
-              <Button
-                className="w-full rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm h-10"
-                onClick={handleNativeInstall}
-              >
-                <Download className="shrink-0 size-4" />
-                Install App
-              </Button>
-              <div className="p-2.5 rounded-xl bg-muted/30 border text-[11px] text-muted-foreground space-y-1">
-                <p className="font-semibold text-foreground">If install dialog doesn't appear automatically:</p>
-                <p>• <strong>Mobile Chrome:</strong> Tap top menu <strong className="text-foreground">(⋮)</strong> &rarr; tap <strong className="text-foreground">Install app</strong></p>
-                <p>• <strong>Desktop Chrome/Edge:</strong> Click the <strong className="text-foreground">Install icon</strong> at the right side of the address bar</p>
-              </div>
-            </div>
-          )}
+            <button
+              type="button"
+              onClick={() => setShowDesktopGuide(false)}
+              className="w-full text-center text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              Maybe later
+            </button>
+            {!getActivePrompt() && (
+              <details className="rounded-2xl border border-border/60 bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+                <summary className="cursor-pointer font-semibold text-foreground">Install button not working?</summary>
+                <p className="mt-1.5">• <strong>Phone Chrome:</strong> tap menu <strong className="text-foreground">(⋮)</strong> → <strong className="text-foreground">Install app</strong></p>
+                <p>• <strong>Computer Chrome/Edge:</strong> click the install icon in the address bar</p>
+              </details>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </>
