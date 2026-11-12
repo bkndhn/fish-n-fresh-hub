@@ -76,7 +76,7 @@ function Home() {
     const el = categoryShowcaseRef.current;
     if (!el) return;
     const io = new IntersectionObserver(
-      ([entry]) => setShowCategoryPills(!entry.isIntersecting && entry.boundingClientRect.top < 0),
+      ([entry]) => setShowCategoryPills(!!entry && !entry.isIntersecting && entry.boundingClientRect.top < 0),
       { rootMargin: "-56px 0px 0px 0px" },
     );
     io.observe(el);
