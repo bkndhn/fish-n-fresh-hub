@@ -1,11 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Clock, Store, MessageSquare } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { BannerCarousel } from "@/components/BannerCarousel";
-import { TrustBadges } from "@/components/TrustBadges";
 import { ProductCard } from "@/components/ProductCard";
 import { AiPicksDialog } from "@/components/AiPicksDialog";
 import { WhatsAppOrderDialog } from "@/components/WhatsAppOrderDialog";
@@ -71,6 +70,18 @@ function Home() {
   const navigate = useNavigate();
   const { items: cartItems, subtotal: cartSubtotal, salesMode, isWholesale: isWholesaleBuyer } = useCart();
   const [whatsAppOpen, setWhatsAppOpen] = useState(false);
+  const categoryShowcaseRef = useRef<HTMLElement>(null);
+  const [showCategoryPills, setShowCategoryPills] = useState(false);
+  useEffect(() => {
+    const el = categoryShowcaseRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => setShowCategoryPills(!entry.isIntersecting && entry.boundingClientRect.top < 0),
+      { rootMargin: "-56px 0px 0px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
   const whatsAppNumber =
     settings?.whatsapp_order_phone || settings?.contact_phone || settings?.whatsapp_number || null;
 
@@ -206,15 +217,12 @@ function Home() {
       )}
 
 
-      <div className="mt-4">
-        <TrustBadges badges={badges ?? []} />
-      </div>
 
 
       {/* Category Showcase with Horizontal Smooth Scrolling */}
-      <section className="mt-6 pt-3">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-extrabold tracking-tight">{t("home.categories")}</h2>
+      <section ref={categoryShowcaseRef} className="mt-3">
+        <div className="mb-1 flex items-center justify-between">
+          <h2 className="text-base font-extrabold tracking-tight">{t("home.categories")}</h2>
           <Link to="/catalog" preload="intent" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
             <span>{t("home.view_all")}</span>
             <span>&rarr;</span>
@@ -276,14 +284,18 @@ function Home() {
       </section>
 
       {/* Slim pill bar that stays pinned at top while scrolling (same as Catalog) */}
-      <StickyCategoryBar
-        className="-mx-4 px-4"
-        categories={categories ?? []}
-        selectedCategory={undefined}
-        onSelectCategory={(catName) =>
-          navigate({ to: "/catalog", search: catName ? { category: catName } : {} } as any)
-        }
-      />
+      {showCategoryPills && (
+        <div className="fixed inset-x-0 top-14 z-30 animate-in fade-in slide-in-from-top-2 duration-200">
+          <StickyCategoryBar
+            className="!static"
+            categories={categories ?? []}
+            selectedCategory={undefined}
+            onSelectCategory={(catName) =>
+              navigate({ to: "/catalog", search: catName ? { category: catName } : {} } as any)
+            }
+          />
+        </div>
+      )}
 
       {/* Dynamic Custom Collections */}
       {customCollections?.map(col => {
