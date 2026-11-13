@@ -8,6 +8,7 @@ import {
 } from "@/lib/dailyAtmosphere";
 
 import { getStoreVertical } from "@/lib/verticals";
+import { themeForColor } from "@/lib/appThemes";
 
 type Theme = "dark" | "light" | "system";
 
@@ -98,6 +99,19 @@ export function ThemeProvider({
 
       const appleStatusMeta = document.querySelector("meta[name='apple-mobile-web-app-status-bar-style']");
       if (appleStatusMeta) appleStatusMeta.setAttribute("content", isDark ? "black-translucent" : "default");
+
+      const preset = themeForColor(customThemeColor);
+      if (preset) {
+        // Full-app theme preset: palette comes from CSS, drop inline overrides.
+        applyDailyAtmosphere(false, isDark);
+        root.setAttribute("data-app-theme", preset.id);
+        root.style.removeProperty("--primary");
+        root.style.removeProperty("--ring");
+        root.style.removeProperty("--primary-foreground");
+        updateStatusBarColor();
+        return;
+      }
+      root.removeAttribute("data-app-theme");
 
       if (dailyEnabled) {
         // Procedural daily atmosphere theme (different every single day)

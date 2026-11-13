@@ -1,3 +1,4 @@
+import { HomeSearchBar } from "@/components/HomeSearchBar";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -181,7 +182,6 @@ function Home() {
             <div className="truncate">
               <span className="text-muted-foreground">Delivering from </span>
               <span className="font-bold text-foreground">{activeBranch.name}</span>
-              <span className="text-muted-foreground hidden sm:inline"> · {vertical.badgeText}</span>
             </div>
           </div>
           <button
@@ -193,6 +193,8 @@ function Home() {
           </button>
         </div>
       )}
+
+      <HomeSearchBar />
 
       <BannerCarousel banners={banners ?? []} />
 
@@ -309,7 +311,7 @@ function Home() {
         if (colProducts.length === 0) return null;
         
         return (
-          <section key={col.id} className="mt-8">
+          <section key={col.id} className="mt-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-extrabold tracking-tight">{col.name}</h2>
               <Link to="/catalog" className="text-sm font-semibold text-primary">
@@ -325,7 +327,7 @@ function Home() {
         );
       })}
 
-      <section className="mt-8">
+      <section className="mt-2">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-extrabold tracking-tight">{t("home.featured")}</h2>
           <Link to="/catalog" className="text-sm font-semibold text-primary">
