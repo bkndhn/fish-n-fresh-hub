@@ -1,3 +1,4 @@
+import { APP_THEMES, themeForColor } from "@/lib/appThemes";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -2841,6 +2842,47 @@ If you need any cut modifications, please reply here. Thank you!`}
                     </div>
                   );
                 })()}
+              </div>
+
+              {/* Full-app UI Theme presets */}
+              <div className="space-y-3 rounded-xl border border-border/70 bg-muted/20 p-3.5">
+                <div>
+                  <Label className="text-sm font-semibold">App Theme (whole app look)</Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Changes colours on every page for all users. Features stay the same. Save settings to apply.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {APP_THEMES.map((th, i) => {
+                    const active = themeForColor(form.theme_color)?.id === th.id;
+                    return (
+                      <button
+                        key={th.id}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => {
+                          setForm({ ...form, theme_color: th.primary, daily_atmosphere_enabled: false } as typeof form);
+                          toast.info(`${th.name} selected — tap Save to apply`);
+                        }}
+                        className={`flex items-center gap-3 rounded-xl border p-2.5 text-left transition ${
+                          active ? "border-primary ring-2 ring-primary/40 bg-background" : "border-border bg-background/60 hover:border-foreground/40"
+                        }`}
+                      >
+                        <span className="flex shrink-0 overflow-hidden rounded-lg border border-border">
+                          {th.swatches.map((c) => (
+                            <span key={c} className="h-9 w-3.5" style={{ backgroundColor: c }} />
+                          ))}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold">
+                            {th.name} {i === 0 && <span className="text-[10px] font-normal text-muted-foreground">(Default)</span>}
+                          </span>
+                          <span className="block truncate text-[11px] text-muted-foreground">{th.tagline}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* App Theme Color with Revert to Default and Preset Swatches */}
