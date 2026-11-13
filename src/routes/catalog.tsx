@@ -24,11 +24,12 @@ import {
   type BusinessVertical,
 } from "@/lib/verticals";
 
-type Search = { category?: string | undefined };
+type Search = { category?: string | undefined; q?: string | undefined };
 
 export const Route = createFileRoute("/catalog")({
   validateSearch: (search: Record<string, unknown>): Search => ({
     category: typeof search['category'] === "string" ? (search['category'] as string) : undefined,
+    q: typeof search['q'] === "string" ? (search['q'] as string) : undefined,
   }),
   head: ({ search }: any) => {
     const cat = search?.category;
@@ -75,9 +76,9 @@ type RatingFilter = "all" | "4.5" | "4.0" | "3.5";
 type SortOption = "featured" | "price-asc" | "price-desc" | "rating" | "discount" | "name";
 
 function Catalog() {
-  const { category } = Route.useSearch();
+  const { category, q: initialQ } = Route.useSearch();
   const navigate = useNavigate({ from: "/catalog" });
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(initialQ ?? "");
   const [sort, setSort] = useState<SortOption>("featured");
   const [priceRange, setPriceRange] = useState<PriceRange>("all");
   const [ratingFilter, setRatingFilter] = useState<RatingFilter>("all");
