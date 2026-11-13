@@ -31,7 +31,7 @@ export function HomeSearchBar() {
         aria-label="Search products"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder={getVerticalSearchPlaceholder(vertical.id, settings?.store_name)}
+        placeholder={getVerticalSearchPlaceholder(vertical.id, settings?.store_name ?? undefined)}
         className="pl-10 pr-10 h-11 rounded-2xl bg-card border-border shadow-xs text-sm"
       />
       {q && (

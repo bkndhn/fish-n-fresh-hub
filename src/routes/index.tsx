@@ -231,7 +231,7 @@ function Home() {
           </Link>
         </div>
         <div 
-          className="flex gap-4 overflow-x-auto pb-3 pt-1 no-scrollbar scrollbar-none scroll-smooth -mx-1 px-1 touch-pan-x"
+          className="flex gap-4 overflow-x-auto pb-1 pt-1 no-scrollbar scrollbar-none scroll-smooth -mx-1 px-1 touch-pan-x"
           onWheel={(e) => {
             if (e.deltaY !== 0 && Math.abs(e.deltaX) < 10) {
               e.currentTarget.scrollLeft += e.deltaY;
