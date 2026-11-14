@@ -31,8 +31,8 @@ export const Route = createFileRoute("/offers")({
 function OffersPage() {
   const { data: settings } = useQuery(settingsQuery);
   const s = settings as Record<string, unknown> | undefined;
-  const fee = Number(s?.base_delivery_fee ?? s?.delivery_fee ?? 40);
-  const freeOver = Number(s?.free_delivery_over ?? 499);
+  const fee = Number(s?.["base_delivery_fee"] ?? s?.["delivery_fee"] ?? 40);
+  const freeOver = Number(s?.["free_delivery_over"] ?? 499);
   const today = new Date().getDay();
   const freeToday = FREE_DELIVERY_WEEKDAYS.includes(today);
 
