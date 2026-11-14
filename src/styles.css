@@ -290,6 +290,22 @@ html {
 .admin-modern [role="tab"] { border-radius: 9999px; }
 
 /* ===== Full-app UI theme presets (data-app-theme on <html>) ===== */
+[data-app-theme="sky-sea"] {
+  --background: oklch(0.985 0.012 230); --card: oklch(1 0 0); --popover: oklch(1 0 0);
+  --foreground: oklch(0.25 0.05 240); --card-foreground: oklch(0.25 0.05 240); --popover-foreground: oklch(0.25 0.05 240);
+  --primary: oklch(0.59 0.14 242); --primary-foreground: oklch(0.99 0.005 230); --ring: oklch(0.59 0.14 242);
+  --accent: oklch(0.8 0.13 210); --accent-foreground: oklch(0.25 0.05 240);
+  --secondary: oklch(0.955 0.025 230); --muted: oklch(0.955 0.025 230); --muted-foreground: oklch(0.5 0.04 240);
+  --border: oklch(0.91 0.03 230); --input: oklch(0.91 0.03 230);
+}
+.dark[data-app-theme="sky-sea"] {
+  --background: oklch(0.17 0.04 240); --card: oklch(0.22 0.05 240); --popover: oklch(0.22 0.05 240);
+  --foreground: oklch(0.97 0.01 230); --card-foreground: oklch(0.97 0.01 230); --popover-foreground: oklch(0.97 0.01 230);
+  --primary: oklch(0.72 0.14 230); --primary-foreground: oklch(0.17 0.04 240); --ring: oklch(0.72 0.14 230);
+  --accent: oklch(0.8 0.13 210); --accent-foreground: oklch(0.17 0.04 240);
+  --secondary: oklch(0.27 0.05 240); --muted: oklch(0.27 0.05 240); --muted-foreground: oklch(0.75 0.03 230);
+  --border: oklch(1 0 0 / 10%); --input: oklch(1 0 0 / 14%);
+}
 [data-app-theme="ocean-luxury"] {
   --background: oklch(0.985 0.005 250); --card: oklch(1 0 0); --popover: oklch(1 0 0);
   --foreground: oklch(0.2 0.05 262); --card-foreground: oklch(0.2 0.05 262); --popover-foreground: oklch(0.2 0.05 262);

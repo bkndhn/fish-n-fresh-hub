@@ -54,7 +54,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           aria-label="Chat on WhatsApp"
           className={`fixed z-40 flex items-center gap-2 rounded-full bg-[#25D366] text-white p-3 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 group ${
             isCartVisible
-              ? "bottom-38 right-4 sm:bottom-24 sm:right-6"
+              ? "bottom-[10.5rem] right-4 sm:bottom-24 sm:right-6"
               : "bottom-20 right-4 sm:bottom-6 sm:right-6"
           }`}
           title="Chat with us on WhatsApp"
