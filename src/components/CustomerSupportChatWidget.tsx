@@ -400,7 +400,7 @@ export function CustomerSupportChatWidget() {
       {/* Floating Trigger Button */}
       <div
         className={`fixed z-40 right-4 sm:right-6 transition-all duration-300 ${
-          isCartVisible ? "bottom-38 sm:bottom-24" : "bottom-20 sm:bottom-6"
+          isCartVisible ? "bottom-[10.5rem] sm:bottom-24" : "bottom-20 sm:bottom-6"
         }`}
       >
         {!isOpen && (
@@ -424,7 +424,7 @@ export function CustomerSupportChatWidget() {
       {isOpen && (
         <div
           className={`fixed right-3 sm:right-6 z-50 w-[calc(100vw-24px)] sm:w-96 rounded-3xl border border-border/80 bg-card shadow-2xl overflow-hidden flex flex-col h-[520px] max-h-[82vh] animate-in slide-in-from-bottom-5 transition-all duration-300 ${
-            isCartVisible ? "bottom-38 sm:bottom-24" : "bottom-20 sm:bottom-6"
+            isCartVisible ? "bottom-[10.5rem] sm:bottom-24" : "bottom-20 sm:bottom-6"
           }`}
         >
           {/* Header */}

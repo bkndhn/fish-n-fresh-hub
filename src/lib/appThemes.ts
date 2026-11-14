@@ -9,6 +9,7 @@ export type AppTheme = {
 };
 
 export const APP_THEMES: AppTheme[] = [
+  { id: "sky-sea", name: "Sky Sea", tagline: "Bright sky blue like the open sea", primary: "#0284c7", swatches: ["#f0f9ff", "#0284c7", "#22d3ee", "#ffffff"] },
   { id: "ocean-luxury", name: "Ocean Luxury", tagline: "Deep navy with gold accents", primary: "#1e3a8a", swatches: ["#0b1736", "#1e3a8a", "#d4a537", "#f7f8fb"] },
   { id: "fresh-market", name: "Fresh Market", tagline: "Light, airy green and white", primary: "#15803d", swatches: ["#f4fbf6", "#15803d", "#84cc16", "#ffffff"] },
   { id: "midnight-sea", name: "Midnight Sea", tagline: "Dark navy with bright cyan", primary: "#06b6d4", swatches: ["#030a1c", "#0b1a33", "#06b6d4", "#e0f7fb"] },

@@ -18,6 +18,7 @@ import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as DriverRouteImport } from './routes/driver'
 import { Route as LicenceRouteImport } from './routes/licence'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as OffersRouteImport } from './routes/offers'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as PaymentStatusRouteImport } from './routes/payment-status'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -121,6 +122,11 @@ const LicenceRoute = LicenceRouteImport.update({
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OffersRoute = OffersRouteImport.update({
+  id: '/offers',
+  path: '/offers',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrdersRoute = OrdersRouteImport.update({
@@ -468,6 +474,7 @@ export interface FileRoutesByFullPath {
   '/driver': typeof DriverRoute
   '/licence': typeof LicenceRoute
   '/mcp': typeof McpRoute
+  '/offers': typeof OffersRoute
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
   '/privacy': typeof PrivacyRoute
@@ -538,6 +545,7 @@ export interface FileRoutesByTo {
   '/driver': typeof DriverRoute
   '/licence': typeof LicenceRoute
   '/mcp': typeof McpRoute
+  '/offers': typeof OffersRoute
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
   '/privacy': typeof PrivacyRoute
@@ -610,6 +618,7 @@ export interface FileRoutesById {
   '/driver': typeof DriverRoute
   '/licence': typeof LicenceRoute
   '/mcp': typeof McpRoute
+  '/offers': typeof OffersRoute
   '/orders': typeof OrdersRoute
   '/payment-status': typeof PaymentStatusRoute
   '/privacy': typeof PrivacyRoute
@@ -682,6 +691,7 @@ export interface FileRouteTypes {
     | '/driver'
     | '/licence'
     | '/mcp'
+    | '/offers'
     | '/orders'
     | '/payment-status'
     | '/privacy'
@@ -752,6 +762,7 @@ export interface FileRouteTypes {
     | '/driver'
     | '/licence'
     | '/mcp'
+    | '/offers'
     | '/orders'
     | '/payment-status'
     | '/privacy'
@@ -823,6 +834,7 @@ export interface FileRouteTypes {
     | '/driver'
     | '/licence'
     | '/mcp'
+    | '/offers'
     | '/orders'
     | '/payment-status'
     | '/privacy'
@@ -895,6 +907,7 @@ export interface RootRouteChildren {
   DriverRoute: typeof DriverRoute
   LicenceRoute: typeof LicenceRoute
   McpRoute: typeof McpRoute
+  OffersRoute: typeof OffersRoute
   OrdersRoute: typeof OrdersRoute
   PaymentStatusRoute: typeof PaymentStatusRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -979,6 +992,13 @@ declare module '@tanstack/react-router' {
       path: '/mcp'
       fullPath: '/mcp'
       preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/offers': {
+      id: '/offers'
+      path: '/offers'
+      fullPath: '/offers'
+      preLoaderRoute: typeof OffersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/orders': {
@@ -1505,6 +1525,7 @@ const rootRouteChildren: RootRouteChildren = {
   DriverRoute: DriverRoute,
   LicenceRoute: LicenceRoute,
   McpRoute: McpRoute,
+  OffersRoute: OffersRoute,
   OrdersRoute: OrdersRoute,
   PaymentStatusRoute: PaymentStatusRoute,
   PrivacyRoute: PrivacyRoute,
