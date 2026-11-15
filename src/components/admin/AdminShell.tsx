@@ -73,6 +73,7 @@ const NAV = [
   { to: "/admin", label: "Dashboard", icon: BarChart3, exact: true, roles: ["admin", "manager", "staff"] },
   { to: "/admin/pos", label: "POS Counter", icon: Store, roles: ["admin", "manager", "cashier", "staff"] },
   { to: "/admin/tables", label: "Table QRs", icon: QrCode, roles: ["admin", "manager", "cashier", "staff"] },
+  { to: "/admin/qr", label: "Store QR", icon: QrCode, roles: ["admin", "manager"] },
   { to: "/admin/products", label: "Products", icon: Package, roles: ["admin", "manager", "inventory_manager"] },
   { to: "/admin/price-board", label: "Daily Price Board", icon: Zap, roles: ["admin", "manager", "inventory_manager"] },
   { to: "/admin/broadcasts", label: "Catch Alerts", icon: Bell, roles: ["admin", "manager", "inventory_manager", "staff"] },
