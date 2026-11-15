@@ -40,7 +40,7 @@ function StoreQrPage() {
 
   const printStandee = () => {
     const w = window.open("", "_blank");
-    if (!w) return toast.error("Allow pop-ups to print");
+    if (!w) { toast.error("Allow pop-ups to print"); return; }
     w.document.write(`<html><head><title>Fish N Fresh QR</title><style>
       body{font-family:system-ui,sans-serif;margin:0;display:flex;justify-content:center}
       .card{width:148mm;height:200mm;box-sizing:border-box;padding:14mm;text-align:center;border:2px solid #0284c7;border-radius:8mm;margin:6mm}
