@@ -32,7 +32,7 @@ function HomeLayoutPage() {
     setSaving(true);
     const { error } = await supabase.from("store_settings").update({ home_layout: layout as never }).eq("id", settings.id);
     setSaving(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Home page updated");
     qc.invalidateQueries({ queryKey: ["store_settings"] });
   };

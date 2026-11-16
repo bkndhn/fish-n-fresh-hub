@@ -49,6 +49,7 @@ import { Route as AuthenticatedAdminDeliveryRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminDriverRouteImport } from './routes/_authenticated/admin/driver'
 import { Route as AuthenticatedAdminExpensesRouteImport } from './routes/_authenticated/admin/expenses'
 import { Route as AuthenticatedAdminGstReportsRouteImport } from './routes/_authenticated/admin/gst-reports'
+import { Route as AuthenticatedAdminHomeLayoutRouteImport } from './routes/_authenticated/admin/home-layout'
 import { Route as AuthenticatedAdminKitchenRouteImport } from './routes/_authenticated/admin/kitchen'
 import { Route as AuthenticatedAdminKitchenOrderRouteImport } from './routes/_authenticated/admin/kitchen-order'
 import { Route as AuthenticatedAdminOnboardingRouteImport } from './routes/_authenticated/admin/onboarding'
@@ -293,6 +294,12 @@ const AuthenticatedAdminGstReportsRoute =
     path: '/admin/gst-reports',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminHomeLayoutRoute =
+  AuthenticatedAdminHomeLayoutRouteImport.update({
+    id: '/admin/home-layout',
+    path: '/admin/home-layout',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminKitchenRoute =
   AuthenticatedAdminKitchenRouteImport.update({
     id: '/admin/kitchen',
@@ -516,6 +523,7 @@ export interface FileRoutesByFullPath {
   '/admin/driver': typeof AuthenticatedAdminDriverRoute
   '/admin/expenses': typeof AuthenticatedAdminExpensesRoute
   '/admin/gst-reports': typeof AuthenticatedAdminGstReportsRoute
+  '/admin/home-layout': typeof AuthenticatedAdminHomeLayoutRoute
   '/admin/kitchen': typeof AuthenticatedAdminKitchenRoute
   '/admin/kitchen-order': typeof AuthenticatedAdminKitchenOrderRoute
   '/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
@@ -589,6 +597,7 @@ export interface FileRoutesByTo {
   '/admin/driver': typeof AuthenticatedAdminDriverRoute
   '/admin/expenses': typeof AuthenticatedAdminExpensesRoute
   '/admin/gst-reports': typeof AuthenticatedAdminGstReportsRoute
+  '/admin/home-layout': typeof AuthenticatedAdminHomeLayoutRoute
   '/admin/kitchen': typeof AuthenticatedAdminKitchenRoute
   '/admin/kitchen-order': typeof AuthenticatedAdminKitchenOrderRoute
   '/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
@@ -664,6 +673,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/driver': typeof AuthenticatedAdminDriverRoute
   '/_authenticated/admin/expenses': typeof AuthenticatedAdminExpensesRoute
   '/_authenticated/admin/gst-reports': typeof AuthenticatedAdminGstReportsRoute
+  '/_authenticated/admin/home-layout': typeof AuthenticatedAdminHomeLayoutRoute
   '/_authenticated/admin/kitchen': typeof AuthenticatedAdminKitchenRoute
   '/_authenticated/admin/kitchen-order': typeof AuthenticatedAdminKitchenOrderRoute
   '/_authenticated/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
@@ -739,6 +749,7 @@ export interface FileRouteTypes {
     | '/admin/driver'
     | '/admin/expenses'
     | '/admin/gst-reports'
+    | '/admin/home-layout'
     | '/admin/kitchen'
     | '/admin/kitchen-order'
     | '/admin/onboarding'
@@ -812,6 +823,7 @@ export interface FileRouteTypes {
     | '/admin/driver'
     | '/admin/expenses'
     | '/admin/gst-reports'
+    | '/admin/home-layout'
     | '/admin/kitchen'
     | '/admin/kitchen-order'
     | '/admin/onboarding'
@@ -886,6 +898,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/driver'
     | '/_authenticated/admin/expenses'
     | '/_authenticated/admin/gst-reports'
+    | '/_authenticated/admin/home-layout'
     | '/_authenticated/admin/kitchen'
     | '/_authenticated/admin/kitchen-order'
     | '/_authenticated/admin/onboarding'
@@ -1236,6 +1249,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminGstReportsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/home-layout': {
+      id: '/_authenticated/admin/home-layout'
+      path: '/admin/home-layout'
+      fullPath: '/admin/home-layout'
+      preLoaderRoute: typeof AuthenticatedAdminHomeLayoutRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/kitchen': {
       id: '/_authenticated/admin/kitchen'
       path: '/admin/kitchen'
@@ -1477,6 +1497,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminDriverRoute: typeof AuthenticatedAdminDriverRoute
   AuthenticatedAdminExpensesRoute: typeof AuthenticatedAdminExpensesRoute
   AuthenticatedAdminGstReportsRoute: typeof AuthenticatedAdminGstReportsRoute
+  AuthenticatedAdminHomeLayoutRoute: typeof AuthenticatedAdminHomeLayoutRoute
   AuthenticatedAdminKitchenRoute: typeof AuthenticatedAdminKitchenRoute
   AuthenticatedAdminKitchenOrderRoute: typeof AuthenticatedAdminKitchenOrderRoute
   AuthenticatedAdminOnboardingRoute: typeof AuthenticatedAdminOnboardingRoute
@@ -1522,6 +1543,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminDriverRoute: AuthenticatedAdminDriverRoute,
   AuthenticatedAdminExpensesRoute: AuthenticatedAdminExpensesRoute,
   AuthenticatedAdminGstReportsRoute: AuthenticatedAdminGstReportsRoute,
+  AuthenticatedAdminHomeLayoutRoute: AuthenticatedAdminHomeLayoutRoute,
   AuthenticatedAdminKitchenRoute: AuthenticatedAdminKitchenRoute,
   AuthenticatedAdminKitchenOrderRoute: AuthenticatedAdminKitchenOrderRoute,
   AuthenticatedAdminOnboardingRoute: AuthenticatedAdminOnboardingRoute,
