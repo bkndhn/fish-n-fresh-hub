@@ -25,6 +25,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as StandeeRouteImport } from './routes/standee'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WholesaleRouteImport } from './routes/wholesale'
 import { Route as WishlistRouteImport } from './routes/wishlist'
@@ -158,6 +159,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StandeeRoute = StandeeRouteImport.update({
+  id: '/standee',
+  path: '/standee',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TermsRoute = TermsRouteImport.update({
@@ -487,6 +493,7 @@ export interface FileRoutesByFullPath {
   '/robots.txt': typeof RobotsDottxtRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/standee': typeof StandeeRoute
   '/terms': typeof TermsRoute
   '/wholesale': typeof WholesaleRoute
   '/wishlist': typeof WishlistRoute
@@ -559,6 +566,7 @@ export interface FileRoutesByTo {
   '/robots.txt': typeof RobotsDottxtRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/standee': typeof StandeeRoute
   '/terms': typeof TermsRoute
   '/wholesale': typeof WholesaleRoute
   '/wishlist': typeof WishlistRoute
@@ -633,6 +641,7 @@ export interface FileRoutesById {
   '/robots.txt': typeof RobotsDottxtRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/standee': typeof StandeeRoute
   '/terms': typeof TermsRoute
   '/wholesale': typeof WholesaleRoute
   '/wishlist': typeof WishlistRoute
@@ -707,6 +716,7 @@ export interface FileRouteTypes {
     | '/robots.txt'
     | '/settings'
     | '/sitemap.xml'
+    | '/standee'
     | '/terms'
     | '/wholesale'
     | '/wishlist'
@@ -779,6 +789,7 @@ export interface FileRouteTypes {
     | '/robots.txt'
     | '/settings'
     | '/sitemap.xml'
+    | '/standee'
     | '/terms'
     | '/wholesale'
     | '/wishlist'
@@ -852,6 +863,7 @@ export interface FileRouteTypes {
     | '/robots.txt'
     | '/settings'
     | '/sitemap.xml'
+    | '/standee'
     | '/terms'
     | '/wholesale'
     | '/wishlist'
@@ -926,6 +938,7 @@ export interface RootRouteChildren {
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SettingsRoute: typeof SettingsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  StandeeRoute: typeof StandeeRoute
   TermsRoute: typeof TermsRoute
   WholesaleRoute: typeof WholesaleRoute
   WishlistRoute: typeof WishlistRoute
@@ -1053,6 +1066,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/standee': {
+      id: '/standee'
+      path: '/standee'
+      fullPath: '/standee'
+      preLoaderRoute: typeof StandeeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/terms': {
@@ -1553,6 +1573,7 @@ const rootRouteChildren: RootRouteChildren = {
   RobotsDottxtRoute: RobotsDottxtRoute,
   SettingsRoute: SettingsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  StandeeRoute: StandeeRoute,
   TermsRoute: TermsRoute,
   WholesaleRoute: WholesaleRoute,
   WishlistRoute: WishlistRoute,
