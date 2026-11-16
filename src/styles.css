@@ -407,3 +407,8 @@ html {
   --secondary: oklch(0.27 0.03 195); --muted: oklch(0.27 0.03 195); --muted-foreground: oklch(0.74 0.02 190);
   --border: oklch(1 0 0 / 10%); --input: oklch(1 0 0 / 14%);
 }
+
+@media print {
+  @page { size: A5; margin: 8mm; }
+  header, nav, footer, .print\:hidden { display: none !important; }
+}

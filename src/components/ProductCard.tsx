@@ -1,3 +1,4 @@
+import { packSizeLabel } from "@/lib/homeLayout";
 import { useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { Minus, Plus, Star, Fish, Zap, Trash2, X, Heart } from "lucide-react";
@@ -241,7 +242,9 @@ export function ProductCard({ product }: { product: Product }) {
               </span>
             );
           })()}
-          <span>· {product.unit}</span>
+          {packSizeLabel(product as never) && (
+            <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">{packSizeLabel(product as never)}</span>
+          )}
         </div>
         {(product as { is_combo?: boolean }).is_combo && (
           <div className="mt-1 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary leading-tight">

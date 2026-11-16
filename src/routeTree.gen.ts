@@ -25,6 +25,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as StandeeRouteImport } from './routes/standee'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WholesaleRouteImport } from './routes/wholesale'
 import { Route as WishlistRouteImport } from './routes/wishlist'
@@ -48,6 +49,7 @@ import { Route as AuthenticatedAdminDeliveryRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminDriverRouteImport } from './routes/_authenticated/admin/driver'
 import { Route as AuthenticatedAdminExpensesRouteImport } from './routes/_authenticated/admin/expenses'
 import { Route as AuthenticatedAdminGstReportsRouteImport } from './routes/_authenticated/admin/gst-reports'
+import { Route as AuthenticatedAdminHomeLayoutRouteImport } from './routes/_authenticated/admin/home-layout'
 import { Route as AuthenticatedAdminKitchenRouteImport } from './routes/_authenticated/admin/kitchen'
 import { Route as AuthenticatedAdminKitchenOrderRouteImport } from './routes/_authenticated/admin/kitchen-order'
 import { Route as AuthenticatedAdminOnboardingRouteImport } from './routes/_authenticated/admin/onboarding'
@@ -158,6 +160,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StandeeRoute = StandeeRouteImport.update({
+  id: '/standee',
+  path: '/standee',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TermsRoute = TermsRouteImport.update({
@@ -285,6 +292,12 @@ const AuthenticatedAdminGstReportsRoute =
   AuthenticatedAdminGstReportsRouteImport.update({
     id: '/admin/gst-reports',
     path: '/admin/gst-reports',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminHomeLayoutRoute =
+  AuthenticatedAdminHomeLayoutRouteImport.update({
+    id: '/admin/home-layout',
+    path: '/admin/home-layout',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAdminKitchenRoute =
@@ -487,6 +500,7 @@ export interface FileRoutesByFullPath {
   '/robots.txt': typeof RobotsDottxtRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/standee': typeof StandeeRoute
   '/terms': typeof TermsRoute
   '/wholesale': typeof WholesaleRoute
   '/wishlist': typeof WishlistRoute
@@ -509,6 +523,7 @@ export interface FileRoutesByFullPath {
   '/admin/driver': typeof AuthenticatedAdminDriverRoute
   '/admin/expenses': typeof AuthenticatedAdminExpensesRoute
   '/admin/gst-reports': typeof AuthenticatedAdminGstReportsRoute
+  '/admin/home-layout': typeof AuthenticatedAdminHomeLayoutRoute
   '/admin/kitchen': typeof AuthenticatedAdminKitchenRoute
   '/admin/kitchen-order': typeof AuthenticatedAdminKitchenOrderRoute
   '/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
@@ -559,6 +574,7 @@ export interface FileRoutesByTo {
   '/robots.txt': typeof RobotsDottxtRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/standee': typeof StandeeRoute
   '/terms': typeof TermsRoute
   '/wholesale': typeof WholesaleRoute
   '/wishlist': typeof WishlistRoute
@@ -581,6 +597,7 @@ export interface FileRoutesByTo {
   '/admin/driver': typeof AuthenticatedAdminDriverRoute
   '/admin/expenses': typeof AuthenticatedAdminExpensesRoute
   '/admin/gst-reports': typeof AuthenticatedAdminGstReportsRoute
+  '/admin/home-layout': typeof AuthenticatedAdminHomeLayoutRoute
   '/admin/kitchen': typeof AuthenticatedAdminKitchenRoute
   '/admin/kitchen-order': typeof AuthenticatedAdminKitchenOrderRoute
   '/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
@@ -633,6 +650,7 @@ export interface FileRoutesById {
   '/robots.txt': typeof RobotsDottxtRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/standee': typeof StandeeRoute
   '/terms': typeof TermsRoute
   '/wholesale': typeof WholesaleRoute
   '/wishlist': typeof WishlistRoute
@@ -655,6 +673,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/driver': typeof AuthenticatedAdminDriverRoute
   '/_authenticated/admin/expenses': typeof AuthenticatedAdminExpensesRoute
   '/_authenticated/admin/gst-reports': typeof AuthenticatedAdminGstReportsRoute
+  '/_authenticated/admin/home-layout': typeof AuthenticatedAdminHomeLayoutRoute
   '/_authenticated/admin/kitchen': typeof AuthenticatedAdminKitchenRoute
   '/_authenticated/admin/kitchen-order': typeof AuthenticatedAdminKitchenOrderRoute
   '/_authenticated/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
@@ -707,6 +726,7 @@ export interface FileRouteTypes {
     | '/robots.txt'
     | '/settings'
     | '/sitemap.xml'
+    | '/standee'
     | '/terms'
     | '/wholesale'
     | '/wishlist'
@@ -729,6 +749,7 @@ export interface FileRouteTypes {
     | '/admin/driver'
     | '/admin/expenses'
     | '/admin/gst-reports'
+    | '/admin/home-layout'
     | '/admin/kitchen'
     | '/admin/kitchen-order'
     | '/admin/onboarding'
@@ -779,6 +800,7 @@ export interface FileRouteTypes {
     | '/robots.txt'
     | '/settings'
     | '/sitemap.xml'
+    | '/standee'
     | '/terms'
     | '/wholesale'
     | '/wishlist'
@@ -801,6 +823,7 @@ export interface FileRouteTypes {
     | '/admin/driver'
     | '/admin/expenses'
     | '/admin/gst-reports'
+    | '/admin/home-layout'
     | '/admin/kitchen'
     | '/admin/kitchen-order'
     | '/admin/onboarding'
@@ -852,6 +875,7 @@ export interface FileRouteTypes {
     | '/robots.txt'
     | '/settings'
     | '/sitemap.xml'
+    | '/standee'
     | '/terms'
     | '/wholesale'
     | '/wishlist'
@@ -874,6 +898,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/driver'
     | '/_authenticated/admin/expenses'
     | '/_authenticated/admin/gst-reports'
+    | '/_authenticated/admin/home-layout'
     | '/_authenticated/admin/kitchen'
     | '/_authenticated/admin/kitchen-order'
     | '/_authenticated/admin/onboarding'
@@ -926,6 +951,7 @@ export interface RootRouteChildren {
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SettingsRoute: typeof SettingsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  StandeeRoute: typeof StandeeRoute
   TermsRoute: typeof TermsRoute
   WholesaleRoute: typeof WholesaleRoute
   WishlistRoute: typeof WishlistRoute
@@ -1053,6 +1079,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/standee': {
+      id: '/standee'
+      path: '/standee'
+      fullPath: '/standee'
+      preLoaderRoute: typeof StandeeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/terms': {
@@ -1214,6 +1247,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/gst-reports'
       fullPath: '/admin/gst-reports'
       preLoaderRoute: typeof AuthenticatedAdminGstReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/home-layout': {
+      id: '/_authenticated/admin/home-layout'
+      path: '/admin/home-layout'
+      fullPath: '/admin/home-layout'
+      preLoaderRoute: typeof AuthenticatedAdminHomeLayoutRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin/kitchen': {
@@ -1457,6 +1497,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminDriverRoute: typeof AuthenticatedAdminDriverRoute
   AuthenticatedAdminExpensesRoute: typeof AuthenticatedAdminExpensesRoute
   AuthenticatedAdminGstReportsRoute: typeof AuthenticatedAdminGstReportsRoute
+  AuthenticatedAdminHomeLayoutRoute: typeof AuthenticatedAdminHomeLayoutRoute
   AuthenticatedAdminKitchenRoute: typeof AuthenticatedAdminKitchenRoute
   AuthenticatedAdminKitchenOrderRoute: typeof AuthenticatedAdminKitchenOrderRoute
   AuthenticatedAdminOnboardingRoute: typeof AuthenticatedAdminOnboardingRoute
@@ -1502,6 +1543,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminDriverRoute: AuthenticatedAdminDriverRoute,
   AuthenticatedAdminExpensesRoute: AuthenticatedAdminExpensesRoute,
   AuthenticatedAdminGstReportsRoute: AuthenticatedAdminGstReportsRoute,
+  AuthenticatedAdminHomeLayoutRoute: AuthenticatedAdminHomeLayoutRoute,
   AuthenticatedAdminKitchenRoute: AuthenticatedAdminKitchenRoute,
   AuthenticatedAdminKitchenOrderRoute: AuthenticatedAdminKitchenOrderRoute,
   AuthenticatedAdminOnboardingRoute: AuthenticatedAdminOnboardingRoute,
@@ -1553,6 +1595,7 @@ const rootRouteChildren: RootRouteChildren = {
   RobotsDottxtRoute: RobotsDottxtRoute,
   SettingsRoute: SettingsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  StandeeRoute: StandeeRoute,
   TermsRoute: TermsRoute,
   WholesaleRoute: WholesaleRoute,
   WishlistRoute: WishlistRoute,

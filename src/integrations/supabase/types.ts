@@ -2152,6 +2152,7 @@ export type Database = {
           hide_out_of_stock_badges: boolean | null
           holiday_dates: string[]
           holidays: string | null
+          home_layout: Json | null
           home_show_allproducts: boolean
           home_show_banner: boolean
           home_show_bestsellers: boolean
@@ -2312,6 +2313,7 @@ export type Database = {
           hide_out_of_stock_badges?: boolean | null
           holiday_dates?: string[]
           holidays?: string | null
+          home_layout?: Json | null
           home_show_allproducts?: boolean
           home_show_banner?: boolean
           home_show_bestsellers?: boolean
@@ -2472,6 +2474,7 @@ export type Database = {
           hide_out_of_stock_badges?: boolean | null
           holiday_dates?: string[]
           holidays?: string | null
+          home_layout?: Json | null
           home_show_allproducts?: boolean
           home_show_banner?: boolean
           home_show_bestsellers?: boolean
@@ -3547,6 +3550,7 @@ export type Database = {
           harbour_source_name: string | null
           holiday_dates: string[] | null
           holidays: string | null
+          home_layout: Json | null
           home_show_allproducts: boolean | null
           home_show_banner: boolean | null
           home_show_bestsellers: boolean | null
@@ -3686,6 +3690,7 @@ export type Database = {
           harbour_source_name?: string | null
           holiday_dates?: string[] | null
           holidays?: string | null
+          home_layout?: Json | null
           home_show_allproducts?: boolean | null
           home_show_banner?: boolean | null
           home_show_bestsellers?: boolean | null
@@ -3825,6 +3830,7 @@ export type Database = {
           harbour_source_name?: string | null
           holiday_dates?: string[] | null
           holidays?: string | null
+          home_layout?: Json | null
           home_show_allproducts?: boolean | null
           home_show_banner?: boolean | null
           home_show_bestsellers?: boolean | null
