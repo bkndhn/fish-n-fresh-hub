@@ -6,7 +6,6 @@ import { Clock, Store, MessageSquare } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { BannerCarousel } from "@/components/BannerCarousel";
-import { ProductCard } from "@/components/ProductCard";
 import { AiPicksDialog } from "@/components/AiPicksDialog";
 import { WhatsAppOrderDialog } from "@/components/WhatsAppOrderDialog";
 
