@@ -411,6 +411,10 @@ export function Footer() {
               Launch Offer
             </Link>
             <span>·</span>
+            <Link to="/standee" className="hover:text-primary transition-colors">
+              Visit Our Shop
+            </Link>
+            <span>·</span>
             <Link to="/privacy" className="hover:text-primary transition-colors">
               Privacy Policy
             </Link>

@@ -20,6 +20,9 @@ import { useCart } from "@/lib/cart";
 import type { SiteSettings, Product } from "@/lib/types";
 import { supabase } from "@/integrations/supabase/client";
 import { StickyCategoryBar } from "@/components/StickyCategoryBar";
+import { HomeShelf } from "@/components/home/HomeShelf";
+import { RepeatLastOrder } from "@/components/home/RepeatLastOrder";
+import { normalizeHomeLayout, recentProducts, HOME_SECTION_LABELS } from "@/lib/homeLayout";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -110,29 +113,32 @@ function Home() {
 
   const storeStatus = settings ? getStoreStatus(settings) : null;
 
-  const featured = (products ?? []).filter((p) => p.is_featured).slice(0, 6);
+  const featured = (products ?? []).filter((p) => p.is_featured).slice(0, 12);
   const bestsellers = [...(products ?? [])]
     .sort((a, b) => {
       if (b.is_bestseller && !a.is_bestseller) return 1;
       if (!b.is_bestseller && a.is_bestseller) return -1;
       return Number(b.rating) - Number(a.rating);
     })
-    .slice(0, 6);
+    .slice(0, 12);
 
-  const [homeRatingFilter, setHomeRatingFilter] = useState<"all" | "4.5" | "4.0" | "3.5">("all");
-
-  const topRated = useMemo(() => {
-    return [...(products ?? [])]
-      .filter((p) => {
-        const r = Number(p.rating ?? 0);
-        if (homeRatingFilter === "4.5") return r >= 4.5;
-        if (homeRatingFilter === "4.0") return r >= 4.0;
-        if (homeRatingFilter === "3.5") return r >= 3.5;
-        return true;
-      })
-      .sort((a, b) => Number(b.rating ?? 0) - Number(a.rating ?? 0))
-      .slice(0, 6);
-  }, [products, homeRatingFilter]);
+  const topRated = useMemo(
+    () => [...(products ?? [])].sort((a, b) => Number(b.rating ?? 0) - Number(a.rating ?? 0)).slice(0, 10),
+    [products],
+  );
+  const homeLayout = useMemo(() => normalizeHomeLayout((settings as { home_layout?: unknown } | undefined)?.home_layout), [settings]);
+  const recent = useMemo(
+    () => recentProducts((products ?? []) as (Product & { updated_at?: string })[], homeLayout.recentMode, homeLayout.recentDays).slice(0, 12),
+    [products, homeLayout],
+  );
+  const pinned = useMemo(
+    () => homeLayout.pinnedProductIds.map((id) => (products ?? []).find((p) => p.id === id)).filter(Boolean) as Product[],
+    [products, homeLayout],
+  );
+  const deals = useMemo(
+    () => (products ?? []).filter((p) => p.old_price && Number(p.old_price) > Number(p.price)).slice(0, 12),
+    [products],
+  );
 
   const vertical = getStoreVertical(settings);
   const storeName = settings?.store_name || "Our Store";
@@ -177,6 +183,9 @@ function Home() {
       <Link to="/offers" className="mb-3 flex items-center justify-between gap-2 rounded-2xl bg-gradient-to-r from-primary to-accent px-4 py-2.5 text-primary-foreground shadow-md">
         <span className="text-xs font-bold">🎉 Launch Offer · Free delivery days</span>
         <span className="text-[11px] font-semibold underline">See offer</span>
+      </Link>
+      <Link to="/standee" className="mb-3 -mt-1 block text-center text-[11px] font-semibold text-primary underline">
+        Visit our shop · hours, address & WhatsApp
       </Link>
 
       {/* Active Hub Express Dispatch Strip */}
@@ -304,101 +313,36 @@ function Home() {
         </div>
       )}
 
-      {/* Dynamic Custom Collections */}
-      {customCollections?.map(col => {
-        // Map junction rows to actual product objects, sorted correctly
-        const colProductRefs = col.collection_products || [];
-        const colProducts = colProductRefs
-          .sort((a: any, b: any) => a.sort_order - b.sort_order)
-          .map((ref: any) => (products ?? []).find(p => p.id === ref.product_id))
-          .filter(Boolean);
-          
-        if (colProducts.length === 0) return null;
-        
-        return (
-          <section key={col.id} className="mt-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-extrabold tracking-tight">{col.name}</h2>
-              <Link to="/catalog" className="text-sm font-semibold text-primary">
-                {t("home.view_all")} &rarr;
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {colProducts.map((p: any) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
-          </section>
-        );
+      {homeLayout.sections.filter((s) => s.enabled).map((sec) => {
+        const title = sec.title || HOME_SECTION_LABELS[sec.id];
+        switch (sec.id) {
+          case "repeat_order":
+            return <RepeatLastOrder key={sec.id} title={title} />;
+          case "recent":
+            return (
+              <HomeShelf key={sec.id} title={title} products={recent}
+                subtitle={homeLayout.recentMode === "edited" ? "Recently updated items" : "Newly added to the shop"}
+                badge={<span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">NEW</span>} />
+            );
+          case "pinned":
+            return <HomeShelf key={sec.id} title={title} products={pinned} />;
+          case "featured":
+            return <HomeShelf key={sec.id} title={title} products={featured} />;
+          case "deals":
+            return <HomeShelf key={sec.id} title={title} products={deals}
+              badge={<span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-foreground">% OFF</span>} />;
+          case "top_rated":
+            return <HomeShelf key={sec.id} title={title} products={topRated} subtitle="Verified customer reviews" />;
+          case "bestsellers":
+            return <HomeShelf key={sec.id} title={title} products={bestsellers} />;
+          case "collections":
+            return (customCollections ?? []).map((col) => {
+              const refs = [...(col.collection_products || [])].sort((a: any, b: any) => a.sort_order - b.sort_order);
+              const list = refs.map((r: any) => (products ?? []).find((p) => p.id === r.product_id)).filter(Boolean) as Product[];
+              return <HomeShelf key={col.id} title={col.name} products={list} />;
+            });
+        }
       })}
-
-      <section className="mt-2">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-extrabold tracking-tight">{t("home.featured")}</h2>
-          <Link to="/catalog" className="text-sm font-semibold text-primary">
-            {t("home.view_all")} &rarr;
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {featured.map((p) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
-      </section>
-
-      <section className="mt-8">
-        <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-extrabold tracking-tight">Top Customer Rated</h2>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
-              Verified Reviews
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
-            {[
-              { id: "all", label: "All" },
-              { id: "4.5", label: "4.5★ & above" },
-              { id: "4.0", label: "4.0★ & above" },
-              { id: "3.5", label: "3.5★ & above" },
-            ].map((chip) => (
-              <button
-                key={chip.id}
-                type="button"
-                onClick={() => setHomeRatingFilter(chip.id as any)}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors shrink-0 ${
-                  homeRatingFilter === chip.id
-                    ? "bg-amber-500 text-white font-bold"
-                    : "border border-border text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {chip.label}
-              </button>
-            ))}
-            <Link to="/catalog" className="text-xs font-semibold text-primary pl-2 shrink-0">
-              {t("home.view_all")} &rarr;
-            </Link>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {topRated.map((p: Product) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
-      </section>
-
-      <section className="mt-8">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-extrabold tracking-tight">{t("home.bestsellers")}</h2>
-          <Link to="/catalog" className="text-sm font-semibold text-primary">
-            {t("home.view_all")} &rarr;
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {bestsellers.map((p) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
-      </section>
       <div className="mt-10 space-y-3 border-t pt-6">
       {salesMode !== "retail" && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-3">
