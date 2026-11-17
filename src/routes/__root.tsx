@@ -225,6 +225,13 @@ function RealtimeSubscriber({ queryClient }: { queryClient: QueryClient }) {
         }
       )
       .subscribe();
+    // Data-free "settings changed" ping sent by admin pages after saving.
+    const settingsPing = supabase
+      .channel("store-settings-ping")
+      .on("broadcast", { event: "changed" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["store_settings"] });
+      })
+      .subscribe();
     const channel = supabase
       .channel("public-db-changes")
       .on(
@@ -315,6 +322,7 @@ function RealtimeSubscriber({ queryClient }: { queryClient: QueryClient }) {
 
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(settingsPing);
       supabase.removeChannel(priceChannel);
       supabase.removeChannel(killswitchChannel);
     };

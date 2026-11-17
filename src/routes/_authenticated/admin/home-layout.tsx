@@ -35,6 +35,8 @@ function HomeLayoutPage() {
     if (error) { toast.error(error.message); return; }
     toast.success("Home page updated");
     qc.invalidateQueries({ queryKey: ["store_settings"] });
+    const ping = supabase.getChannels().find((c) => c.topic === "realtime:store-settings-ping");
+    void ping?.send({ type: "broadcast", event: "changed", payload: {} });
   };
 
   const patch = (i: number, p: Partial<HomeLayout["sections"][number]>) =>

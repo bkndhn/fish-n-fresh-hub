@@ -19,6 +19,7 @@ import { useCart } from "@/lib/cart";
 import type { SiteSettings, Product } from "@/lib/types";
 import { supabase } from "@/integrations/supabase/client";
 import { StickyCategoryBar } from "@/components/StickyCategoryBar";
+import { ActiveOrderTimeline } from "@/components/home/ActiveOrderTimeline";
 import { HomeShelf } from "@/components/home/HomeShelf";
 import { RepeatLastOrder } from "@/components/home/RepeatLastOrder";
 import { normalizeHomeLayout, recentProducts, HOME_SECTION_LABELS } from "@/lib/homeLayout";
@@ -312,6 +313,7 @@ function Home() {
         </div>
       )}
 
+      <ActiveOrderTimeline />
       {homeLayout.sections.filter((s) => s.enabled).map((sec) => {
         const title = sec.title || HOME_SECTION_LABELS[sec.id];
         switch (sec.id) {
