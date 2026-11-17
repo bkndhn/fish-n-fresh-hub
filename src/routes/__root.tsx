@@ -322,6 +322,7 @@ function RealtimeSubscriber({ queryClient }: { queryClient: QueryClient }) {
 
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(settingsPing);
       supabase.removeChannel(priceChannel);
       supabase.removeChannel(killswitchChannel);
     };
