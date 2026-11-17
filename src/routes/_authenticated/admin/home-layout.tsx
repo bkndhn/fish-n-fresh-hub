@@ -35,6 +35,10 @@ function HomeLayoutPage() {
     if (error) { toast.error(error.message); return; }
     toast.success("Home page updated");
     qc.invalidateQueries({ queryKey: ["store_settings"] });
+    const ping = supabase.channel("store-settings-ping");
+    ping.subscribe((st) => {
+      if (st === "SUBSCRIBED") void ping.send({ type: "broadcast", event: "changed", payload: {} }).finally(() => supabase.removeChannel(ping));
+    });
   };
 
   const patch = (i: number, p: Partial<HomeLayout["sections"][number]>) =>
