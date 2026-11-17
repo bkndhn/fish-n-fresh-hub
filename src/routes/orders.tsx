@@ -18,6 +18,7 @@ import { useCart } from "@/lib/cart";
 import { settingsQuery } from "@/lib/queries";
 import { lookupGuestOrder, type GuestOrder } from "@/lib/orders.functions";
 import { CustomerDeliveryPinCard } from "@/components/CustomerDeliveryPinCard";
+import { OrderTimeline } from "@/components/home/ActiveOrderTimeline";
 import { TaxInvoiceModal } from "@/components/TaxInvoiceModal";
 import { checkRateLimit, recordRateLimitAttempt } from "@/lib/rateLimiter";
 
@@ -190,6 +191,7 @@ function MyOrders() {
               {formatIST(o.created_at)} ·{" "}
               {Array.isArray(o.items) ? o.items.length : 0} items · {o.payment_status}
             </p>
+            {o.status !== "cancelled" && <OrderTimeline status={String(o.status)} />}
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/40">
               <p className="font-display text-lg font-bold">{inr(Number(o.total))}</p>
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
