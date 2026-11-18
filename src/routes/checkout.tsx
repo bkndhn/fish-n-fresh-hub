@@ -1,3 +1,4 @@
+import { applyFreeDeliveryDay } from "@/lib/freeDelivery";
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import type { Database } from "@/integrations/supabase/types";
 import { useQuery } from "@tanstack/react-query";
@@ -274,7 +275,7 @@ function Checkout() {
     ? 0
     : isWholesale
       ? wholesaleDeliveryCharge(wholesaleDeliveryMode, wholesaleDeliveryFee, shippingEval.fee)
-      : shippingEval.fee;
+      : applyFreeDeliveryDay(shippingEval.fee, (settings as { free_delivery_weekdays?: number[] } | null)?.free_delivery_weekdays);
   useEffect(() => {
     if (isWholesale && wholesaleDeliveryMode === "pickup_only" && fulfillment === "delivery") setFulfillment("pickup");
   }, [isWholesale, wholesaleDeliveryMode, fulfillment]);

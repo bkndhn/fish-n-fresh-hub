@@ -3769,6 +3769,22 @@ If you need any cut modifications, please reply here. Thank you!`}
                   }}
                 />
               </div>
+              <div>
+                <Label>Free-delivery days (any order size)</Label>
+                <p className="text-xs text-muted-foreground mb-2">Tap days to turn free delivery on or off. Shown on the Launch Offer page and applied in cart & checkout.</p>
+                <div className="flex flex-wrap gap-2">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, i) => {
+                    const cur: number[] = Array.isArray((form as any).free_delivery_weekdays) ? (form as any).free_delivery_weekdays : [];
+                    const on = cur.includes(i);
+                    return (
+                      <Button key={d} type="button" size="sm" variant={on ? "default" : "outline"} className="rounded-full"
+                        onClick={() => setForm({ ...form, free_delivery_weekdays: on ? cur.filter((x) => x !== i) : [...cur, i].sort() } as typeof form)}>
+                        {d}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
             </CardContent>
           </Card>
         ),

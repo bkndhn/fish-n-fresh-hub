@@ -239,6 +239,13 @@
       "when": 1794808546470,
       "tag": "0033_home_layout_setting",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1794985761718,
+      "tag": "0034_free_delivery_weekdays",
+      "breakpoints": true
     }
   ]
 }

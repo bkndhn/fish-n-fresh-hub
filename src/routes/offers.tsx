@@ -8,9 +8,7 @@ import { Truck, Gift, CalendarDays, Copy } from "lucide-react";
 import { toast } from "sonner";
 
 const URL = "https://fishnfresh.lovable.app/offers";
-// Free-delivery days of the week (0 = Sunday). Edit here when the offer changes.
-export const FREE_DELIVERY_WEEKDAYS = [0, 3];
-const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+import { DAY_NAMES, normalizeWeekdays, isFreeDeliveryDay, nextFreeDay } from "@/lib/freeDelivery";
 
 export const Route = createFileRoute("/offers")({
   head: () => ({
@@ -33,8 +31,9 @@ function OffersPage() {
   const s = settings as Record<string, unknown> | undefined;
   const fee = Number(s?.["base_delivery_fee"] ?? s?.["delivery_fee"] ?? 40);
   const freeOver = Number(s?.["free_delivery_over"] ?? 499);
-  const today = new Date().getDay();
-  const freeToday = FREE_DELIVERY_WEEKDAYS.includes(today);
+  const days = normalizeWeekdays(s?.["free_delivery_weekdays"]);
+  const freeToday = isFreeDeliveryDay(days);
+  const next = nextFreeDay(days);
 
   return (
     <AppShell>
@@ -42,7 +41,7 @@ function OffersPage() {
         <p className="text-xs font-bold uppercase tracking-widest opacity-90">Launch Offer</p>
         <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold">Fresh seafood, delivered for less</h1>
         <p className="mt-2 text-sm opacity-90">
-          {freeToday ? "Today is a free-delivery day! 🎉" : `Next free-delivery day: ${DAY_NAMES[FREE_DELIVERY_WEEKDAYS.find((d) => d > today) ?? FREE_DELIVERY_WEEKDAYS[0]!]}`}
+          {freeToday ? "Today is a free-delivery day! 🎉" : next !== null ? `Next free-delivery day: ${DAY_NAMES[next]}` : `Free delivery on orders over ${inr(freeOver)}`}
         </p>
         <Button asChild variant="secondary" className="mt-4 rounded-xl font-bold">
           <Link to="/catalog">Shop now</Link>
@@ -65,7 +64,7 @@ function OffersPage() {
         <div className="rounded-2xl border bg-card p-4">
           <CalendarDays className="size-6 text-primary" />
           <p className="mt-2 font-bold">Free-delivery days</p>
-          <p className="text-lg font-extrabold text-primary">{FREE_DELIVERY_WEEKDAYS.map((d) => DAY_NAMES[d]).join(" & ")}</p>
+          <p className="text-lg font-extrabold text-primary">{days.length ? days.map((d) => DAY_NAMES[d]).join(" & ") : "None this week"}</p>
           <p className="text-xs text-muted-foreground">any order size</p>
         </div>
       </div>

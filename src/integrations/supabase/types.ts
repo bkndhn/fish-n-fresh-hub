@@ -2136,6 +2136,7 @@ export type Database = {
           footer_about: string | null
           free_delivery_over: number
           free_delivery_threshold: number | null
+          free_delivery_weekdays: number[]
           fssai_license_no: string | null
           fssai_number: string | null
           ga4_measurement_id: string | null
@@ -2297,6 +2298,7 @@ export type Database = {
           footer_about?: string | null
           free_delivery_over?: number
           free_delivery_threshold?: number | null
+          free_delivery_weekdays?: number[]
           fssai_license_no?: string | null
           fssai_number?: string | null
           ga4_measurement_id?: string | null
@@ -2458,6 +2460,7 @@ export type Database = {
           footer_about?: string | null
           free_delivery_over?: number
           free_delivery_threshold?: number | null
+          free_delivery_weekdays?: number[]
           fssai_license_no?: string | null
           fssai_number?: string | null
           ga4_measurement_id?: string | null
@@ -3541,6 +3544,7 @@ export type Database = {
           footer_about: string | null
           free_delivery_over: number | null
           free_delivery_threshold: number | null
+          free_delivery_weekdays: number[] | null
           ga4_measurement_id: string | null
           google_review_link: string | null
           gst_enabled: boolean | null
@@ -3681,6 +3685,7 @@ export type Database = {
           footer_about?: string | null
           free_delivery_over?: number | null
           free_delivery_threshold?: number | null
+          free_delivery_weekdays?: number[] | null
           ga4_measurement_id?: string | null
           google_review_link?: string | null
           gst_enabled?: boolean | null
@@ -3821,6 +3826,7 @@ export type Database = {
           footer_about?: string | null
           free_delivery_over?: number | null
           free_delivery_threshold?: number | null
+          free_delivery_weekdays?: number[] | null
           ga4_measurement_id?: string | null
           google_review_link?: string | null
           gst_enabled?: boolean | null

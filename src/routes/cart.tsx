@@ -1,3 +1,4 @@
+import { applyFreeDeliveryDay } from "@/lib/freeDelivery";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
@@ -85,7 +86,7 @@ function CartPage() {
     window.addEventListener("fishnfresh:ordering-mode-updated", handleUpdate);
     return () => window.removeEventListener("fishnfresh:ordering-mode-updated", handleUpdate);
   }, []);
-  const estimatedDeliveryFee = subtotal < freeOver ? Number(settings?.base_delivery_fee ?? settings?.delivery_fee ?? 40) : 0;
+  const estimatedDeliveryFee = applyFreeDeliveryDay(subtotal < freeOver ? Number(settings?.base_delivery_fee ?? settings?.delivery_fee ?? 40) : 0, (settings as { free_delivery_weekdays?: number[] } | null)?.free_delivery_weekdays);
 
   // Live omnichannel stock audit for cart items
   const cartStockAnalysis = items.map((item) => {
