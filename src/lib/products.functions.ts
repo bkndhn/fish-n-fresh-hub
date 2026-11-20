@@ -951,6 +951,10 @@ export const applyRealProductsCatalog = createServerFn({ method: "POST" })
           hsn_code: p.hsn_code ?? null,
         };
 
+        // Free the POS code if an older, different product still holds it.
+        if (p.pos_code != null) {
+          await supabaseAdmin.from("products").update({ pos_code: null } as never).eq("pos_code", p.pos_code).neq("id", p.id);
+        }
         const { error } = await supabaseAdmin.from("products").upsert(payload as never, { onConflict: "id" });
         if (error) {
           seedErrors.push(`${p.name}: ${error.message}`);
